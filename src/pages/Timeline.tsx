@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -84,7 +83,7 @@ const Timeline = () => {
       }
 
       if (filters.search) {
-        filteredData = filtere Data.filter(pitch =>
+        filteredData = filteredData.filter(pitch =>
           pitch.player.full_name.toLowerCase().includes(filters.search.toLowerCase()) ||
           pitch.team.team_name.toLowerCase().includes(filters.search.toLowerCase())
         );
