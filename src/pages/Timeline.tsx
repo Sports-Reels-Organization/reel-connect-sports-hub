@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +15,7 @@ import InfoTooltip from '@/components/InfoTooltip';
 interface TransferPitch {
   id: string;
   player: {
+    id: string;
     full_name: string;
     position: string;
     photo_url?: string;
@@ -55,7 +57,7 @@ const Timeline = () => {
         .from('transfer_pitches')
         .select(`
           *,
-          player:players(full_name, position, photo_url, citizenship, market_value),
+          player:players(id, full_name, position, photo_url, citizenship, market_value),
           team:teams(team_name, country, sport_type)
         `)
         .eq('status', 'active')
@@ -67,7 +69,7 @@ const Timeline = () => {
       }
 
       if (filters.transfer_type) {
-        query = query.eq('transfer_type', filters.transfer_type);
+        query = query.eq('transfer_type', filters.transfer_type as 'loan' | 'permanent');
       }
 
       const { data, error } = await query;

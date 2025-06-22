@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +18,7 @@ import {
 import InfoTooltip from './InfoTooltip';
 
 const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
   const teamStats = [
     { label: 'Active Players', value: '23', icon: Users, color: 'text-blue-600' },
@@ -35,7 +34,7 @@ const Dashboard: React.FC = () => {
     { label: 'Profile Completion', value: '80%', icon: CheckCircle2, color: 'text-rosegold' },
   ];
 
-  const stats = user?.userType === 'team' ? teamStats : agentStats;
+  const stats = profile?.user_type === 'team' ? teamStats : agentStats;
 
   const recentActivity = [
     { 
@@ -68,14 +67,14 @@ const Dashboard: React.FC = () => {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="font-polysans text-2xl font-bold mb-2">
-              Welcome back, {user?.name}!
+              Welcome back, {profile?.full_name}!
             </h1>
             <p className="opacity-90 mb-4">
-              {user?.userType === 'team' 
+              {profile?.user_type === 'team' 
                 ? 'Manage your team, players, and transfers all in one place.' 
                 : 'Discover talent, manage your shortlist, and connect with teams.'}
             </p>
-            {!user?.isProfileComplete && (
+            {!profile?.profile_completed && (
               <div className="flex items-center gap-2 bg-white/20 rounded-lg p-3 mb-4">
                 <AlertCircle className="w-5 h-5" />
                 <span className="text-sm">Complete your profile to unlock all features</span>
@@ -115,13 +114,13 @@ const Dashboard: React.FC = () => {
               <InfoTooltip content="Common tasks you can perform quickly from your dashboard" />
             </CardTitle>
             <CardDescription>
-              {user?.userType === 'team' 
+              {profile?.user_type === 'team' 
                 ? 'Manage your team and players efficiently' 
                 : 'Discover and connect with talent'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {user?.userType === 'team' ? (
+            {profile?.user_type === 'team' ? (
               <>
                 <Button className="w-full justify-start bg-rosegold hover:bg-rosegold/90" size="lg">
                   <UserPlus className="w-5 h-5 mr-3" />

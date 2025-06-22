@@ -2,7 +2,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/AppSidebar';
+import AppSidebar from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
 import { LogOut, User } from 'lucide-react';
 
@@ -11,7 +11,7 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, profile, signOut } = useAuth();
 
   if (!user) {
     return <>{children}</>;
@@ -33,18 +33,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                {user.picture ? (
-                  <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full" />
-                ) : (
-                  <User className="w-8 h-8 text-rosegold" />
-                )}
-                <span className="font-medium text-gray-900">{user.name}</span>
+                <User className="w-8 h-8 text-rosegold" />
+                <span className="font-medium text-gray-900">{profile?.full_name}</span>
                 <span className="text-xs bg-rosegold text-white px-2 py-1 rounded-full font-polysans">
-                  {user.userType === 'team' ? 'Team' : 'Agent'}
+                  {profile?.user_type === 'team' ? 'Team' : 'Agent'}
                 </span>
               </div>
               <Button 
-                onClick={logout} 
+                onClick={signOut} 
                 variant="outline" 
                 size="sm"
                 className="text-rosegold border-rosegold hover:bg-rosegold hover:text-white"

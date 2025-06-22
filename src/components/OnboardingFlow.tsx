@@ -84,7 +84,7 @@ const OnboardingFlow = () => {
           .insert({
             profile_id: profile.id,
             team_name: teamInfo.team_name,
-            sport_type: teamInfo.sport_type,
+            sport_type: teamInfo.sport_type as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby',
             year_founded: teamInfo.year_founded ? parseInt(teamInfo.year_founded) : null,
             country: basicInfo.country,
             league: teamInfo.league,
@@ -101,7 +101,7 @@ const OnboardingFlow = () => {
             agency_name: agentInfo.agency_name,
             fifa_id: agentInfo.fifa_id,
             license_number: agentInfo.license_number,
-            specialization: agentInfo.specialization,
+            specialization: agentInfo.specialization as ('football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby')[],
             bio: agentInfo.bio,
             website: agentInfo.website
           });

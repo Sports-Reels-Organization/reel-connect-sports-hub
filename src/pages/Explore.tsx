@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,12 +10,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Target, Calendar, DollarSign, MessageSquare } from 'lucide-react';
+import { Search, Plus, Calendar, DollarSign, MapPin, Trophy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import InfoTooltip from '@/components/InfoTooltip';
 
 interface AgentRequest {
   id: string;
+  agent: {
+    agency_name: string;
+    profile: {
+      full_name: string;
+      country: string;
+    };
+  };
   title: string;
   description: string;
   sport_type: string;
@@ -27,23 +33,17 @@ interface AgentRequest {
   transfer_type: string;
   expires_at: string;
   created_at: string;
-  agent: {
-    agency_name: string;
-    profile: {
-      full_name: string;
-      country?: string;
-    };
-  };
 }
 
 const Explore = () => {
   const { profile } = useAuth();
-  const { toast } = useToastI();
+  const { toast } = useToast();
   const [requests, setRequests] = useState<AgentRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [filters, setFilters] = useState({
     sport: '',
+    position: '',
     transfer_type: '',
     search: ''
   });
@@ -56,14 +56,14 @@ const Explore = () => {
     position: '',
     budget_min: '',
     budget_max: '',
-    transfer_type: 'permanent'
+    transfer_type: ''
   });
 
   useEffect(() => {
-    fetchAgentRequests();
+    fetchRequests();
   }, [filters]);
 
-  const fetchAgentRequests = async () => {
+  const fetchRequests = async () => {
     try {
       let query = supabase
         .from('agent_requests')
@@ -79,11 +79,11 @@ const Explore = () => {
         .order('created_at', { ascending: false });
 
       if (filters.sport) {
-        query = query.eq('sport_type', filters.sport);
+        query = query.eq('sport_type', filters.sport as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby');
       }
 
       if (filters.transfer_type) {
-        query = query.eq('transfer_type', filters.transfer_type);
+        query = query.eq('transfer_type', filters.transfer_type as 'loan' | 'permanent');
       }
 
       const { data, error } = await query;
@@ -91,6 +91,12 @@ const Explore = () => {
       if (error) throw error;
 
       let filteredData = data || [];
+
+      if (filters.position) {
+        filteredData = filteredData.filter(request => 
+          request.position?.toLowerCase().includes(filters.position.toLowerCase())
+        );
+      }
 
       if (filters.search) {
         filteredData = filteredData.filter(request =>
@@ -139,21 +145,21 @@ const Explore = () => {
           agent_id: agentData.id,
           title: newRequest.title,
           description: newRequest.description,
-          sport_type: newRequest.sport_type,
+          sport_type: newRequest.sport_type as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby',
           position: newRequest.position || null,
           budget_min: newRequest.budget_min ? parseFloat(newRequest.budget_min) : null,
           budget_max: newRequest.budget_max ? parseFloat(newRequest.budget_max) : null,
-          transfer_type: newRequest.transfer_type
+          transfer_type: newRequest.transfer_type as 'loan' | 'permanent'
         });
 
       if (error) throw error;
 
       toast({
-        title: "Request Posted",
+        title: "Request Created",
         description: "Your transfer request has been posted successfully",
       });
 
-      setIsDialogOpen(false);
+      setShowCreateForm(false);
       setNewRequest({
         title: '',
         description: '',
@@ -161,9 +167,9 @@ const Explore = () => {
         position: '',
         budget_min: '',
         budget_max: '',
-        transfer_type: 'permanent'
+        transfer_type: ''
       });
-      fetchAgentRequests();
+      fetchRequests();
     } catch (error) {
       console.error('Error creating request:', error);
       toast({
@@ -206,140 +212,151 @@ const Explore = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-polysans font-bold text-white mb-2">
-              {profile?.user_type === 'agent' ? 'My Requests' : 'Explore Requests'}
-            </h1>
-            <div className="flex items-center gap-2">
-              <p className="text-rosegold font-poppins">
-                {profile?.user_type === 'agent' 
-                  ? 'Manage your transfer requests and discover tagged players'
-                  : 'Browse agent requests and tag your players'
-                }
-              </p>
-              <InfoTooltip content="Agents post transfer requests here. Teams can tag suitable players to match requests." />
-            </div>
+        <div>
+          <h1 className="text-3xl font-polysans font-bold text-white mb-2">
+            Explore Requests
+          </h1>
+          <div className="flex items-center gap-2">
+            <p className="text-rosegold font-poppins">
+              Discover transfer opportunities from agents worldwide
+            </p>
+            <InfoTooltip content="Agents post their transfer requirements here. Teams can view and respond to these requests." />
           </div>
+        </div>
 
+        {/* Action Bar */}
+        <div className="flex justify-between items-center">
+          <div></div>
           {profile?.user_type === 'agent' && (
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Post Request
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-white max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="font-polysans text-xl">Create Transfer Request</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Request Title</Label>
-                    <Input
-                      id="title"
-                      value={newRequest.title}
-                      onChange={(e) => setNewRequest({...newRequest, title: e.target.value})}
-                      placeholder="e.g. Looking for striker for Premier League club"
-                      className="font-poppins"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Sport</Label>
-                      <Select value={newRequest.sport_type} onValueChange={(value) => setNewRequest({...newRequest, sport_type: value})}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select sport" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="football">Football</SelectItem>
-                          <SelectItem value="basketball">Basketball</SelectItem>
-                          <SelectItem value="volleyball">Volleyball</SelectItem>
-                          <SelectItem value="tennis">Tennis</SelectItem>
-                          <SelectItem value="rugby">Rugby</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Transfer Type</Label>
-                      <Select value={newRequest.transfer_type} onValueChange={(value) => setNewRequest({...newRequest, transfer_type: value})}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="permanent">Permanent</SelectItem>
-                          <SelectItem value="loan">Loan</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="position">Position (Optional)</Label>
-                    <Input
-                      id="position"
-                      value={newRequest.position}
-                      onChange={(e) => setNewRequest({...newRequest, position: e.target.value})}
-                      placeholder="e.g. Striker, Midfielder, Goalkeeper"
-                      className="font-poppins"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="budget_min">Min Budget (USD)</Label>
-                      <Input
-                        id="budget_min"
-                        type="number"
-                        value={newRequest.budget_min}
-                        onChange={(e) => setNewRequest({...newRequest, budget_min: e.target.value})}
-                        placeholder="50000"
-                        className="font-poppins"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="budget_max">Max Budget (USD)</Label>
-                      <Input
-                        id="budget_max"
-                        type="number"
-                        value={newRequest.budget_max}
-                        onChange={(e) => setNewRequest({...newRequest, budget_max: e.target.value})}
-                        placeholder="200000"
-                        className="font-poppins"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={newRequest.description}
-                      onChange={(e) => setNewRequest({...newRequest, description: e.target.value})}
-                      placeholder="Detailed requirements, preferred player characteristics, etc."
-                      className="font-poppins h-24"
-                      maxLength={550}
-                    />
-                    <p className="text-sm text-gray-500">
-                      {newRequest.description.length}/550 characters
-                    </p>
-                  </div>
-
-                  <Button 
-                    onClick={handleCreateRequest}
-                    disabled={!newRequest.title || !newRequest.description || !newRequest.sport_type}
-                    className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins"
-                  >
-                    Post Request
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button
+              onClick={() => setShowCreateForm(true)}
+              className="bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Request
+            </Button>
           )}
         </div>
+
+        {/* Create Request Form */}
+        {showCreateForm && (
+          <Card className="bg-white/5 border-rosegold/20">
+            <CardHeader>
+              <CardTitle className="font-polysans text-white">Create Transfer Request</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Request Title</Label>
+                <Input
+                  id="title"
+                  value={newRequest.title}
+                  onChange={(e) => setNewRequest({...newRequest, title: e.target.value})}
+                  placeholder="e.g. Looking for striker for Premier League club"
+                  className="font-poppins"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Sport</Label>
+                  <Select value={newRequest.sport_type} onValueChange={(value) => setNewRequest({...newRequest, sport_type: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sport" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="football">Football</SelectItem>
+                      <SelectItem value="basketball">Basketball</SelectItem>
+                      <SelectItem value="volleyball">Volleyball</SelectItem>
+                      <SelectItem value="tennis">Tennis</SelectItem>
+                      <SelectItem value="rugby">Rugby</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Transfer Type</Label>
+                  <Select value={newRequest.transfer_type} onValueChange={(value) => setNewRequest({...newRequest, transfer_type: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="permanent">Permanent</SelectItem>
+                      <SelectItem value="loan">Loan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="position">Position (Optional)</Label>
+                <Input
+                  id="position"
+                  value={newRequest.position}
+                  onChange={(e) => setNewRequest({...newRequest, position: e.target.value})}
+                  placeholder="e.g. Striker, Midfielder, Goalkeeper"
+                  className="font-poppins"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="budget_min">Min Budget (USD)</Label>
+                  <Input
+                    id="budget_min"
+                    type="number"
+                    value={newRequest.budget_min}
+                    onChange={(e) => setNewRequest({...newRequest, budget_min: e.target.value})}
+                    placeholder="50000"
+                    className="font-poppins"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="budget_max">Max Budget (USD)</Label>
+                  <Input
+                    id="budget_max"
+                    type="number"
+                    value={newRequest.budget_max}
+                    onChange={(e) => setNewRequest({...newRequest, budget_max: e.target.value})}
+                    placeholder="200000"
+                    className="font-poppins"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={newRequest.description}
+                  onChange={(e) => setNewRequest({...newRequest, description: e.target.value})}
+                  placeholder="Detailed requirements, preferred player characteristics, etc."
+                  className="font-poppins h-24"
+                  maxLength={550}
+                />
+                <p className="text-sm text-gray-500">
+                  {newRequest.description.length}/550 characters
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleCreateRequest}
+                  disabled={!newRequest.title || !newRequest.description || !newRequest.sport_type || !newRequest.transfer_type}
+                  className="bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins"
+                >
+                  Post Request
+                </Button>
+                <Button
+                  onClick={() => setShowCreateForm(false)}
+                  variant="outline"
+                  className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white font-poppins"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card className="bg-white/5 border-rosegold/20">
@@ -390,24 +407,21 @@ const Explore = () => {
         </Card>
 
         {/* Agent Requests */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
               <Card key={i} className="bg-white/5 border-rosegold/20 animate-pulse">
                 <CardContent className="p-6">
-                  <div className="h-48 bg-gray-700 rounded"></div>
+                  <div className="h-64 bg-gray-700 rounded"></div>
                 </CardContent>
               </Card>
             ))
           ) : requests.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <Search className="h-12 w-12 text-rosegold mx-auto mb-4" />
-              <h3 className="text-xl font-polysans text-white mb-2">No Requests Found</h3>
+              <h3 className="text-xl font-polysans text-white mb-2">No Active Requests</h3>
               <p className="text-gray-400 font-poppins">
-                {profile?.user_type === 'agent' 
-                  ? 'Create your first transfer request to get started'
-                  : 'No agent requests match your current filters'
-                }
+                No requests match your current filters. Try adjusting your search criteria.
               </p>
             </div>
           ) : (
