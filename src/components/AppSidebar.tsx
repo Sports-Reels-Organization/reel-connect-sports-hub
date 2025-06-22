@@ -1,17 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  Home, 
-  Users, 
-  UserPlus, 
-  TrendingUp, 
-  Search, 
-  MessageCircle, 
-  Bookmark,
-  Settings,
-  Crown
-} from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
@@ -21,100 +11,120 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarFooter,
   SidebarHeader,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Badge } from '@/components/ui/badge';
+import { 
+  Home, 
+  TrendingUp, 
+  Search, 
+  MessageSquare, 
+  User, 
+  Users,
+  Settings,
+  LogOut,
+  Trophy,
+  Target
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-export function AppSidebar() {
-  const { user } = useAuth();
+const AppSidebar = () => {
+  const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const teamMenuItems = [
-    { title: "Dashboard", url: "/dashboard", icon: Home },
-    { title: "Team Profile", url: "/team-profile", icon: Users },
-    { title: "Players", url: "/players", icon: UserPlus },
-    { title: "Transfer Timeline", url: "/transfer-timeline", icon: TrendingUp },
-    { title: "Messages", url: "/messages", icon: MessageCircle },
+    { title: 'Dashboard', url: '/', icon: Home },
+    { title: 'Team Profile', url: '/profile', icon: User },
+    { title: 'Players', url: '/players', icon: Users },
+    { title: 'Transfer Timeline', url: '/timeline', icon: TrendingUp },
+    { title: 'Explore Requests', url: '/explore', icon: Search },
+    { title: 'Messages', url: '/messages', icon: MessageSquare },
   ];
 
   const agentMenuItems = [
-    { title: "Dashboard", url: "/dashboard", icon: Home },
-    { title: "Agent Profile", url: "/agent-profile", icon: Users },
-    { title: "Explore", url: "/explore", icon: Search },
-    { title: "Shortlist", url: "/shortlist", icon: Bookmark },
-    { title: "Messages", url: "/messages", icon: MessageCircle },
+    { title: 'Dashboard', url: '/', icon: Home },
+    { title: 'Agent Profile', url: '/profile', icon: User },
+    { title: 'Transfer Timeline', url: '/timeline', icon: TrendingUp },
+    { title: 'My Requests', url: '/explore', icon: Target },
+    { title: 'Shortlist', url: '/shortlist', icon: Trophy },
+    { title: 'Messages', url: '/messages', icon: MessageSquare },
   ];
 
-  const menuItems = user?.userType === 'team' ? teamMenuItems : agentMenuItems;
+  const menuItems = profile?.user_type === 'team' ? teamMenuItems : agentMenuItems;
+
+  const handleNavigation = (url: string) => {
+    navigate(url);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
 
   return (
-    <Sidebar className="border-r border-gray-200 bg-white">
-      <SidebarHeader className="p-6">
-        <div className="flex items-center gap-3">
+    <Sidebar className="border-r border-rosegold/20">
+      <SidebarHeader className="p-4">
+        <div className="flex items-center gap-2">
           <img 
-            src="/lovable-uploads/0cf6e8a1-48bf-4acb-b44c-8c575d36ebc4.png" 
-            alt="Sports Reels Logo" 
-            className="w-10 h-10"
+            src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png" 
+            alt="Sports Reels" 
+            className="w-8 h-8"
           />
-          <div>
-            <h2 className="font-polysans font-bold text-lg text-black">Sports Reels</h2>
-            <p className="text-xs text-rosegold">Sports Data Platform</p>
-          </div>
+          <h1 className="font-polysans font-bold text-xl text-rosegold">
+            Sports Reels
+          </h1>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-4">
+      <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="font-polysans text-rosegold">
-            {user?.userType === 'team' ? 'Team Management' : 'Agent Tools'}
+            {profile?.user_type === 'team' ? 'Team Management' : 'Agent Tools'}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="hover:bg-rosegold hover:text-white transition-colors">
-                    <a href={item.url} className="flex items-center gap-3 p-3">
-                      <item.icon className="w-5 h-5" />
-                      <span className="font-poppins">{item.title}</span>
-                    </a>
+                  <SidebarMenuButton
+                    onClick={() => handleNavigation(item.url)}
+                    isActive={location.pathname === item.url}
+                    className="font-poppins hover:bg-rosegold/10 hover:text-rosegold data-[active=true]:bg-rosegold/20 data-[active=true]:text-rosegold"
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="font-polysans text-rosegold">Account</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className="hover:bg-rosegold hover:text-white transition-colors">
-                  <a href="/settings" className="flex items-center gap-3 p-3">
-                    <Settings className="w-5 h-5" />
-                    <span className="font-poppins">Settings</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="p-4">
-        <div className="bg-gradient-to-r from-rosegold to-bright-pink p-4 rounded-lg text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <Crown className="w-5 h-5" />
-            <span className="font-polysans font-semibold">Premium Access</span>
+        <div className="space-y-2">
+          <div className="text-sm font-poppins text-gray-600">
+            <p>{profile?.full_name}</p>
+            <p className="text-xs capitalize text-rosegold">
+              {profile?.user_type} Account
+            </p>
           </div>
-          <p className="text-xs opacity-90 mb-3">
-            Unlock advanced features and unlimited transfers
-          </p>
-          <button className="w-full bg-white text-rosegold py-2 px-4 rounded-md text-sm font-medium hover:shadow-lg transition-shadow">
-            Upgrade Now
-          </button>
+          <Button
+            onClick={handleSignOut}
+            variant="outline"
+            size="sm"
+            className="w-full font-poppins border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
       </SidebarFooter>
     </Sidebar>
   );
-}
+};
+
+export default AppSidebar;

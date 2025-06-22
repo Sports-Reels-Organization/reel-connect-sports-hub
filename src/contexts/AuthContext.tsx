@@ -1,22 +1,27 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
 
-interface User {
+interface Profile {
   id: string;
-  name: string;
+  user_id: string;
+  user_type: 'team' | 'agent';
+  full_name: string;
   email: string;
-  picture?: string;
-  userType: 'team' | 'agent';
-  isProfileComplete: boolean;
+  phone?: string;
+  country?: string;
+  is_verified: boolean;
+  profile_completed: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
-  logout: () => void;
-  signup: (email: string, password: string, userType: 'team' | 'agent') => Promise<void>;
+  profile: Profile | null;
   loading: boolean;
+  signInWithGoogle: () => Promise<void>;
+  signOut: () => Promise<void>;
+  updateProfile: (updates: Partial<Profile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,94 +36,105 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
-    const savedUser = localStorage.getItem('sportsReelsUser');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    setLoading(true);
+  const fetchProfile = async (userId: string) => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockUser: User = {
-        id: '1',
-        name: email.split('@')[0],
-        email,
-        userType: 'team',
-        isProfileComplete: false
-      };
-      
-      setUser(mockUser);
-      localStorage.setItem('sportsReelsUser', JSON.stringify(mockUser));
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loginWithGoogle = async () => {
-    setLoading(true);
+  const signInWithGoogle = async () => {
     try {
-      // Simulate Google OAuth
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockUser: User = {
-        id: '2',
-        name: 'John Doe',
-        email: 'john.doe@gmail.com',
-        picture: 'https://via.placeholder.com/150',
-        userType: 'team',
-        isProfileComplete: false
-      };
-      
-      setUser(mockUser);
-      localStorage.setItem('sportsReelsUser', JSON.stringify(mockUser));
-    } finally {
-      setLoading(false);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error signing in with Google:', error);
+      throw error;
     }
   };
 
-  const signup = async (email: string, password: string, userType: 'team' | 'agent') => {
-    setLoading(true);
+  const signOut = async () => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockUser: User = {
-        id: Date.now().toString(),
-        name: email.split('@')[0],
-        email,
-        userType,
-        isProfileComplete: false
-      };
-      
-      setUser(mockUser);
-      localStorage.setItem('sportsReelsUser', JSON.stringify(mockUser));
-    } finally {
-      setLoading(false);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('sportsReelsUser');
+  const updateProfile = async (updates: Partial<Profile>) => {
+    if (!user) throw new Error('No user logged in');
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
   };
 
   return (
     <AuthContext.Provider value={{
       user,
-      login,
-      loginWithGoogle,
-      logout,
-      signup,
-      loading
+      profile,
+      loading,
+      signInWithGoogle,
+      signOut,
+      updateProfile
     }}>
       {children}
     </AuthContext.Provider>

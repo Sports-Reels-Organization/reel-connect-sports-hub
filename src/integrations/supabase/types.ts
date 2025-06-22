@@ -9,7 +9,619 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      agent_requests: {
+        Row: {
+          agent_id: string
+          budget_max: number | null
+          budget_min: number | null
+          created_at: string | null
+          currency: string | null
+          description: string
+          expires_at: string | null
+          id: string
+          is_public: boolean | null
+          position: string | null
+          sport_type: Database["public"]["Enums"]["sport_type"]
+          title: string
+          transfer_type: Database["public"]["Enums"]["transfer_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          budget_max?: number | null
+          budget_min?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description: string
+          expires_at?: string | null
+          id?: string
+          is_public?: boolean | null
+          position?: string | null
+          sport_type: Database["public"]["Enums"]["sport_type"]
+          title: string
+          transfer_type: Database["public"]["Enums"]["transfer_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          budget_max?: number | null
+          budget_min?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string
+          expires_at?: string | null
+          id?: string
+          is_public?: boolean | null
+          position?: string | null
+          sport_type?: Database["public"]["Enums"]["sport_type"]
+          title?: string
+          transfer_type?: Database["public"]["Enums"]["transfer_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          agency_name: string
+          bio: string | null
+          created_at: string | null
+          fifa_id: string | null
+          id: string
+          license_number: string | null
+          profile_id: string
+          specialization: Database["public"]["Enums"]["sport_type"][] | null
+          updated_at: string | null
+          verified: boolean | null
+          website: string | null
+        }
+        Insert: {
+          agency_name: string
+          bio?: string | null
+          created_at?: string | null
+          fifa_id?: string | null
+          id?: string
+          license_number?: string | null
+          profile_id: string
+          specialization?: Database["public"]["Enums"]["sport_type"][] | null
+          updated_at?: string | null
+          verified?: boolean | null
+          website?: string | null
+        }
+        Update: {
+          agency_name?: string
+          bio?: string | null
+          created_at?: string | null
+          fifa_id?: string | null
+          id?: string
+          license_number?: string | null
+          profile_id?: string
+          specialization?: Database["public"]["Enums"]["sport_type"][] | null
+          updated_at?: string | null
+          verified?: boolean | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agents_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_flagged: boolean | null
+          pitch_id: string | null
+          player_id: string | null
+          receiver_id: string
+          sender_id: string
+          status: Database["public"]["Enums"]["message_status"] | null
+          subject: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          pitch_id?: string | null
+          player_id?: string | null
+          receiver_id: string
+          sender_id: string
+          status?: Database["public"]["Enums"]["message_status"] | null
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          pitch_id?: string | null
+          player_id?: string | null
+          receiver_id?: string
+          sender_id?: string
+          status?: Database["public"]["Enums"]["message_status"] | null
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          metadata: Json | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          metadata?: Json | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          metadata?: Json | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      player_stats: {
+        Row: {
+          additional_stats: Json | null
+          assists: number | null
+          created_at: string | null
+          goals: number | null
+          id: string
+          matches_played: number | null
+          minutes_played: number | null
+          player_id: string
+          red_cards: number | null
+          season: string
+          updated_at: string | null
+          yellow_cards: number | null
+        }
+        Insert: {
+          additional_stats?: Json | null
+          assists?: number | null
+          created_at?: string | null
+          goals?: number | null
+          id?: string
+          matches_played?: number | null
+          minutes_played?: number | null
+          player_id: string
+          red_cards?: number | null
+          season: string
+          updated_at?: string | null
+          yellow_cards?: number | null
+        }
+        Update: {
+          additional_stats?: Json | null
+          assists?: number | null
+          created_at?: string | null
+          goals?: number | null
+          id?: string
+          matches_played?: number | null
+          minutes_played?: number | null
+          player_id?: string
+          red_cards?: number | null
+          season?: string
+          updated_at?: string | null
+          yellow_cards?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_stats_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          ai_analysis: Json | null
+          bio: string | null
+          citizenship: string
+          created_at: string | null
+          date_of_birth: string | null
+          fifa_id: string | null
+          full_name: string
+          gender: Database["public"]["Enums"]["gender_type"]
+          height: number | null
+          id: string
+          jersey_number: number | null
+          market_value: number | null
+          photo_url: string | null
+          position: string
+          team_id: string
+          updated_at: string | null
+          weight: number | null
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          bio?: string | null
+          citizenship: string
+          created_at?: string | null
+          date_of_birth?: string | null
+          fifa_id?: string | null
+          full_name: string
+          gender: Database["public"]["Enums"]["gender_type"]
+          height?: number | null
+          id?: string
+          jersey_number?: number | null
+          market_value?: number | null
+          photo_url?: string | null
+          position: string
+          team_id: string
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Update: {
+          ai_analysis?: Json | null
+          bio?: string | null
+          citizenship?: string
+          created_at?: string | null
+          date_of_birth?: string | null
+          fifa_id?: string | null
+          full_name?: string
+          gender?: Database["public"]["Enums"]["gender_type"]
+          height?: number | null
+          id?: string
+          jersey_number?: number | null
+          market_value?: number | null
+          photo_url?: string | null
+          position?: string
+          team_id?: string
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "players_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          country: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          is_verified: boolean | null
+          phone: string | null
+          profile_completed: boolean | null
+          updated_at: string | null
+          user_id: string
+          user_type: Database["public"]["Enums"]["user_type"]
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          is_verified?: boolean | null
+          phone?: string | null
+          profile_completed?: boolean | null
+          updated_at?: string | null
+          user_id: string
+          user_type: Database["public"]["Enums"]["user_type"]
+        }
+        Update: {
+          country?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          is_verified?: boolean | null
+          phone?: string | null
+          profile_completed?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+          user_type?: Database["public"]["Enums"]["user_type"]
+        }
+        Relationships: []
+      }
+      shortlist: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          pitch_id: string
+          player_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          pitch_id: string
+          player_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          pitch_id?: string
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shortlist_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shortlist_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shortlist_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          country: string
+          created_at: string | null
+          description: string | null
+          id: string
+          league: string | null
+          logo_url: string | null
+          member_association: string | null
+          profile_id: string
+          sport_type: Database["public"]["Enums"]["sport_type"]
+          team_name: string
+          titles: string[] | null
+          updated_at: string | null
+          verified: boolean | null
+          year_founded: number | null
+        }
+        Insert: {
+          country: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          league?: string | null
+          logo_url?: string | null
+          member_association?: string | null
+          profile_id: string
+          sport_type: Database["public"]["Enums"]["sport_type"]
+          team_name: string
+          titles?: string[] | null
+          updated_at?: string | null
+          verified?: boolean | null
+          year_founded?: number | null
+        }
+        Update: {
+          country?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          league?: string | null
+          logo_url?: string | null
+          member_association?: string | null
+          profile_id?: string
+          sport_type?: Database["public"]["Enums"]["sport_type"]
+          team_name?: string
+          titles?: string[] | null
+          updated_at?: string | null
+          verified?: boolean | null
+          year_founded?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transfer_pitches: {
+        Row: {
+          asking_price: number | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          player_id: string
+          status: Database["public"]["Enums"]["transfer_status"] | null
+          team_id: string
+          transfer_type: Database["public"]["Enums"]["transfer_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          asking_price?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          player_id: string
+          status?: Database["public"]["Enums"]["transfer_status"] | null
+          team_id: string
+          transfer_type: Database["public"]["Enums"]["transfer_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          asking_price?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          player_id?: string
+          status?: Database["public"]["Enums"]["transfer_status"] | null
+          team_id?: string
+          transfer_type?: Database["public"]["Enums"]["transfer_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_pitches_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_pitches_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      videos: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          duration: number | null
+          id: string
+          is_public: boolean | null
+          match_date: string | null
+          opposing_team: string | null
+          player_id: string | null
+          score: string | null
+          tags: string[] | null
+          team_id: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+          video_type: string | null
+          video_url: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          duration?: number | null
+          id?: string
+          is_public?: boolean | null
+          match_date?: string | null
+          opposing_team?: string | null
+          player_id?: string | null
+          score?: string | null
+          tags?: string[] | null
+          team_id?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+          video_type?: string | null
+          video_url: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          duration?: number | null
+          id?: string
+          is_public?: boolean | null
+          match_date?: string | null
+          opposing_team?: string | null
+          player_id?: string | null
+          score?: string | null
+          tags?: string[] | null
+          team_id?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
+          video_type?: string | null
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "videos_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +630,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      gender_type: "male" | "female" | "other"
+      message_status: "sent" | "delivered" | "read"
+      sport_type: "football" | "basketball" | "volleyball" | "tennis" | "rugby"
+      transfer_status: "active" | "expired" | "completed" | "cancelled"
+      transfer_type: "loan" | "permanent"
+      user_type: "team" | "agent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +750,13 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      gender_type: ["male", "female", "other"],
+      message_status: ["sent", "delivered", "read"],
+      sport_type: ["football", "basketball", "volleyball", "tennis", "rugby"],
+      transfer_status: ["active", "expired", "completed", "cancelled"],
+      transfer_type: ["loan", "permanent"],
+      user_type: ["team", "agent"],
+    },
   },
 } as const

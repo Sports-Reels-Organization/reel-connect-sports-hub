@@ -2,11 +2,12 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthForm from '@/components/AuthForm';
+import OnboardingFlow from '@/components/OnboardingFlow';
 import Layout from '@/components/Layout';
 import Dashboard from '@/components/Dashboard';
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -25,6 +26,10 @@ const Index = () => {
 
   if (!user) {
     return <AuthForm />;
+  }
+
+  if (!profile?.profile_completed) {
+    return <OnboardingFlow />;
   }
 
   return (
