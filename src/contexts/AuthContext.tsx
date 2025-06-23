@@ -68,13 +68,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user ID:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching profile:', error);
+        throw error;
+      }
+      console.log('Profile fetched successfully:', data);
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -112,6 +117,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) throw new Error('No user logged in');
 
     try {
+      console.log('Updating profile with data:', updates);
+      console.log('User ID:', user.id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .update(updates)
@@ -119,7 +127,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error updating profile:', error);
+        throw error;
+      }
+      
+      console.log('Profile updated successfully:', data);
       setProfile(data);
     } catch (error) {
       console.error('Error updating profile:', error);
