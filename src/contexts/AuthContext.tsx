@@ -100,6 +100,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching profile:', error);
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist, create it
+          console.log('Profile not found, creating new profile...');
+          await createProfile(userId);
+          return;
+        }
         throw error;
       }
       console.log('Profile fetched successfully:', data);
@@ -108,6 +114,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createProfile = async (userId: string) => {
+    try {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) throw new Error('No authenticated user');
+
+      const pendingUserType = localStorage.getItem('pending_user_type') || 'team';
+      
+      console.log('Creating profile for user:', userId, 'with type:', pendingUserType);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: userId,
+          full_name: user.data.user.user_metadata?.full_name || user.data.user.user_metadata?.name || 'New User',
+          email: user.data.user.email || '',
+          user_type: pendingUserType as 'team' | 'agent',
+          profile_completed: false,
+          is_verified: false
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating profile:', error);
+        throw error;
+      }
+
+      console.log('Profile created successfully:', data);
+      setProfile(data);
+      
+      // Clear pending user type after successful creation
+      localStorage.removeItem('pending_user_type');
+    } catch (error) {
+      console.error('Error creating profile:', error);
+      throw error;
     }
   };
 
@@ -138,10 +182,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) throw new Error('No user logged in');
+    if (!profile) throw new Error('No profile found');
 
     try {
       console.log('Updating profile with data:', updates);
       console.log('User ID:', user.id);
+      console.log('Profile ID:', profile.id);
       
       const { data, error } = await supabase
         .from('profiles')
