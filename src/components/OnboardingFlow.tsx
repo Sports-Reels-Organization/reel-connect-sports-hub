@@ -14,7 +14,7 @@ import InfoTooltip from '@/components/InfoTooltip';
 const countries = [
   'Nigeria', 'Ghana', 'Kenya', 'South Africa', 'Egypt', 'Morocco', 'Algeria', 'Tunisia',
   'United Kingdom', 'Germany', 'France', 'Spain', 'Italy', 'Brazil', 'Argentina', 'USA'
-];
+].filter(country => country.trim() !== ''); // Filter out any empty strings
 
 const sports = [
   { value: 'football', label: 'Football ⚽' },
@@ -22,7 +22,7 @@ const sports = [
   { value: 'volleyball', label: 'Volleyball 🏐' },
   { value: 'tennis', label: 'Tennis 🎾' },
   { value: 'rugby', label: 'Rugby 🏈' }
-];
+].filter(sport => sport.value.trim() !== ''); // Filter out any empty values
 
 const OnboardingFlow = () => {
   const { profile, updateProfile } = useAuth();

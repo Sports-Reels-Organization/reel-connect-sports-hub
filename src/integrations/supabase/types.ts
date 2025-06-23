@@ -630,6 +630,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      gender: "male" | "female" | "other"
       gender_type: "male" | "female" | "other"
       message_status: "sent" | "delivered" | "read"
       sport_type: "football" | "basketball" | "volleyball" | "tennis" | "rugby"
@@ -751,6 +752,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      gender: ["male", "female", "other"],
       gender_type: ["male", "female", "other"],
       message_status: ["sent", "delivered", "read"],
       sport_type: ["football", "basketball", "volleyball", "tennis", "rugby"],
