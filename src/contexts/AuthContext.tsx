@@ -53,8 +53,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setUser(session?.user ?? null);
         if (session?.user) {
+          // Check if this is a new user signup and we have a pending user type
+          if (event === 'SIGNED_IN') {
+            const pendingUserType = localStorage.getItem('pending_user_type');
+            if (pendingUserType) {
+              console.log('Found pending user type:', pendingUserType);
+              // Update user metadata with the user type
+              try {
+                const { error } = await supabase.auth.updateUser({
+                  data: { user_type: pendingUserType }
+                });
+                if (error) {
+                  console.error('Error updating user metadata:', error);
+                } else {
+                  console.log('User metadata updated with user_type:', pendingUserType);
+                }
+              } catch (error) {
+                console.error('Error updating user metadata:', error);
+              }
+              // Clear the pending user type
+              localStorage.removeItem('pending_user_type');
+            }
+          }
           await fetchProfile(session.user.id);
         } else {
           setProfile(null);
