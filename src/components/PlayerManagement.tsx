@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Users } from 'lucide-react';
+import { Plus, Edit, Users, Upload, Camera, User } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
 // Use the database type for fetched players
@@ -27,6 +27,13 @@ interface PlayerForm {
   fifa_id: string;
   market_value: string;
   bio: string;
+  place_of_birth: string;
+  foot: string;
+  player_agent: string;
+  current_club: string;
+  joined_date: string;
+  contract_expires: string;
+  photo_url: string;
 }
 
 const positions = [
@@ -37,13 +44,21 @@ const positions = [
 
 const countries = [
   'Nigeria', 'Ghana', 'Kenya', 'South Africa', 'Egypt', 'Morocco', 'Algeria', 'Tunisia',
-  'United Kingdom', 'Germany', 'France', 'Spain', 'Italy', 'Brazil', 'Argentina', 'USA'
+  'United Kingdom', 'Germany', 'France', 'Spain', 'Italy', 'Brazil', 'Argentina', 'USA',
+  'Cameroon', 'Ivory Coast', 'Senegal', 'Mali', 'Burkina Faso', 'Guinea', 'Zambia', 'Zimbabwe'
+];
+
+const leagues = [
+  'NLO', 'NNL', 'NPFL', 'N-YOUTH LEAGUE', 'TCC', 'FEDERATION CUP', 'FA CUP',
+  'CAF Champions League', 'CAF Confederation Cup', 'AFCON', 'World Cup', 'Premier League',
+  'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1'
 ];
 
 const PlayerManagement: React.FC = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [players, setPlayers] = useState<DatabasePlayer[]>([]);
   const [teamId, setTeamId] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -59,7 +74,14 @@ const PlayerManagement: React.FC = () => {
     jersey_number: '',
     fifa_id: '',
     market_value: '',
-    bio: ''
+    bio: '',
+    place_of_birth: '',
+    foot: '',
+    player_agent: '',
+    current_club: '',
+    joined_date: '',
+    contract_expires: '',
+    photo_url: ''
   });
 
   useEffect(() => {
@@ -116,13 +138,59 @@ const PlayerManagement: React.FC = () => {
     }
   };
 
+  const handlePhotoUpload = async (file: File, playerId?: string) => {
+    if (!file) return null;
+
+    setUploadingPhoto(true);
+    try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please select an image file');
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Image size must be less than 5MB');
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${playerId || Date.now()}.${fileExt}`;
+      const filePath = `${profile?.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('player-photos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('player-photos')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading photo:', error);
+      toast({
+        title: "Upload Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleSavePlayer = async () => {
     if (!teamId) return;
 
     if (!playerForm.full_name || !playerForm.position || !playerForm.citizenship) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields (Name, Position, Citizenship)",
         variant: "destructive"
       });
       return;
@@ -142,7 +210,14 @@ const PlayerManagement: React.FC = () => {
         jersey_number: playerForm.jersey_number ? parseInt(playerForm.jersey_number) : null,
         fifa_id: playerForm.fifa_id || null,
         market_value: playerForm.market_value ? parseFloat(playerForm.market_value) : null,
-        bio: playerForm.bio || null
+        bio: playerForm.bio || null,
+        place_of_birth: playerForm.place_of_birth || null,
+        foot: playerForm.foot || null,
+        player_agent: playerForm.player_agent || null,
+        current_club: playerForm.current_club || null,
+        joined_date: playerForm.joined_date || null,
+        contract_expires: playerForm.contract_expires || null,
+        photo_url: playerForm.photo_url || null
       };
 
       if (editingPlayer?.id) {
@@ -170,21 +245,7 @@ const PlayerManagement: React.FC = () => {
         });
       }
 
-      setPlayerForm({
-        full_name: '',
-        gender: 'male',
-        height: '',
-        weight: '',
-        position: '',
-        citizenship: '',
-        date_of_birth: '',
-        jersey_number: '',
-        fifa_id: '',
-        market_value: '',
-        bio: ''
-      });
-      setShowAddForm(false);
-      setEditingPlayer(null);
+      resetForm();
       fetchPlayers();
 
     } catch (error) {
@@ -211,7 +272,14 @@ const PlayerManagement: React.FC = () => {
       jersey_number: player.jersey_number?.toString() || '',
       fifa_id: player.fifa_id || '',
       market_value: player.market_value?.toString() || '',
-      bio: player.bio || ''
+      bio: player.bio || '',
+      place_of_birth: player.place_of_birth || '',
+      foot: player.foot || '',
+      player_agent: player.player_agent || '',
+      current_club: player.current_club || '',
+      joined_date: player.joined_date || '',
+      contract_expires: player.contract_expires || '',
+      photo_url: player.photo_url || ''
     });
     setEditingPlayer(player);
     setShowAddForm(true);
@@ -229,7 +297,14 @@ const PlayerManagement: React.FC = () => {
       jersey_number: '',
       fifa_id: '',
       market_value: '',
-      bio: ''
+      bio: '',
+      place_of_birth: '',
+      foot: '',
+      player_agent: '',
+      current_club: '',
+      joined_date: '',
+      contract_expires: '',
+      photo_url: ''
     });
     setEditingPlayer(null);
     setShowAddForm(false);
@@ -240,14 +315,14 @@ const PlayerManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="p-6 space-y-6 max-w-6xl mx-auto bg-background min-h-screen">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-polysans text-3xl font-bold text-white mb-2">
             Player Management
           </h1>
           <p className="text-gray-400">
-            Manage your team's player roster and information
+            Manage your team's player roster and comprehensive information
           </p>
         </div>
         <Button
@@ -268,6 +343,47 @@ const PlayerManagement: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Photo Upload Section */}
+            <div className="flex flex-col items-center space-y-4">
+              <div className="relative">
+                {playerForm.photo_url ? (
+                  <img
+                    src={playerForm.photo_url}
+                    alt="Player photo"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-rosegold"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-gray-700 flex items-center justify-center border-4 border-gray-600">
+                    <User className="w-16 h-16 text-gray-400" />
+                  </div>
+                )}
+                <label className="absolute bottom-0 right-0 bg-rosegold hover:bg-rosegold/90 rounded-full p-2 cursor-pointer">
+                  <Camera className="w-4 h-4 text-white" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const photoUrl = await handlePhotoUpload(file, editingPlayer?.id);
+                        if (photoUrl) {
+                          setPlayerForm(prev => ({ ...prev, photo_url: photoUrl }));
+                        }
+                      }
+                    }}
+                    disabled={uploadingPhoto}
+                  />
+                </label>
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                    <Upload className="w-8 h-8 text-white animate-spin" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="full_name" className="text-white">Full Name *</Label>
@@ -336,6 +452,17 @@ const PlayerManagement: React.FC = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="place_of_birth" className="text-white">Place of Birth</Label>
+                <Input
+                  id="place_of_birth"
+                  value={playerForm.place_of_birth}
+                  onChange={(e) => setPlayerForm(prev => ({ ...prev, place_of_birth: e.target.value }))}
+                  className="bg-background border-border text-white"
+                  placeholder="e.g., Lagos, Nigeria"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="date_of_birth" className="text-white">Date of Birth</Label>
                 <Input
                   id="date_of_birth"
@@ -383,6 +510,67 @@ const PlayerManagement: React.FC = () => {
               </div>
 
               <div className="space-y-2">
+                <Label className="text-white">Preferred Foot</Label>
+                <Select 
+                  value={playerForm.foot} 
+                  onValueChange={(value) => setPlayerForm(prev => ({ ...prev, foot: value }))}
+                >
+                  <SelectTrigger className="bg-background border-border text-white">
+                    <SelectValue placeholder="Select foot" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="left" className="text-white">Left</SelectItem>
+                    <SelectItem value="right" className="text-white">Right</SelectItem>
+                    <SelectItem value="both" className="text-white">Both</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="current_club" className="text-white">Current Club</Label>
+                <Input
+                  id="current_club"
+                  value={playerForm.current_club}
+                  onChange={(e) => setPlayerForm(prev => ({ ...prev, current_club: e.target.value }))}
+                  className="bg-background border-border text-white"
+                  placeholder="Current club name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="joined_date" className="text-white">Joined Date</Label>
+                <Input
+                  id="joined_date"
+                  type="date"
+                  value={playerForm.joined_date}
+                  onChange={(e) => setPlayerForm(prev => ({ ...prev, joined_date: e.target.value }))}
+                  className="bg-background border-border text-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contract_expires" className="text-white">Contract Expires</Label>
+                <Input
+                  id="contract_expires"
+                  type="date"
+                  value={playerForm.contract_expires}
+                  onChange={(e) => setPlayerForm(prev => ({ ...prev, contract_expires: e.target.value }))}
+                  className="bg-background border-border text-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="player_agent" className="text-white">Player Agent</Label>
+                <Input
+                  id="player_agent"
+                  value={playerForm.player_agent}
+                  onChange={(e) => setPlayerForm(prev => ({ ...prev, player_agent: e.target.value }))}
+                  className="bg-background border-border text-white"
+                  placeholder="Agent name or agency"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="fifa_id" className="text-white">FIFA ID</Label>
                 <Input
                   id="fifa_id"
@@ -390,6 +578,18 @@ const PlayerManagement: React.FC = () => {
                   onChange={(e) => setPlayerForm(prev => ({ ...prev, fifa_id: e.target.value }))}
                   className="bg-background border-border text-white"
                   placeholder="FIFA identification number"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="market_value" className="text-white">Market Value (USD)</Label>
+                <Input
+                  id="market_value"
+                  type="number"
+                  value={playerForm.market_value}
+                  onChange={(e) => setPlayerForm(prev => ({ ...prev, market_value: e.target.value }))}
+                  className="bg-background border-border text-white"
+                  placeholder="e.g., 500000"
                 />
               </div>
             </div>
@@ -432,14 +632,29 @@ const PlayerManagement: React.FC = () => {
           <Card key={player.id} className="bg-card border-border hover:border-rosegold/50 transition-colors">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="font-polysans font-semibold text-white mb-1">
-                    {player.full_name}
-                  </h3>
-                  <p className="text-sm text-gray-400">{player.position}</p>
-                  {player.jersey_number && (
-                    <p className="text-sm text-rosegold">#{player.jersey_number}</p>
-                  )}
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700">
+                    {player.photo_url ? (
+                      <img
+                        src={player.photo_url}
+                        alt={player.full_name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <User className="w-8 h-8 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-polysans font-semibold text-white mb-1">
+                      {player.full_name}
+                    </h3>
+                    <p className="text-sm text-gray-400">{player.position}</p>
+                    {player.jersey_number && (
+                      <p className="text-sm text-rosegold">#{player.jersey_number}</p>
+                    )}
+                  </div>
                 </div>
                 <Button
                   onClick={() => handleEditPlayer(player)}
@@ -468,7 +683,31 @@ const PlayerManagement: React.FC = () => {
                     <span className="text-white">{new Date(player.date_of_birth).toLocaleDateString()}</span>
                   </div>
                 )}
+                {player.foot && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Foot:</span>
+                    <span className="text-white">{player.foot}</span>
+                  </div>
+                )}
+                {player.current_club && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Club:</span>
+                    <span className="text-white">{player.current_club}</span>
+                  </div>
+                )}
+                {player.market_value && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Value:</span>
+                    <span className="text-white">${player.market_value?.toLocaleString()}</span>
+                  </div>
+                )}
               </div>
+
+              {player.bio && (
+                <p className="text-sm text-gray-300 mt-3 line-clamp-2">
+                  {player.bio}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -482,7 +721,7 @@ const PlayerManagement: React.FC = () => {
               No Players Added Yet
             </h3>
             <p className="text-gray-400 mb-6">
-              Start building your team by adding player profiles
+              Start building your team by adding comprehensive player profiles
             </p>
             <Button
               onClick={() => setShowAddForm(true)}

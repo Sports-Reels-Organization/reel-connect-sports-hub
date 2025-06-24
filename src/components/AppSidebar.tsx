@@ -1,7 +1,7 @@
 
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
@@ -16,86 +16,118 @@ import {
 } from '@/components/ui/sidebar';
 import { 
   Home, 
-  TrendingUp, 
-  Search, 
+  Users, 
+  Video,
   MessageSquare, 
-  User, 
-  Users,
-  Settings,
-  LogOut,
-  Trophy,
-  Target
+  Calendar, 
+  Search, 
+  User,
+  LogOut
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-const AppSidebar = () => {
-  const { profile, signOut } = useAuth();
-  const navigate = useNavigate();
+const menuItems = [
+  {
+    title: "Dashboard",
+    url: "/",
+    icon: Home,
+  },
+  {
+    title: "Players",
+    url: "/players",
+    icon: Users,
+  },
+  {
+    title: "Videos",
+    url: "/videos", 
+    icon: Video,
+  },
+  {
+    title: "Timeline",
+    url: "/timeline",
+    icon: Calendar,
+  },
+  {
+    title: "Explore",
+    url: "/explore",
+    icon: Search,
+  },
+  {
+    title: "Messages",
+    url: "/messages",
+    icon: MessageSquare,
+  },
+  {
+    title: "Profile",
+    url: "/profile",
+    icon: User,
+  },
+];
+
+export function AppSidebar() {
   const location = useLocation();
-
-  const teamMenuItems = [
-    { title: 'Dashboard', url: '/', icon: Home },
-    { title: 'Team Profile', url: '/profile', icon: User },
-    { title: 'Players', url: '/players', icon: Users },
-    { title: 'Transfer Timeline', url: '/timeline', icon: TrendingUp },
-    { title: 'Explore Requests', url: '/explore', icon: Search },
-    { title: 'Messages', url: '/messages', icon: MessageSquare },
-  ];
-
-  const agentMenuItems = [
-    { title: 'Dashboard', url: '/', icon: Home },
-    { title: 'Agent Profile', url: '/profile', icon: User },
-    { title: 'Transfer Timeline', url: '/timeline', icon: TrendingUp },
-    { title: 'My Requests', url: '/explore', icon: Target },
-    { title: 'Shortlist', url: '/shortlist', icon: Trophy },
-    { title: 'Messages', url: '/messages', icon: MessageSquare },
-  ];
-
-  const menuItems = profile?.user_type === 'team' ? teamMenuItems : agentMenuItems;
-
-  const handleNavigation = (url: string) => {
-    navigate(url);
-  };
+  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const { toast } = useToast();
 
   const handleSignOut = async () => {
     try {
-      await signOut();
-    } catch (error) {
-      console.error('Sign out error:', error);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      navigate('/');
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error signing out",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
   return (
-    <Sidebar className="border-r border-rosegold/20">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <img 
-            src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png" 
-            alt="Sports Reels" 
-            className="w-8 h-8"
+    <Sidebar className="bg-sidebar-background border-sidebar-border">
+      <SidebarHeader className="p-6">
+        <div className="flex items-center gap-3">
+          <img
+            src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
+            alt="Sports Reels"
+            className="w-10 h-10"
           />
-          <h1 className="font-polysans font-bold text-xl text-rosegold">
-            Sports Reels
-          </h1>
+          <div>
+            <h2 className="font-polysans text-xl font-bold text-sidebar-foreground">
+              Sports Reels
+            </h2>
+            <p className="text-sm text-sidebar-foreground/70">
+              {profile?.user_type === 'team' ? 'Team Dashboard' : 'Agent Dashboard'}
+            </p>
+          </div>
         </div>
       </SidebarHeader>
-
+      
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="font-polysans text-rosegold">
-            {profile?.user_type === 'team' ? 'Team Management' : 'Agent Tools'}
+          <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium">
+            Navigation
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    onClick={() => handleNavigation(item.url)}
+                  <SidebarMenuButton 
+                    asChild
                     isActive={location.pathname === item.url}
-                    className="font-poppins hover:bg-rosegold/10 hover:text-rosegold data-[active=true]:bg-rosegold/20 data-[active=true]:text-rosegold"
+                    className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                   >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                    <a href={item.url} className="flex items-center gap-3">
+                      <item.icon className="w-5 h-5" />
+                      <span className="font-medium">{item.title}</span>
+                    </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -104,27 +136,23 @@ const AppSidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <div className="space-y-2">
-          <div className="text-sm font-poppins text-gray-600">
-            <p>{profile?.full_name}</p>
-            <p className="text-xs capitalize text-rosegold">
-              {profile?.user_type} Account
-            </p>
-          </div>
-          <Button
+      <SidebarFooter className="p-6 border-t border-sidebar-border">
+        <div className="space-y-4">
+          {profile && (
+            <div className="text-sm text-sidebar-foreground/70">
+              <p className="font-medium text-sidebar-foreground">{profile.full_name}</p>
+              <p>{profile.email}</p>
+            </div>
+          )}
+          <SidebarMenuButton 
             onClick={handleSignOut}
-            variant="outline"
-            size="sm"
-            className="w-full font-poppins border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
+            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+            <LogOut className="w-5 h-5 mr-3" />
+            <span>Sign Out</span>
+          </SidebarMenuButton>
         </div>
       </SidebarFooter>
     </Sidebar>
   );
-};
-
-export default AppSidebar;
+}

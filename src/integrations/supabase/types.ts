@@ -118,6 +118,77 @@ export type Database = {
           },
         ]
       }
+      match_videos: {
+        Row: {
+          compressed_video_url: string | null
+          created_at: string | null
+          duration: number | null
+          file_size: number | null
+          final_score: string | null
+          home_or_away: string | null
+          id: string
+          is_processed: boolean | null
+          league: string
+          match_date: string | null
+          match_stats: Json | null
+          opposing_team: string
+          tagged_players: Json | null
+          team_id: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+          video_url: string
+        }
+        Insert: {
+          compressed_video_url?: string | null
+          created_at?: string | null
+          duration?: number | null
+          file_size?: number | null
+          final_score?: string | null
+          home_or_away?: string | null
+          id?: string
+          is_processed?: boolean | null
+          league: string
+          match_date?: string | null
+          match_stats?: Json | null
+          opposing_team: string
+          tagged_players?: Json | null
+          team_id?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+          video_url: string
+        }
+        Update: {
+          compressed_video_url?: string | null
+          created_at?: string | null
+          duration?: number | null
+          file_size?: number | null
+          final_score?: string | null
+          home_or_away?: string | null
+          id?: string
+          is_processed?: boolean | null
+          league?: string
+          match_date?: string | null
+          match_stats?: Json | null
+          opposing_team?: string
+          tagged_players?: Json | null
+          team_id?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_videos_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -222,6 +293,65 @@ export type Database = {
         }
         Relationships: []
       }
+      player_performance: {
+        Row: {
+          assists: number | null
+          clean_sheets: number | null
+          created_at: string | null
+          goals: number | null
+          id: string
+          league: string | null
+          matches_played: number | null
+          minutes_played: number | null
+          player_id: string | null
+          red_cards: number | null
+          saves: number | null
+          season: string
+          updated_at: string | null
+          yellow_cards: number | null
+        }
+        Insert: {
+          assists?: number | null
+          clean_sheets?: number | null
+          created_at?: string | null
+          goals?: number | null
+          id?: string
+          league?: string | null
+          matches_played?: number | null
+          minutes_played?: number | null
+          player_id?: string | null
+          red_cards?: number | null
+          saves?: number | null
+          season: string
+          updated_at?: string | null
+          yellow_cards?: number | null
+        }
+        Update: {
+          assists?: number | null
+          clean_sheets?: number | null
+          created_at?: string | null
+          goals?: number | null
+          id?: string
+          league?: string | null
+          matches_played?: number | null
+          minutes_played?: number | null
+          player_id?: string | null
+          red_cards?: number | null
+          saves?: number | null
+          season?: string
+          updated_at?: string | null
+          yellow_cards?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_performance_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_stats: {
         Row: {
           additional_stats: Json | null
@@ -280,18 +410,29 @@ export type Database = {
           ai_analysis: Json | null
           bio: string | null
           citizenship: string
+          contract_expires: string | null
           created_at: string | null
+          current_club: string | null
           date_of_birth: string | null
           fifa_id: string | null
+          foot: string | null
           full_name: string
           gender: Database["public"]["Enums"]["gender_type"]
           height: number | null
           id: string
+          international_duty: Json | null
           jersey_number: number | null
+          joined_date: string | null
+          leagues_participated: string[] | null
           market_value: number | null
+          match_stats: Json | null
           photo_url: string | null
+          place_of_birth: string | null
+          player_agent: string | null
           position: string
           team_id: string
+          titles_seasons: string[] | null
+          transfer_history: Json | null
           updated_at: string | null
           weight: number | null
         }
@@ -299,18 +440,29 @@ export type Database = {
           ai_analysis?: Json | null
           bio?: string | null
           citizenship: string
+          contract_expires?: string | null
           created_at?: string | null
+          current_club?: string | null
           date_of_birth?: string | null
           fifa_id?: string | null
+          foot?: string | null
           full_name: string
           gender: Database["public"]["Enums"]["gender_type"]
           height?: number | null
           id?: string
+          international_duty?: Json | null
           jersey_number?: number | null
+          joined_date?: string | null
+          leagues_participated?: string[] | null
           market_value?: number | null
+          match_stats?: Json | null
           photo_url?: string | null
+          place_of_birth?: string | null
+          player_agent?: string | null
           position: string
           team_id: string
+          titles_seasons?: string[] | null
+          transfer_history?: Json | null
           updated_at?: string | null
           weight?: number | null
         }
@@ -318,18 +470,29 @@ export type Database = {
           ai_analysis?: Json | null
           bio?: string | null
           citizenship?: string
+          contract_expires?: string | null
           created_at?: string | null
+          current_club?: string | null
           date_of_birth?: string | null
           fifa_id?: string | null
+          foot?: string | null
           full_name?: string
           gender?: Database["public"]["Enums"]["gender_type"]
           height?: number | null
           id?: string
+          international_duty?: Json | null
           jersey_number?: number | null
+          joined_date?: string | null
+          leagues_participated?: string[] | null
           market_value?: number | null
+          match_stats?: Json | null
           photo_url?: string | null
+          place_of_birth?: string | null
+          player_agent?: string | null
           position?: string
           team_id?: string
+          titles_seasons?: string[] | null
+          transfer_history?: Json | null
           updated_at?: string | null
           weight?: number | null
         }

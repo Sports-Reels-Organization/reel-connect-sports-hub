@@ -70,6 +70,15 @@
     --sidebar-border: 210 11% 20%;
     --sidebar-ring: 340 30% 65%;
   }
+
+  /* Force dark theme for all elements */
+  * {
+    color-scheme: dark;
+  }
+
+  html {
+    color-scheme: dark;
+  }
 }
 
 @layer base {
@@ -78,6 +87,39 @@
   }
   body {
     @apply bg-background text-foreground font-poppins;
+    background-color: hsl(210 11% 7%) !important;
+    color: hsl(0 0% 95%) !important;
+  }
+  
+  /* Ensure all backgrounds are dark */
+  .bg-white {
+    @apply bg-background !important;
+  }
+  
+  /* Override any white backgrounds */
+  [class*="bg-white"] {
+    background-color: hsl(210 11% 10%) !important;
+  }
+  
+  /* Ensure form elements have dark theme */
+  input, textarea, select {
+    background-color: hsl(210 11% 10%) !important;
+    color: hsl(0 0% 95%) !important;
+    border-color: hsl(210 11% 20%) !important;
+  }
+  
+  input::placeholder, textarea::placeholder {
+    color: hsl(0 0% 65%) !important;
+  }
+  
+  /* Override any light colored text */
+  .text-black {
+    color: hsl(0 0% 95%) !important;
+  }
+  
+  /* Ensure dialog and modal backgrounds are dark */
+  [data-radix-popper-content-wrapper] {
+    background-color: hsl(210 11% 10%) !important;
   }
 }
 
@@ -105,5 +147,26 @@
   }
   .hover-rosegold:hover {
     background-color: #B76E79;
+  }
+  
+  /* Utility for ensuring dark theme */
+  .dark-theme-override {
+    background-color: hsl(210 11% 7%) !important;
+    color: hsl(0 0% 95%) !important;
+  }
+  
+  /* Line clamp utilities */
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
 }
