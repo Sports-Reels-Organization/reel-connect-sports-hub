@@ -1,0 +1,470 @@
+
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { Upload, Users, Trophy, Video } from 'lucide-react';
+import InfoTooltip from './InfoTooltip';
+
+const sports = [
+  { value: 'football', label: 'Football ⚽' },
+  { value: 'basketball', label: 'Basketball 🏀' },
+  { value: 'volleyball', label: 'Volleyball 🏐' },
+  { value: 'tennis', label: 'Tennis 🎾' },
+  { value: 'rugby', label: 'Rugby 🏈' }
+];
+
+const leagues = [
+  'NLO', 'NNL', 'NPFL', 'N-YOUTH LEAGUE', 'TCC', 'FEDERATION CUP', 'FA CUP'
+];
+
+const countries = [
+  'Nigeria', 'Ghana', 'Kenya', 'South Africa', 'Egypt', 'Morocco', 'Algeria', 'Tunisia',
+  'United Kingdom', 'Germany', 'France', 'Spain', 'Italy', 'Brazil', 'Argentina', 'USA'
+];
+
+interface TeamData {
+  team_name: string;
+  sport_type: string;
+  member_association: string;
+  year_founded: string;
+  country: string;
+  league: string;
+  description: string;
+  logo_url: string;
+  titles: string[];
+}
+
+const TeamProfileSetup: React.FC = () => {
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [teamData, setTeamData] = useState<TeamData>({
+    team_name: '',
+    sport_type: '',
+    member_association: '',
+    year_founded: '',
+    country: '',
+    league: '',
+    description: '',
+    logo_url: '',
+    titles: []
+  });
+  const [currentPlayers, setCurrentPlayers] = useState(0);
+  const [uploadedVideos, setUploadedVideos] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    fetchTeamData();
+    fetchPlayerCount();
+    fetchVideoCount();
+  }, [profile]);
+
+  const fetchTeamData = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching team data:', error);
+        return;
+      }
+
+      if (data) {
+        setTeamData({
+          team_name: data.team_name || '',
+          sport_type: data.sport_type || '',
+          member_association: data.member_association || '',
+          year_founded: data.year_founded?.toString() || '',
+          country: data.country || '',
+          league: data.league || '',
+          description: data.description || '',
+          logo_url: data.logo_url || '',
+          titles: data.titles || []
+        });
+        checkProfileCompletion(data);
+      }
+    } catch (error) {
+      console.error('Error fetching team data:', error);
+    }
+  };
+
+  const fetchPlayerCount = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (teamData) {
+        const { count } = await supabase
+          .from('players')
+          .select('*', { count: 'exact', head: true })
+          .eq('team_id', teamData.id);
+
+        setCurrentPlayers(count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching player count:', error);
+    }
+  };
+
+  const fetchVideoCount = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (teamData) {
+        const { count } = await supabase
+          .from('videos')
+          .select('*', { count: 'exact', head: true })
+          .eq('team_id', teamData.id);
+
+        setUploadedVideos(count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching video count:', error);
+    }
+  };
+
+  const checkProfileCompletion = (data: any) => {
+    const requiredFields = ['team_name', 'sport_type', 'country', 'league'];
+    const isComplete = requiredFields.every(field => data[field]);
+    setIsComplete(isComplete && currentPlayers > 0 && uploadedVideos >= 5);
+  };
+
+  const handleSave = async () => {
+    if (!profile?.id) return;
+
+    if (!teamData.team_name || !teamData.sport_type || !teamData.country) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: existingTeam } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      const teamPayload = {
+        profile_id: profile.id,
+        team_name: teamData.team_name,
+        sport_type: teamData.sport_type as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby',
+        member_association: teamData.member_association,
+        year_founded: teamData.year_founded ? parseInt(teamData.year_founded) : null,
+        country: teamData.country,
+        league: teamData.league,
+        description: teamData.description,
+        logo_url: teamData.logo_url,
+        titles: teamData.titles
+      };
+
+      if (existingTeam) {
+        const { error } = await supabase
+          .from('teams')
+          .update(teamPayload)
+          .eq('id', existingTeam.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('teams')
+          .insert(teamPayload);
+
+        if (error) throw error;
+      }
+
+      await fetchPlayerCount();
+      await fetchVideoCount();
+      checkProfileCompletion(teamPayload);
+
+      toast({
+        title: "Success",
+        description: "Team profile saved successfully",
+      });
+
+    } catch (error) {
+      console.error('Error saving team data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save team profile",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addTitle = () => {
+    setTeamData(prev => ({
+      ...prev,
+      titles: [...prev.titles, '']
+    }));
+  };
+
+  const updateTitle = (index: number, value: string) => {
+    setTeamData(prev => ({
+      ...prev,
+      titles: prev.titles.map((title, i) => i === index ? value : title)
+    }));
+  };
+
+  const removeTitle = (index: number) => {
+    setTeamData(prev => ({
+      ...prev,
+      titles: prev.titles.filter((_, i) => i !== index)
+    }));
+  };
+
+  if (profile?.user_type !== 'team') {
+    return null;
+  }
+
+  return (
+    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="font-polysans text-3xl font-bold text-white mb-2">
+          Team Profile Setup
+        </h1>
+        <p className="text-gray-400 mb-4">
+          Complete your team profile to access all platform features
+        </p>
+        
+        {/* Progress Indicators */}
+        <div className="grid grid-cols-3 gap-4 mt-6">
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 text-center">
+              <Users className="w-8 h-8 mx-auto mb-2 text-rosegold" />
+              <p className="text-sm font-medium text-gray-300">Current Players</p>
+              <p className="text-2xl font-bold text-white">{currentPlayers}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 text-center">
+              <Video className="w-8 h-8 mx-auto mb-2 text-bright-pink" />
+              <p className="text-sm font-medium text-gray-300">Videos Uploaded</p>
+              <p className="text-2xl font-bold text-white">{uploadedVideos}</p>
+              <p className="text-xs text-gray-500">Min. 5 required</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border">
+            <CardContent className="p-4 text-center">
+              <Trophy className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
+              <p className="text-sm font-medium text-gray-300">Profile Status</p>
+              <p className={`text-sm font-medium ${isComplete ? 'text-green-400' : 'text-orange-400'}`}>
+                {isComplete ? 'Complete' : 'Incomplete'}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Team Information Form */}
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="font-polysans text-white flex items-center gap-2">
+            Team Information
+            <InfoTooltip content="Complete all required fields to enable platform features" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="team_name" className="text-white">Team Name *</Label>
+              <Input
+                id="team_name"
+                value={teamData.team_name}
+                onChange={(e) => setTeamData(prev => ({ ...prev, team_name: e.target.value }))}
+                className="bg-background border-border text-white"
+                placeholder="Enter team name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-white">Sport Type *</Label>
+              <Select 
+                value={teamData.sport_type} 
+                onValueChange={(value) => setTeamData(prev => ({ ...prev, sport_type: value }))}
+              >
+                <SelectTrigger className="bg-background border-border text-white">
+                  <SelectValue placeholder="Select sport" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {sports.map((sport) => (
+                    <SelectItem key={sport.value} value={sport.value} className="text-white">
+                      {sport.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-white">Country *</Label>
+              <Select 
+                value={teamData.country} 
+                onValueChange={(value) => setTeamData(prev => ({ ...prev, country: value }))}
+              >
+                <SelectTrigger className="bg-background border-border text-white">
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {countries.map((country) => (
+                    <SelectItem key={country} value={country} className="text-white">
+                      {country}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-white">League/Competition *</Label>
+              <Select 
+                value={teamData.league} 
+                onValueChange={(value) => setTeamData(prev => ({ ...prev, league: value }))}
+              >
+                <SelectTrigger className="bg-background border-border text-white">
+                  <SelectValue placeholder="Select league" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {leagues.map((league) => (
+                    <SelectItem key={league} value={league} className="text-white">
+                      {league}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="year_founded" className="text-white">Year Founded</Label>
+              <Input
+                id="year_founded"
+                type="number"
+                value={teamData.year_founded}
+                onChange={(e) => setTeamData(prev => ({ ...prev, year_founded: e.target.value }))}
+                className="bg-background border-border text-white"
+                placeholder="e.g., 1990"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="member_association" className="text-white">Member Association</Label>
+              <Input
+                id="member_association"
+                value={teamData.member_association}
+                onChange={(e) => setTeamData(prev => ({ ...prev, member_association: e.target.value }))}
+                className="bg-background border-border text-white"
+                placeholder="e.g., NFF, CAF"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-white">Team Description</Label>
+            <Textarea
+              id="description"
+              value={teamData.description}
+              onChange={(e) => setTeamData(prev => ({ ...prev, description: e.target.value }))}
+              className="bg-background border-border text-white resize-none"
+              placeholder="Brief description of your team's history and achievements"
+              rows={3}
+            />
+          </div>
+
+          {/* Titles Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-white">Titles and Achievements</Label>
+              <Button
+                type="button"
+                onClick={addTitle}
+                variant="outline"
+                size="sm"
+                className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
+              >
+                Add Title
+              </Button>
+            </div>
+            {teamData.titles.map((title, index) => (
+              <div key={index} className="flex gap-2">
+                <Input
+                  value={title}
+                  onChange={(e) => updateTitle(index, e.target.value)}
+                  className="bg-background border-border text-white"
+                  placeholder="e.g., Premier League Champions 2023"
+                />
+                <Button
+                  type="button"
+                  onClick={() => removeTitle(index)}
+                  variant="outline"
+                  size="sm"
+                  className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={handleSave}
+            disabled={loading}
+            className="w-full bg-rosegold hover:bg-rosegold/90 text-white"
+          >
+            {loading ? 'Saving...' : 'Save Team Profile'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Requirements Notice */}
+      {!isComplete && (
+        <Card className="bg-orange-500/10 border-orange-500/30">
+          <CardContent className="p-6">
+            <h3 className="font-polysans font-semibold text-orange-400 mb-2">
+              Complete Your Profile
+            </h3>
+            <p className="text-orange-300 mb-4">
+              To access all platform features, you need to:
+            </p>
+            <ul className="text-orange-300 space-y-2">
+              <li>• Complete team information (required fields marked with *)</li>
+              <li>• Add at least one player to your team</li>
+              <li>• Upload at least 5 videos</li>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+export default TeamProfileSetup;
