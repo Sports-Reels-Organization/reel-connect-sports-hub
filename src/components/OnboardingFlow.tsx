@@ -29,7 +29,7 @@ const OnboardingFlow = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
-  
+
   // Form data
   const [basicInfo, setBasicInfo] = useState({
     full_name: profile?.full_name || '',
@@ -123,7 +123,7 @@ const OnboardingFlow = () => {
             member_association: teamInfo.member_association,
             description: teamInfo.description
           });
-        
+
         if (error) {
           console.error('Error creating team profile:', error);
           throw error;
@@ -140,7 +140,7 @@ const OnboardingFlow = () => {
             bio: agentInfo.bio,
             website: agentInfo.website
           });
-        
+
         if (error) {
           console.error('Error creating agent profile:', error);
           throw error;
@@ -199,7 +199,7 @@ const OnboardingFlow = () => {
                 <Input
                   id="full_name"
                   value={basicInfo.full_name}
-                  onChange={(e) => setBasicInfo({...basicInfo, full_name: e.target.value})}
+                  onChange={(e) => setBasicInfo({ ...basicInfo, full_name: e.target.value })}
                   className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
                   placeholder="Enter your full name"
                 />
@@ -213,7 +213,7 @@ const OnboardingFlow = () => {
                 <Input
                   id="phone"
                   value={basicInfo.phone}
-                  onChange={(e) => setBasicInfo({...basicInfo, phone: e.target.value})}
+                  onChange={(e) => setBasicInfo({ ...basicInfo, phone: e.target.value })}
                   className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
                   placeholder="Enter your phone number"
                 />
@@ -224,7 +224,7 @@ const OnboardingFlow = () => {
                   <Label htmlFor="country" className="text-white font-medium">Country</Label>
                   <InfoTooltip content="Your primary country of operation" />
                 </div>
-                <Select value={basicInfo.country} onValueChange={(value) => setBasicInfo({...basicInfo, country: value})}>
+                <Select value={basicInfo.country} onValueChange={(value) => setBasicInfo({ ...basicInfo, country: value })}>
                   <SelectTrigger className="bg-white/5 border-rosegold/30 text-white focus:border-bright-pink">
                     <SelectValue placeholder="Select your country" />
                   </SelectTrigger>
@@ -256,7 +256,7 @@ const OnboardingFlow = () => {
                 <Input
                   id="team_name"
                   value={teamInfo.team_name}
-                  onChange={(e) => setTeamInfo({...teamInfo, team_name: e.target.value})}
+                  onChange={(e) => setTeamInfo({ ...teamInfo, team_name: e.target.value })}
                   className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
                   placeholder="Enter your team name"
                 />
@@ -267,7 +267,7 @@ const OnboardingFlow = () => {
                   <Label className="text-white font-medium">Sport</Label>
                   <InfoTooltip content="Primary sport your team competes in" />
                 </div>
-                <Select value={teamInfo.sport_type} onValueChange={(value) => setTeamInfo({...teamInfo, sport_type: value})}>
+                <Select value={teamInfo.sport_type} onValueChange={(value) => setTeamInfo({ ...teamInfo, sport_type: value })}>
                   <SelectTrigger className="bg-white/5 border-rosegold/30 text-white focus:border-bright-pink">
                     <SelectValue placeholder="Select sport" />
                   </SelectTrigger>
@@ -288,7 +288,7 @@ const OnboardingFlow = () => {
                     id="year_founded"
                     type="number"
                     value={teamInfo.year_founded}
-                    onChange={(e) => setTeamInfo({...teamInfo, year_founded: e.target.value})}
+                    onChange={(e) => setTeamInfo({ ...teamInfo, year_founded: e.target.value })}
                     className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
                     placeholder="e.g. 1990"
                   />
@@ -298,7 +298,7 @@ const OnboardingFlow = () => {
                   <Input
                     id="league"
                     value={teamInfo.league}
-                    onChange={(e) => setTeamInfo({...teamInfo, league: e.target.value})}
+                    onChange={(e) => setTeamInfo({ ...teamInfo, league: e.target.value })}
                     placeholder="e.g. NPFL, Premier League"
                     className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
                   />
@@ -313,7 +313,7 @@ const OnboardingFlow = () => {
                 <Textarea
                   id="description"
                   value={teamInfo.description}
-                  onChange={(e) => setTeamInfo({...teamInfo, description: e.target.value})}
+                  onChange={(e) => setTeamInfo({ ...teamInfo, description: e.target.value })}
                   className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins resize-none"
                   placeholder="Tell us about your team..."
                   rows={3}
@@ -338,7 +338,7 @@ const OnboardingFlow = () => {
                 <Input
                   id="agency_name"
                   value={agentInfo.agency_name}
-                  onChange={(e) => setAgentInfo({...agentInfo, agency_name: e.target.value})}
+                  onChange={(e) => setAgentInfo({ ...agentInfo, agency_name: e.target.value })}
                   className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
                   placeholder="Enter your agency name"
                 />
@@ -353,7 +353,7 @@ const OnboardingFlow = () => {
                   <Input
                     id="fifa_id"
                     value={agentInfo.fifa_id}
-                    onChange={(e) => setAgentInfo({...agentInfo, fifa_id: e.target.value})}
+                    onChange={(e) => setAgentInfo({ ...agentInfo, fifa_id: e.target.value })}
                     className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
                     placeholder="FIFA ID"
                   />
@@ -363,7 +363,7 @@ const OnboardingFlow = () => {
                   <Input
                     id="license_number"
                     value={agentInfo.license_number}
-                    onChange={(e) => setAgentInfo({...agentInfo, license_number: e.target.value})}
+                    onChange={(e) => setAgentInfo({ ...agentInfo, license_number: e.target.value })}
                     className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
                     placeholder="License number"
                   />
@@ -378,7 +378,7 @@ const OnboardingFlow = () => {
                 <Textarea
                   id="bio"
                   value={agentInfo.bio}
-                  onChange={(e) => setAgentInfo({...agentInfo, bio: e.target.value})}
+                  onChange={(e) => setAgentInfo({ ...agentInfo, bio: e.target.value })}
                   className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins resize-none"
                   placeholder="Tell us about your professional experience..."
                   rows={3}

@@ -3,11 +3,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  UserPlus, 
-  TrendingUp, 
-  MessageCircle, 
+import {
+  Users,
+  UserPlus,
+  TrendingUp,
+  MessageCircle,
   Search,
   Bookmark,
   AlertCircle,
@@ -37,23 +37,23 @@ const Dashboard: React.FC = () => {
   const stats = profile?.user_type === 'team' ? teamStats : agentStats;
 
   const recentActivity = [
-    { 
-      type: 'player_added', 
-      message: 'New player profile created: Marcus Johnson', 
+    {
+      type: 'player_added',
+      message: 'New player profile created: Marcus Johnson',
       time: '2 hours ago',
       icon: UserPlus,
       color: 'text-green-600'
     },
-    { 
-      type: 'message_received', 
-      message: 'New message from Chelsea FC Academy', 
+    {
+      type: 'message_received',
+      message: 'New message from Chelsea FC Academy',
       time: '5 hours ago',
       icon: MessageCircle,
       color: 'text-blue-600'
     },
-    { 
-      type: 'pitch_expired', 
-      message: 'Transfer pitch for Sarah Williams expired', 
+    {
+      type: 'pitch_expired',
+      message: 'Transfer pitch for Sarah Williams expired',
       time: '1 day ago',
       icon: Clock,
       color: 'text-orange-600'
@@ -70,8 +70,8 @@ const Dashboard: React.FC = () => {
               Welcome back, {profile?.full_name}!
             </h1>
             <p className="opacity-90 mb-4">
-              {profile?.user_type === 'team' 
-                ? 'Manage your team, players, and transfers all in one place.' 
+              {profile?.user_type === 'team'
+                ? 'Manage your team, players, and transfers all in one place.'
                 : 'Discover talent, manage your shortlist, and connect with teams.'}
             </p>
             {!profile?.profile_completed && (
@@ -114,8 +114,8 @@ const Dashboard: React.FC = () => {
               <InfoTooltip content="Common tasks you can perform quickly from your dashboard" />
             </CardTitle>
             <CardDescription>
-              {profile?.user_type === 'team' 
-                ? 'Manage your team and players efficiently' 
+              {profile?.user_type === 'team'
+                ? 'Manage your team and players efficiently'
                 : 'Discover and connect with talent'}
             </CardDescription>
           </CardHeader>
