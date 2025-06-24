@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,9 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Users } from 'lucide-react';
+import { Tables } from '@/integrations/supabase/types';
 
-interface Player {
-  id?: string;
+// Use the database type for fetched players
+type DatabasePlayer = Tables<'players'>;
+
+// Form interface for managing form state (keeping strings for form inputs)
+interface PlayerForm {
   full_name: string;
   gender: 'male' | 'female' | 'other';
   height: string;
@@ -41,11 +44,11 @@ const PlayerManagement: React.FC = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<DatabasePlayer[]>([]);
   const [teamId, setTeamId] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
-  const [playerForm, setPlayerForm] = useState<Player>({
+  const [editingPlayer, setEditingPlayer] = useState<DatabasePlayer | null>(null);
+  const [playerForm, setPlayerForm] = useState<PlayerForm>({
     full_name: '',
     gender: 'male',
     height: '',
@@ -196,7 +199,7 @@ const PlayerManagement: React.FC = () => {
     }
   };
 
-  const handleEditPlayer = (player: any) => {
+  const handleEditPlayer = (player: DatabasePlayer) => {
     setPlayerForm({
       full_name: player.full_name || '',
       gender: player.gender || 'male',
