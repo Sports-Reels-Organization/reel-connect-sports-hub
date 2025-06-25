@@ -14,7 +14,9 @@ import { Play, Upload, Plus, Video, User, Calendar, Tag } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import PlayerDetailModal from './PlayerDetailModal';
 
-type DatabaseVideo = Tables<'videos'>;
+type DatabaseVideo = Tables<'videos'> & {
+  tagged_players?: string[];
+};
 type DatabasePlayer = Tables<'players'>;
 
 interface VideoForm {
@@ -155,6 +157,7 @@ const VideoManagement: React.FC = () => {
           opposing_team: videoForm.opposing_team || null,
           score: videoForm.score || null,
           tags: videoForm.tags,
+          tagged_players: videoForm.tagged_players,
           is_public: true
         });
 
@@ -216,6 +219,22 @@ const VideoManagement: React.FC = () => {
     if (player) {
       setSelectedPlayer(player);
     }
+  };
+
+  const addPlayerTag = (playerId: string) => {
+    if (playerId && !videoForm.tagged_players.includes(playerId)) {
+      setVideoForm(prev => ({
+        ...prev,
+        tagged_players: [...prev.tagged_players, playerId]
+      }));
+    }
+  };
+
+  const removePlayerTag = (playerIdToRemove: string) => {
+    setVideoForm(prev => ({
+      ...prev,
+      tagged_players: prev.tagged_players.filter(id => id !== playerIdToRemove)
+    }));
   };
 
   const getTaggedPlayerNames = (video: DatabaseVideo) => {
@@ -358,6 +377,42 @@ const VideoManagement: React.FC = () => {
                   placeholder="e.g., 2-1"
                 />
               </div>
+            </div>
+
+            {/* Player Tagging */}
+            <div className="space-y-2">
+              <Label className="text-white">Tag Players</Label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {videoForm.tagged_players.map((playerId) => {
+                  const player = players.find(p => p.id === playerId);
+                  return player ? (
+                    <Badge
+                      key={playerId}
+                      variant="secondary"
+                      className="cursor-pointer"
+                      onClick={() => removePlayerTag(playerId)}
+                    >
+                      {player.full_name} ×
+                    </Badge>
+                  ) : null;
+                })}
+              </div>
+              <Select onValueChange={addPlayerTag}>
+                <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                  <SelectValue placeholder="Select players to tag" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  {players.map((player) => (
+                    <SelectItem 
+                      key={player.id} 
+                      value={player.id}
+                      className="text-white"
+                    >
+                      {player.full_name} - #{player.jersey_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Tags */}

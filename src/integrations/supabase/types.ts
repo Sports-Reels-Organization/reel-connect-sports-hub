@@ -881,6 +881,7 @@ export type Database = {
           opposing_team: string | null
           player_id: string | null
           score: string | null
+          tagged_players: Json | null
           tags: string[] | null
           team_id: string | null
           thumbnail_url: string | null
@@ -899,6 +900,7 @@ export type Database = {
           opposing_team?: string | null
           player_id?: string | null
           score?: string | null
+          tagged_players?: Json | null
           tags?: string[] | null
           team_id?: string | null
           thumbnail_url?: string | null
@@ -917,6 +919,7 @@ export type Database = {
           opposing_team?: string | null
           player_id?: string | null
           score?: string | null
+          tagged_players?: Json | null
           tags?: string[] | null
           team_id?: string | null
           thumbnail_url?: string | null
