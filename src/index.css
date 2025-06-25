@@ -7,33 +7,33 @@
 
 @layer base {
   :root {
-    --background: 210 11% 7%; /* #111111 */
+    --background: 0 0% 6.7%; /* #111111 */
     --foreground: 0 0% 95%;
-    --card: 210 11% 10%; /* #1a1a1a */
+    --card: 0 0% 10.2%; /* #1a1a1a */
     --card-foreground: 0 0% 95%;
-    --popover: 210 11% 10%;
+    --popover: 0 0% 10.2%;
     --popover-foreground: 0 0% 95%;
     --primary: 340 30% 65%; /* rosegold */
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 11% 15%;
+    --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 95%;
-    --muted: 210 11% 15%;
+    --muted: 0 0% 15%;
     --muted-foreground: 0 0% 65%;
-    --accent: 210 11% 15%;
+    --accent: 0 0% 15%;
     --accent-foreground: 0 0% 95%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 11% 20%;
-    --input: 210 11% 20%;
+    --border: 0 0% 0%; /* Remove borders - transparent */
+    --input: 0 0% 10.2%;
     --ring: 340 30% 65%;
     --radius: 0.5rem;
-    --sidebar-background: 210 11% 10%;
+    --sidebar-background: 0 0% 10.2%;
     --sidebar-foreground: 0 0% 90%;
     --sidebar-primary: 340 30% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 11% 15%;
+    --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 210 11% 20%;
+    --sidebar-border: 0 0% 0%;
     --sidebar-ring: 340 30% 65%;
 
     /* Sports Reels Custom Colors */
@@ -42,32 +42,32 @@
   }
 
   .dark {
-    --background: 210 11% 7%;
+    --background: 0 0% 6.7%;
     --foreground: 0 0% 95%;
-    --card: 210 11% 10%;
+    --card: 0 0% 10.2%;
     --card-foreground: 0 0% 95%;
-    --popover: 210 11% 10%;
+    --popover: 0 0% 10.2%;
     --popover-foreground: 0 0% 95%;
     --primary: 340 30% 65%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 11% 15%;
+    --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 95%;
-    --muted: 210 11% 15%;
+    --muted: 0 0% 15%;
     --muted-foreground: 0 0% 65%;
-    --accent: 210 11% 15%;
+    --accent: 0 0% 15%;
     --accent-foreground: 0 0% 95%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 11% 20%;
-    --input: 210 11% 20%;
+    --border: 0 0% 0%;
+    --input: 0 0% 10.2%;
     --ring: 340 30% 65%;
-    --sidebar-background: 210 11% 10%;
+    --sidebar-background: 0 0% 10.2%;
     --sidebar-foreground: 0 0% 90%;
     --sidebar-primary: 340 30% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 11% 15%;
+    --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 210 11% 20%;
+    --sidebar-border: 0 0% 0%;
     --sidebar-ring: 340 30% 65%;
   }
 
@@ -83,11 +83,11 @@
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-0;
   }
   body {
     @apply bg-background text-foreground font-poppins;
-    background-color: hsl(210 11% 7%) !important;
+    background-color: #111111 !important;
     color: hsl(0 0% 95%) !important;
   }
   
@@ -98,14 +98,14 @@
   
   /* Override any white backgrounds */
   [class*="bg-white"] {
-    background-color: hsl(210 11% 10%) !important;
+    background-color: #1a1a1a !important;
   }
   
   /* Ensure form elements have dark theme */
   input, textarea, select {
-    background-color: hsl(210 11% 10%) !important;
+    background-color: #1a1a1a !important;
     color: hsl(0 0% 95%) !important;
-    border-color: hsl(210 11% 20%) !important;
+    border: none !important;
   }
   
   input::placeholder, textarea::placeholder {
@@ -119,7 +119,12 @@
   
   /* Ensure dialog and modal backgrounds are dark */
   [data-radix-popper-content-wrapper] {
-    background-color: hsl(210 11% 10%) !important;
+    background-color: #1a1a1a !important;
+  }
+
+  /* Remove all borders globally */
+  .border, .border-gray-700, .border-gray-600, .border-rosegold {
+    border: none !important;
   }
 }
 
@@ -143,7 +148,7 @@
     background-color: #FF69B4;
   }
   .border-rosegold {
-    border-color: #B76E79;
+    border: none !important;
   }
   .hover-rosegold:hover {
     background-color: #B76E79;
@@ -151,7 +156,7 @@
   
   /* Utility for ensuring dark theme */
   .dark-theme-override {
-    background-color: hsl(210 11% 7%) !important;
+    background-color: #111111 !important;
     color: hsl(0 0% 95%) !important;
   }
   
@@ -168,5 +173,10 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+  }
+
+  /* Remove border utilities */
+  .border-0 {
+    border: none !important;
   }
 }

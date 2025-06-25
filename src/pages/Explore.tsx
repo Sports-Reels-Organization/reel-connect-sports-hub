@@ -207,7 +207,7 @@ const Explore = () => {
 
   return (
     <Layout>
-      <div className="space-y-6 bg-gray-900 min-h-screen p-6">
+      <div className="space-y-6 bg-[#111111] min-h-screen p-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-polysans font-bold text-white mb-2">
@@ -220,7 +220,7 @@ const Explore = () => {
           {profile?.user_type === 'agent' && (
             <Button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="bg-rosegold hover:bg-rosegold/90 font-polysans text-white"
+              className="bg-rosegold hover:bg-rosegold/90 font-polysans text-white border-0"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Request
@@ -230,7 +230,7 @@ const Explore = () => {
 
         {/* Create Request Form */}
         {showCreateForm && profile?.user_type === 'agent' && (
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className="bg-[#1a1a1a] border-0">
             <CardHeader>
               <CardTitle className="font-polysans text-white">Create New Request</CardTitle>
             </CardHeader>
@@ -243,7 +243,7 @@ const Explore = () => {
                       placeholder="e.g. Looking for striker"
                       value={formData.title}
                       onChange={(e) => setFormData({...formData, title: e.target.value})}
-                      className="bg-gray-900 border-gray-600 text-white"
+                      className="bg-[#1a1a1a] border-0 text-white"
                       required
                     />
                   </div>
@@ -254,7 +254,7 @@ const Explore = () => {
                       placeholder="e.g. Striker, Midfielder"
                       value={formData.position}
                       onChange={(e) => setFormData({...formData, position: e.target.value})}
-                      className="bg-gray-900 border-gray-600 text-white"
+                      className="bg-[#1a1a1a] border-0 text-white"
                     />
                   </div>
                 </div>
@@ -265,7 +265,7 @@ const Explore = () => {
                     placeholder="Describe what you're looking for..."
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="bg-gray-900 border-gray-600 text-white"
+                    className="bg-[#1a1a1a] border-0 text-white"
                     required
                   />
                 </div>
@@ -274,10 +274,10 @@ const Explore = () => {
                   <div className="space-y-2">
                     <Label className="text-white">Sport</Label>
                     <Select value={formData.sport_type} onValueChange={(value) => setFormData({...formData, sport_type: value})}>
-                      <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                      <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-600">
+                      <SelectContent className="bg-[#1a1a1a] border-0">
                         <SelectItem value="football" className="text-white">Football</SelectItem>
                         <SelectItem value="basketball" className="text-white">Basketball</SelectItem>
                         <SelectItem value="volleyball" className="text-white">Volleyball</SelectItem>
@@ -290,10 +290,10 @@ const Explore = () => {
                   <div className="space-y-2">
                     <Label className="text-white">Transfer Type</Label>
                     <Select value={formData.transfer_type} onValueChange={(value) => setFormData({...formData, transfer_type: value})}>
-                      <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                      <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-600">
+                      <SelectContent className="bg-[#1a1a1a] border-0">
                         <SelectItem value="permanent" className="text-white">Permanent</SelectItem>
                         <SelectItem value="loan" className="text-white">Loan</SelectItem>
                       </SelectContent>
@@ -303,10 +303,10 @@ const Explore = () => {
                   <div className="space-y-2">
                     <Label className="text-white">Currency</Label>
                     <Select value={formData.currency} onValueChange={(value) => setFormData({...formData, currency: value})}>
-                      <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                      <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-600">
+                      <SelectContent className="bg-[#1a1a1a] border-0">
                         <SelectItem value="USD" className="text-white">USD ($)</SelectItem>
                         <SelectItem value="EUR" className="text-white">EUR (€)</SelectItem>
                         <SelectItem value="GBP" className="text-white">GBP (£)</SelectItem>
@@ -323,7 +323,7 @@ const Explore = () => {
                       placeholder="Minimum budget"
                       value={formData.budget_min}
                       onChange={(e) => setFormData({...formData, budget_min: e.target.value})}
-                      className="bg-gray-900 border-gray-600 text-white"
+                      className="bg-[#1a1a1a] border-0 text-white"
                     />
                   </div>
                   
@@ -334,20 +334,20 @@ const Explore = () => {
                       placeholder="Maximum budget"
                       value={formData.budget_max}
                       onChange={(e) => setFormData({...formData, budget_max: e.target.value})}
-                      className="bg-gray-900 border-gray-600 text-white"
+                      className="bg-[#1a1a1a] border-0 text-white"
                     />
                   </div>
                 </div>
 
                 <div className="flex gap-2">
-                  <Button type="submit" className="bg-rosegold hover:bg-rosegold/90 text-white">
+                  <Button type="submit" className="bg-rosegold hover:bg-rosegold/90 text-white border-0">
                     Create Request
                   </Button>
                   <Button 
                     type="button" 
                     variant="outline"
                     onClick={() => setShowCreateForm(false)}
-                    className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+                    className="border-0 text-gray-400 hover:bg-gray-700 hover:text-white"
                   >
                     Cancel
                   </Button>
@@ -358,7 +358,7 @@ const Explore = () => {
         )}
 
         {/* Filters */}
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-[#1a1a1a] border-0">
           <CardHeader>
             <CardTitle className="font-polysans text-white">Filter Requests</CardTitle>
           </CardHeader>
@@ -366,11 +366,11 @@ const Explore = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <Select value={filters.sport} onValueChange={(value) => setFilters({...filters, sport: value})}>
-                  <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                  <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                     <SelectValue placeholder="Sport" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
-                    <SelectItem value="" className="text-white">All Sports</SelectItem>
+                  <SelectContent className="bg-[#1a1a1a] border-0">
+                    <SelectItem value="all" className="text-white">All Sports</SelectItem>
                     <SelectItem value="football" className="text-white">Football</SelectItem>
                     <SelectItem value="basketball" className="text-white">Basketball</SelectItem>
                     <SelectItem value="volleyball" className="text-white">Volleyball</SelectItem>
@@ -385,17 +385,17 @@ const Explore = () => {
                   placeholder="Position"
                   value={filters.position}
                   onChange={(e) => setFilters({...filters, position: e.target.value})}
-                  className="bg-gray-900 border-gray-600 text-white placeholder:text-gray-400"
+                  className="bg-[#1a1a1a] border-0 text-white placeholder:text-gray-400"
                 />
               </div>
 
               <div>
                 <Select value={filters.transfer_type} onValueChange={(value) => setFilters({...filters, transfer_type: value})}>
-                  <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                  <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                     <SelectValue placeholder="Transfer Type" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
-                    <SelectItem value="" className="text-white">All Types</SelectItem>
+                  <SelectContent className="bg-[#1a1a1a] border-0">
+                    <SelectItem value="all" className="text-white">All Types</SelectItem>
                     <SelectItem value="permanent" className="text-white">Permanent</SelectItem>
                     <SelectItem value="loan" className="text-white">Loan</SelectItem>
                   </SelectContent>
@@ -407,7 +407,7 @@ const Explore = () => {
                   placeholder="Search requests"
                   value={filters.search}
                   onChange={(e) => setFilters({...filters, search: e.target.value})}
-                  className="bg-gray-900 border-gray-600 text-white placeholder:text-gray-400"
+                  className="bg-[#1a1a1a] border-0 text-white placeholder:text-gray-400"
                 />
               </div>
             </div>
@@ -418,7 +418,7 @@ const Explore = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="bg-gray-800 border-gray-700 animate-pulse">
+              <Card key={i} className="bg-[#1a1a1a] border-0 animate-pulse">
                 <CardContent className="p-6">
                   <div className="h-48 bg-gray-700 rounded"></div>
                 </CardContent>
@@ -426,7 +426,7 @@ const Explore = () => {
             ))
           ) : requests.length === 0 ? (
             <div className="col-span-full">
-              <Card className="bg-gray-800 border-gray-700">
+              <Card className="bg-[#1a1a1a] border-0">
                 <CardContent className="p-12 text-center">
                   <Search className="h-16 w-16 text-gray-500 mx-auto mb-4" />
                   <h3 className="text-xl font-polysans text-white mb-2">No Requests Found</h3>
@@ -438,7 +438,7 @@ const Explore = () => {
             </div>
           ) : (
             requests.map((request) => (
-              <Card key={request.id} className="bg-gray-800 border-gray-700 hover:border-rosegold/40 transition-colors">
+              <Card key={request.id} className="bg-[#1a1a1a] border-0 hover:border-rosegold/40 transition-colors">
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <div>
@@ -488,7 +488,7 @@ const Explore = () => {
                     {profile?.user_type === 'team' && (
                       <Button
                         size="sm"
-                        className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins"
+                        className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins border-0"
                       >
                         <MessageSquare className="h-4 w-4 mr-1" />
                         Respond to Request

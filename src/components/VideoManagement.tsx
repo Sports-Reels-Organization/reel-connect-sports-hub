@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -129,7 +128,14 @@ const VideoManagement: React.FC = () => {
   };
 
   const handleSaveVideo = async () => {
-    if (!teamId) return;
+    if (!teamId) {
+      toast({
+        title: "Error",
+        description: "Team not found. Please complete your team profile setup.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!videoForm.title || !videoForm.video_url) {
       toast({
@@ -142,7 +148,22 @@ const VideoManagement: React.FC = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      console.log('Attempting to save video with data:', {
+        team_id: teamId,
+        title: videoForm.title,
+        description: videoForm.description || null,
+        video_url: videoForm.video_url,
+        thumbnail_url: videoForm.thumbnail_url || null,
+        video_type: videoForm.video_type,
+        match_date: videoForm.match_date || null,
+        opposing_team: videoForm.opposing_team || null,
+        score: videoForm.score || null,
+        tags: videoForm.tags,
+        tagged_players: videoForm.tagged_players,
+        is_public: true
+      });
+
+      const { data, error } = await supabase
         .from('videos')
         .insert({
           team_id: teamId,
@@ -159,7 +180,12 @@ const VideoManagement: React.FC = () => {
           is_public: true
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error details:', error);
+        throw error;
+      }
+
+      console.log('Video saved successfully:', data);
 
       toast({
         title: "Success",
@@ -168,11 +194,11 @@ const VideoManagement: React.FC = () => {
 
       resetForm();
       fetchVideos();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving video:', error);
       toast({
         title: "Error",
-        description: "Failed to upload video",
+        description: `Failed to upload video: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
@@ -253,7 +279,7 @@ const VideoManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto bg-gray-900 min-h-screen">
+    <div className="p-6 space-y-6 max-w-6xl mx-auto bg-[#111111] min-h-screen">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-polysans text-3xl font-bold text-white mb-2">
@@ -265,7 +291,7 @@ const VideoManagement: React.FC = () => {
         </div>
         <Button
           onClick={() => setShowAddForm(true)}
-          className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+          className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans border-0"
         >
           <Plus className="w-4 h-4 mr-2" />
           Upload Video
@@ -274,7 +300,7 @@ const VideoManagement: React.FC = () => {
 
       {/* Upload Form */}
       {showAddForm && (
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-[#1a1a1a] border-0">
           <CardHeader>
             <CardTitle className="font-polysans text-white">Upload New Video</CardTitle>
           </CardHeader>
@@ -286,7 +312,7 @@ const VideoManagement: React.FC = () => {
                   id="title"
                   value={videoForm.title}
                   onChange={(e) => setVideoForm(prev => ({ ...prev, title: e.target.value }))}
-                  className="bg-gray-900 border-gray-600 text-white"
+                  className="bg-[#1a1a1a] border-0 text-white"
                   placeholder="Video title"
                 />
               </div>
@@ -297,10 +323,10 @@ const VideoManagement: React.FC = () => {
                   value={videoForm.video_type} 
                   onValueChange={(value) => setVideoForm(prev => ({ ...prev, video_type: value }))}
                 >
-                  <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                  <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectContent className="bg-[#1a1a1a] border-0">
                     <SelectItem value="highlight" className="text-white">Highlight</SelectItem>
                     <SelectItem value="full_match" className="text-white">Full Match</SelectItem>
                     <SelectItem value="training" className="text-white">Training</SelectItem>
@@ -316,7 +342,7 @@ const VideoManagement: React.FC = () => {
                 id="video_url"
                 value={videoForm.video_url}
                 onChange={(e) => setVideoForm(prev => ({ ...prev, video_url: e.target.value }))}
-                className="bg-gray-900 border-gray-600 text-white"
+                className="bg-[#1a1a1a] border-0 text-white"
                 placeholder="https://youtube.com/watch?v=..."
               />
             </div>
@@ -327,7 +353,7 @@ const VideoManagement: React.FC = () => {
                 id="thumbnail_url"
                 value={videoForm.thumbnail_url}
                 onChange={(e) => setVideoForm(prev => ({ ...prev, thumbnail_url: e.target.value }))}
-                className="bg-gray-900 border-gray-600 text-white"
+                className="bg-[#1a1a1a] border-0 text-white"
                 placeholder="Optional thumbnail image URL"
               />
             </div>
@@ -338,7 +364,7 @@ const VideoManagement: React.FC = () => {
                 id="description"
                 value={videoForm.description}
                 onChange={(e) => setVideoForm(prev => ({ ...prev, description: e.target.value }))}
-                className="bg-gray-900 border-gray-600 text-white resize-none"
+                className="bg-[#1a1a1a] border-0 text-white resize-none"
                 placeholder="Video description..."
                 rows={3}
               />
@@ -352,7 +378,7 @@ const VideoManagement: React.FC = () => {
                   type="date"
                   value={videoForm.match_date}
                   onChange={(e) => setVideoForm(prev => ({ ...prev, match_date: e.target.value }))}
-                  className="bg-gray-900 border-gray-600 text-white"
+                  className="bg-[#1a1a1a] border-0 text-white"
                 />
               </div>
 
@@ -362,7 +388,7 @@ const VideoManagement: React.FC = () => {
                   id="opposing_team"
                   value={videoForm.opposing_team}
                   onChange={(e) => setVideoForm(prev => ({ ...prev, opposing_team: e.target.value }))}
-                  className="bg-gray-900 border-gray-600 text-white"
+                  className="bg-[#1a1a1a] border-0 text-white"
                   placeholder="Team name"
                 />
               </div>
@@ -373,7 +399,7 @@ const VideoManagement: React.FC = () => {
                   id="score"
                   value={videoForm.score}
                   onChange={(e) => setVideoForm(prev => ({ ...prev, score: e.target.value }))}
-                  className="bg-gray-900 border-gray-600 text-white"
+                  className="bg-[#1a1a1a] border-0 text-white"
                   placeholder="e.g., 2-1"
                 />
               </div>
@@ -389,7 +415,7 @@ const VideoManagement: React.FC = () => {
                     <Badge
                       key={playerId}
                       variant="secondary"
-                      className="cursor-pointer"
+                      className="cursor-pointer border-0"
                       onClick={() => removePlayerTag(playerId)}
                     >
                       {player.full_name} ×
@@ -398,10 +424,10 @@ const VideoManagement: React.FC = () => {
                 })}
               </div>
               <Select onValueChange={addPlayerTag}>
-                <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+                <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                   <SelectValue placeholder="Select players to tag" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectContent className="bg-[#1a1a1a] border-0">
                   {players.map((player) => (
                     <SelectItem 
                       key={player.id} 
@@ -423,7 +449,7 @@ const VideoManagement: React.FC = () => {
                   <Badge
                     key={index}
                     variant="secondary"
-                    className="cursor-pointer"
+                    className="cursor-pointer border-0"
                     onClick={() => removeTag(tag)}
                   >
                     {tag} ×
@@ -432,7 +458,7 @@ const VideoManagement: React.FC = () => {
               </div>
               <Input
                 placeholder="Add tags (press Enter)"
-                className="bg-gray-900 border-gray-600 text-white"
+                className="bg-[#1a1a1a] border-0 text-white"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -448,14 +474,14 @@ const VideoManagement: React.FC = () => {
               <Button
                 onClick={handleSaveVideo}
                 disabled={loading}
-                className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+                className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans border-0"
               >
                 {loading ? 'Uploading...' : 'Upload Video'}
               </Button>
               <Button
                 onClick={resetForm}
                 variant="outline"
-                className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+                className="border-0 text-gray-400 hover:bg-gray-700 hover:text-white"
               >
                 Cancel
               </Button>
@@ -467,7 +493,7 @@ const VideoManagement: React.FC = () => {
       {/* Videos Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {videos.map((video) => (
-          <Card key={video.id} className="bg-gray-800 border-gray-700 hover:border-rosegold/50 transition-colors">
+          <Card key={video.id} className="bg-[#1a1a1a] border-0 hover:border-rosegold/50 transition-colors">
             <CardContent className="p-4">
               <div className="relative mb-4">
                 {video.thumbnail_url ? (
@@ -483,7 +509,7 @@ const VideoManagement: React.FC = () => {
                 )}
                 <Button
                   size="sm"
-                  className="absolute inset-0 bg-black/50 hover:bg-black/70 text-white opacity-0 hover:opacity-100 transition-opacity"
+                  className="absolute inset-0 bg-black/50 hover:bg-black/70 text-white opacity-0 hover:opacity-100 transition-opacity border-0"
                   onClick={() => window.open(video.video_url, '_blank')}
                 >
                   <Play className="w-8 h-8" />
@@ -530,7 +556,7 @@ const VideoManagement: React.FC = () => {
                         <Badge
                           key={player.id}
                           variant="secondary"
-                          className="cursor-pointer hover:bg-bright-pink hover:text-white"
+                          className="cursor-pointer hover:bg-bright-pink hover:text-white border-0"
                           onClick={() => handlePlayerTag(player.id)}
                         >
                           <User className="w-3 h-3 mr-1" />
@@ -547,7 +573,7 @@ const VideoManagement: React.FC = () => {
                     <Label className="text-white text-sm">Tags:</Label>
                     <div className="flex flex-wrap gap-1">
                       {video.tags.map((tag: string, index: number) => (
-                        <Badge key={index} variant="outline" className="text-gray-400 border-gray-600">
+                        <Badge key={index} variant="outline" className="text-gray-400 border-0">
                           <Tag className="w-3 h-3 mr-1" />
                           {tag}
                         </Badge>
@@ -562,7 +588,7 @@ const VideoManagement: React.FC = () => {
       </div>
 
       {videos.length === 0 && !showAddForm && (
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-[#1a1a1a] border-0">
           <CardContent className="p-12 text-center">
             <Video className="w-16 h-16 mx-auto mb-4 text-gray-500" />
             <h3 className="font-polysans text-xl font-semibold text-white mb-2">
@@ -573,7 +599,7 @@ const VideoManagement: React.FC = () => {
             </p>
             <Button
               onClick={() => setShowAddForm(true)}
-              className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+              className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans border-0"
             >
               <Upload className="w-4 h-4 mr-2" />
               Upload Your First Video
