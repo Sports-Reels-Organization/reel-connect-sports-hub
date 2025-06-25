@@ -25,7 +25,7 @@ interface AgentRequest {
   transfer_type: string;
   created_at: string;
   expires_at: string;
-  agent: {
+  agents: {
     agency_name: string;
   };
 }
@@ -66,18 +66,18 @@ const Explore = () => {
         .from('agent_requests')
         .select(`
           *,
-          agent:agents(agency_name)
+          agents(agency_name)
         `)
         .eq('is_public', true)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
       if (filters.sport) {
-        query = query.eq('sport_type', filters.sport);
+        query = query.eq('sport_type', filters.sport as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby');
       }
 
       if (filters.transfer_type) {
-        query = query.eq('transfer_type', filters.transfer_type);
+        query = query.eq('transfer_type', filters.transfer_type as 'permanent' | 'loan');
       }
 
       const { data, error } = await query;
@@ -144,15 +144,14 @@ const Explore = () => {
       const { error } = await supabase
         .from('agent_requests')
         .insert({
-          agent_id: agentData.id,
           title: formData.title,
           description: formData.description,
           position: formData.position || null,
-          sport_type: formData.sport_type,
+          sport_type: formData.sport_type as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby',
           budget_min: formData.budget_min ? parseFloat(formData.budget_min) : null,
           budget_max: formData.budget_max ? parseFloat(formData.budget_max) : null,
           currency: formData.currency,
-          transfer_type: formData.transfer_type,
+          transfer_type: formData.transfer_type as 'permanent' | 'loan',
           is_public: formData.is_public
         });
 
@@ -477,7 +476,7 @@ const Explore = () => {
                         {formatTimeAgo(request.created_at)}
                       </div>
                       <span className="text-rosegold">
-                        {request.agent.agency_name}
+                        {request.agents?.agency_name}
                       </span>
                     </div>
 
