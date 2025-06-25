@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout';
+import CreateTransferPitch from '@/components/CreateTransferPitch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -191,6 +192,11 @@ const Timeline = () => {
             <InfoTooltip content="Teams pitch their players here. Agents can shortlist and message about potential transfers." />
           </div>
         </div>
+
+        {/* Create Pitch Section for Teams */}
+        {profile?.user_type === 'team' && (
+          <CreateTransferPitch />
+        )}
 
         {/* Filters */}
         <Card className="bg-white/5 border-rosegold/20">
