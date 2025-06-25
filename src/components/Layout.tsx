@@ -19,15 +19,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-black">
+      <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <SidebarTrigger />
-              <img 
-                src="/lovable-uploads/91e56af4-3e68-49dc-831b-edf66e971f92.png" 
-                alt="Sports Reels" 
+              <img
+                src="/lovable-uploads/91e56af4-3e68-49dc-831b-edf66e971f92.png"
+                alt="Sports Reels"
                 className="h-8"
               />
             </div>
@@ -39,9 +39,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   {profile?.user_type === 'team' ? 'Team' : 'Agent'}
                 </span>
               </div>
-              <Button 
-                onClick={signOut} 
-                variant="outline" 
+              <Button
+                onClick={signOut}
+                variant="outline"
                 size="sm"
                 className="text-rosegold border-rosegold hover:bg-rosegold hover:text-white"
               >
@@ -50,7 +50,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </Button>
             </div>
           </header>
-          <main className="flex-1 bg-gray-50">
+          <main className="flex-1 ">
             {children}
           </main>
         </div>

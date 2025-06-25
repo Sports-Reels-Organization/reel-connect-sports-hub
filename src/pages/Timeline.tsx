@@ -81,7 +81,7 @@ const Timeline = () => {
         ...pitch,
         players: {
           ...pitch.players,
-          age: pitch.players.date_of_birth 
+          age: pitch.players.date_of_birth
             ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
             : undefined
         }
@@ -113,7 +113,7 @@ const Timeline = () => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return 'Today';
     if (diffInDays === 1) return '1 day ago';
     return `${diffInDays} days ago`;
@@ -130,7 +130,7 @@ const Timeline = () => {
 
   return (
     <Layout>
-      <div className="space-y-6 bg-gray-900 min-h-screen p-6">
+      <div className="space-y-6 bg-background min-h-screen p-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-polysans font-bold text-white mb-2">
@@ -145,7 +145,7 @@ const Timeline = () => {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="bg-gray-800 border-gray-700 animate-pulse">
+              <Card key={i} className=" border-gray-700 animate-pulse">
                 <CardContent className="p-6">
                   <div className="h-48 bg-gray-700 rounded"></div>
                 </CardContent>
@@ -153,7 +153,7 @@ const Timeline = () => {
             ))}
           </div>
         ) : pitches.length === 0 ? (
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className=" border-gray-700">
             <CardContent className="p-12 text-center">
               <Target className="w-16 h-16 mx-auto mb-4 text-gray-500" />
               <h3 className="text-xl font-polysans font-semibold text-white mb-2">
@@ -167,12 +167,12 @@ const Timeline = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {pitches.map((pitch) => (
-              <Card key={pitch.id} className="bg-gray-800 border-gray-700 hover:border-rosegold/50 transition-colors group">
+              <Card key={pitch.id} className=" border-gray-700 hover:border-rosegold/50 transition-colors group">
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     {/* Player Header */}
                     <div className="flex items-center gap-4">
-                      <div 
+                      <div
                         className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 cursor-pointer"
                         onClick={() => handlePlayerClick(pitch.players)}
                       >
@@ -189,7 +189,7 @@ const Timeline = () => {
                         )}
                       </div>
                       <div className="flex-1">
-                        <h3 
+                        <h3
                           className="font-polysans font-bold text-white text-lg cursor-pointer hover:text-rosegold"
                           onClick={() => handlePlayerClick(pitch.players)}
                         >
@@ -252,8 +252,8 @@ const Timeline = () => {
                         <Clock className="h-3 w-3" />
                         {formatTimeAgo(pitch.created_at)}
                       </div>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={pitch.status === 'active' ? 'text-green-400 border-green-400' : 'text-gray-400 border-gray-400'}
                       >
                         {pitch.status.toUpperCase()}

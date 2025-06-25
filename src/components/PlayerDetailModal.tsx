@@ -77,7 +77,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gray-900 border-gray-700">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto  border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white font-polysans text-2xl">
               {player.full_name}
@@ -160,7 +160,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                     Edit Player
                   </Button>
                   {profile?.user_type === 'agent' && (
-                    <Button 
+                    <Button
                       onClick={() => setShowMessageModal(true)}
                       className="bg-bright-pink hover:bg-bright-pink/90 text-white"
                     >
@@ -200,7 +200,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
 
             {/* Tabs Section */}
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 bg-gray-800">
+              <TabsList className="grid w-full grid-cols-4 ">
                 <TabsTrigger value="details" className="text-white data-[state=active]:bg-rosegold">Details</TabsTrigger>
                 <TabsTrigger value="videos" className="text-white data-[state=active]:bg-rosegold">Videos</TabsTrigger>
                 <TabsTrigger value="stats" className="text-white data-[state=active]:bg-rosegold">Stats</TabsTrigger>
@@ -208,7 +208,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
               </TabsList>
 
               <TabsContent value="details" className="space-y-4">
-                <Card className="bg-gray-800 border-gray-700">
+                <Card className=" border-gray-700">
                   <CardHeader>
                     <CardTitle className="text-white font-polysans">Personal Information</CardTitle>
                   </CardHeader>
@@ -252,7 +252,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
               </TabsContent>
 
               <TabsContent value="videos" className="space-y-4">
-                <Card className="bg-gray-800 border-gray-700">
+                <Card className=" border-gray-700">
                   <CardHeader>
                     <CardTitle className="text-white font-polysans">Player Videos</CardTitle>
                   </CardHeader>
@@ -260,7 +260,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                     {videos.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {videos.map((video) => (
-                          <div key={video.id} className="bg-gray-900 rounded-lg p-4">
+                          <div key={video.id} className=" rounded-lg p-4">
                             <div className="relative">
                               {video.thumbnail_url ? (
                                 <img
@@ -297,7 +297,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
               </TabsContent>
 
               <TabsContent value="stats" className="space-y-4">
-                <Card className="bg-gray-800 border-gray-700">
+                <Card className=" border-gray-700">
                   <CardHeader>
                     <CardTitle className="text-white font-polysans">Performance Statistics</CardTitle>
                   </CardHeader>
@@ -311,7 +311,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
               </TabsContent>
 
               <TabsContent value="contract" className="space-y-4">
-                <Card className="bg-gray-800 border-gray-700">
+                <Card className=" border-gray-700">
                   <CardHeader>
                     <CardTitle className="text-white font-polysans">Contract Information</CardTitle>
                   </CardHeader>
@@ -336,7 +336,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
             </Tabs>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {showMessageModal && (
         <MessagePlayerModal
@@ -344,7 +344,8 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
           isOpen={showMessageModal}
           onClose={() => setShowMessageModal(false)}
         />
-      )}
+      )
+      }
     </>
   );
 };

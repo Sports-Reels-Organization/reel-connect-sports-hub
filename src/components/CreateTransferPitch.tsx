@@ -73,10 +73,10 @@ const CreateTransferPitch: React.FC = () => {
   };
 
   const handleVideoToggle = (videoId: string) => {
-    setSelectedVideos(prev => 
-      prev.includes(videoId) 
+    setSelectedVideos(prev =>
+      prev.includes(videoId)
         ? prev.filter(id => id !== videoId)
-        : prev.length < 6 
+        : prev.length < 6
           ? [...prev, videoId]
           : prev
     );
@@ -84,7 +84,7 @@ const CreateTransferPitch: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedPlayer) {
       toast({
         title: "Error",
@@ -96,7 +96,7 @@ const CreateTransferPitch: React.FC = () => {
 
     if (selectedVideos.length === 0) {
       toast({
-        title: "Error", 
+        title: "Error",
         description: "Please select at least one video",
         variant: "destructive"
       });
@@ -104,7 +104,7 @@ const CreateTransferPitch: React.FC = () => {
     }
 
     setLoading(true);
-    
+
     try {
       // Get team info
       const { data: teamData } = await supabase
@@ -157,7 +157,7 @@ const CreateTransferPitch: React.FC = () => {
 
   if (profile?.user_type !== 'team') {
     return (
-      <Card className="bg-white/5 border-rosegold/20">
+      <Card className=" border-rosegold/20">
         <CardContent className="p-12 text-center">
           <User className="h-12 w-12 text-rosegold mx-auto mb-4" />
           <h3 className="text-xl font-polysans text-white mb-2">Teams Only</h3>
@@ -170,7 +170,7 @@ const CreateTransferPitch: React.FC = () => {
   }
 
   return (
-    <Card className="bg-white/5 border-rosegold/20">
+    <Card className=" border-rosegold/20">
       <CardHeader>
         <CardTitle className="font-polysans text-white flex items-center gap-2">
           <FileText className="h-5 w-5 text-rosegold" />
@@ -203,17 +203,16 @@ const CreateTransferPitch: React.FC = () => {
               {videos.map((video) => (
                 <div
                   key={video.id}
-                  className={`relative cursor-pointer rounded-lg border-2 transition-colors ${
-                    selectedVideos.includes(video.id)
-                      ? 'border-rosegold bg-rosegold/20'
-                      : 'border-gray-600 hover:border-rosegold/50'
-                  }`}
+                  className={`relative cursor-pointer rounded-lg border-2 transition-colors ${selectedVideos.includes(video.id)
+                    ? 'border-rosegold bg-rosegold/20'
+                    : 'border-gray-600 hover:border-rosegold/50'
+                    }`}
                   onClick={() => handleVideoToggle(video.id)}
                 >
-                  <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
+                  <div className="aspect-video rounded-lg flex items-center justify-center">
                     {video.thumbnail_url ? (
-                      <img 
-                        src={video.thumbnail_url} 
+                      <img
+                        src={video.thumbnail_url}
                         alt={video.title}
                         className="w-full h-full object-cover rounded-lg"
                       />
@@ -289,8 +288,8 @@ const CreateTransferPitch: React.FC = () => {
             />
           </div>
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={loading || !selectedPlayer || selectedVideos.length === 0}
             className="w-full bg-rosegold hover:bg-rosegold/90 font-polysans"
           >

@@ -17,14 +17,14 @@ const AuthForm = () => {
 
   // Video player configuration
   const videoUrls = [
-    "/public/sportsreelsvideos/101290-video-720.mp4",
-    "/public/sportsreelsvideos/mixkit-baseball-player-pitching-the-ball-856-hd-ready.mp4",
-    "/public/sportsreelsvideos/mixkit-basketball-player-dribbling-then-dunking-2285-hd-ready.mp4",
-    "/public/sportsreelsvideos/mixkit-man-swimming-in-a-pool-3168-hd-ready.mp4",
-    "/public/sportsreelsvideos/mixkit-portrait-of-a-confident-football-player-42566-hd-ready.mp4",
-    "/public/sportsreelsvideos/mixkit-tennis-players-at-an-outdoor-court-869-hd-ready.mp4",
-    "/public/sportsreelsvideos/mixkit-two-men-on-a-ring-fighting-in-a-boxing-match-40974-hd-ready.mp4",
-    "/public/sportsreelsvideos/mixkit-young-woman-getting-into-position-for-sprinting-32800-hd-ready.mp4",
+    "/sportsreelsvideos/101290-video-720.mp4",
+    "/sportsreelsvideos/mixkit-baseball-player-pitching-the-ball-856-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-basketball-player-dribbling-then-dunking-2285-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-man-swimming-in-a-pool-3168-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-portrait-of-a-confident-football-player-42566-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-tennis-players-at-an-outdoor-court-869-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-two-men-on-a-ring-fighting-in-a-boxing-match-40974-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-young-woman-getting-into-position-for-sprinting-32800-hd-ready.mp4",
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [remainingVideos, setRemainingVideos] = useState<number[]>([]);
@@ -169,7 +169,7 @@ const AuthForm = () => {
             <div className="text-center space-y-4 mb-8">
               <div className="flex justify-center">
                 <img
-                  src="/public/lovable-Uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
+                  src="public/lovable-Uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
                   alt="Sports Reels Logo"
                   className="w-16 h-16 transition-transform hover:scale-105"
                 />
@@ -208,7 +208,7 @@ const AuthForm = () => {
                       className="text-white hover:bg-[#3a3a3a] py-3"
                     >
                       <span className="flex items-center gap-2">
-                        <span>Team/Club</span>
+                        <span>Team Manager/Administrator</span>
                         <span>⚽</span>
                       </span>
                     </SelectItem>
@@ -231,7 +231,7 @@ const AuthForm = () => {
                   id="terms"
                   checked={termsAccepted}
                   onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-                  className="mt-0.5 border-gray-400 data-[state=checked]:bg-rosegold data-[state=checked]:border-rosegold"
+                  className="mt-0.5 border-1 border-gray-400 data-[state=checked]:bg-rosegold data-[state=checked]:border-rosegold"
                 />
                 <label htmlFor="terms" className="text-xs text-gray-400 leading-snug">
                   By continuing, you agree to our Terms of Service and Privacy Policy.
@@ -248,7 +248,7 @@ const AuthForm = () => {
                 className={`w-full ${termsAccepted ? 'bg-rosegold/10 border-rosegold/30 hover:bg-rosegold/20 text-white' : 'bg-[#2a2a2a] border-[#3a3a3a] text-gray-500'}  h-12 rounded-lg flex items-center justify-center gap-3 transition-colors`}
               >
                 {loading ? (
-                  <span className="h-5 w-5 border-2 border-gray-300 border-t-rosegold rounded-full animate-spin"></span>
+                  <span className="h-5 w-5  border-gray-300 border-t-rosegold rounded-full animate-spin"></span>
                 ) : (
                   <>
                     <svg className="w-5 h-5" viewBox="0 0 24 24">

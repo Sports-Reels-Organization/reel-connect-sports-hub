@@ -7,7 +7,7 @@ import { MessageSquare } from 'lucide-react';
 const Messages = () => {
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-6 bg-background">
         <div>
           <h1 className="text-3xl font-polysans font-bold text-white mb-2">
             Messages

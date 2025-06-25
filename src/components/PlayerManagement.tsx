@@ -105,7 +105,7 @@ const PlayerManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto bg-gray-900 min-h-screen">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto bg-background min-h-screen">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-polysans text-3xl font-bold text-white mb-2">
@@ -145,7 +145,7 @@ const PlayerManagement: React.FC = () => {
       </div>
 
       {players.length === 0 && !showAddForm && (
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className=" border-gray-700">
           <CardContent className="p-12 text-center">
             <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
             <h3 className="font-polysans text-xl font-semibold text-white mb-2">

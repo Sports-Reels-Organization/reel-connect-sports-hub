@@ -13,7 +13,7 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <img
             src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"

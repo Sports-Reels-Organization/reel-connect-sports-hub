@@ -232,18 +232,18 @@ const PlayerFormComponent: React.FC<PlayerFormProps> = ({
     }
   };
 
-  const PhotoUploadSection = ({ 
-    type, 
-    label, 
-    description, 
-    url 
-  }: { 
-    type: 'headshot' | 'portrait' | 'full_body'; 
-    label: string; 
-    description: string; 
+  const PhotoUploadSection = ({
+    type,
+    label,
+    description,
+    url
+  }: {
+    type: 'headshot' | 'portrait' | 'full_body';
+    label: string;
+    description: string;
     url: string;
   }) => (
-    <div className="text-center space-y-2">
+    <div className="text-center space-y-2 bg-background p-4">
       <Label className="text-white font-polysans">{label}</Label>
       <p className="text-xs text-gray-400 font-poppins">{description}</p>
       <div className="relative mx-auto w-24 h-24">
@@ -254,7 +254,7 @@ const PlayerFormComponent: React.FC<PlayerFormProps> = ({
             className="w-full h-full rounded-lg object-cover border-2 border-rosegold"
           />
         ) : (
-          <div className="w-full h-full rounded-lg bg-gray-700 flex items-center justify-center border-2 border-gray-600">
+          <div className="w-full h-full rounded-lg bg-card  flex items-center justify-center border-2 border-gray-600">
             <User className="w-8 h-8 text-gray-400" />
           </div>
         )}
@@ -286,7 +286,7 @@ const PlayerFormComponent: React.FC<PlayerFormProps> = ({
   );
 
   return (
-    <Card className="bg-gray-800 border-gray-700">
+    <Card className=" ">
       <CardHeader>
         <CardTitle className="font-polysans text-white">
           {editingPlayer ? 'Edit Player' : 'Add New Player'}
@@ -294,7 +294,7 @@ const PlayerFormComponent: React.FC<PlayerFormProps> = ({
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Photo Upload Section */}
-        <div className="grid grid-cols-3 gap-6 p-4 bg-gray-900 rounded-lg">
+        <div className="grid grid-cols-3 gap-6 p-4  rounded-lg">
           <PhotoUploadSection
             type="headshot"
             label="Headshot"
@@ -317,27 +317,27 @@ const PlayerFormComponent: React.FC<PlayerFormProps> = ({
 
         {/* Basic Information */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="space-y-2">
+          <div className="space-y-2 ">
             <Label htmlFor="full_name" className="text-white">Full Name *</Label>
             <Input
               id="full_name"
               value={playerForm.full_name}
               onChange={(e) => setPlayerForm(prev => ({ ...prev, full_name: e.target.value }))}
-              className="bg-gray-900 border-gray-600 text-white"
+              className="bg-background border-gray-600 text-white"
               placeholder="Player's full name"
             />
           </div>
 
           <div className="space-y-2">
             <Label className="text-white">Gender *</Label>
-            <Select 
-              value={playerForm.gender} 
+            <Select
+              value={playerForm.gender}
               onValueChange={(value: 'male' | 'female' | 'other') => setPlayerForm(prev => ({ ...prev, gender: value }))}
             >
-              <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+              <SelectTrigger className="bg-background border-gray-600 text-white">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
+              <SelectContent className=" border-gray-600">
                 <SelectItem value="male" className="text-white">Male</SelectItem>
                 <SelectItem value="female" className="text-white">Female</SelectItem>
                 <SelectItem value="other" className="text-white">Other</SelectItem>
@@ -347,14 +347,14 @@ const PlayerFormComponent: React.FC<PlayerFormProps> = ({
 
           <div className="space-y-2">
             <Label className="text-white">Position *</Label>
-            <Select 
-              value={playerForm.position} 
+            <Select
+              value={playerForm.position}
               onValueChange={(value) => setPlayerForm(prev => ({ ...prev, position: value }))}
             >
-              <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+              <SelectTrigger className="bg-background border-gray-600 text-white">
                 <SelectValue placeholder="Select position" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
+              <SelectContent className=" border-gray-600">
                 {positions.map((position) => (
                   <SelectItem key={position} value={position} className="text-white">
                     {position}
@@ -366,14 +366,14 @@ const PlayerFormComponent: React.FC<PlayerFormProps> = ({
 
           <div className="space-y-2">
             <Label className="text-white">Citizenship *</Label>
-            <Select 
-              value={playerForm.citizenship} 
+            <Select
+              value={playerForm.citizenship}
               onValueChange={(value) => setPlayerForm(prev => ({ ...prev, citizenship: value }))}
             >
-              <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+              <SelectTrigger className="bg-background border-gray-600 text-white">
                 <SelectValue placeholder="Select citizenship" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
+              <SelectContent className=" border-gray-600">
                 {countries.map((country) => (
                   <SelectItem key={country} value={country} className="text-white">
                     {country}
@@ -443,14 +443,14 @@ const PlayerFormComponent: React.FC<PlayerFormProps> = ({
 
           <div className="space-y-2">
             <Label className="text-white">Preferred Foot</Label>
-            <Select 
-              value={playerForm.foot} 
+            <Select
+              value={playerForm.foot}
               onValueChange={(value) => setPlayerForm(prev => ({ ...prev, foot: value }))}
             >
-              <SelectTrigger className="bg-gray-900 border-gray-600 text-white">
+              <SelectTrigger className="bg-background border-gray-600 text-white">
                 <SelectValue placeholder="Select foot" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
+              <SelectContent className=" border-gray-600">
                 <SelectItem value="left" className="text-white">Left</SelectItem>
                 <SelectItem value="right" className="text-white">Right</SelectItem>
                 <SelectItem value="both" className="text-white">Both</SelectItem>
@@ -532,7 +532,7 @@ const PlayerFormComponent: React.FC<PlayerFormProps> = ({
             id="bio"
             value={playerForm.bio}
             onChange={(e) => setPlayerForm(prev => ({ ...prev, bio: e.target.value }))}
-            className="bg-gray-900 border-gray-600 text-white resize-none"
+            className="bg-background border-gray-600 text-white resize-none"
             placeholder="Brief description of the player..."
             rows={3}
           />
