@@ -1,244 +1,439 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Users,
-  UserPlus,
-  TrendingUp,
-  MessageCircle,
-  Search,
-  Bookmark,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Trophy,
-  Settings,
-  Video
-} from 'lucide-react';
-import InfoTooltip from './InfoTooltip';
+import { Users, Video, MessageSquare, FileText, Plus, TrendingUp, Calendar, Target } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const Dashboard: React.FC = () => {
+interface DashboardStats {
+  totalPlayers: number;
+  totalVideos: number;
+  totalMessages: number;
+  activePitches: number;
+}
+
+interface RecentActivity {
+  type: 'player' | 'video' | 'message' | 'pitch';
+  title: string;
+  description: string;
+  date: string;
+  id: string;
+}
+
+const Dashboard = () => {
   const { profile } = useAuth();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<DashboardStats>({
+    totalPlayers: 0,
+    totalVideos: 0,
+    totalMessages: 0,
+    activePitches: 0
+  });
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const teamStats = [
-    { label: 'Active Players', value: '23', icon: Users, color: 'text-blue-400' },
-    { label: 'Videos Uploaded', value: '5', icon: Video, color: 'text-green-400' },
-    { label: 'Transfer Pitches', value: '3', icon: TrendingUp, color: 'text-rosegold' },
-    { label: 'Unread Messages', value: '7', icon: MessageCircle, color: 'text-orange-400' },
-  ];
+  useEffect(() => {
+    if (profile) {
+      fetchDashboardData();
+    }
+  }, [profile]);
 
-  const agentStats = [
-    { label: 'Shortlisted Players', value: '12', icon: Bookmark, color: 'text-blue-400' },
-    { label: 'Active Searches', value: '3', icon: Search, color: 'text-green-400' },
-    { label: 'Unread Messages', value: '7', icon: MessageCircle, color: 'text-orange-400' },
-    { label: 'Profile Completion', value: '80%', icon: CheckCircle2, color: 'text-rosegold' },
-  ];
+  const fetchDashboardData = async () => {
+    try {
+      if (profile?.user_type === 'team') {
+        await fetchTeamDashboard();
+      } else if (profile?.user_type === 'agent') {
+        await fetchAgentDashboard();
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const stats = profile?.user_type === 'team' ? teamStats : agentStats;
+  const fetchTeamDashboard = async () => {
+    // Get team ID
+    const { data: teamData } = await supabase
+      .from('teams')
+      .select('id')
+      .eq('profile_id', profile?.id)
+      .single();
 
-  const recentActivity = [
+    if (!teamData) return;
+
+    // Fetch stats
+    const [playersRes, videosRes, pitchesRes, messagesRes] = await Promise.all([
+      supabase.from('players').select('id', { count: 'exact' }).eq('team_id', teamData.id),
+      supabase.from('videos').select('id', { count: 'exact' }).eq('team_id', teamData.id),
+      supabase.from('transfer_pitches').select('id', { count: 'exact' }).eq('team_id', teamData.id).eq('status', 'active'),
+      supabase.from('player_messages').select('id', { count: 'exact' }).eq('receiver_id', profile?.id)
+    ]);
+
+    setStats({
+      totalPlayers: playersRes.count || 0,
+      totalVideos: videosRes.count || 0,
+      activePitches: pitchesRes.count || 0,
+      totalMessages: messagesRes.count || 0
+    });
+
+    // Fetch recent activity
+    const { data: recentPlayers } = await supabase
+      .from('players')
+      .select('id, full_name, created_at')
+      .eq('team_id', teamData.id)
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    const { data: recentVideos } = await supabase
+      .from('videos')
+      .select('id, title, created_at')
+      .eq('team_id', teamData.id)
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    const activity: RecentActivity[] = [];
+
+    recentPlayers?.forEach(player => {
+      activity.push({
+        type: 'player',
+        title: 'New Player Added',
+        description: player.full_name,
+        date: player.created_at,
+        id: player.id
+      });
+    });
+
+    recentVideos?.forEach(video => {
+      activity.push({
+        type: 'video',
+        title: 'Video Uploaded',
+        description: video.title,
+        date: video.created_at,
+        id: video.id
+      });
+    });
+
+    setRecentActivity(activity.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5));
+  };
+
+  const fetchAgentDashboard = async () => {
+    // Get agent ID
+    const { data: agentData } = await supabase
+      .from('agents')
+      .select('id')
+      .eq('profile_id', profile?.id)
+      .single();
+
+    if (!agentData) return;
+
+    // Fetch stats for agents
+    const [requestsRes, messagesRes] = await Promise.all([
+      supabase.from('agent_requests').select('id', { count: 'exact' }).eq('agent_id', agentData.id),
+      supabase.from('player_messages').select('id', { count: 'exact' }).eq('sender_id', profile?.id)
+    ]);
+
+    setStats({
+      totalPlayers: 0,
+      totalVideos: 0,
+      activePitches: requestsRes.count || 0,
+      totalMessages: messagesRes.count || 0
+    });
+
+    // Fetch recent activity for agents
+    const { data: recentRequests } = await supabase
+      .from('agent_requests')
+      .select('id, title, created_at')
+      .eq('agent_id', agentData.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const activity: RecentActivity[] = [];
+
+    recentRequests?.forEach(request => {
+      activity.push({
+        type: 'pitch',
+        title: 'Request Created',
+        description: request.title,
+        date: request.created_at,
+        id: request.id
+      });
+    });
+
+    setRecentActivity(activity);
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return '1 day ago';
+    return `${diffInDays} days ago`;
+  };
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'player': return <Users className="w-4 h-4 text-rosegold" />;
+      case 'video': return <Video className="w-4 h-4 text-bright-pink" />;
+      case 'message': return <MessageSquare className="w-4 h-4 text-blue-400" />;
+      case 'pitch': return <Target className="w-4 h-4 text-green-400" />;
+      default: return <Calendar className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const quickActions = profile?.user_type === 'team' ? [
     {
-      type: 'player_added',
-      message: 'New player profile created: Marcus Johnson',
-      time: '2 hours ago',
-      icon: UserPlus,
-      color: 'text-green-400'
+      title: 'Add Player',
+      description: 'Register a new player',
+      icon: <Users className="w-6 h-6" />,
+      action: () => navigate('/players'),
+      color: 'bg-rosegold hover:bg-rosegold/90'
     },
     {
-      type: 'message_received',
-      message: 'New message from Chelsea FC Academy',
-      time: '5 hours ago',
-      icon: MessageCircle,
-      color: 'text-blue-400'
+      title: 'Upload Video',
+      description: 'Add match highlights',
+      icon: <Video className="w-6 h-6" />,
+      action: () => navigate('/videos'),
+      color: 'bg-bright-pink hover:bg-bright-pink/90'
     },
     {
-      type: 'pitch_expired',
-      message: 'Transfer pitch for Sarah Williams expired',
-      time: '1 day ago',
-      icon: Clock,
-      color: 'text-orange-400'
+      title: 'Create Pitch',
+      description: 'Post transfer opportunity',
+      icon: <FileText className="w-6 h-6" />,
+      action: () => navigate('/timeline'),
+      color: 'bg-blue-500 hover:bg-blue-600'
     },
+    {
+      title: 'View Messages',
+      description: 'Check inquiries',
+      icon: <MessageSquare className="w-6 h-6" />,
+      action: () => navigate('/messages'),
+      color: 'bg-green-500 hover:bg-green-600'
+    }
+  ] : [
+    {
+      title: 'Explore Requests',
+      description: 'Find opportunities',
+      icon: <Target className="w-6 h-6" />,
+      action: () => navigate('/explore'),
+      color: 'bg-rosegold hover:bg-rosegold/90'
+    },
+    {
+      title: 'Create Request',
+      description: 'Post what you need',
+      icon: <Plus className="w-6 h-6" />,
+      action: () => navigate('/explore'),
+      color: 'bg-bright-pink hover:bg-bright-pink/90'
+    },
+    {
+      title: 'Browse Timeline',
+      description: 'View available players',
+      icon: <Users className="w-6 h-6" />,
+      action: () => navigate('/timeline'),
+      color: 'bg-blue-500 hover:bg-blue-600'
+    },
+    {
+      title: 'Messages',
+      description: 'Manage conversations',
+      icon: <MessageSquare className="w-6 h-6" />,
+      action: () => navigate('/messages'),
+      color: 'bg-green-500 hover:bg-green-600'
+    }
   ];
 
   return (
-    <div className="p-6 space-y-6 min-h-screen bg-background">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-rosegold to-bright-pink rounded-xl p-6 text-white">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="font-polysans text-2xl font-bold mb-2">
-              Welcome back, {profile?.full_name}!
-            </h1>
-            <p className="opacity-90 mb-4">
-              {profile?.user_type === 'team'
-                ? 'Manage your team, players, and transfers all in one place.'
-                : 'Discover talent, manage your shortlist, and connect with teams.'}
-            </p>
-            {!profile?.profile_completed && (
-              <div className="flex items-center gap-2 bg-white/20 rounded-lg p-3 mb-4">
-                <AlertCircle className="w-5 h-5" />
-                <span className="text-sm">Complete your profile to unlock all features</span>
-                <Button size="sm" variant="secondary" className="ml-auto">
-                  Complete Profile
-                </Button>
-              </div>
-            )}
-          </div>
-          <Trophy className="w-12 h-12 opacity-60" />
+    <div className="p-6 space-y-6 bg-gray-900 min-h-screen">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-polysans font-bold text-white mb-2">
+            Welcome back, {profile?.full_name}
+          </h1>
+          <p className="text-gray-400 font-poppins">
+            {profile?.user_type === 'team' ? 'Manage your team and players' : 'Discover new opportunities'}
+          </p>
         </div>
+        <Badge variant="outline" className="text-rosegold border-rosegold capitalize">
+          {profile?.user_type}
+        </Badge>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => (
-          <Card key={index} className="bg-card border-border hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400 mb-1">{stat.label}</p>
-                  <p className="text-2xl font-bold text-white">{stat.value}</p>
-                </div>
-                <stat.icon className={`w-8 h-8 ${stat.color}`} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {profile?.user_type === 'team' ? (
+          <>
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Total Players</CardTitle>
+                <Users className="h-4 w-4 text-rosegold" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{stats.totalPlayers}</div>
+                <p className="text-xs text-gray-400">Registered in your team</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Videos</CardTitle>
+                <Video className="h-4 w-4 text-bright-pink" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{stats.totalVideos}</div>
+                <p className="text-xs text-gray-400">Uploaded content</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Active Pitches</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{stats.activePitches}</div>
+                <p className="text-xs text-gray-400">Transfer opportunities</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Messages</CardTitle>
+                <MessageSquare className="h-4 w-4 text-blue-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{stats.totalMessages}</div>
+                <p className="text-xs text-gray-400">Total conversations</p>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Active Requests</CardTitle>
+                <Target className="h-4 w-4 text-rosegold" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{stats.activePitches}</div>
+                <p className="text-xs text-gray-400">Posted by you</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Messages Sent</CardTitle>
+                <MessageSquare className="h-4 w-4 text-bright-pink" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{stats.totalMessages}</div>
+                <p className="text-xs text-gray-400">Player inquiries</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Opportunities</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">-</div>
+                <p className="text-xs text-gray-400">Available in timeline</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">Responses</CardTitle>
+                <Users className="h-4 w-4 text-blue-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">-</div>
+                <p className="text-xs text-gray-400">To your requests</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
-        <Card className="bg-card border-border">
+        <Card className="bg-gray-800 border-gray-700">
           <CardHeader>
-            <CardTitle className="font-polysans flex items-center gap-2 text-white">
-              Quick Actions
-              <InfoTooltip content="Common tasks you can perform quickly from your dashboard" />
-            </CardTitle>
-            <CardDescription className="text-gray-400">
-              {profile?.user_type === 'team'
-                ? 'Manage your team and players efficiently'
-                : 'Discover and connect with talent'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {profile?.user_type === 'team' ? (
-              <>
-                <Button className="w-full justify-start bg-rosegold hover:bg-rosegold/90 text-white" size="lg">
-                  <Settings className="w-5 h-5 mr-3" />
-                  Complete Team Profile
-                </Button>
-                <Button className="w-full justify-start bg-card border-border text-white hover:bg-muted" variant="outline" size="lg">
-                  <UserPlus className="w-5 h-5 mr-3" />
-                  Add New Player
-                </Button>
-                <Button className="w-full justify-start bg-card border-border text-white hover:bg-muted" variant="outline" size="lg">
-                  <Video className="w-5 h-5 mr-3" />
-                  Upload Videos
-                </Button>
-                <Button className="w-full justify-start bg-card border-border text-white hover:bg-muted" variant="outline" size="lg">
-                  <TrendingUp className="w-5 h-5 mr-3" />
-                  Create Transfer Pitch
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button className="w-full justify-start bg-rosegold hover:bg-rosegold/90 text-white" size="lg">
-                  <Search className="w-5 h-5 mr-3" />
-                  Search Players
-                </Button>
-                <Button className="w-full justify-start bg-card border-border text-white hover:bg-muted" variant="outline" size="lg">
-                  <Bookmark className="w-5 h-5 mr-3" />
-                  View Shortlist
-                </Button>
-                <Button className="w-full justify-start bg-card border-border text-white hover:bg-muted" variant="outline" size="lg">
-                  <MessageCircle className="w-5 h-5 mr-3" />
-                  Send Message
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="font-polysans flex items-center gap-2 text-white">
-              Recent Activity
-              <InfoTooltip content="Your latest activities and updates on the platform" />
-            </CardTitle>
-            <CardDescription className="text-gray-400">Stay updated with your latest actions</CardDescription>
+            <CardTitle className="text-white font-polysans">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
-                  <activity.icon className={`w-5 h-5 mt-0.5 ${activity.color}`} />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-white mb-1">
-                      {activity.message}
-                    </p>
-                    <p className="text-xs text-gray-400">{activity.time}</p>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              {quickActions.map((action, index) => (
+                <Button
+                  key={index}
+                  onClick={action.action}
+                  className={`${action.color} text-white flex flex-col items-center justify-center h-20 text-center`}
+                >
+                  {action.icon}
+                  <span className="text-sm font-medium mt-1">{action.title}</span>
+                  <span className="text-xs opacity-80">{action.description}</span>
+                </Button>
               ))}
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Requirements for Teams */}
-      {profile?.user_type === 'team' && (
-        <Card className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border-orange-500/30">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-polysans font-semibold text-orange-400 text-lg mb-2">Complete Your Team Setup</h3>
-                <p className="text-orange-300 mb-3">
-                  To access all platform features and post transfer pitches, you need:
-                </p>
-                <ul className="text-orange-300 space-y-1 mb-4">
-                  <li>• Complete team profile information</li>
-                  <li>• Add at least one player with full details</li>
-                  <li>• Upload minimum 5 team/player videos</li>
-                  <li>• Verify your team with required documentation</li>
-                </ul>
-                <Badge variant="outline" className="border-orange-500 text-orange-400">
-                  Required for Transfer Timeline Access
-                </Badge>
+        {/* Recent Activity */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white font-polysans">Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gray-700 rounded"></div>
+                    <div className="flex-1 space-y-1">
+                      <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-                Complete Setup
-              </Button>
-            </div>
+            ) : recentActivity.length > 0 ? (
+              <div className="space-y-4">
+                {recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        {activity.title}
+                      </p>
+                      <p className="text-sm text-gray-400 truncate">
+                        {activity.description}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <span className="text-xs text-gray-500">
+                        {formatTimeAgo(activity.date)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <Calendar className="w-12 h-12 mx-auto text-gray-500 mb-3" />
+                <p className="text-gray-400 text-sm">No recent activity</p>
+              </div>
+            )}
           </CardContent>
         </Card>
-      )}
-
-      {/* Subscription Notice */}
-      <Card className="border-bright-pink/20 bg-gradient-to-r from-bright-pink/5 to-rosegold/5">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-polysans font-semibold text-lg mb-2 text-white">Unlock Premium Features</h3>
-              <p className="text-gray-300 mb-3">
-                Get unlimited transfers, advanced analytics, and priority support
-              </p>
-              <ul className="text-sm text-gray-400 space-y-1">
-                <li>• Unlimited transfer pitches</li>
-                <li>• International transfer access</li>
-                <li>• AI-powered market value analysis</li>
-                <li>• Advanced player search filters</li>
-                <li>• Priority customer support</li>
-              </ul>
-            </div>
-            <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
-              Upgrade Now
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 };

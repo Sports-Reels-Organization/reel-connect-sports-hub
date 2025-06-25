@@ -118,6 +118,70 @@ export type Database = {
           },
         ]
       }
+      contracts: {
+        Row: {
+          agent_id: string | null
+          contract_type: string
+          created_at: string | null
+          id: string
+          player_id: string
+          signed_contract_url: string | null
+          status: string | null
+          team_id: string | null
+          template_url: string | null
+          terms: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          contract_type: string
+          created_at?: string | null
+          id?: string
+          player_id: string
+          signed_contract_url?: string | null
+          status?: string | null
+          team_id?: string | null
+          template_url?: string | null
+          terms?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          contract_type?: string
+          created_at?: string | null
+          id?: string
+          player_id?: string
+          signed_contract_url?: string | null
+          status?: string | null
+          team_id?: string | null
+          template_url?: string | null
+          terms?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_videos: {
         Row: {
           compressed_video_url: string | null
@@ -293,6 +357,90 @@ export type Database = {
         }
         Relationships: []
       }
+      player_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_flagged: boolean | null
+          is_read: boolean | null
+          message_type: string | null
+          pitch_id: string | null
+          player_id: string | null
+          receiver_id: string
+          request_id: string | null
+          sender_id: string
+          subject: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          is_read?: boolean | null
+          message_type?: string | null
+          pitch_id?: string | null
+          player_id?: string | null
+          receiver_id: string
+          request_id?: string | null
+          sender_id: string
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          is_read?: boolean | null
+          message_type?: string | null
+          pitch_id?: string | null
+          player_id?: string | null
+          receiver_id?: string
+          request_id?: string | null
+          sender_id?: string
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_performance: {
         Row: {
           assists: number | null
@@ -416,8 +564,10 @@ export type Database = {
           date_of_birth: string | null
           fifa_id: string | null
           foot: string | null
+          full_body_url: string | null
           full_name: string
           gender: Database["public"]["Enums"]["gender_type"]
+          headshot_url: string | null
           height: number | null
           id: string
           international_duty: Json | null
@@ -429,6 +579,7 @@ export type Database = {
           photo_url: string | null
           place_of_birth: string | null
           player_agent: string | null
+          portrait_url: string | null
           position: string
           team_id: string
           titles_seasons: string[] | null
@@ -446,8 +597,10 @@ export type Database = {
           date_of_birth?: string | null
           fifa_id?: string | null
           foot?: string | null
+          full_body_url?: string | null
           full_name: string
           gender: Database["public"]["Enums"]["gender_type"]
+          headshot_url?: string | null
           height?: number | null
           id?: string
           international_duty?: Json | null
@@ -459,6 +612,7 @@ export type Database = {
           photo_url?: string | null
           place_of_birth?: string | null
           player_agent?: string | null
+          portrait_url?: string | null
           position: string
           team_id: string
           titles_seasons?: string[] | null
@@ -476,8 +630,10 @@ export type Database = {
           date_of_birth?: string | null
           fifa_id?: string | null
           foot?: string | null
+          full_body_url?: string | null
           full_name?: string
           gender?: Database["public"]["Enums"]["gender_type"]
+          headshot_url?: string | null
           height?: number | null
           id?: string
           international_duty?: Json | null
@@ -489,6 +645,7 @@ export type Database = {
           photo_url?: string | null
           place_of_birth?: string | null
           player_agent?: string | null
+          portrait_url?: string | null
           position?: string
           team_id?: string
           titles_seasons?: string[] | null
