@@ -14,9 +14,7 @@ import { Play, Upload, Plus, Video, User, Calendar, Tag } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import PlayerDetailModal from './PlayerDetailModal';
 
-type DatabaseVideo = Tables<'videos'> & {
-  tagged_players?: string[];
-};
+type DatabaseVideo = Tables<'videos'>;
 type DatabasePlayer = Tables<'players'>;
 
 interface VideoForm {
@@ -238,9 +236,11 @@ const VideoManagement: React.FC = () => {
   };
 
   const getTaggedPlayerNames = (video: DatabaseVideo) => {
-    if (!video.tagged_players || !Array.isArray(video.tagged_players)) return [];
+    // Handle the Json type from database - it could be null, string[], or other Json types
+    const taggedPlayersData = video.tagged_players;
+    if (!taggedPlayersData || !Array.isArray(taggedPlayersData)) return [];
     
-    return video.tagged_players
+    return (taggedPlayersData as string[])
       .map((playerId: string) => {
         const player = players.find(p => p.id === playerId);
         return player ? { id: playerId, name: player.full_name } : null;
