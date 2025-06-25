@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -144,6 +143,7 @@ const Explore = () => {
       const { error } = await supabase
         .from('agent_requests')
         .insert({
+          agent_id: agentData.id,
           title: formData.title,
           description: formData.description,
           position: formData.position || null,
