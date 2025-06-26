@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -138,19 +137,27 @@ const Timeline = () => {
           ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
           : undefined;
 
+        // Handle tagged_videos - ensure it's an array of strings
+        const taggedVideos = Array.isArray(pitch.tagged_videos) 
+          ? pitch.tagged_videos as string[]
+          : pitch.tagged_videos 
+            ? [pitch.tagged_videos as string]
+            : [];
+
         // Fetch video details for tagged videos
         let tagged_video_details = [];
-        if (pitch.tagged_videos && pitch.tagged_videos.length > 0) {
+        if (taggedVideos.length > 0) {
           const { data: videoData } = await supabase
             .from('videos')
             .select('id, title, thumbnail_url, duration')
-            .in('id', pitch.tagged_videos);
+            .in('id', taggedVideos);
           
           tagged_video_details = videoData || [];
         }
 
         return {
           ...pitch,
+          tagged_videos: taggedVideos,
           players: {
             ...pitch.players,
             age
