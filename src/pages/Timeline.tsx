@@ -221,6 +221,67 @@ const Timeline = () => {
     fetchTransferPitches();
   };
 
+  const addToShortlist = async (pitch: TransferPitch) => {
+    if (profile?.user_type !== 'agent') return;
+
+    try {
+      // Get agent ID
+      const { data: agentData } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (!agentData) {
+        toast({
+          title: "Profile Required",
+          description: "Please complete your agent profile first",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Check if already shortlisted
+      const { data: existing } = await supabase
+        .from('shortlist')
+        .select('id')
+        .eq('agent_id', agentData.id)
+        .eq('pitch_id', pitch.id)
+        .single();
+
+      if (existing) {
+        toast({
+          title: "Already Shortlisted",
+          description: "This player is already in your shortlist",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('shortlist')
+        .insert({
+          agent_id: agentData.id,
+          player_id: pitch.player_id,
+          pitch_id: pitch.id
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Player added to your shortlist",
+      });
+    } catch (error) {
+      console.error('Error adding to shortlist:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add player to shortlist",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6 bg-background min-h-screen p-6">
@@ -443,16 +504,27 @@ const Timeline = () => {
                       </div>
                     </div>
 
-                    {/* Action Button */}
+                    {/* Action Buttons */}
                     {profile?.user_type === 'agent' && (
-                      <Button
-                        onClick={() => handleSendMessage(pitch.players, pitch.id)}
-                        size="sm"
-                        className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins"
-                      >
-                        <MessageSquare className="h-4 w-4 mr-1" />
-                        Express Interest
-                      </Button>
+                      <div className="space-y-2">
+                        <Button
+                          onClick={() => handleSendMessage(pitch.players, pitch.id)}
+                          size="sm"
+                          className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins"
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Express Interest
+                        </Button>
+                        <Button
+                          onClick={() => addToShortlist(pitch)}
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-rosegold text-rosegold hover:bg-rosegold hover:text-white font-poppins"
+                        >
+                          <Star className="h-4 w-4 mr-1" />
+                          Add to Shortlist
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
