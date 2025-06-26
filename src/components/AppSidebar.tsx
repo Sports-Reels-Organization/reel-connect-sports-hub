@@ -14,13 +14,13 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { 
-  Home, 
-  Users, 
+import {
+  Home,
+  Users,
   Video,
-  MessageSquare, 
-  Calendar, 
-  Search, 
+  MessageSquare,
+  Calendar,
+  Search,
   User,
   LogOut
 } from 'lucide-react';
@@ -40,7 +40,7 @@ const menuItems = [
   },
   {
     title: "Videos",
-    url: "/videos", 
+    url: "/videos",
     icon: Video,
   },
   {
@@ -75,7 +75,7 @@ export function AppSidebar() {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
+
       navigate('/');
       toast({
         title: "Signed out successfully",
@@ -91,7 +91,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="bg-sidebar-background border-sidebar-border">
+    <Sidebar className="border-sidebar-border">
       <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
           <img
@@ -109,7 +109,7 @@ export function AppSidebar() {
           </div>
         </div>
       </SidebarHeader>
-      
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium">
@@ -119,7 +119,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
+                  <SidebarMenuButton
                     asChild
                     isActive={location.pathname === item.url}
                     className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
@@ -136,15 +136,15 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-6 border-t border-sidebar-border">
+      <SidebarFooter className="p-6 border-0 border-sidebar-border">
         <div className="space-y-4">
-          {profile && (
+          {/* {profile && (
             <div className="text-sm text-sidebar-foreground/70">
               <p className="font-medium text-sidebar-foreground">{profile.full_name}</p>
               <p>{profile.email}</p>
             </div>
-          )}
-          <SidebarMenuButton 
+          )} */}
+          <SidebarMenuButton
             onClick={handleSignOut}
             className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >

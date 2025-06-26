@@ -143,7 +143,7 @@ const AuthForm = () => {
       await signInWithGoogle();
       toast({
         title: "Welcome to Sports Reels!",
-        description: "Successfully signed in with Google.",
+        description: "signing in with Google.",
       });
     } catch (error) {
       toast({
@@ -231,7 +231,7 @@ const AuthForm = () => {
                   id="terms"
                   checked={termsAccepted}
                   onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-                  className="mt-0.5 border-1 border-gray-400 data-[state=checked]:bg-rosegold data-[state=checked]:border-rosegold"
+                  className="mt-0.5  border-gray-400 data-[state=checked]:bg-rosegold data-[state=checked]:border-rosegold"
                 />
                 <label htmlFor="terms" className="text-xs text-gray-400 leading-snug">
                   By continuing, you agree to our Terms of Service and Privacy Policy.

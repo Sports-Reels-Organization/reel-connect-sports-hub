@@ -265,7 +265,7 @@ const VideoManagement: React.FC = () => {
     // Handle the Json type from database - it could be null, string[], or other Json types
     const taggedPlayersData = video.tagged_players;
     if (!taggedPlayersData || !Array.isArray(taggedPlayersData)) return [];
-    
+
     return (taggedPlayersData as string[])
       .map((playerId: string) => {
         const player = players.find(p => p.id === playerId);
@@ -312,18 +312,18 @@ const VideoManagement: React.FC = () => {
                   id="title"
                   value={videoForm.title}
                   onChange={(e) => setVideoForm(prev => ({ ...prev, title: e.target.value }))}
-                  className="bg-[#1a1a1a] border-0 text-white"
+                  className=" border-2 border-[#ffffff28] text-white"
                   placeholder="Video title"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-white">Video Type</Label>
-                <Select 
-                  value={videoForm.video_type} 
+                <Select
+                  value={videoForm.video_type}
                   onValueChange={(value) => setVideoForm(prev => ({ ...prev, video_type: value }))}
                 >
-                  <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
+                  <SelectTrigger className="bg-[#1a1a1a] border-2 border-[#ffffff28]  text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-[#1a1a1a] border-0">
@@ -342,7 +342,7 @@ const VideoManagement: React.FC = () => {
                 id="video_url"
                 value={videoForm.video_url}
                 onChange={(e) => setVideoForm(prev => ({ ...prev, video_url: e.target.value }))}
-                className="bg-[#1a1a1a] border-0 text-white"
+                className="bg-[#1a1a1a] border-2 border-[#ffffff28] text-white"
                 placeholder="https://youtube.com/watch?v=..."
               />
             </div>
@@ -353,7 +353,7 @@ const VideoManagement: React.FC = () => {
                 id="thumbnail_url"
                 value={videoForm.thumbnail_url}
                 onChange={(e) => setVideoForm(prev => ({ ...prev, thumbnail_url: e.target.value }))}
-                className="bg-[#1a1a1a] border-0 text-white"
+                className="bg-[#1a1a1a] border-2 border-[#ffffff28] text-white"
                 placeholder="Optional thumbnail image URL"
               />
             </div>
@@ -364,7 +364,7 @@ const VideoManagement: React.FC = () => {
                 id="description"
                 value={videoForm.description}
                 onChange={(e) => setVideoForm(prev => ({ ...prev, description: e.target.value }))}
-                className="bg-[#1a1a1a] border-0 text-white resize-none"
+                className="bg-[#1a1a1a] border-2 border-[#ffffff28] text-white resize-none"
                 placeholder="Video description..."
                 rows={3}
               />
@@ -378,7 +378,7 @@ const VideoManagement: React.FC = () => {
                   type="date"
                   value={videoForm.match_date}
                   onChange={(e) => setVideoForm(prev => ({ ...prev, match_date: e.target.value }))}
-                  className="bg-[#1a1a1a] border-0 text-white"
+                  className="bg-[#1a1a1a] border-2 border-[#ffffff28] text-white"
                 />
               </div>
 
@@ -388,7 +388,7 @@ const VideoManagement: React.FC = () => {
                   id="opposing_team"
                   value={videoForm.opposing_team}
                   onChange={(e) => setVideoForm(prev => ({ ...prev, opposing_team: e.target.value }))}
-                  className="bg-[#1a1a1a] border-0 text-white"
+                  className="bg-[#1a1a1a] border-2 border-[#ffffff28] text-white"
                   placeholder="Team name"
                 />
               </div>
@@ -399,7 +399,7 @@ const VideoManagement: React.FC = () => {
                   id="score"
                   value={videoForm.score}
                   onChange={(e) => setVideoForm(prev => ({ ...prev, score: e.target.value }))}
-                  className="bg-[#1a1a1a] border-0 text-white"
+                  className="bg-[#1a1a1a] border-2 border-[#ffffff28] text-white"
                   placeholder="e.g., 2-1"
                 />
               </div>
@@ -415,7 +415,7 @@ const VideoManagement: React.FC = () => {
                     <Badge
                       key={playerId}
                       variant="secondary"
-                      className="cursor-pointer border-0"
+                      className="cursor-pointer border-2 border-[#ffffff28]"
                       onClick={() => removePlayerTag(playerId)}
                     >
                       {player.full_name} ×
@@ -424,13 +424,13 @@ const VideoManagement: React.FC = () => {
                 })}
               </div>
               <Select onValueChange={addPlayerTag}>
-                <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
+                <SelectTrigger className="bg-[#1a1a1a] border-2 border-[#ffffff28] text-white">
                   <SelectValue placeholder="Select players to tag" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a1a1a] border-0">
                   {players.map((player) => (
-                    <SelectItem 
-                      key={player.id} 
+                    <SelectItem
+                      key={player.id}
                       value={player.id}
                       className="text-white"
                     >
@@ -449,7 +449,7 @@ const VideoManagement: React.FC = () => {
                   <Badge
                     key={index}
                     variant="secondary"
-                    className="cursor-pointer border-0"
+                    className="cursor-pointer border-2 border-[#ffffff28]"
                     onClick={() => removeTag(tag)}
                   >
                     {tag} ×
@@ -458,7 +458,7 @@ const VideoManagement: React.FC = () => {
               </div>
               <Input
                 placeholder="Add tags (press Enter)"
-                className="bg-[#1a1a1a] border-0 text-white"
+                className="bg-[#1a1a1a] border-2 border-[#ffffff28] text-white"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();

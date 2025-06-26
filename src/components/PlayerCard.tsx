@@ -28,7 +28,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onView }) => {
   };
 
   return (
-    <Card className=" border-gray-700 hover:border-rosegold/50 transition-all duration-300 group">
+    <Card className="border-0 border-gray-700 hover:border-rosegold/50 transition-all duration-300 group">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">

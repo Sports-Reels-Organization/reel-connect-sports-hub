@@ -77,7 +77,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto  border-gray-700">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border-0  border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white font-polysans text-2xl">
               {player.full_name}

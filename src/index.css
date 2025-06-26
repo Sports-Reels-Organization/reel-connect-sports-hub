@@ -26,18 +26,18 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 210 11% 20%;
-      /* Remove borders - transparent */
-      --input: 0 0% 10.2%;
-      --ring: 340 30% 65%;
-      --radius: 0.5rem;
-      --sidebar-background: 0 0% 10.2%;
-      --sidebar-foreground: 0 0% 90%;
-      --sidebar-primary: 340 30% 65%;
-      --sidebar-primary-foreground: 0 0% 100%;
-      --sidebar-accent: 0 0% 15%;
-      --sidebar-accent-foreground: 0 0% 95%;
-      --sidebar-border: 0 0% 0%;
-      --sidebar-ring: 340 30% 65%;
+    /* Remove borders - transparent */
+    --input: 0 0% 10.2%;
+    --ring: 340 30% 65%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 10.2%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 340 30% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 0%;
+    --sidebar-ring: 340 30% 65%;
 
     /* Sports Reels Custom Colors */
     --rosegold: 340 30% 65%;
@@ -85,9 +85,9 @@
 }
 
 @layer base {
-  * {
+  /* * {
     @apply border-0;
-  }
+  } */
 
   body {
     @apply bg-background text-foreground font-poppins;
@@ -111,7 +111,8 @@
   select {
     background-color: #1a1a1a !important;
     color: hsl(0 0% 95%) !important;
-    border: none !important;
+    /* border: none !important; */
+
   }
 
   input::placeholder,
@@ -130,11 +131,12 @@
   }
 
   /* Remove all borders globally */
-  .border,
+
   .border-gray-700,
   .border-gray-600,
   .border-rosegold {
-    border: none !important;
+    /* border: none !important; */
+
   }
 }
 
@@ -164,7 +166,7 @@
   }
 
   .border-rosegold {
-    border: none !important;
+    /* border: none !important; */
   }
 
   .hover-rosegold:hover {
@@ -196,6 +198,7 @@
 
   /* Remove border utilities */
   .border-0 {
-    border: none !important;
+    /* border: none !important; */
+
   }
 }

@@ -22,7 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
-          <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <header className="bg-white border-0 border-gray-200 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <SidebarTrigger />
               <img
@@ -33,10 +33,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <User className="w-8 h-8 text-rosegold" />
-                <span className="font-medium text-gray-900">{profile?.full_name}</span>
+                {/* <User className="w-8 h-8 text-rosegold" /> */}
+                <img className='w-[50px] h-[50px] rounded-[50%] object-cover' src={user.user_metadata.avatar_url} />
+                { }
                 <span className="text-xs bg-rosegold text-white px-2 py-1 rounded-full font-polysans">
-                  {profile?.user_type === 'team' ? 'Team' : 'Agent'}
+                  {profile?.user_type === 'team' ? 'Team' : 'Scout'}
                 </span>
               </div>
               <Button

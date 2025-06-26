@@ -249,10 +249,10 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6 min-h-screen bg-background">
+    <div className="p-6 space-y-6 min-h-screen  bg-background">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-polysans font-bold text-white mb-2">
+          <h1 className="text-3xl  font-polysans font-bold text-white mb-[1rem]">
             Welcome, {profile?.full_name}
           </h1>
           <p className="text-gray-400 font-poppins">
@@ -268,8 +268,8 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {profile?.user_type === 'team' ? (
           <>
-            <Card className="">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card className="border-0 ">
+              <CardHeader className="flex  flex-row items-center justify-between space-y-0 pb-2 ">
                 <CardTitle className="text-sm font-medium text-gray-400">Total Players</CardTitle>
                 <Users className="h-4 w-4 text-rosegold" />
               </CardHeader>
@@ -279,7 +279,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className=" border-gray-700">
+            <Card className="border-0 border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-gray-400">Videos</CardTitle>
                 <Video className="h-4 w-4 text-bright-pink" />
@@ -290,7 +290,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className=" border-gray-700">
+            <Card className="border-0 border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-gray-400">Active Pitches</CardTitle>
                 <TrendingUp className="h-4 w-4 text-green-400" />
@@ -301,12 +301,12 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className=" border-gray-700">
+            <Card className=" border-0 border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-gray-400">Messages</CardTitle>
                 <MessageSquare className="h-4 w-4 text-blue-400" />
               </CardHeader>
-              <CardContent>
+              <CardContent >
                 <div className="text-2xl font-bold text-white">{stats.totalMessages}</div>
                 <p className="text-xs text-gray-400">Total conversations</p>
               </CardContent>
@@ -363,7 +363,7 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
-        <Card className=" border-gray-700">
+        <Card className=" border-0 border-gray-700">
           <CardHeader>
             <CardTitle className="text-white font-polysans">Quick Actions</CardTitle>
           </CardHeader>
@@ -385,7 +385,7 @@ const Dashboard = () => {
         </Card>
 
         {/* Recent Activity */}
-        <Card className=" border-gray-700">
+        <Card className=" border-0 border-gray-700">
           <CardHeader>
             <CardTitle className="text-white font-polysans">Recent Activity</CardTitle>
           </CardHeader>
