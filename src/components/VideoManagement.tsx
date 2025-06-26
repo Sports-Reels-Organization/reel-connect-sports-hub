@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Play, Upload, Plus, Video, User, Calendar, Tag } from 'lucide-react';
+import { Play, Upload, Plus, Video, User, Calendar, Tag, AlertCircle } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import PlayerDetailModal from './PlayerDetailModal';
+import { validateVideoUrl } from '@/utils/videoValidation';
 
 type DatabaseVideo = Tables<'videos'>;
 type DatabasePlayer = Tables<'players'>;
@@ -38,6 +39,7 @@ const VideoManagement: React.FC = () => {
   const [teamId, setTeamId] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<DatabasePlayer | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [videoForm, setVideoForm] = useState<VideoForm>({
     title: '',
     description: '',
@@ -127,6 +129,17 @@ const VideoManagement: React.FC = () => {
     }
   };
 
+  const handleVideoUrlChange = (url: string) => {
+    setVideoForm(prev => ({ ...prev, video_url: url }));
+    
+    if (url) {
+      const validation = validateVideoUrl(url);
+      setValidationErrors(validation.errors);
+    } else {
+      setValidationErrors([]);
+    }
+  };
+
   const handleSaveVideo = async () => {
     if (!teamId) {
       toast({
@@ -141,6 +154,17 @@ const VideoManagement: React.FC = () => {
       toast({
         title: "Missing Information",
         description: "Please fill in title and video URL",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate video URL
+    const urlValidation = validateVideoUrl(videoForm.video_url);
+    if (!urlValidation.isValid) {
+      toast({
+        title: "Invalid Video URL",
+        description: urlValidation.errors.join(', '),
         variant: "destructive"
       });
       return;
@@ -178,11 +202,12 @@ const VideoManagement: React.FC = () => {
           tags: videoForm.tags,
           tagged_players: videoForm.tagged_players,
           is_public: true
-        });
+        })
+        .select();
 
       if (error) {
         console.error('Database error details:', error);
-        throw error;
+        throw new Error(`Database error: ${error.message}`);
       }
 
       console.log('Video saved successfully:', data);
@@ -198,7 +223,7 @@ const VideoManagement: React.FC = () => {
       console.error('Error saving video:', error);
       toast({
         title: "Error",
-        description: `Failed to upload video: ${error.message || 'Unknown error'}`,
+        description: error.message || 'Failed to upload video. Please try again.',
         variant: "destructive"
       });
     } finally {
@@ -286,7 +311,7 @@ const VideoManagement: React.FC = () => {
             Video Management
           </h1>
           <p className="text-gray-400 font-poppins">
-            Upload and manage match highlights and player videos
+            Upload and manage match highlights and player videos (landscape orientation only)
           </p>
         </div>
         <Button
@@ -312,7 +337,7 @@ const VideoManagement: React.FC = () => {
                   id="title"
                   value={videoForm.title}
                   onChange={(e) => setVideoForm(prev => ({ ...prev, title: e.target.value }))}
-                  className=" border-2 border-[#ffffff28] text-white"
+                  className="bg-[#111111] border-0 text-white"
                   placeholder="Video title"
                 />
               </div>
@@ -323,7 +348,7 @@ const VideoManagement: React.FC = () => {
                   value={videoForm.video_type}
                   onValueChange={(value) => setVideoForm(prev => ({ ...prev, video_type: value }))}
                 >
-                  <SelectTrigger className="bg-[#1a1a1a] border-2 border-[#ffffff28]  text-white">
+                  <SelectTrigger className="bg-[#111111] border-0 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-[#1a1a1a] border-0">
@@ -341,10 +366,20 @@ const VideoManagement: React.FC = () => {
               <Input
                 id="video_url"
                 value={videoForm.video_url}
-                onChange={(e) => setVideoForm(prev => ({ ...prev, video_url: e.target.value }))}
-                className="bg-[#1a1a1a] border-2 border-[#ffffff28] text-white"
-                placeholder="https://youtube.com/watch?v=..."
+                onChange={(e) => handleVideoUrlChange(e.target.value)}
+                className="bg-[#111111] border-0 text-white"
+                placeholder="https://youtube.com/watch?v=... (landscape videos only)"
               />
+              {validationErrors.length > 0 && (
+                <div className="flex items-start gap-2 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                  <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-red-400">
+                    {validationErrors.map((error, index) => (
+                      <div key={index}>{error}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -473,7 +508,7 @@ const VideoManagement: React.FC = () => {
             <div className="flex gap-4">
               <Button
                 onClick={handleSaveVideo}
-                disabled={loading}
+                disabled={loading || validationErrors.length > 0}
                 className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans border-0"
               >
                 {loading ? 'Uploading...' : 'Upload Video'}

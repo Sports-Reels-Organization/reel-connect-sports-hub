@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,23 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import InfoTooltip from '@/components/InfoTooltip';
+import { useSports } from '@/hooks/useSports';
 
 const countries = [
   'Nigeria', 'Ghana', 'Kenya', 'South Africa', 'Egypt', 'Morocco', 'Algeria', 'Tunisia',
   'United Kingdom', 'Germany', 'France', 'Spain', 'Italy', 'Brazil', 'Argentina', 'USA'
 ];
 
-const sports = [
-  { value: 'football', label: 'Football ⚽' },
-  { value: 'basketball', label: 'Basketball 🏀' },
-  { value: 'volleyball', label: 'Volleyball 🏐' },
-  { value: 'tennis', label: 'Tennis 🎾' },
-  { value: 'rugby', label: 'Rugby 🏈' }
-];
-
 const OnboardingFlow = () => {
   const { profile, updateProfile } = useAuth();
   const { toast } = useToast();
+  const { sports, loading: sportsLoading } = useSports();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
@@ -267,13 +260,17 @@ const OnboardingFlow = () => {
                   <Label className="text-white font-medium">Sport</Label>
                   <InfoTooltip content="Primary sport your team competes in" />
                 </div>
-                <Select value={teamInfo.sport_type} onValueChange={(value) => setTeamInfo({ ...teamInfo, sport_type: value })}>
+                <Select 
+                  value={teamInfo.sport_type} 
+                  onValueChange={(value) => setTeamInfo({ ...teamInfo, sport_type: value })}
+                  disabled={sportsLoading}
+                >
                   <SelectTrigger className="bg-white/5 border-rosegold/30 text-white focus:border-bright-pink">
-                    <SelectValue placeholder="Select sport" />
+                    <SelectValue placeholder={sportsLoading ? "Loading sports..." : "Select sport"} />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-900 border-rosegold/30">
                     {sports.map((sport) => (
-                      <SelectItem key={sport.value} value={sport.value} className="text-white hover:bg-rosegold/20">
+                      <SelectItem key={sport.id} value={sport.value} className="text-white hover:bg-rosegold/20">
                         {sport.label}
                       </SelectItem>
                     ))}
