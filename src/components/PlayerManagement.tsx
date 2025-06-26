@@ -127,8 +127,8 @@ const PlayerManagement: React.FC = () => {
       {showAddForm && (
         <PlayerForm
           teamId={teamId}
-          editingPlayer={editingPlayer}
-          onPlayerSaved={handlePlayerSaved}
+          player={editingPlayer}
+          onSave={handlePlayerSaved}
           onCancel={resetForm}
         />
       )}
