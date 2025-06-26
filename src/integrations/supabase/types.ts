@@ -255,42 +255,51 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachment_urls: Json | null
           content: string
           created_at: string | null
           id: string
           is_flagged: boolean | null
+          message_thread_id: string | null
           pitch_id: string | null
           player_id: string | null
           receiver_id: string
           sender_id: string
           status: Database["public"]["Enums"]["message_status"] | null
           subject: string | null
+          transfer_pitch_id: string | null
           updated_at: string | null
         }
         Insert: {
+          attachment_urls?: Json | null
           content: string
           created_at?: string | null
           id?: string
           is_flagged?: boolean | null
+          message_thread_id?: string | null
           pitch_id?: string | null
           player_id?: string | null
           receiver_id: string
           sender_id: string
           status?: Database["public"]["Enums"]["message_status"] | null
           subject?: string | null
+          transfer_pitch_id?: string | null
           updated_at?: string | null
         }
         Update: {
+          attachment_urls?: Json | null
           content?: string
           created_at?: string | null
           id?: string
           is_flagged?: boolean | null
+          message_thread_id?: string | null
           pitch_id?: string | null
           player_id?: string | null
           receiver_id?: string
           sender_id?: string
           status?: Database["public"]["Enums"]["message_status"] | null
           subject?: string | null
+          transfer_pitch_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -320,6 +329,13 @@ export type Database = {
             columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_transfer_pitch_id_fkey"
+            columns: ["transfer_pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
             referencedColumns: ["id"]
           },
         ]
@@ -816,40 +832,76 @@ export type Database = {
       transfer_pitches: {
         Row: {
           asking_price: number | null
+          contract_details: Json | null
           created_at: string | null
           currency: string | null
           description: string | null
           expires_at: string | null
           id: string
+          is_international: boolean | null
+          loan_fee: number | null
+          loan_with_obligation: boolean | null
+          loan_with_option: boolean | null
+          performance_bonus: number | null
           player_id: string
+          player_salary: number | null
+          relocation_support: number | null
+          service_charge_rate: number | null
+          sign_on_bonus: number | null
           status: Database["public"]["Enums"]["transfer_status"] | null
+          tagged_videos: Json | null
           team_id: string
+          tier_level: string | null
           transfer_type: Database["public"]["Enums"]["transfer_type"]
           updated_at: string | null
         }
         Insert: {
           asking_price?: number | null
+          contract_details?: Json | null
           created_at?: string | null
           currency?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
+          is_international?: boolean | null
+          loan_fee?: number | null
+          loan_with_obligation?: boolean | null
+          loan_with_option?: boolean | null
+          performance_bonus?: number | null
           player_id: string
+          player_salary?: number | null
+          relocation_support?: number | null
+          service_charge_rate?: number | null
+          sign_on_bonus?: number | null
           status?: Database["public"]["Enums"]["transfer_status"] | null
+          tagged_videos?: Json | null
           team_id: string
+          tier_level?: string | null
           transfer_type: Database["public"]["Enums"]["transfer_type"]
           updated_at?: string | null
         }
         Update: {
           asking_price?: number | null
+          contract_details?: Json | null
           created_at?: string | null
           currency?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
+          is_international?: boolean | null
+          loan_fee?: number | null
+          loan_with_obligation?: boolean | null
+          loan_with_option?: boolean | null
+          performance_bonus?: number | null
           player_id?: string
+          player_salary?: number | null
+          relocation_support?: number | null
+          service_charge_rate?: number | null
+          sign_on_bonus?: number | null
           status?: Database["public"]["Enums"]["transfer_status"] | null
+          tagged_videos?: Json | null
           team_id?: string
+          tier_level?: string | null
           transfer_type?: Database["public"]["Enums"]["transfer_type"]
           updated_at?: string | null
         }
@@ -902,6 +954,35 @@ export type Database = {
           video_url?: string
         }
         Relationships: []
+      }
+      video_requirements: {
+        Row: {
+          id: string
+          last_updated: string | null
+          team_id: string
+          video_count: number | null
+        }
+        Insert: {
+          id?: string
+          last_updated?: string | null
+          team_id: string
+          video_count?: number | null
+        }
+        Update: {
+          id?: string
+          last_updated?: string | null
+          team_id?: string
+          video_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_requirements_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       videos: {
         Row: {
@@ -983,7 +1064,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      validate_transfer_pitch_requirements: {
+        Args: { p_team_id: string; p_player_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       gender: "male" | "female" | "other"
