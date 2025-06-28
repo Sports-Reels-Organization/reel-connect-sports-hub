@@ -137,15 +137,31 @@ const AuthForm = () => {
   }, [currentVideoIndex]);
 
   const handleGoogleSignIn = async () => {
+    if (!termsAccepted) {
+      toast({
+        title: "Terms Not Accepted",
+        description: "Please accept the terms and conditions to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
+      // Clear any existing pending user type
+      localStorage.removeItem('pending_user_type');
+
+      // Store the selected user type
       localStorage.setItem('pending_user_type', userType);
+      console.log('Setting user type in localStorage:', userType);
+
       await signInWithGoogle();
       toast({
         title: "Welcome to Sports Reels!",
-        description: "signing in with Google.",
+        description: "Signing in with Google.",
       });
     } catch (error) {
+      console.error('Google sign-in error:', error);
       toast({
         title: "Authentication Error",
         description: "Failed to sign in with Google. Please try again.",
@@ -157,8 +173,8 @@ const AuthForm = () => {
   };
 
   return (
-    <div className="min-h-screen  flex items-center justify-center bg-black">
-      <div className="w-full  max-w-6xl flex flex-col lg:flex-row items-stretch">
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-stretch">
         {/* Left Panel - Form Section */}
         <div
           ref={formContainerRef}
@@ -196,7 +212,10 @@ const AuthForm = () => {
                 </div>
                 <Select
                   value={userType}
-                  onValueChange={(value: 'team' | 'agent') => setUserType(value)}
+                  onValueChange={(value: 'team' | 'agent') => {
+                    console.log('User type changed to:', value);
+                    setUserType(value);
+                  }}
                   disabled={loading}
                 >
                   <SelectTrigger className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-white focus:ring-2 focus:ring-rosegold focus:border-rosegold h-12 rounded-lg">
@@ -231,7 +250,7 @@ const AuthForm = () => {
                   id="terms"
                   checked={termsAccepted}
                   onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-                  className="mt-0.5  border-gray-400 data-[state=checked]:bg-rosegold data-[state=checked]:border-rosegold"
+                  className="mt-0.5 border-gray-400 data-[state=checked]:bg-rosegold data-[state=checked]:border-rosegold"
                 />
                 <label htmlFor="terms" className="text-xs text-gray-400 leading-snug">
                   By continuing, you agree to our Terms of Service and Privacy Policy.
@@ -245,10 +264,10 @@ const AuthForm = () => {
                 variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={loading || !termsAccepted}
-                className={`w-full ${termsAccepted ? 'bg-rosegold/10 border-rosegold/30 hover:bg-rosegold/20 text-white' : 'bg-[#2a2a2a] border-[#3a3a3a] text-gray-500'}  h-12 rounded-lg flex items-center justify-center gap-3 transition-colors`}
+                className={`w-full ${termsAccepted ? 'bg-rosegold/10 border-rosegold/30 hover:bg-rosegold/20 text-white' : 'bg-[#2a2a2a] border-[#3a3a3a] text-gray-500'} h-12 rounded-lg flex items-center justify-center gap-3 transition-colors`}
               >
                 {loading ? (
-                  <span className="h-5 w-5  border-gray-300 border-t-rosegold rounded-full animate-spin"></span>
+                  <span className="h-5 w-5 border-gray-300 border-t-rosegold rounded-full animate-spin"></span>
                 ) : (
                   <>
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -289,11 +308,11 @@ const AuthForm = () => {
 
         {/* Right Panel - Video Section */}
         <div
-          className="hidden rounded-r-[1rem] lg:flex lg:w-1/2 relative bg-cover bg-center bg-no-repeat overflow-hidden" style={{
-            backgroundImage: "url('/lovable-uploads/Untitled design (49).png')", height: formHeight
+          className="hidden rounded-r-[1rem] lg:flex lg:w-1/2 relative bg-cover bg-center bg-no-repeat overflow-hidden"
+          style={{
+            backgroundImage: "url('/lovable-uploads/Untitled design (49).png')",
+            height: formHeight
           }}
-
-
         >
           <video
             ref={videoRef}
@@ -309,7 +328,7 @@ const AuthForm = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-black/20" />
         </div>
       </div>
-    </div >
+    </div>
   );
 };
 

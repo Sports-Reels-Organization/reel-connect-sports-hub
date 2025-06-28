@@ -1,44 +1,63 @@
-
 import { useState, useEffect } from 'react';
-import { fetchSportsFromAPI, FormattedSport } from '@/services/sportsService';
+import {
+  getAllSports,
+  getDatabaseCompatibleSports,
+  type Sport,
+  type AllowedSportType
+} from '@/services/sportsService';
 
-export const useSports = () => {
-  const [sports, setSports] = useState<FormattedSport[]>([]);
-  const [loading, setLoading] = useState(true);
+interface SportOption {
+  id: string;
+  label: string;
+  value: string;
+  isDatabaseCompatible: boolean;
+}
+
+interface UseSportsOptions {
+  onlyDatabaseCompatible?: boolean;
+}
+
+export const useSports = (options?: UseSportsOptions) => {
+  const [sports, setSports] = useState<SportOption[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadSports = async () => {
+    const loadSports = () => {
       try {
         setLoading(true);
         setError(null);
-        const sportsData = await fetchSportsFromAPI();
-        setSports(sportsData);
+
+        // Get sports based on the requested filter
+        const sportsData = options?.onlyDatabaseCompatible
+          ? getDatabaseCompatibleSports()
+          : getAllSports();
+
+        // Transform to UI-friendly format
+        const sportsOptions = sportsData.map((sport: Sport) => ({
+          id: sport.id,
+          label: sport.label,
+          value: sport.value,
+          isDatabaseCompatible: sport.isDatabaseCompatible
+        }));
+
+        setSports(sportsOptions);
       } catch (err) {
         console.error('Error loading sports:', err);
-        setError('Failed to load sports data');
+        setError(err instanceof Error ? err.message : 'Failed to load sports');
       } finally {
         setLoading(false);
       }
     };
 
     loadSports();
-  }, []);
-
-  const getSportById = (sportValue: string) => {
-    return sports.find(sport => sport.value === sportValue);
-  };
-
-  const isFootballSport = (sportValue: string) => {
-    const sport = getSportById(sportValue);
-    return sport?.supportsFifaId || false;
-  };
+  }, [options?.onlyDatabaseCompatible]);
 
   return {
     sports,
     loading,
     error,
-    getSportById,
-    isFootballSport
+    isEmpty: !loading && sports.length === 0,
+    databaseCompatibleSports: sports.filter(s => s.isDatabaseCompatible)
   };
 };

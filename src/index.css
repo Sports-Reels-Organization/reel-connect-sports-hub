@@ -111,8 +111,12 @@
   select {
     background-color: #1a1a1a !important;
     color: hsl(0 0% 95%) !important;
-    /* border: none !important; */
+    border: none !important;
 
+  }
+
+  label {
+    color: rgba(128, 128, 128, 0.816) !important;
   }
 
   input::placeholder,
@@ -135,7 +139,7 @@
   .border-gray-700,
   .border-gray-600,
   .border-rosegold {
-    /* border: none !important; */
+    border: none !important;
 
   }
 }
@@ -166,7 +170,7 @@
   }
 
   .border-rosegold {
-    /* border: none !important; */
+    border: none !important;
   }
 
   .hover-rosegold:hover {
@@ -198,7 +202,7 @@
 
   /* Remove border utilities */
   .border-0 {
-    /* border: none !important; */
+    border: none !important;
 
   }
 }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { User, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
+import { User, Shield, AlertTriangle, CheckCircle, Mail, Globe, FileText } from 'lucide-react';
+import { useSports } from '@/hooks/useSports';
 
 interface AgentData {
   id: string;
@@ -25,6 +25,7 @@ interface AgentData {
 const AgentProfile = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { sports, loading: sportsLoading } = useSports();
   const [agentData, setAgentData] = useState<AgentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -79,6 +80,16 @@ const AgentProfile = () => {
   const handleSave = async () => {
     if (!profile?.id) return;
 
+    // Validate football specialization requires FIFA ID
+    if (agentData?.specialization.includes('football') && !formData.fifa_id) {
+      toast({
+        title: "Validation Error",
+        description: "As a football agent, you must provide a FIFA ID to transfer players or offer contracts",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const updateData = {
@@ -101,7 +112,8 @@ const AgentProfile = () => {
           .from('agents')
           .insert({
             profile_id: profile.id,
-            ...updateData
+            ...updateData,
+            specialization: [] // Will be set during onboarding
           });
 
         if (error) throw error;
@@ -109,7 +121,7 @@ const AgentProfile = () => {
 
       await fetchAgentData();
       setEditing(false);
-      
+
       toast({
         title: "Success",
         description: "Agent profile updated successfully",
@@ -127,10 +139,19 @@ const AgentProfile = () => {
   };
 
   const canMessagePlayers = () => {
-    return agentData?.fifa_id && agentData?.license_number;
+    const isFootballAgent = agentData?.specialization?.includes('football');
+    if (isFootballAgent) {
+      return agentData?.fifa_id && agentData?.license_number;
+    }
+    return agentData?.license_number; // For non-football agents, only license is required
   };
 
-  if (loading) {
+  const getSportLabel = (sportValue: string) => {
+    const sport = sports.find(s => s.value === sportValue);
+    return sport?.label || sportValue;
+  };
+
+  if (loading || sportsLoading) {
     return (
       <Card className="border-gray-700">
         <CardContent className="p-6">
@@ -147,7 +168,7 @@ const AgentProfile = () => {
   }
 
   return (
-    <Card className="border-gray-700">
+    <Card className="border-0 bg-background">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white font-polysans">
           <User className="w-5 h-5" />
@@ -161,24 +182,52 @@ const AgentProfile = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* FIFA ID Status */}
-        <div className="p-4 rounded-lg border border-gray-600 bg-gray-800/50">
+        {/* Agent Status */}
+        <div className="p-4 rounded-lg  border-0 bg-card">
           <div className="flex items-center gap-2 mb-2">
             <Shield className="w-4 h-4" />
-            <span className="font-medium text-white">FIFA Licensing Status</span>
+            <span className="font-medium text-white">Agent Status</span>
           </div>
           {canMessagePlayers() ? (
             <div className="flex items-center gap-2 text-green-400">
               <CheckCircle className="w-4 h-4" />
-              <span className="text-sm">Licensed - Can message players and offer contracts</span>
+              <span className="text-sm">
+                {agentData?.specialization?.includes('football')
+                  ? 'FIFA Licensed - Can message players and offer contracts'
+                  : 'Licensed - Can message players'}
+              </span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-yellow-400">
+            <div className="flex items-center gap-2 text-red-500">
               <AlertTriangle className="w-4 h-4" />
-              <span className="text-sm">Unlicensed - Can only view and shortlist players</span>
+              <span className="text-sm">
+                {agentData?.specialization?.includes('football')
+                  ? 'Unlicensed - FIFA ID required for football agents'
+                  : 'Unlicensed - Can only view and shortlist players'}
+              </span>
             </div>
           )}
         </div>
+
+        {/* Specialization Display */}
+        {agentData?.specialization && agentData.specialization.length > 0 && (
+          <div className="p-4 rounded-lg border-0 bg-card">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4" />
+              <span className="font-medium text-white">Sports Specialization</span>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {agentData.specialization.map(sport => (
+                <Badge key={sport} className="bg-gray-700 text-white">
+                  {getSportLabel(sport)}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-sm text-gray-400 mt-2">
+              Specializations can only be set during initial onboarding. Contact support to modify.
+            </p>
+          </div>
+        )}
 
         {editing ? (
           <div className="space-y-4">
@@ -192,15 +241,20 @@ const AgentProfile = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-gray-300">FIFA ID (Required for Football)</Label>
-              <Input
-                value={formData.fifa_id}
-                onChange={(e) => setFormData({ ...formData, fifa_id: e.target.value })}
-                className="bg-gray-800 border-gray-600 text-white"
-                placeholder="Enter FIFA ID"
-              />
-            </div>
+            {agentData?.specialization?.includes('football') && (
+              <div className="space-y-2">
+                <Label className="text-gray-300">FIFA ID *</Label>
+                <Input
+                  value={formData.fifa_id}
+                  onChange={(e) => setFormData({ ...formData, fifa_id: e.target.value })}
+                  className="bg-gray-800 border-gray-600 text-white"
+                  placeholder="Enter FIFA ID"
+                />
+                <p className="text-sm text-red-500">
+                  As a registered football agent, you must have a licensed FIFA ID to transfer players or offer contracts
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-gray-300">License Number</Label>
@@ -237,7 +291,7 @@ const AgentProfile = () => {
               <Button
                 onClick={handleSave}
                 disabled={loading || !formData.agency_name}
-                className="bg-rosegold hover:bg-rosegold/90 text-white"
+
               >
                 Save Changes
               </Button>
@@ -253,7 +307,7 @@ const AgentProfile = () => {
                   });
                 }}
                 variant="outline"
-                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+
               >
                 Cancel
               </Button>
@@ -263,41 +317,42 @@ const AgentProfile = () => {
           <div className="space-y-4">
             {agentData ? (
               <>
-                <div>
+                <div className="space-y-2">
                   <Label className="text-gray-400 text-sm">Agency Name</Label>
                   <p className="text-white font-medium">{agentData.agency_name}</p>
                 </div>
 
                 {agentData.fifa_id && (
-                  <div>
+                  <div className="space-y-2">
                     <Label className="text-gray-400 text-sm">FIFA ID</Label>
                     <p className="text-white font-medium">{agentData.fifa_id}</p>
                   </div>
                 )}
 
                 {agentData.license_number && (
-                  <div>
+                  <div className="space-y-2">
                     <Label className="text-gray-400 text-sm">License Number</Label>
                     <p className="text-white font-medium">{agentData.license_number}</p>
                   </div>
                 )}
 
                 {agentData.bio && (
-                  <div>
+                  <div className="space-y-2">
                     <Label className="text-gray-400 text-sm">Bio</Label>
                     <p className="text-white">{agentData.bio}</p>
                   </div>
                 )}
 
                 {agentData.website && (
-                  <div>
+                  <div className="space-y-2">
                     <Label className="text-gray-400 text-sm">Website</Label>
-                    <a 
-                      href={agentData.website} 
-                      target="_blank" 
+                    <a
+                      href={agentData.website}
+                      target="_blank"
                       rel="noopener noreferrer"
-                      className="text-rosegold hover:underline"
+                      className="text-rosegold hover:underline flex items-center gap-1"
                     >
+                      <Globe className="w-4 h-4" />
                       {agentData.website}
                     </a>
                   </div>

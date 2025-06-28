@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -9,6 +8,7 @@ interface Profile {
   user_type: 'team' | 'agent';
   full_name: string;
   email: string;
+  country_code?: string;
   phone?: string;
   country?: string;
   is_verified: boolean;
@@ -42,7 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let isMounted = true;
 
-    // Get initial session
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -64,25 +63,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
 
         console.log('Auth state changed:', event, session?.user?.id);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
-          // Check if this is a new user signup and we have a pending user type
           if (event === 'SIGNED_IN') {
             const pendingUserType = localStorage.getItem('pending_user_type');
+            console.log('Pending user type during SIGNED_IN:', pendingUserType);
+
             if (pendingUserType) {
-              console.log('Found pending user type:', pendingUserType);
-              // Update user metadata with the user type
               try {
+                // Update user metadata with the selected user type
                 const { error } = await supabase.auth.updateUser({
                   data: { user_type: pendingUserType }
                 });
+
                 if (error) {
                   console.error('Error updating user metadata:', error);
                 } else {
@@ -91,13 +90,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               } catch (error) {
                 console.error('Error updating user metadata:', error);
               }
-              // Clear the pending user type
-              localStorage.removeItem('pending_user_type');
             }
           }
-          
-          // Use setTimeout to prevent auth state loop
-          setTimeout(() => fetchProfile(session.user.id), 0);
+
+          // Fetch profile after a short delay to allow metadata to update
+          setTimeout(() => fetchProfile(session.user.id), 500);
         } else {
           setProfile(null);
           setLoading(false);
@@ -122,8 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching profile:', error);
-        if (error.code === 'PGRST116') {
-          // Profile doesn't exist, create it
+        if (error.code === 'PGRST116') { // Profile not found
           console.log('Profile not found, creating new profile...');
           await createProfile(userId);
           return;
@@ -144,15 +140,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const user = await supabase.auth.getUser();
       if (!user.data.user) throw new Error('No authenticated user');
 
-      const pendingUserType = localStorage.getItem('pending_user_type') || 'team';
-      
-      console.log('Creating profile for user:', userId, 'with type:', pendingUserType);
-      
+      // Get the pending user type from localStorage
+      let pendingUserType = localStorage.getItem('pending_user_type');
+      console.log('Creating profile with user type:', pendingUserType);
+
+      // Validate user type
+      if (!pendingUserType || (pendingUserType !== 'team' && pendingUserType !== 'agent')) {
+        console.warn('Invalid or missing user type, defaulting to team');
+        pendingUserType = 'team';
+      }
+
+      // Create the profile
       const { data, error } = await supabase
         .from('profiles')
         .insert({
           user_id: userId,
-          full_name: user.data.user.user_metadata?.full_name || user.data.user.user_metadata?.name || 'New User',
+          full_name: user.data.user.user_metadata?.full_name ||
+            user.data.user.user_metadata?.name ||
+            'New User',
           email: user.data.user.email || '',
           user_type: pendingUserType as 'team' | 'agent',
           profile_completed: false,
@@ -166,10 +171,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
 
-      console.log('Profile created successfully:', data);
+      console.log('Profile created successfully with type:', data.user_type);
       setProfile(data);
-      
-      // Clear pending user type after successful creation
+
+      // Clean up localStorage
       localStorage.removeItem('pending_user_type');
     } catch (error) {
       console.error('Error creating profile:', error);
@@ -182,7 +187,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: window.location.origin,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent'
+          }
         }
       });
       if (error) throw error;
@@ -210,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Updating profile with data:', updates);
       console.log('User ID:', user.id);
       console.log('Profile ID:', profile.id);
-      
+
       const { data, error } = await supabase
         .from('profiles')
         .update(updates)
@@ -222,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Database error updating profile:', error);
         throw error;
       }
-      
+
       console.log('Profile updated successfully:', data);
       setProfile(data);
     } catch (error) {

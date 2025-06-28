@@ -1,25 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import InfoTooltip from '@/components/InfoTooltip';
 import { useSports } from '@/hooks/useSports';
-
-const countries = [
-  'Nigeria', 'Ghana', 'Kenya', 'South Africa', 'Egypt', 'Morocco', 'Algeria', 'Tunisia',
-  'United Kingdom', 'Germany', 'France', 'Spain', 'Italy', 'Brazil', 'Argentina', 'USA'
-];
+import { useCountries } from '@/hooks/useCountries';
+import { useCountryCodes } from '@/hooks/useCountryCodes';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AllowedSportType, requiresFifaId, isAllowedSportType } from '@/services/sportsService';
+import { ArrowLeft, User, Building, Users } from 'lucide-react';
 
 const OnboardingFlow = () => {
   const { profile, updateProfile } = useAuth();
   const { toast } = useToast();
   const { sports, loading: sportsLoading } = useSports();
+  const { countries, loading: countriesLoading, error: countriesError } = useCountries();
+  const { countryCodes, loading: countryCodesLoading } = useCountryCodes();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
@@ -27,12 +26,13 @@ const OnboardingFlow = () => {
   const [basicInfo, setBasicInfo] = useState({
     full_name: profile?.full_name || '',
     phone: profile?.phone || '',
-    country: profile?.country || ''
+    country: profile?.country || '',
+    country_code: profile?.country_code || '+91'
   });
 
   const [teamInfo, setTeamInfo] = useState({
     team_name: '',
-    sport_type: '',
+    sport_type: 'football' as AllowedSportType,
     year_founded: '',
     league: '',
     member_association: '',
@@ -43,10 +43,28 @@ const OnboardingFlow = () => {
     agency_name: '',
     fifa_id: '',
     license_number: '',
-    specialization: [] as string[],
+    specialization: 'football' as AllowedSportType,
     bio: '',
     website: ''
   });
+
+  const totalSteps = profile?.user_type === 'team' ? 2 : 2;
+
+  // Get country code based on selected country
+  const getCountryCode = (countryName: string) => {
+    const countryData = countryCodes.find(c => c.country === countryName);
+    return countryData ? countryData.code : '+91';
+  };
+
+  // Update country code when country changes
+  const handleCountryChange = (value: string) => {
+    const newCountryCode = getCountryCode(value);
+    setBasicInfo({
+      ...basicInfo,
+      country: value,
+      country_code: newCountryCode
+    });
+  };
 
   const handleBasicInfoSubmit = async () => {
     if (!basicInfo.full_name || !basicInfo.country) {
@@ -61,7 +79,10 @@ const OnboardingFlow = () => {
     setLoading(true);
     try {
       await updateProfile({
-        ...basicInfo,
+        full_name: basicInfo.full_name,
+        phone: basicInfo.phone,
+        country: basicInfo.country,
+        country_code: basicInfo.country_code,
         profile_completed: false
       });
       setStep(2);
@@ -73,7 +94,7 @@ const OnboardingFlow = () => {
       console.error('Error updating basic info:', error);
       toast({
         title: "Error",
-        description: "Failed to update basic information",
+        description: error instanceof Error ? error.message : "Failed to update basic information",
         variant: "destructive"
       });
     } finally {
@@ -82,76 +103,80 @@ const OnboardingFlow = () => {
   };
 
   const handleFinalSubmit = async () => {
-    if (profile?.user_type === 'team' && (!teamInfo.team_name || !teamInfo.sport_type)) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (profile?.user_type === 'agent' && !agentInfo.agency_name) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      });
-      return;
+    if (profile?.user_type === 'team') {
+      if (!teamInfo.team_name) {
+        toast({
+          title: "Missing Information",
+          description: "Please enter your team name",
+          variant: "destructive"
+        });
+        return;
+      }
+    } else {
+      if (!agentInfo.agency_name) {
+        toast({
+          title: "Missing Information",
+          description: "Please enter your agency name",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (requiresFifaId(agentInfo.specialization)) {
+        if (!agentInfo.fifa_id) {
+          toast({
+            title: "Validation Error",
+            description: "As a football agent, you must provide a FIFA ID",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
     }
 
     setLoading(true);
     try {
-      // Create team or agent specific profile
       if (profile?.user_type === 'team') {
         const { error } = await supabase
           .from('teams')
-          .insert({
+          .upsert({
             profile_id: profile.id,
             team_name: teamInfo.team_name,
-            sport_type: teamInfo.sport_type as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby',
+            sport_type: teamInfo.sport_type,
             year_founded: teamInfo.year_founded ? parseInt(teamInfo.year_founded) : null,
             country: basicInfo.country,
-            league: teamInfo.league,
-            member_association: teamInfo.member_association,
-            description: teamInfo.description
+            league: teamInfo.league || null,
+            member_association: teamInfo.member_association || null,
+            description: teamInfo.description || null
           });
 
-        if (error) {
-          console.error('Error creating team profile:', error);
-          throw error;
-        }
+        if (error) throw error;
       } else {
         const { error } = await supabase
           .from('agents')
-          .insert({
+          .upsert({
             profile_id: profile.id,
             agency_name: agentInfo.agency_name,
-            fifa_id: agentInfo.fifa_id,
-            license_number: agentInfo.license_number,
-            specialization: agentInfo.specialization as ('football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby')[],
-            bio: agentInfo.bio,
-            website: agentInfo.website
+            fifa_id: requiresFifaId(agentInfo.specialization) ? agentInfo.fifa_id : null,
+            license_number: agentInfo.license_number || null,
+            specialization: [agentInfo.specialization],
+            bio: agentInfo.bio || null,
+            website: agentInfo.website || null
           });
 
-        if (error) {
-          console.error('Error creating agent profile:', error);
-          throw error;
-        }
+        if (error) throw error;
       }
 
-      // Mark profile as completed
       await updateProfile({ profile_completed: true });
 
       toast({
-        title: "Welcome to Sports Reels!",
-        description: "Your profile has been created successfully.",
+        title: "Profile Setup Complete!",
+        description: "Your profile has been successfully created",
       });
-    } catch (error) {
-      console.error('Final submit error:', error);
+    } catch (error: any) {
+      console.error('Error completing onboarding:', error);
       toast({
         title: "Error",
-        description: "Failed to complete profile setup",
+        description: error.message || "Failed to complete profile setup",
         variant: "destructive"
       });
     } finally {
@@ -159,240 +184,385 @@ const OnboardingFlow = () => {
     }
   };
 
+  const steps = [
+    {
+      id: 1,
+      title: "Your personal details",
+      subtitle: "Personal details of user",
+      icon: User,
+      completed: step > 1
+    },
+    {
+      id: 2,
+      title: profile?.user_type === 'team' ? "Your team details" : "Your agency details",
+      subtitle: profile?.user_type === 'team' ? "Team's basic information" : "Agency's basic information",
+      icon: profile?.user_type === 'team' ? Users : Building,
+      completed: false
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated sports background elements */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-20 left-20 w-32 h-32 bg-bright-pink rounded-full animate-pulse"></div>
-        <div className="absolute top-40 right-32 w-24 h-24 bg-rosegold rounded-full animate-bounce"></div>
-        <div className="absolute bottom-32 left-40 w-28 h-28 bg-bright-pink rounded-full animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-20 h-20 bg-rosegold rounded-full animate-bounce"></div>
+    <div className="min-h-screen flex">
+      {/* Sidebar */}
+      <div className="w-96 onboarding-sidebar bg-sidebar-border text-white p-8 flex flex-col relative">
+        {/* Logo */}
+        <div className="flex items-center mb-12">
+          <img src="/public/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png" alt="Sports Reels" className="w-8 h-8 mr-3" />
+          <span className="text-xl font-bold text-white">Sports Reels</span>
+        </div>
+
+        {/* Steps */}
+        <div className="space-y-8 flex-1">
+          {steps.map((stepItem, index) => (
+            <div key={stepItem.id} className="flex items-start">
+              <div className="flex-shrink-0 mr-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${stepItem.completed
+                  ? 'bg-white text-white'
+                  : step === stepItem.id
+                    ? 'bg-rosegold text-white'
+                    : 'bg-rosegold text-white'
+                  }`}>
+                  {stepItem.completed ? (
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <stepItem.icon className="w-5 h-5" />
+                  )}
+                </div>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className={`text-lg font-medium ${step === stepItem.id ? 'text-white' : 'text-white'
+                  }`}>
+                  {stepItem.title}
+                </h3>
+                <p className={`text-sm mt-1 ${step === stepItem.id ? 'text-gray-500' : 'text-gray-500'
+                  }`}>
+                  {stepItem.subtitle}
+                </p>
+              </div>
+              {index < steps.length - 1 && (
+                <div className="absolute left-12 mt-12 w-px h-8 bg-red-500"></div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-auto">
+          <p className="text-white text-sm">All rights reserved @Sports Reels</p>
+        </div>
       </div>
 
-      <Card className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border-rosegold/30 shadow-2xl relative z-10">
-        <CardHeader className="text-center pb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-bright-pink to-rosegold rounded-full flex items-center justify-center">
-              <span className="text-2xl">⚽</span>
+      {/* Main Content */}
+      <div className="flex-1 text-white onboarding-content p-8 flex items-center justify-center">
+        <div className="w-full max-w-2xl">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm">Step {step}/{totalSteps}</p>
             </div>
+            <h1 className="text-3xl font-bold text-rosegold mb-2">
+              {step === 1 ? 'Basic Info' : profile?.user_type === 'team' ? 'Team Details' : 'Agency Details'}
+            </h1>
+            <p className=" text-gray-400">
+              {step === 1
+                ? 'Tell us a bit about yourself to get started with your new Sports Reels account.'
+                : `Provide your ${profile?.user_type === 'team' ? 'team' : 'agency'} information to complete your profile.`
+              }
+            </p>
           </div>
-          <CardTitle className="font-polysans text-3xl text-white mb-2">
-            {step === 1 ? 'Basic Information' : `${profile?.user_type === 'team' ? 'Team' : 'Agent'} Profile`}
-          </CardTitle>
-          <div className="w-32 h-1 bg-gradient-to-r from-bright-pink to-rosegold mx-auto rounded-full"></div>
-        </CardHeader>
-        <CardContent className="space-y-6 px-8 pb-8">
-          {step === 1 ? (
-            <>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="full_name" className="text-white font-medium">Full Name</Label>
-                  <InfoTooltip content="Your full name as it appears on official documents" />
-                </div>
-                <Input
-                  id="full_name"
-                  value={basicInfo.full_name}
-                  onChange={(e) => setBasicInfo({ ...basicInfo, full_name: e.target.value })}
-                  className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
-                  placeholder="Enter your full name"
-                />
-              </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="phone" className="text-white font-medium">Phone Number</Label>
-                  <InfoTooltip content="Your contact phone number for important notifications" />
-                </div>
-                <Input
-                  id="phone"
-                  value={basicInfo.phone}
-                  onChange={(e) => setBasicInfo({ ...basicInfo, phone: e.target.value })}
-                  className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
-                  placeholder="Enter your phone number"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="country" className="text-white font-medium">Country</Label>
-                  <InfoTooltip content="Your primary country of operation" />
-                </div>
-                <Select value={basicInfo.country} onValueChange={(value) => setBasicInfo({ ...basicInfo, country: value })}>
-                  <SelectTrigger className="bg-white/5 border-rosegold/30 text-white focus:border-bright-pink">
-                    <SelectValue placeholder="Select your country" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-rosegold/30">
-                    {countries.map((country) => (
-                      <SelectItem key={country} value={country} className="text-white hover:bg-rosegold/20">
-                        {country}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
-                onClick={handleBasicInfoSubmit}
-                disabled={loading || !basicInfo.full_name || !basicInfo.country}
-                className="w-full bg-gradient-to-r from-bright-pink to-rosegold hover:from-bright-pink/90 hover:to-rosegold/90 text-white font-poppins font-medium py-6 text-lg shadow-lg transition-all duration-300 transform hover:scale-105"
-              >
-                {loading ? 'Saving...' : 'Continue'}
-              </Button>
-            </>
-          ) : profile?.user_type === 'team' ? (
-            <>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="team_name" className="text-white font-medium">Team Name</Label>
-                  <InfoTooltip content="Official name of your football club or team" />
-                </div>
-                <Input
-                  id="team_name"
-                  value={teamInfo.team_name}
-                  onChange={(e) => setTeamInfo({ ...teamInfo, team_name: e.target.value })}
-                  className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
-                  placeholder="Enter your team name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label className="text-white font-medium">Sport</Label>
-                  <InfoTooltip content="Primary sport your team competes in" />
-                </div>
-                <Select 
-                  value={teamInfo.sport_type} 
-                  onValueChange={(value) => setTeamInfo({ ...teamInfo, sport_type: value })}
-                  disabled={sportsLoading}
-                >
-                  <SelectTrigger className="bg-white/5 border-rosegold/30 text-white focus:border-bright-pink">
-                    <SelectValue placeholder={sportsLoading ? "Loading sports..." : "Select sport"} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-rosegold/30">
-                    {sports.map((sport) => (
-                      <SelectItem key={sport.id} value={sport.value} className="text-white hover:bg-rosegold/20">
-                        {sport.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="year_founded" className="text-white font-medium">Year Founded</Label>
+          {/* Form Content */}
+          <div className="space-y-6">
+            {step === 1 ? (
+              <>
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="full_name" className="text-gray-500  font-medium">Full name</Label>
                   <Input
-                    id="year_founded"
-                    type="number"
-                    value={teamInfo.year_founded}
-                    onChange={(e) => setTeamInfo({ ...teamInfo, year_founded: e.target.value })}
-                    className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
-                    placeholder="e.g. 1990"
+                    id="full_name"
+                    value={basicInfo.full_name}
+                    onChange={(e) => setBasicInfo({ ...basicInfo, full_name: e.target.value })}
+                    placeholder="enter fullname...."
+                    className=" border-0 outline-none"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="league" className="text-white font-medium">League</Label>
+
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="email" className="text-gray-500 font-medium">Email</Label>
                   <Input
-                    id="league"
-                    value={teamInfo.league}
-                    onChange={(e) => setTeamInfo({ ...teamInfo, league: e.target.value })}
-                    placeholder="e.g. NPFL, Premier League"
-                    className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
+                    id="email"
+                    value={profile?.email || ''}
+                    disabled
+                    className="border-0 outline-none"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="description" className="text-white font-medium">Team Description</Label>
-                  <InfoTooltip content="Brief description of your team's history and achievements" />
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="country" className="text-gray-500 font-medium">Country</Label>
+                  <Select
+                    value={basicInfo.country}
+                    onValueChange={handleCountryChange}
+                  >
+                    <SelectTrigger className="bg-white border-0 outline-none">
+                      <SelectValue placeholder="Select your country" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60  z-50">
+                      {countries.map((country) => (
+                        <SelectItem key={country.cca2} value={country.name.common}>
+                          <div className="flex border-0 outline-none items-center gap-2">
+                            {country.flags.png && (
+                              <img
+                                src={country.flags.png}
+                                alt={`${country.name.common} flag`}
+                                className="w-4 h-3 object-cover"
+                              />
+                            )}
+                            <span>{country.name.common}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {countriesError && (
+                    <p className="text-sm text-red-600">{countriesError}</p>
+                  )}
                 </div>
-                <Textarea
-                  id="description"
-                  value={teamInfo.description}
-                  onChange={(e) => setTeamInfo({ ...teamInfo, description: e.target.value })}
-                  className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins resize-none"
-                  placeholder="Tell us about your team..."
-                  rows={3}
-                />
-              </div>
-
-              <Button
-                onClick={handleFinalSubmit}
-                disabled={loading || !teamInfo.team_name || !teamInfo.sport_type}
-                className="w-full bg-gradient-to-r from-bright-pink to-rosegold hover:from-bright-pink/90 hover:to-rosegold/90 text-white font-poppins font-medium py-6 text-lg shadow-lg transition-all duration-300 transform hover:scale-105"
-              >
-                {loading ? 'Creating Profile...' : 'Complete Setup'}
-              </Button>
-            </>
-          ) : (
-            <>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="agency_name" className="text-white font-medium">Agency Name</Label>
-                  <InfoTooltip content="Name of your sports agency or your professional name" />
-                </div>
-                <Input
-                  id="agency_name"
-                  value={agentInfo.agency_name}
-                  onChange={(e) => setAgentInfo({ ...agentInfo, agency_name: e.target.value })}
-                  className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
-                  placeholder="Enter your agency name"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="fifa_id" className="text-white font-medium">FIFA ID (Optional)</Label>
-                    <InfoTooltip content="Your official FIFA agent ID if you're licensed for football" />
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="phone" className="text-gray-500 font-medium">Mobile number</Label>
+                  <div className="flex">
+                    <Select
+                      value={basicInfo.country_code}
+                      onValueChange={(value) => setBasicInfo({ ...basicInfo, country_code: value })}
+                    >
+                      <SelectTrigger className="w-32 border-0 outline-none rounded-r-none border-r-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white max-h-60 z-50">
+                        {countryCodes.map((item, index) => (
+                          <SelectItem key={`${item.code}-${index}-${item.country}`} value={item.code}>
+                            <div className="flex items-center gap-2">
+                              {item.flag && (
+                                <img
+                                  src={item.flag}
+                                  alt={`${item.country} flag`}
+                                  className="w-4 h-3 object-cover"
+                                />
+                              )}
+                              <span>{item.code}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="phone"
+                      value={basicInfo.phone}
+                      onChange={(e) => setBasicInfo({ ...basicInfo, phone: e.target.value })}
+                      placeholder="8976765451"
+                      className="border-0 outline-none"
+                    />
                   </div>
+                </div>
+              </>
+            ) : profile?.user_type === 'team' ? (
+              <>
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="team_name" className="text-gray-500 font-medium">Team Name *</Label>
                   <Input
-                    id="fifa_id"
-                    value={agentInfo.fifa_id}
-                    onChange={(e) => setAgentInfo({ ...agentInfo, fifa_id: e.target.value })}
-                    className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
-                    placeholder="FIFA ID"
+                    id="team_name"
+                    value={teamInfo.team_name}
+                    onChange={(e) => setTeamInfo({ ...teamInfo, team_name: e.target.value })}
+                    placeholder="Enter your team name"
+                    className="outline-none border-0"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="license_number" className="text-white font-medium">License Number</Label>
-                  <Input
-                    id="license_number"
-                    value={agentInfo.license_number}
-                    onChange={(e) => setAgentInfo({ ...agentInfo, license_number: e.target.value })}
-                    className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins"
-                    placeholder="License number"
+
+                <div className="space-y-2 text-start">
+                  <Label className="text-gray-500 font-medium">Sport *</Label>
+                  <Select
+                    value={teamInfo.sport_type}
+                    onValueChange={(value) => {
+                      if (isAllowedSportType(value)) {
+                        setTeamInfo({ ...teamInfo, sport_type: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="bg-white border-0">
+                      <SelectValue placeholder="Select sport" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {sports
+                        .filter(sport => isAllowedSportType(sport.value))
+                        .map((sport) => (
+                          <SelectItem
+                            key={sport.id}
+                            value={sport.value as AllowedSportType}
+                          >
+                            {sport.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="year_founded" className="text-gray-700 font-medium">Year Founded</Label>
+                    <Input
+                      id="year_founded"
+                      type="number"
+                      value={teamInfo.year_founded}
+                      onChange={(e) => setTeamInfo({ ...teamInfo, year_founded: e.target.value })}
+                      placeholder="e.g. 1990"
+                      className="bg-white border-gray-300"
+                    />
+                  </div>
+                  <div className="space-y-2 text-start">
+                    <Label htmlFor="league" className="text-gray-700 font-medium">League</Label>
+                    <Input
+                      id="league"
+                      value={teamInfo.league}
+                      onChange={(e) => setTeamInfo({ ...teamInfo, league: e.target.value })}
+                      placeholder="e.g. NPFL, Premier League"
+                      className="outline-none border-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="description" className="text-gray-700 font-medium">Team Description</Label>
+                  <Textarea
+                    id="description"
+                    value={teamInfo.description}
+                    onChange={(e) => setTeamInfo({ ...teamInfo, description: e.target.value })}
+                    placeholder="Tell us about your team..."
+                    rows={3}
+                    className="outline-none border-0"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="bio" className="text-white font-medium">Professional Bio</Label>
-                  <InfoTooltip content="Brief description of your experience and specializations" />
+              </>
+            ) : (
+              <>
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="agency_name" className="text-gray-500 font-medium">Agency Name *</Label>
+                  <Input
+                    id="agency_name"
+                    value={agentInfo.agency_name}
+                    onChange={(e) => setAgentInfo({ ...agentInfo, agency_name: e.target.value })}
+                    placeholder="Enter your agency name"
+                    className="outline-none border-0"
+                  />
                 </div>
-                <Textarea
-                  id="bio"
-                  value={agentInfo.bio}
-                  onChange={(e) => setAgentInfo({ ...agentInfo, bio: e.target.value })}
-                  className="bg-white/5 border-rosegold/30 text-white placeholder-gray-400 focus:border-bright-pink font-poppins resize-none"
-                  placeholder="Tell us about your professional experience..."
-                  rows={3}
-                />
-              </div>
 
+                <div className="space-y-2 text-start">
+                  <Label className="text-gray-500 font-medium">Sports Specialization *</Label>
+                  <Select
+                    value={agentInfo.specialization}
+                    onValueChange={(value) => {
+                      if (isAllowedSportType(value)) {
+                        setAgentInfo({ ...agentInfo, specialization: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="bg-white outline-none border-0">
+                      <SelectValue placeholder="Select your specialization" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {sports
+                        .filter(sport => isAllowedSportType(sport.value))
+                        .map((sport) => (
+                          <SelectItem
+                            key={sport.id}
+                            value={sport.value as AllowedSportType}
+                          >
+                            {sport.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {requiresFifaId(agentInfo.specialization) && (
+                    <p className="text-sm text-red-600 mt-1">
+                      FIFA ID required for football agents
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 text-start">
+                    <Label htmlFor="fifa_id" className="text-gray-500 font-medium">
+                      FIFA ID {requiresFifaId(agentInfo.specialization) && '*'}
+                    </Label>
+                    <Input
+                      id="fifa_id"
+                      value={agentInfo.fifa_id}
+                      onChange={(e) => setAgentInfo({ ...agentInfo, fifa_id: e.target.value })}
+                      placeholder="FIFA ID"
+                      className="outline-none border-0"
+                    />
+                  </div>
+                  <div className="space-y-2 text-start">
+                    <Label htmlFor="license_number" className="text-gray-500 font-medium">License Number</Label>
+                    <Input
+                      id="license_number"
+                      value={agentInfo.license_number}
+                      onChange={(e) => setAgentInfo({ ...agentInfo, license_number: e.target.value })}
+                      placeholder="License number"
+                      className="outline-none border-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="bio" className="text-gray-500 font-medium">Professional Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={agentInfo.bio}
+                    onChange={(e) => setAgentInfo({ ...agentInfo, bio: e.target.value })}
+                    placeholder="Tell us about your professional experience..."
+                    rows={3}
+                    className="outline-none border-0"
+                  />
+                </div>
+
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="website" className="text-gray-500 font-medium">Website</Label>
+                  <Input
+                    id="website"
+                    value={agentInfo.website}
+                    onChange={(e) => setAgentInfo({ ...agentInfo, website: e.target.value })}
+                    placeholder="https://your-website.com"
+                    className="outline-none border-0"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-between mt-8">
+            {step > 1 ? (
               <Button
-                onClick={handleFinalSubmit}
-                disabled={loading || !agentInfo.agency_name}
-                className="w-full bg-gradient-to-r from-bright-pink to-rosegold hover:from-bright-pink/90 hover:to-rosegold/90 text-white font-poppins font-medium py-6 text-lg shadow-lg transition-all duration-300 transform hover:scale-105"
+                variant="outline"
+                onClick={() => setStep(step - 1)}
+                className="flex items-center gap-2 outline-none border-0 "
               >
-                {loading ? 'Creating Profile...' : 'Complete Setup'}
+                <ArrowLeft className="w-4 h-4" />
+                Back
               </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <div></div>
+            )}
+
+            <Button
+              onClick={step === 1 ? handleBasicInfoSubmit : handleFinalSubmit}
+              disabled={loading || (step === 1 && (!basicInfo.full_name || !basicInfo.country))}
+              className=" px-8"
+            >
+              {step === totalSteps ? 'Complete Setup' : 'Next'}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

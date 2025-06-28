@@ -11,6 +11,7 @@ import MessagePlayerModal from '@/components/MessagePlayerModal';
 import CreateTransferPitch from '@/components/CreateTransferPitch';
 
 interface TransferPitch {
+  player_id: any;
   id: string;
   description: string;
   asking_price: number;
@@ -138,9 +139,9 @@ const Timeline = () => {
           : undefined;
 
         // Handle tagged_videos - ensure it's an array of strings
-        const taggedVideos = Array.isArray(pitch.tagged_videos) 
+        const taggedVideos = Array.isArray(pitch.tagged_videos)
           ? pitch.tagged_videos as string[]
-          : pitch.tagged_videos 
+          : pitch.tagged_videos
             ? [pitch.tagged_videos as string]
             : [];
 
@@ -151,7 +152,7 @@ const Timeline = () => {
             .from('videos')
             .select('id, title, thumbnail_url, duration')
             .in('id', taggedVideos);
-          
+
           tagged_video_details = videoData || [];
         }
 
@@ -202,7 +203,7 @@ const Timeline = () => {
     const expires = new Date(expiresAt);
     const now = new Date();
     const diffInDays = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays <= 0) return 'Expired';
     if (diffInDays === 1) return '1 day left';
     return `${diffInDays} days left`;
@@ -323,7 +324,7 @@ const Timeline = () => {
                 No Active Transfer Pitches
               </h3>
               <p className="text-gray-400 font-poppins mb-6">
-                {profile?.user_type === 'team' 
+                {profile?.user_type === 'team'
                   ? "Create your first transfer pitch to promote your players"
                   : "There are currently no active player transfer opportunities available."
                 }
@@ -414,7 +415,7 @@ const Timeline = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-400">Value:</span>
                         <span className="text-white">
-                          {pitch.players.market_value 
+                          {pitch.players.market_value
                             ? formatCurrency(pitch.players.market_value, pitch.currency)
                             : 'N/A'
                           }
@@ -465,7 +466,7 @@ const Timeline = () => {
                           {formatCurrency(pitch.loan_fee, pitch.currency)} (Loan)
                         </div>
                       )}
-                      
+
                       {/* Additional fees for permanent transfers */}
                       {pitch.transfer_type === 'permanent' && (
                         <div className="text-xs text-gray-400 space-y-1">
