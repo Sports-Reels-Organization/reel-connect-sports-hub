@@ -7,9 +7,9 @@ import { MessageSquare } from 'lucide-react';
 const Messages = () => {
   return (
     <Layout>
-      <div className="space-y-6 bg-background">
-        <div>
-          <h1 className="text-3xl font-polysans font-bold text-white mb-2">
+      <div className="space-y-6 p-[3rem] bg-background">
+        <div className='text-start'>
+          <h1 className="text-3xl text-start font-polysans font-bold text-white mb-2">
             Messages
           </h1>
           <p className="text-rosegold font-poppins">
@@ -17,7 +17,7 @@ const Messages = () => {
           </p>
         </div>
 
-        <Card className="bg-white/5 border-rosegold/20">
+        <Card className="bg-white/5 border-0">
           <CardContent className="p-12 text-center">
             <MessageSquare className="h-12 w-12 text-rosegold mx-auto mb-4" />
             <h3 className="text-xl font-polysans text-white mb-2">Messages Coming Soon</h3>

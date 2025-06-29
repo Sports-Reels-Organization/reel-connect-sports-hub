@@ -249,9 +249,9 @@ const NotificationCenter: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 p-[3rem]">
             <div className="flex items-center justify-between">
-                <div>
+                <div className='text-start'>
                     <h1 className="text-3xl font-polysans font-bold text-white mb-2">
                         Notifications
                     </h1>

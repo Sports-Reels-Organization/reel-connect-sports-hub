@@ -285,9 +285,9 @@ const Timeline = () => {
 
   return (
     <Layout>
-      <div className="space-y-6 bg-background min-h-screen p-6">
+      <div className="space-y-6 bg-background min-h-screen p-[3rem]">
         <div className="flex items-center justify-between">
-          <div>
+          <div className='text-start'>
             <h1 className="text-3xl font-polysans font-bold text-white mb-2">
               Transfer Timeline
             </h1>

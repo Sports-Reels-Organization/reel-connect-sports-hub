@@ -7,8 +7,8 @@ import { User } from 'lucide-react';
 const Profile = () => {
   return (
     <Layout>
-      <div className="space-y-6">
-        <div>
+      <div className="space-y-6 p-[3rem]">
+        <div className='text-start'>
           <h1 className="text-3xl font-polysans font-bold text-white mb-2">
             Profile Settings
           </h1>
@@ -17,7 +17,7 @@ const Profile = () => {
           </p>
         </div>
 
-        <Card className="bg-white/5 border-rosegold/20">
+        <Card className="bg-white/5 border-0">
           <CardContent className="p-12 text-center">
             <User className="h-12 w-12 text-rosegold mx-auto mb-4" />
             <h3 className="text-xl font-polysans text-white mb-2">Profile Management Coming Soon</h3>

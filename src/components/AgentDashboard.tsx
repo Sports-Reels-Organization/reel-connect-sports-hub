@@ -390,21 +390,21 @@ const AgentDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                   onClick={() => setActiveTab('explore')}
-                  className="h-20 flex flex-col items-center justify-center gap-2 border border-gray-600 rounded-lg hover:border-rosegold transition-colors text-white"
+                  className="h-20 flex flex-col items-center justify-center gap-2 border-0 bg-background transition-colors text-white"
                 >
                   <Search className="h-6 w-6" />
                   <span className="font-polysans">Explore Players</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('shortlist')}
-                  className="h-20 flex flex-col items-center justify-center gap-2 border border-gray-600 rounded-lg hover:border-rosegold transition-colors text-white"
+                  className="h-20 flex flex-col items-center justify-center gap-2  border-0 bg-background transition-colors text-white"
                 >
                   <Heart className="h-6 w-6" />
                   <span className="font-polysans">View Shortlist</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('timeline')}
-                  className="h-20 flex flex-col items-center justify-center gap-2 border border-gray-600 rounded-lg hover:border-rosegold transition-colors text-white"
+                  className="h-20 flex flex-col items-center justify-center gap-2 border-0 rounded-lg bg-background transition-colors text-white"
                 >
                   <Target className="h-6 w-6" />
                   <span className="font-polysans">Transfer Timeline</span>

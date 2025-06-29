@@ -77,7 +77,7 @@ const PlayerManagement: React.FC = () => {
       setPlayers(data || []);
 
       // Filter eligible players for transfer pitches
-      const eligible = (data || []).filter(player => 
+      const eligible = (data || []).filter(player =>
         player.full_name &&
         player.position &&
         player.citizenship &&
@@ -136,14 +136,14 @@ const PlayerManagement: React.FC = () => {
 
   const getPlayerCompletionStatus = (player: DatabasePlayer) => {
     const requiredFields = [
-      'full_name', 'position', 'citizenship', 'date_of_birth', 
+      'full_name', 'position', 'citizenship', 'date_of_birth',
       'height', 'weight', 'bio', 'market_value'
     ] as const;
-    
-    const completedFields = requiredFields.filter(field => 
+
+    const completedFields = requiredFields.filter(field =>
       player[field] !== null && player[field] !== undefined && player[field] !== ''
     );
-    
+
     return {
       completed: completedFields.length,
       total: requiredFields.length,
@@ -162,9 +162,9 @@ const PlayerManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto bg-background min-h-screen">
+    <div className="p-[3rem] space-y-6 max-w-7xl mx-auto bg-background min-h-screen">
       <div className="flex items-center justify-between">
-        <div>
+        <div className='text-start'>
           <h1 className="font-polysans text-3xl font-bold text-white mb-2">
             Player Management
           </h1>
@@ -192,11 +192,10 @@ const PlayerManagement: React.FC = () => {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Video Requirements */}
-            <div className={`p-4 rounded-lg border ${
-              videoRequirements && videoRequirements.video_count >= 5 
-                ? 'border-green-500 bg-green-900/20' 
-                : 'border-red-500 bg-red-900/20'
-            }`}>
+            <div className={`p-4 rounded-lg border ${videoRequirements && videoRequirements.video_count >= 5
+              ? 'border-green-500 bg-green-900/20'
+              : 'border-red-500 bg-red-900/20'
+              }`}>
               <div className="flex items-center gap-2 mb-2">
                 <Video className="h-5 w-5" />
                 <h3 className="font-polysans text-white">Team Videos</h3>
@@ -211,14 +210,13 @@ const PlayerManagement: React.FC = () => {
                   <span className="text-white">5</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all ${
-                      videoRequirements && videoRequirements.video_count >= 5 
-                        ? 'bg-green-500' 
-                        : 'bg-red-500'
-                    }`}
-                    style={{ 
-                      width: `${Math.min((videoRequirements?.video_count || 0) / 5 * 100, 100)}%` 
+                  <div
+                    className={`h-2 rounded-full transition-all ${videoRequirements && videoRequirements.video_count >= 5
+                      ? 'bg-green-500'
+                      : 'bg-red-500'
+                      }`}
+                    style={{
+                      width: `${Math.min((videoRequirements?.video_count || 0) / 5 * 100, 100)}%`
                     }}
                   />
                 </div>
@@ -226,11 +224,10 @@ const PlayerManagement: React.FC = () => {
             </div>
 
             {/* Player Profiles */}
-            <div className={`p-4 rounded-lg border ${
-              eligiblePlayers.length > 0 
-                ? 'border-green-500 bg-green-900/20' 
-                : 'border-red-500 bg-red-900/20'
-            }`}>
+            <div className={`p-4 rounded-lg border ${eligiblePlayers.length > 0
+              ? 'border-green-500 bg-green-900/20'
+              : 'border-red-500 bg-red-900/20'
+              }`}>
               <div className="flex items-center gap-2 mb-2">
                 <Users className="h-5 w-5" />
                 <h3 className="font-polysans text-white">Complete Profiles</h3>
@@ -245,12 +242,11 @@ const PlayerManagement: React.FC = () => {
                   <span className="text-white">{players.length}</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all ${
-                      eligiblePlayers.length > 0 ? 'bg-green-500' : 'bg-red-500'
-                    }`}
-                    style={{ 
-                      width: `${players.length > 0 ? (eligiblePlayers.length / players.length * 100) : 0}%` 
+                  <div
+                    className={`h-2 rounded-full transition-all ${eligiblePlayers.length > 0 ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                    style={{
+                      width: `${players.length > 0 ? (eligiblePlayers.length / players.length * 100) : 0}%`
                     }}
                   />
                 </div>
@@ -258,23 +254,21 @@ const PlayerManagement: React.FC = () => {
             </div>
 
             {/* Overall Status */}
-            <div className={`p-4 rounded-lg border ${
-              canCreateTransferPitches() 
-                ? 'border-green-500 bg-green-900/20' 
-                : 'border-yellow-500 bg-yellow-900/20'
-            }`}>
+            <div className={`p-4 rounded-lg border ${canCreateTransferPitches()
+              ? 'border-green-500 bg-green-900/20'
+              : 'border-yellow-500 bg-yellow-900/20'
+              }`}>
               <div className="flex items-center gap-2 mb-2">
                 <Target className="h-5 w-5" />
                 <h3 className="font-polysans text-white">Transfer Pitches</h3>
               </div>
               <div className="space-y-2">
-                <p className={`text-sm font-semibold ${
-                  canCreateTransferPitches() ? 'text-green-400' : 'text-yellow-400'
-                }`}>
+                <p className={`text-sm font-semibold ${canCreateTransferPitches() ? 'text-green-400' : 'text-yellow-400'
+                  }`}>
                   {canCreateTransferPitches() ? 'Ready to Create' : 'Not Ready'}
                 </p>
                 <p className="text-xs text-gray-400">
-                  {canCreateTransferPitches() 
+                  {canCreateTransferPitches()
                     ? 'You can now create transfer pitches for your players'
                     : 'Complete requirements to create transfer pitches'
                   }
@@ -325,9 +319,8 @@ const PlayerManagement: React.FC = () => {
               />
               {/* Profile Completion Indicator */}
               <div className="absolute top-2 right-2">
-                <div className={`w-3 h-3 rounded-full ${
-                  completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
-                }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
+                <div className={`w-3 h-3 rounded-full ${completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
+                  }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
               </div>
             </div>
           );

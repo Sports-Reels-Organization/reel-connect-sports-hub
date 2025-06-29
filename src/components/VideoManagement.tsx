@@ -131,7 +131,7 @@ const VideoManagement: React.FC = () => {
 
   const handleVideoUrlChange = (url: string) => {
     setVideoForm(prev => ({ ...prev, video_url: url }));
-    
+
     if (url) {
       const validation = validateVideoUrl(url);
       setValidationErrors(validation.errors);
@@ -304,9 +304,9 @@ const VideoManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto bg-[#111111] min-h-screen">
+    <div className="p-[3rem] space-y-6 max-w-6xl mx-auto bg-[#111111] min-h-screen">
       <div className="flex items-center justify-between">
-        <div>
+        <div className='text-start'>
           <h1 className="font-polysans text-3xl font-bold text-white mb-2">
             Video Management
           </h1>

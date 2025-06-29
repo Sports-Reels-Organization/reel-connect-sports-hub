@@ -11,7 +11,7 @@ import Messages from "./pages/Messages";
 import Timeline from "./pages/Timeline";
 import Explore from "./pages/Explore";
 import NotFound from "./pages/NotFound";
-import NotificationCenter from "./components/NotificationCenter";
+import Notification from "./pages/Notification";
 import Contracts from "./pages/Contracts";
 import "./App.css";
 
@@ -32,7 +32,7 @@ function App() {
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/timeline" element={<Timeline />} />
                 <Route path="/explore" element={<Explore />} />
-                <Route path="/notifications" element={<NotificationCenter />} />
+                <Route path="/notifications" element={<Notification />} />
                 <Route path="/contracts" element={<Contracts />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
