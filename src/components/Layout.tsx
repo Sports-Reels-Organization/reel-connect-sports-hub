@@ -1,10 +1,11 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
 import { LogOut, User } from 'lucide-react';
+import LanguageSelector from '@/components/LanguageSelector';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, profile, signOut } = useAuth();
+  const { t } = useLanguage();
 
   if (!user) {
     return <>{children}</>;
@@ -32,6 +34,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               />
             </div>
             <div className="flex items-center gap-4">
+              {/* Language Selector */}
+              <LanguageSelector variant="button" showFlag={true} />
+
               <div className="flex items-center gap-2">
                 {/* <User className="w-8 h-8 text-rosegold" /> */}
                 <img className='w-[30px] h-[30px] rounded-[50%] object-cover' src={user.user_metadata.avatar_url} />

@@ -1,0 +1,717 @@
+{
+  "football": {
+    "positions": [
+      "Goalkeeper",
+      "Right Back",
+      "Left Back",
+      "Center Back",
+      "Defensive Midfielder",
+      "Central Midfielder",
+      "Attacking Midfielder",
+      "Right Winger",
+      "Left Winger",
+      "Striker",
+      "Second Striker"
+    ],
+    "female_positions": [
+      "Goalkeeper",
+      "Right Back",
+      "Left Back",
+      "Center Back",
+      "Defensive Midfielder",
+      "Central Midfielder",
+      "Attacking Midfielder",
+      "Right Winger",
+      "Left Winger",
+      "Striker",
+      "Second Striker"
+    ],
+    "leagues": [
+      "English Premier League",
+      "La Liga",
+      "Serie A",
+      "Bundesliga",
+      "Ligue 1",
+      "UEFA Champions League",
+      "FIFA World Cup",
+      "AFCON",
+      "Copa Am\u00e9rica"
+    ],
+    "female_leagues": [
+      "FA Women's Super League",
+      "UEFA Women's Champions League",
+      "FIFA Women's World Cup",
+      "NWSL",
+      "CAF Women's Champions League"
+    ],
+    "titles": [
+      "FIFA World Cup",
+      "Ballon d'Or",
+      "UEFA Champions League Winner",
+      "Golden Boot",
+      "AFCON Champion"
+    ],
+    "female_titles": [
+      "FIFA Women's World Cup",
+      "The Best FIFA Women's Player",
+      "UEFA Women's Champions League Winner",
+      "Golden Boot (Women)"
+    ]
+  },
+  "american_football": {
+    "positions": [
+      "Quarterback",
+      "Running Back",
+      "Wide Receiver",
+      "Tight End",
+      "Offensive Lineman",
+      "Defensive Lineman",
+      "Linebacker",
+      "Cornerback",
+      "Safety",
+      "Kicker",
+      "Punter"
+    ],
+    "female_positions": [
+      "Quarterback",
+      "Running Back",
+      "Wide Receiver",
+      "Tight End",
+      "Offensive Lineman",
+      "Defensive Lineman",
+      "Linebacker",
+      "Cornerback",
+      "Safety",
+      "Kicker",
+      "Punter"
+    ],
+    "leagues": [
+      "NFL",
+      "NCAA",
+      "Super Bowl"
+    ],
+    "female_leagues": [
+      "Women's Football Alliance",
+      "Legends Football League"
+    ],
+    "titles": [
+      "Super Bowl Champion",
+      "NFL MVP"
+    ],
+    "female_titles": [
+      "WFA Champion"
+    ]
+  },
+  "basketball": {
+    "positions": [
+      "Point Guard",
+      "Shooting Guard",
+      "Small Forward",
+      "Power Forward",
+      "Center"
+    ],
+    "female_positions": [
+      "Point Guard",
+      "Shooting Guard",
+      "Small Forward",
+      "Power Forward",
+      "Center"
+    ],
+    "leagues": [
+      "NBA",
+      "EuroLeague",
+      "FIBA World Cup",
+      "Olympics"
+    ],
+    "female_leagues": [
+      "WNBA",
+      "EuroLeague Women",
+      "FIBA Women's Basketball World Cup"
+    ],
+    "titles": [
+      "NBA Champion",
+      "NBA MVP",
+      "NBA Finals MVP",
+      "Olympic Gold Medalist"
+    ],
+    "female_titles": [
+      "WNBA Champion",
+      "WNBA MVP",
+      "Olympic Gold Medalist (Women)"
+    ]
+  },
+  "baseball": {
+    "positions": [
+      "Pitcher",
+      "Catcher",
+      "First Baseman",
+      "Second Baseman",
+      "Third Baseman",
+      "Shortstop",
+      "Left Fielder",
+      "Center Fielder",
+      "Right Fielder",
+      "Designated Hitter"
+    ],
+    "female_positions": [
+      "Pitcher",
+      "Catcher",
+      "First Baseman",
+      "Second Baseman",
+      "Third Baseman",
+      "Shortstop",
+      "Left Fielder",
+      "Center Fielder",
+      "Right Fielder",
+      "Designated Hitter"
+    ],
+    "leagues": [
+      "MLB",
+      "Nippon Professional Baseball",
+      "World Baseball Classic"
+    ],
+    "female_leagues": [
+      "Women's Baseball World Cup"
+    ],
+    "titles": [
+      "World Series Champion",
+      "MLB MVP"
+    ],
+    "female_titles": [
+      "Women's Baseball World Cup Champion"
+    ]
+  },
+  "volleyball": {
+    "positions": [
+      "Outside Hitter",
+      "Opposite Hitter",
+      "Middle Blocker",
+      "Setter",
+      "Libero",
+      "Defensive Specialist"
+    ],
+    "female_positions": [
+      "Outside Hitter",
+      "Opposite Hitter",
+      "Middle Blocker",
+      "Setter",
+      "Libero",
+      "Defensive Specialist"
+    ],
+    "leagues": [
+      "FIVB Volleyball World League",
+      "Olympics",
+      "CEV Champions League"
+    ],
+    "female_leagues": [
+      "FIVB Volleyball Women's Nations League",
+      "Olympics (Women)",
+      "CEV Women's Champions League"
+    ],
+    "titles": [
+      "Olympic Gold Medal",
+      "FIVB World League Winner"
+    ],
+    "female_titles": [
+      "Olympic Gold Medal (Women)",
+      "FIVB Nations League Winner (Women)"
+    ]
+  },
+  "tennis": {
+    "positions": [
+      "Singles",
+      "Doubles",
+      "Mixed Doubles"
+    ],
+    "female_positions": [
+      "Singles",
+      "Doubles",
+      "Mixed Doubles"
+    ],
+    "leagues": [
+      "ATP Tour",
+      "Grand Slams",
+      "Davis Cup",
+      "Olympics"
+    ],
+    "female_leagues": [
+      "WTA Tour",
+      "Grand Slams",
+      "Billie Jean King Cup",
+      "Olympics"
+    ],
+    "titles": [
+      "Wimbledon",
+      "US Open",
+      "French Open",
+      "Australian Open",
+      "Olympic Gold"
+    ],
+    "female_titles": [
+      "Wimbledon (Women)",
+      "US Open (Women)",
+      "French Open (Women)",
+      "Australian Open (Women)",
+      "Olympic Gold (Women)"
+    ]
+  },
+  "rugby": {
+    "positions": [
+      "Loosehead Prop",
+      "Hooker",
+      "Tighthead Prop",
+      "Lock",
+      "Flanker",
+      "Number Eight",
+      "Scrum-half",
+      "Fly-half",
+      "Centre",
+      "Wing",
+      "Fullback"
+    ],
+    "female_positions": [
+      "Loosehead Prop",
+      "Hooker",
+      "Tighthead Prop",
+      "Lock",
+      "Flanker",
+      "Number Eight",
+      "Scrum-half",
+      "Fly-half",
+      "Centre",
+      "Wing",
+      "Fullback"
+    ],
+    "leagues": [
+      "Rugby World Cup",
+      "Six Nations",
+      "The Rugby Championship",
+      "United Rugby Championship"
+    ],
+    "female_leagues": [
+      "Women's Rugby World Cup",
+      "Women's Six Nations",
+      "Premier 15s"
+    ],
+    "titles": [
+      "Rugby World Cup",
+      "Six Nations Champion",
+      "Olympic Gold (7s)"
+    ],
+    "female_titles": [
+      "Women's Rugby World Cup",
+      "Women's Six Nations Champion",
+      "Olympic Gold (Women\u2019s 7s)"
+    ]
+  },
+  "cricket": {
+    "positions": [
+      "Batsman",
+      "Bowler",
+      "Wicket-Keeper",
+      "All-Rounder",
+      "Fielder"
+    ],
+    "female_positions": [
+      "Batsman",
+      "Bowler",
+      "Wicket-Keeper",
+      "All-Rounder",
+      "Fielder"
+    ],
+    "leagues": [
+      "ICC World Cup",
+      "IPL",
+      "The Ashes",
+      "Big Bash League"
+    ],
+    "female_leagues": [
+      "Women's Cricket World Cup",
+      "Women's Big Bash League"
+    ],
+    "titles": [
+      "ICC Cricket World Cup",
+      "IPL Champion"
+    ],
+    "female_titles": [
+      "Women's World Cup Champion"
+    ]
+  },
+  "hockey": {
+    "positions": [
+      "Goalkeeper",
+      "Defender",
+      "Midfielder",
+      "Forward"
+    ],
+    "female_positions": [
+      "Goalkeeper",
+      "Defender",
+      "Midfielder",
+      "Forward"
+    ],
+    "leagues": [
+      "NHL",
+      "IIHF World Championship",
+      "Olympics"
+    ],
+    "female_leagues": [
+      "PHF",
+      "Women's Olympic Hockey"
+    ],
+    "titles": [
+      "Stanley Cup",
+      "Olympic Gold"
+    ],
+    "female_titles": [
+      "Olympic Gold (Women)"
+    ]
+  },
+  "golf": {
+    "positions": [
+      "Golfer"
+    ],
+    "female_positions": [
+      "Golfer"
+    ],
+    "leagues": [
+      "PGA Tour",
+      "The Masters",
+      "US Open",
+      "Ryder Cup"
+    ],
+    "female_leagues": [
+      "LPGA Tour",
+      "Solheim Cup"
+    ],
+    "titles": [
+      "The Masters",
+      "PGA Championship"
+    ],
+    "female_titles": [
+      "Women's PGA Championship",
+      "US Women's Open"
+    ]
+  },
+  "swimming": {
+    "positions": [
+      "Freestyle",
+      "Backstroke",
+      "Breaststroke",
+      "Butterfly",
+      "Medley"
+    ],
+    "female_positions": [
+      "Freestyle",
+      "Backstroke",
+      "Breaststroke",
+      "Butterfly",
+      "Medley"
+    ],
+    "leagues": [
+      "Olympics",
+      "World Aquatics Championships"
+    ],
+    "female_leagues": [
+      "Olympics (Women)",
+      "World Aquatics Championships (Women)"
+    ],
+    "titles": [
+      "Olympic Gold",
+      "World Champion"
+    ],
+    "female_titles": [
+      "Olympic Gold (Women)",
+      "World Champion (Women)"
+    ]
+  },
+  "athletics": {
+    "positions": [
+      "Sprinter",
+      "Middle Distance",
+      "Long Distance",
+      "Jumper",
+      "Thrower",
+      "Decathlete"
+    ],
+    "female_positions": [
+      "Sprinter",
+      "Middle Distance",
+      "Long Distance",
+      "Jumper",
+      "Thrower",
+      "Heptathlete"
+    ],
+    "leagues": [
+      "Olympics",
+      "World Athletics Championships",
+      "Diamond League"
+    ],
+    "female_leagues": [
+      "Olympics (Women)",
+      "World Athletics Championships (Women)"
+    ],
+    "titles": [
+      "Olympic Gold",
+      "World Champion"
+    ],
+    "female_titles": [
+      "Olympic Gold (Women)",
+      "World Champion (Women)"
+    ]
+  },
+  "boxing": {
+    "positions": [
+      "Flyweight",
+      "Lightweight",
+      "Welterweight",
+      "Middleweight",
+      "Heavyweight"
+    ],
+    "female_positions": [
+      "Flyweight",
+      "Lightweight",
+      "Welterweight",
+      "Middleweight",
+      "Heavyweight"
+    ],
+    "leagues": [
+      "WBC",
+      "WBA",
+      "IBF",
+      "WBO",
+      "Olympics"
+    ],
+    "female_leagues": [
+      "Olympics (Women)",
+      "WBC",
+      "WBA",
+      "IBF",
+      "WBO"
+    ],
+    "titles": [
+      "World Champion",
+      "Olympic Gold"
+    ],
+    "female_titles": [
+      "World Champion (Women)",
+      "Olympic Gold (Women)"
+    ]
+  },
+  "wrestling": {
+    "positions": [
+      "Freestyle",
+      "Greco-Roman"
+    ],
+    "female_positions": [
+      "Freestyle"
+    ],
+    "leagues": [
+      "Olympics",
+      "World Wrestling Championships"
+    ],
+    "female_leagues": [
+      "Olympics (Women)",
+      "World Wrestling Championships (Women)"
+    ],
+    "titles": [
+      "Olympic Gold",
+      "World Champion"
+    ],
+    "female_titles": [
+      "Olympic Gold (Women)",
+      "World Champion (Women)"
+    ]
+  },
+  "martial_arts": {
+    "positions": [
+      "Karate",
+      "Taekwondo",
+      "Judo",
+      "Kung Fu",
+      "MMA"
+    ],
+    "female_positions": [
+      "Karate",
+      "Taekwondo",
+      "Judo",
+      "Kung Fu",
+      "MMA"
+    ],
+    "leagues": [
+      "UFC",
+      "Olympics",
+      "ONE Championship"
+    ],
+    "female_leagues": [
+      "UFC (Women)",
+      "Olympics (Women)",
+      "ONE Championship (Women)"
+    ],
+    "titles": [
+      "UFC Champion",
+      "Olympic Gold"
+    ],
+    "female_titles": [
+      "UFC Champion (Women)",
+      "Olympic Gold (Women)"
+    ]
+  },
+  "cycling": {
+    "positions": [
+      "Road Cyclist",
+      "Track Cyclist",
+      "Mountain Biker",
+      "BMX Rider"
+    ],
+    "female_positions": [
+      "Road Cyclist",
+      "Track Cyclist",
+      "Mountain Biker",
+      "BMX Rider"
+    ],
+    "leagues": [
+      "Tour de France",
+      "Giro d'Italia",
+      "Olympics"
+    ],
+    "female_leagues": [
+      "Tour de France Femmes",
+      "Olympics (Women)"
+    ],
+    "titles": [
+      "Tour de France Winner",
+      "Olympic Gold"
+    ],
+    "female_titles": [
+      "Tour de France Femmes Winner",
+      "Olympic Gold (Women)"
+    ]
+  },
+  "table_tennis": {
+    "positions": [
+      "Singles",
+      "Doubles",
+      "Mixed Doubles"
+    ],
+    "female_positions": [
+      "Singles",
+      "Doubles",
+      "Mixed Doubles"
+    ],
+    "leagues": [
+      "ITTF World Tour",
+      "Olympics"
+    ],
+    "female_leagues": [
+      "ITTF World Tour (Women)",
+      "Olympics (Women)"
+    ],
+    "titles": [
+      "Olympic Gold",
+      "World Champion"
+    ],
+    "female_titles": [
+      "Olympic Gold (Women)",
+      "World Champion (Women)"
+    ]
+  },
+  "badminton": {
+    "positions": [
+      "Singles",
+      "Doubles",
+      "Mixed Doubles"
+    ],
+    "female_positions": [
+      "Singles",
+      "Doubles",
+      "Mixed Doubles"
+    ],
+    "leagues": [
+      "BWF World Tour",
+      "Olympics"
+    ],
+    "female_leagues": [
+      "BWF World Tour (Women)",
+      "Olympics (Women)"
+    ],
+    "titles": [
+      "Olympic Gold",
+      "World Champion"
+    ],
+    "female_titles": [
+      "Olympic Gold (Women)",
+      "World Champion (Women)"
+    ]
+  },
+  "handball": {
+    "positions": [
+      "Goalkeeper",
+      "Left Wing",
+      "Right Wing",
+      "Pivot",
+      "Left Back",
+      "Right Back",
+      "Center Back"
+    ],
+    "female_positions": [
+      "Goalkeeper",
+      "Left Wing",
+      "Right Wing",
+      "Pivot",
+      "Left Back",
+      "Right Back",
+      "Center Back"
+    ],
+    "leagues": [
+      "EHF Champions League",
+      "Olympics",
+      "IHF World Championship"
+    ],
+    "female_leagues": [
+      "EHF Champions League (Women)",
+      "Olympics (Women)",
+      "IHF World Championship (Women)"
+    ],
+    "titles": [
+      "Olympic Gold",
+      "World Champion"
+    ],
+    "female_titles": [
+      "Olympic Gold (Women)",
+      "World Champion (Women)"
+    ]
+  },
+  "water_polo": {
+    "positions": [
+      "Goalkeeper",
+      "Center Forward",
+      "Center Back",
+      "Driver",
+      "Winger"
+    ],
+    "female_positions": [
+      "Goalkeeper",
+      "Center Forward",
+      "Center Back",
+      "Driver",
+      "Winger"
+    ],
+    "leagues": [
+      "FINA World League",
+      "Olympics"
+    ],
+    "female_leagues": [
+      "FINA Women's World League",
+      "Olympics (Women)"
+    ],
+    "titles": [
+      "Olympic Gold",
+      "World Champion"
+    ],
+    "female_titles": [
+      "Olympic Gold (Women)",
+      "World Champion (Women)"
+    ]
+  }
+}

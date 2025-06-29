@@ -1,15 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import InfoTooltip from '@/components/InfoTooltip';
 import { Checkbox } from '@/components/ui/checkbox';
+import LanguageSelector from '@/components/LanguageSelector';
 
 const AuthForm = () => {
   // Authentication and form state
   const { signInWithGoogle } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [userType, setUserType] = useState<'team' | 'agent'>('team');
   const [loading, setLoading] = useState(false);
@@ -157,7 +160,7 @@ const AuthForm = () => {
 
       await signInWithGoogle();
       toast({
-        title: "Welcome to Sports Reels!",
+        title: t('welcome'),
         description: "Signing in with Google.",
       });
     } catch (error) {
@@ -192,12 +195,17 @@ const AuthForm = () => {
               </div>
               <div className="space-y-2">
                 <h1 className="text-2xl sm:text-3xl font-bold text-white font-polysans">
-                  Welcome to Sports Reels
+                  {t('welcome')}
                 </h1>
                 <p className="text-gray-400 text-sm sm:text-base">
                   Sign in to access your personalized dashboard
                 </p>
               </div>
+            </div>
+
+            {/* Language Selector - Added without changing layout */}
+            <div className="flex justify-center mb-6">
+              <LanguageSelector variant="select" showFlag={true} showNativeName={false} />
             </div>
 
             {/* Form Container */}
@@ -253,9 +261,7 @@ const AuthForm = () => {
                   className="mt-0.5 border-gray-400 data-[state=checked]:bg-rosegold data-[state=checked]:border-rosegold"
                 />
                 <label htmlFor="terms" className="text-xs text-gray-400 leading-snug">
-                  By continuing, you agree to our Terms of Service and Privacy Policy.
-                  Your data is secure and will be used to provide personalized sports
-                  management features.
+                  {t('termsDescription')}
                 </label>
               </div>
 
@@ -276,7 +282,7 @@ const AuthForm = () => {
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                     </svg>
-                    <span className="font-medium">Continue with Google</span>
+                    <span className="font-medium">{t('signInWithGoogle')}</span>
                   </>
                 )}
               </Button>
@@ -294,14 +300,7 @@ const AuthForm = () => {
               </div>
 
               {/* Create Account */}
-              <div className="text-center">
-                <button
-                  onClick={handleGoogleSignIn}
-                  className="text-rosegold hover:text-rosegold/80 font-medium text-sm transition-colors"
-                >
-                  Create new account
-                </button>
-              </div>
+              
             </div>
           </div>
         </div>

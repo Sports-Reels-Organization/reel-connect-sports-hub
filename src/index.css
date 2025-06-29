@@ -109,7 +109,7 @@
   input,
   textarea,
   select {
-    background-color: #1a1a1a !important;
+    background-color: #1a1a1a;
     color: hsl(0 0% 95%) !important;
     border: none !important;
 
@@ -191,7 +191,9 @@
     -webkit-line-clamp: 2;
   }
 
-
+  SelectTrigger {
+    border: none !important;
+  }
 
   .line-clamp-3 {
     overflow: hidden;

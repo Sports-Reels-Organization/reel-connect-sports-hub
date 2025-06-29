@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -13,7 +12,9 @@ const InfoTooltip: React.FC<InfoTooltipProps> = ({ content, className = "" }) =>
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Info className={`h-4 w-4 text-rosegold cursor-help hover:text-bright-pink transition-colors ${className}`} />
+          <div className="flex-shrink-0 mt-0.5">
+            <Info className={`h-4 w-4 text-rosegold cursor-help hover:text-bright-pink transition-colors ${className}`} />
+          </div>
         </TooltipTrigger>
         <TooltipContent>
           <p className="max-w-xs text-sm">{content}</p>

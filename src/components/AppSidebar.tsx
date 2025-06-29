@@ -1,7 +1,7 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Sidebar,
   SidebarContent,
@@ -22,54 +22,93 @@ import {
   Calendar,
   Search,
   User,
-  LogOut
+  LogOut,
+  Bell,
+  FileText
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-const menuItems = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: Home,
-  },
-  {
-    title: "Players",
-    url: "/players",
-    icon: Users,
-  },
-  {
-    title: "Videos",
-    url: "/videos",
-    icon: Video,
-  },
-  {
-    title: "Timeline",
-    url: "/timeline",
-    icon: Calendar,
-  },
-  {
-    title: "Explore",
-    url: "/explore",
-    icon: Search,
-  },
-  {
-    title: "Messages",
-    url: "/messages",
-    icon: MessageSquare,
-  },
-  {
-    title: "Profile",
-    url: "/profile",
-    icon: User,
-  },
-];
+import { Badge } from '@/components/ui/badge';
 
 export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  const menuItems = [
+    {
+      title: t('dashboard'),
+      url: "/",
+      icon: Home,
+    },
+    {
+      title: t('players'),
+      url: "/players",
+      icon: Users,
+    },
+    {
+      title: t('videos'),
+      url: "/videos",
+      icon: Video,
+    },
+    {
+      title: t('timeline'),
+      url: "/timeline",
+      icon: Calendar,
+    },
+    {
+      title: t('explore'),
+      url: "/explore",
+      icon: Search,
+    },
+    {
+      title: t('messages'),
+      url: "/messages",
+      icon: MessageSquare,
+    },
+    {
+      title: t('notifications'),
+      url: "/notifications",
+      icon: Bell,
+      showBadge: true,
+    },
+    {
+      title: t('contracts'),
+      url: "/contracts",
+      icon: FileText,
+    },
+    {
+      title: t('profile'),
+      url: "/profile",
+      icon: User,
+    },
+  ];
+
+  useEffect(() => {
+    if (profile?.user_id) {
+      fetchUnreadNotifications();
+    }
+  }, [profile]);
+
+  const fetchUnreadNotifications = async () => {
+    if (!profile?.user_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', profile.user_id)
+        .eq('is_read', false);
+
+      if (error) throw error;
+      setUnreadNotifications(data?.length || 0);
+    } catch (error) {
+      console.error('Error fetching unread notifications:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -104,7 +143,7 @@ export function AppSidebar() {
               Sports Reels
             </h2>
             <p className="text-sm text-sidebar-foreground/70">
-              {profile?.user_type === 'team' ? 'Team Dashboard' : 'Agent Dashboard'}
+              {profile?.user_type === 'team' ? t('teamDashboard') : t('agentDashboard')}
             </p>
           </div>
         </div>
@@ -127,6 +166,11 @@ export function AppSidebar() {
                     <a href={item.url} className="flex items-center gap-3">
                       <item.icon className="w-5 h-5" />
                       <span className="font-medium">{item.title}</span>
+                      {item.showBadge && unreadNotifications > 0 && (
+                        <Badge variant="destructive" className="ml-auto text-xs">
+                          {unreadNotifications}
+                        </Badge>
+                      )}
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -149,7 +193,7 @@ export function AppSidebar() {
             className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <LogOut className="w-5 h-5 mr-3" />
-            <span>Sign Out</span>
+            <span>{t('signOut')}</span>
           </SidebarMenuButton>
         </div>
       </SidebarFooter>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,17 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Users, Trophy, Video } from 'lucide-react';
+import { useSportData, getSportDisplayName, getSportIcon, getAvailableSports } from '@/hooks/useSportData';
+import { Upload, Users, Trophy, Video, Plus, X } from 'lucide-react';
 import InfoTooltip from './InfoTooltip';
-
-const sports = [
-  { value: 'football', label: 'Football ⚽' },
-  { value: 'basketball', label: 'Basketball 🏀' },
-  { value: 'volleyball', label: 'Volleyball 🏐' },
-  { value: 'tennis', label: 'Tennis 🎾' },
-  { value: 'rugby', label: 'Rugby 🏈' }
-];
 
 const leagues = [
   'NLO', 'NNL', 'NPFL', 'N-YOUTH LEAGUE', 'TCC', 'FEDERATION CUP', 'FA CUP'
@@ -59,6 +52,11 @@ const TeamProfileSetup: React.FC = () => {
   const [currentPlayers, setCurrentPlayers] = useState(0);
   const [uploadedVideos, setUploadedVideos] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+
+  // Get available sports and sport-specific data
+  const availableSports = getAvailableSports();
+  const sportData = useSportData(teamData.sport_type, 'male'); // Teams are typically male-focused for titles
 
   useEffect(() => {
     fetchTeamData();
@@ -222,10 +220,13 @@ const TeamProfileSetup: React.FC = () => {
   };
 
   const addTitle = () => {
-    setTeamData(prev => ({
-      ...prev,
-      titles: [...prev.titles, '']
-    }));
+    if (newTitle.trim() && !teamData.titles.includes(newTitle.trim())) {
+      setTeamData(prev => ({
+        ...prev,
+        titles: [...prev.titles, newTitle.trim()]
+      }));
+      setNewTitle('');
+    }
   };
 
   const updateTitle = (index: number, value: string) => {
@@ -256,7 +257,17 @@ const TeamProfileSetup: React.FC = () => {
         <p className="text-gray-400 mb-4">
           Complete your team profile to access all platform features
         </p>
-        
+
+        {/* Sport Display */}
+        {teamData.sport_type && (
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <span className="text-2xl">{getSportIcon(teamData.sport_type)}</span>
+            <Badge variant="outline" className="text-rosegold border-rosegold">
+              {getSportDisplayName(teamData.sport_type)} Team
+            </Badge>
+          </div>
+        )}
+
         {/* Progress Indicators */}
         <div className="grid grid-cols-3 gap-4 mt-6">
           <Card className="bg-card border-border">
@@ -309,17 +320,20 @@ const TeamProfileSetup: React.FC = () => {
 
             <div className="space-y-2">
               <Label className="text-white">Sport Type *</Label>
-              <Select 
-                value={teamData.sport_type} 
+              <Select
+                value={teamData.sport_type}
                 onValueChange={(value) => setTeamData(prev => ({ ...prev, sport_type: value }))}
               >
                 <SelectTrigger className="bg-background border-border text-white">
                   <SelectValue placeholder="Select sport" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  {sports.map((sport) => (
-                    <SelectItem key={sport.value} value={sport.value} className="text-white">
-                      {sport.label}
+                  {availableSports.map((sport) => (
+                    <SelectItem key={sport} value={sport} className="text-white">
+                      <span className="flex items-center gap-2">
+                        <span>{getSportIcon(sport)}</span>
+                        {getSportDisplayName(sport)}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -328,8 +342,8 @@ const TeamProfileSetup: React.FC = () => {
 
             <div className="space-y-2">
               <Label className="text-white">Country *</Label>
-              <Select 
-                value={teamData.country} 
+              <Select
+                value={teamData.country}
                 onValueChange={(value) => setTeamData(prev => ({ ...prev, country: value }))}
               >
                 <SelectTrigger className="bg-background border-border text-white">
@@ -347,8 +361,8 @@ const TeamProfileSetup: React.FC = () => {
 
             <div className="space-y-2">
               <Label className="text-white">League/Competition *</Label>
-              <Select 
-                value={teamData.league} 
+              <Select
+                value={teamData.league}
                 onValueChange={(value) => setTeamData(prev => ({ ...prev, league: value }))}
               >
                 <SelectTrigger className="bg-background border-border text-white">
@@ -400,39 +414,103 @@ const TeamProfileSetup: React.FC = () => {
             />
           </div>
 
-          {/* Titles Section */}
+          {/* Enhanced Titles Section */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-white">Titles and Achievements</Label>
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-rosegold" />
+              <Label className="text-white text-lg font-semibold">Titles and Achievements</Label>
+            </div>
+
+            {/* Add New Title */}
+            <div className="flex gap-2">
+              <Select value={newTitle} onValueChange={setNewTitle}>
+                <SelectTrigger className="bg-background border-border text-white flex-1">
+                  <SelectValue placeholder="Select from suggested titles or type custom" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {sportData.titles.map((title) => (
+                    <SelectItem key={title} value={title} className="text-white">
+                      {title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="bg-background border-border text-white flex-1"
+                placeholder="Or type a custom title..."
+              />
               <Button
                 type="button"
                 onClick={addTitle}
-                variant="outline"
-                size="sm"
-                className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
+                disabled={!newTitle.trim()}
+                className="bg-rosegold hover:bg-rosegold/90 text-white"
               >
-                Add Title
+                <Plus className="w-4 h-4" />
               </Button>
             </div>
-            {teamData.titles.map((title, index) => (
-              <div key={index} className="flex gap-2">
-                <Input
-                  value={title}
-                  onChange={(e) => updateTitle(index, e.target.value)}
-                  className="bg-background border-border text-white"
-                  placeholder="e.g., Premier League Champions 2023"
-                />
-                <Button
-                  type="button"
-                  onClick={() => removeTitle(index)}
-                  variant="outline"
-                  size="sm"
-                  className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                >
-                  Remove
-                </Button>
+
+            {/* Sport-specific suggestions info */}
+            {teamData.sport_type && sportData.titles.length > 0 && (
+              <div className="text-sm text-gray-400">
+                <p>Suggested titles for {getSportDisplayName(teamData.sport_type)}:</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {sportData.titles.slice(0, 3).map((title, index) => (
+                    <Badge
+                      key={index}
+                      variant="outline"
+                      className="text-xs cursor-pointer hover:bg-rosegold hover:text-white"
+                      onClick={() => setNewTitle(title)}
+                    >
+                      {title}
+                    </Badge>
+                  ))}
+                  {sportData.titles.length > 3 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{sportData.titles.length - 3} more
+                    </Badge>
+                  )}
+                </div>
               </div>
-            ))}
+            )}
+
+            {/* Current Titles */}
+            {teamData.titles.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-white text-sm font-medium">Current Titles ({teamData.titles.length})</Label>
+                <div className="space-y-2">
+                  {teamData.titles.map((title, index) => (
+                    <div key={index} className="flex items-center gap-2 p-3 bg-gray-800 rounded-lg">
+                      <Trophy className="w-4 h-4 text-rosegold flex-shrink-0" />
+                      <Input
+                        value={title}
+                        onChange={(e) => updateTitle(index, e.target.value)}
+                        className="bg-transparent border-0 text-white flex-1"
+                        placeholder="Title name"
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => removeTitle(index)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {teamData.titles.length === 0 && (
+              <div className="text-center py-6 text-gray-400">
+                <Trophy className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No titles added yet. Add your team's achievements and titles above.</p>
+              </div>
+            )}
           </div>
 
           <Button

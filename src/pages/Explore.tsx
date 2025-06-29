@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, Calendar, DollarSign, MapPin, MessageSquare, Target } from 'lucide-react';
+import { Search, Plus, Calendar, DollarSign, MapPin, MessageSquare, Target, Tag } from 'lucide-react';
+import PlayerTaggingModal from '@/components/PlayerTaggingModal';
 
 interface AgentRequest {
   id: string;
@@ -36,6 +36,8 @@ const Explore = () => {
   const [requests, setRequests] = useState<AgentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showTaggingModal, setShowTaggingModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<AgentRequest | null>(null);
   const [filters, setFilters] = useState({
     sport: '',
     position: '',
@@ -87,7 +89,7 @@ const Explore = () => {
       let filteredData = data || [];
 
       if (filters.position) {
-        filteredData = filteredData.filter(request => 
+        filteredData = filteredData.filter(request =>
           request.position?.toLowerCase().includes(filters.position.toLowerCase())
         );
       }
@@ -114,7 +116,7 @@ const Explore = () => {
 
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (profile?.user_type !== 'agent') {
       toast({
         title: "Access Denied",
@@ -186,6 +188,20 @@ const Explore = () => {
     }
   };
 
+  const handleTagPlayer = (request: AgentRequest) => {
+    setSelectedRequest(request);
+    setShowTaggingModal(true);
+  };
+
+  const handlePlayerTagged = (playerId: string, playerName: string) => {
+    toast({
+      title: "Player Tagged",
+      description: `${playerName} has been tagged to this request`,
+    });
+    // Refresh requests to show updated tagging
+    fetchAgentRequests();
+  };
+
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -199,7 +215,7 @@ const Explore = () => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return 'Today';
     if (diffInDays === 1) return '1 day ago';
     return `${diffInDays} days ago`;
@@ -242,18 +258,18 @@ const Explore = () => {
                     <Input
                       placeholder="e.g. Looking for striker"
                       value={formData.title}
-                      onChange={(e) => setFormData({...formData, title: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       className="bg-[#1a1a1a] border-0 text-white"
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label className="text-white">Position</Label>
                     <Input
                       placeholder="e.g. Striker, Midfielder"
                       value={formData.position}
-                      onChange={(e) => setFormData({...formData, position: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                       className="bg-[#1a1a1a] border-0 text-white"
                     />
                   </div>
@@ -264,7 +280,7 @@ const Explore = () => {
                   <Textarea
                     placeholder="Describe what you're looking for..."
                     value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="bg-[#1a1a1a] border-0 text-white"
                     required
                   />
@@ -273,7 +289,7 @@ const Explore = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label className="text-white">Sport</Label>
-                    <Select value={formData.sport_type} onValueChange={(value) => setFormData({...formData, sport_type: value})}>
+                    <Select value={formData.sport_type} onValueChange={(value) => setFormData({ ...formData, sport_type: value })}>
                       <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                         <SelectValue />
                       </SelectTrigger>
@@ -289,7 +305,7 @@ const Explore = () => {
 
                   <div className="space-y-2">
                     <Label className="text-white">Transfer Type</Label>
-                    <Select value={formData.transfer_type} onValueChange={(value) => setFormData({...formData, transfer_type: value})}>
+                    <Select value={formData.transfer_type} onValueChange={(value) => setFormData({ ...formData, transfer_type: value })}>
                       <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                         <SelectValue />
                       </SelectTrigger>
@@ -302,7 +318,7 @@ const Explore = () => {
 
                   <div className="space-y-2">
                     <Label className="text-white">Currency</Label>
-                    <Select value={formData.currency} onValueChange={(value) => setFormData({...formData, currency: value})}>
+                    <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
                       <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                         <SelectValue />
                       </SelectTrigger>
@@ -322,18 +338,18 @@ const Explore = () => {
                       type="number"
                       placeholder="Minimum budget"
                       value={formData.budget_min}
-                      onChange={(e) => setFormData({...formData, budget_min: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, budget_min: e.target.value })}
                       className="bg-[#1a1a1a] border-0 text-white"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label className="text-white">Max Budget</Label>
                     <Input
                       type="number"
                       placeholder="Maximum budget"
                       value={formData.budget_max}
-                      onChange={(e) => setFormData({...formData, budget_max: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, budget_max: e.target.value })}
                       className="bg-[#1a1a1a] border-0 text-white"
                     />
                   </div>
@@ -343,8 +359,8 @@ const Explore = () => {
                   <Button type="submit" className="bg-rosegold hover:bg-rosegold/90 text-white border-0">
                     Create Request
                   </Button>
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant="outline"
                     onClick={() => setShowCreateForm(false)}
                     className="border-0 text-gray-400 hover:bg-gray-700 hover:text-white"
@@ -365,7 +381,7 @@ const Explore = () => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <Select value={filters.sport} onValueChange={(value) => setFilters({...filters, sport: value})}>
+                <Select value={filters.sport} onValueChange={(value) => setFilters({ ...filters, sport: value })}>
                   <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                     <SelectValue placeholder="Sport" />
                   </SelectTrigger>
@@ -379,18 +395,18 @@ const Explore = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <Input
                   placeholder="Position"
                   value={filters.position}
-                  onChange={(e) => setFilters({...filters, position: e.target.value})}
+                  onChange={(e) => setFilters({ ...filters, position: e.target.value })}
                   className="bg-[#1a1a1a] border-0 text-white placeholder:text-gray-400"
                 />
               </div>
 
               <div>
-                <Select value={filters.transfer_type} onValueChange={(value) => setFilters({...filters, transfer_type: value})}>
+                <Select value={filters.transfer_type} onValueChange={(value) => setFilters({ ...filters, transfer_type: value })}>
                   <SelectTrigger className="bg-[#1a1a1a] border-0 text-white">
                     <SelectValue placeholder="Transfer Type" />
                   </SelectTrigger>
@@ -406,7 +422,7 @@ const Explore = () => {
                 <Input
                   placeholder="Search requests"
                   value={filters.search}
-                  onChange={(e) => setFilters({...filters, search: e.target.value})}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                   className="bg-[#1a1a1a] border-0 text-white placeholder:text-gray-400"
                 />
               </div>
@@ -469,7 +485,7 @@ const Explore = () => {
                     {(request.budget_min || request.budget_max) && (
                       <div className="flex items-center gap-2 text-sm text-bright-pink">
                         <DollarSign className="h-4 w-4" />
-                        Budget: {request.budget_min && formatCurrency(request.budget_min, request.currency)} 
+                        Budget: {request.budget_min && formatCurrency(request.budget_min, request.currency)}
                         {request.budget_min && request.budget_max && ' - '}
                         {request.budget_max && formatCurrency(request.budget_max, request.currency)}
                       </div>
@@ -486,13 +502,23 @@ const Explore = () => {
                     </div>
 
                     {profile?.user_type === 'team' && (
-                      <Button
-                        size="sm"
-                        className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins border-0"
-                      >
-                        <MessageSquare className="h-4 w-4 mr-1" />
-                        Respond to Request
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins border-0"
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Respond
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleTagPlayer(request)}
+                          className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
+                        >
+                          <Tag className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -500,6 +526,20 @@ const Explore = () => {
             ))
           )}
         </div>
+
+        {/* Player Tagging Modal */}
+        {selectedRequest && (
+          <PlayerTaggingModal
+            isOpen={showTaggingModal}
+            onClose={() => {
+              setShowTaggingModal(false);
+              setSelectedRequest(null);
+            }}
+            requestId={selectedRequest.id}
+            requestTitle={selectedRequest.title}
+            onPlayerTagged={handlePlayerTagged}
+          />
+        )}
       </div>
     </Layout>
   );
