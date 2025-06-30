@@ -104,32 +104,30 @@ const OnboardingFlow = () => {
 
   const handleFinalSubmit = async () => {
     if (profile?.user_type === 'team') {
-      if (!teamInfo.team_name) {
+      if (!teamInfo.team_name || !basicInfo.country || !teamInfo.sport_type) {
         toast({
           title: "Missing Information",
-          description: "Please enter your team name",
+          description: "Please fill in all required team fields",
           variant: "destructive"
         });
         return;
       }
     } else {
-      if (!agentInfo.agency_name) {
+      if (!agentInfo.agency_name || !agentInfo.specialization) {
         toast({
           title: "Missing Information",
-          description: "Please enter your agency name",
+          description: "Please fill in all required agency fields",
           variant: "destructive"
         });
         return;
       }
-      if (requiresFifaId(agentInfo.specialization)) {
-        if (!agentInfo.fifa_id) {
-          toast({
-            title: "Validation Error",
-            description: "As a football agent, you must provide a FIFA ID",
-            variant: "destructive"
-          });
-          return;
-        }
+      if (requiresFifaId(agentInfo.specialization) && !agentInfo.fifa_id) {
+        toast({
+          title: "Validation Error",
+          description: "As a football agent, you must provide a FIFA ID",
+          variant: "destructive"
+        });
+        return;
       }
     }
 
@@ -147,8 +145,7 @@ const OnboardingFlow = () => {
             league: teamInfo.league || null,
             member_association: teamInfo.member_association || null,
             description: teamInfo.description || null
-          });
-
+          }, { onConflict: 'profile_id' });
         if (error) throw error;
       } else {
         const { error } = await supabase
@@ -158,11 +155,12 @@ const OnboardingFlow = () => {
             agency_name: agentInfo.agency_name,
             fifa_id: requiresFifaId(agentInfo.specialization) ? agentInfo.fifa_id : null,
             license_number: agentInfo.license_number || null,
-            specialization: [agentInfo.specialization],
+            specialization: Array.isArray(agentInfo.specialization)
+              ? agentInfo.specialization
+              : [agentInfo.specialization],
             bio: agentInfo.bio || null,
             website: agentInfo.website || null
-          });
-
+          }, { onConflict: 'profile_id' });
         if (error) throw error;
       }
 

@@ -56,8 +56,13 @@ const TeamDashboard = () => {
 
             console.log('Team data:', team, 'Team error:', teamError);
 
-            if (teamError || !team) {
+            if (teamError) {
                 console.error('Error fetching team:', teamError);
+                toast({
+                    title: "Team Access Error",
+                    description: `Cannot access team data: ${teamError.message}`,
+                    variant: "destructive"
+                });
                 setLoading(false);
                 return;
             }
@@ -145,7 +150,7 @@ const TeamDashboard = () => {
             console.error('Error fetching dashboard stats:', error);
             toast({
                 title: "Error",
-                description: "Failed to load dashboard statistics",
+                description: `Failed to load dashboard statistics: ${error.message}`,
                 variant: "destructive"
             });
         } finally {
@@ -163,76 +168,33 @@ const TeamDashboard = () => {
         fetchDashboardStats();
     };
 
-    // Test function to add sample data
-    const addTestData = async () => {
-        try {
-            console.log('Adding test data...');
-
-            // Get team ID
-            const { data: team } = await supabase
-                .from('teams')
-                .select('id')
-                .eq('profile_id', profile?.id)
-                .single();
-
-            if (!team) {
-                console.error('No team found');
-                return;
-            }
-
-            // Add a test player
-            const { data: player, error: playerError } = await supabase
-                .from('players')
-                .insert({
-                    team_id: team.id,
-                    full_name: 'Test Player',
-                    gender: 'male',
-                    position: 'Forward',
-                    citizenship: 'USA'
-                })
-                .select()
-                .single();
-
-            console.log('Added player:', player, 'Error:', playerError);
-
-            // Add a test video
-            const { data: video, error: videoError } = await supabase
-                .from('videos')
-                .insert({
-                    team_id: team.id,
-                    title: 'Test Video',
-                    video_url: 'https://example.com/test.mp4'
-                })
-                .select()
-                .single();
-
-            console.log('Added video:', video, 'Error:', videoError);
-
-            // Add a test transfer pitch
-            const { data: pitch, error: pitchError } = await supabase
-                .from('transfer_pitches')
-                .insert({
-                    team_id: team.id,
-                    player_id: player?.id,
-                    transfer_type: 'permanent',
-                    asking_price: 1000000,
-                    status: 'active'
-                })
-                .select()
-                .single();
-
-            console.log('Added pitch:', pitch, 'Error:', pitchError);
-
-            // Refresh stats
-            fetchDashboardStats();
-
-        } catch (error) {
-            console.error('Error adding test data:', error);
-        }
-    };
-
     if (profile?.user_type !== 'team') {
         return null;
+    }
+
+
+
+    // Check if profile is completed
+    if (!profile?.profile_completed) {
+        return (
+            <div className="space-y-6 p-[3rem]">
+                <div className="text-center py-12">
+                    <User className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                    <h3 className="text-xl font-polysans font-semibold text-white mb-2">
+                        Complete Your Profile Setup
+                    </h3>
+                    <p className="text-gray-400 font-poppins mb-4">
+                        Please complete your team profile setup to access the dashboard.
+                    </p>
+                    <Button
+                        onClick={() => window.location.reload()}
+                        className="bg-rosegold hover:bg-rosegold/90"
+                    >
+                        Continue Setup
+                    </Button>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -361,8 +323,6 @@ const TeamDashboard = () => {
                             </CardContent>
                         </Card>
                     </div>
-
-
 
                     {/* Quick Actions */}
                     <Card className="border-gray-700">

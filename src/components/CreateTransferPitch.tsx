@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,11 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, Video, DollarSign, Calendar, X } from 'lucide-react';
+import { AlertCircle, Video, DollarSign, Calendar, X, Shield, Clock, User, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
+import { Badge } from '@/components/ui/badge';
 
 type DatabasePlayer = Tables<'players'>;
-type DatabaseVideo = Tables<'videos'>;
 
 interface CreateTransferPitchProps {
   isOpen: boolean;
@@ -22,16 +21,39 @@ interface CreateTransferPitchProps {
   onPitchCreated: () => void;
 }
 
-const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClose, onPitchCreated }) => {
+interface TeamRequirements {
+  subscription_tier: string;
+  subscription_status: string;
+  international_transfers_enabled: boolean;
+  max_pitches_per_month: number;
+  pitches_used_this_month: number;
+  member_association: string;
+  contact_warnings: number;
+}
+
+interface PlayerValidation {
+  isComplete: boolean;
+  missingFields: string[];
+  hasPhoto: boolean;
+  hasVideos: boolean;
+}
+
+const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({
+  isOpen,
+  onClose,
+  onPitchCreated
+}) => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [teamId, setTeamId] = useState<string>('');
   const [players, setPlayers] = useState<DatabasePlayer[]>([]);
-  const [videos, setVideos] = useState<DatabaseVideo[]>([]);
-  const [videoRequirements, setVideoRequirements] = useState<{ video_count: number } | null>(null);
+  const [videos, setVideos] = useState<any[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<DatabasePlayer | null>(null);
   const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
+  const [teamId, setTeamId] = useState<string>('');
+  const [videoRequirements, setVideoRequirements] = useState<any>(null);
+  const [teamRequirements, setTeamRequirements] = useState<TeamRequirements | null>(null);
+  const [playerValidation, setPlayerValidation] = useState<PlayerValidation | null>(null);
   const [formData, setFormData] = useState({
     description: '',
     transfer_type: 'permanent' as 'permanent' | 'loan',
@@ -45,23 +67,32 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
     loan_with_option: false,
     loan_with_obligation: false,
     is_international: false,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    expires_at: ''
   });
 
   useEffect(() => {
     if (isOpen) {
       fetchTeamData();
     }
-  }, [isOpen, profile]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedPlayer) {
+      validatePlayerProfile(selectedPlayer);
+    }
+  }, [selectedPlayer]);
 
   const fetchTeamData = async () => {
     if (!profile?.id) return;
 
     try {
-      // Get team ID and info
+      // Get team ID and basic info (using existing columns only)
       const { data: team, error: teamError } = await supabase
         .from('teams')
-        .select('id, member_association')
+        .select(`
+          id, 
+          member_association
+        `)
         .eq('profile_id', profile.id)
         .single();
 
@@ -76,14 +107,76 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
 
       setTeamId(team.id);
 
-      // Check video requirements
-      const { data: videoReq, error: videoReqError } = await supabase
-        .from('video_requirements')
-        .select('video_count')
-        .eq('team_id', team.id)
-        .single();
+      // Set default team requirements (will be enhanced when DB is updated)
+      setTeamRequirements({
+        subscription_tier: 'basic', // Default value
+        subscription_status: 'active', // Default value
+        international_transfers_enabled: false, // Default value
+        max_pitches_per_month: 5, // Default value
+        pitches_used_this_month: 0, // Default value
+        member_association: team.member_association || '',
+        contact_warnings: 0 // Default value
+      });
 
-      setVideoRequirements(videoReq);
+      // TEMPORARY: Skip contact warnings query until DB is updated
+      // TODO: Uncomment when database is updated
+      /*
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('contact_warnings')
+          .eq('id', profile.id)
+          .single();
+
+        if (profileData) {
+          setTeamRequirements(prev => prev ? {
+            ...prev,
+            contact_warnings: profileData.contact_warnings || 0
+          } : null);
+        }
+      } catch (profileError) {
+        console.log('Contact warnings column not available yet:', profileError);
+      }
+      */
+
+      // Check video requirements (with fallback)
+      try {
+        const { data: videoReq, error: videoReqError } = await supabase
+          .from('video_requirements')
+          .select('video_count')
+          .eq('team_id', team.id)
+          .single();
+
+        if (!videoReqError && videoReq) {
+          setVideoRequirements(videoReq);
+        } else {
+          // Fallback: count videos manually
+          const { data: videosData, error: videosError } = await supabase
+            .from('videos')
+            .select('id')
+            .eq('team_id', team.id);
+
+          if (!videosError && videosData) {
+            setVideoRequirements({ video_count: videosData.length });
+          } else {
+            setVideoRequirements({ video_count: 0 });
+          }
+        }
+      } catch (videoError) {
+        console.log('Video requirements table not available yet:', videoError);
+        // Fallback: count videos manually
+        try {
+          const { data: videosData } = await supabase
+            .from('videos')
+            .select('id')
+            .eq('team_id', team.id);
+
+          setVideoRequirements({ video_count: videosData?.length || 0 });
+        } catch (fallbackError) {
+          console.log('Fallback video count failed:', fallbackError);
+          setVideoRequirements({ video_count: 0 });
+        }
+      }
 
       // Get eligible players (complete profiles only)
       const { data: playersData, error: playersError } = await supabase
@@ -122,42 +215,90 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
 
     } catch (error) {
       console.error('Error fetching team data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load team data. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
+  const validatePlayerProfile = (player: DatabasePlayer) => {
+    const requiredFields = [
+      'full_name', 'position', 'citizenship', 'date_of_birth',
+      'height', 'weight', 'bio', 'market_value'
+    ] as const;
+
+    const missingFields = requiredFields.filter(field =>
+      !player[field] || player[field] === ''
+    );
+
+    const validation: PlayerValidation = {
+      isComplete: missingFields.length === 0,
+      missingFields,
+      hasPhoto: !!(player.headshot_url || player.photo_url),
+      hasVideos: selectedVideos.length > 0
+    };
+
+    setPlayerValidation(validation);
+  };
+
   const validateRequirements = () => {
+    const errors: string[] = [];
+
+    // Check subscription status
+    if (teamRequirements?.subscription_status !== 'active') {
+      errors.push('Your team subscription is not active');
+    }
+
+    // Check contact warnings
+    if (teamRequirements && teamRequirements.contact_warnings >= 3) {
+      errors.push('Your team profile has been blocked due to contact violations');
+    }
+
+    // Check video requirements
     if (!videoRequirements || videoRequirements.video_count < 5) {
-      toast({
-        title: "Insufficient Videos",
-        description: "Your team needs at least 5 videos to create transfer pitches",
-        variant: "destructive"
-      });
-      return false;
+      errors.push('Your team needs at least 5 videos to create transfer pitches');
     }
 
+    // Check monthly pitch limits
+    if (teamRequirements && teamRequirements.pitches_used_this_month >= teamRequirements.max_pitches_per_month) {
+      errors.push(`Monthly pitch limit reached (${teamRequirements.max_pitches_per_month} pitches)`);
+    }
+
+    // Check player selection
     if (!selectedPlayer) {
-      toast({
-        title: "No Player Selected",
-        description: "Please select a player to pitch",
-        variant: "destructive"
-      });
-      return false;
+      errors.push('Please select a player to pitch');
+    } else if (playerValidation && !playerValidation.isComplete) {
+      errors.push(`Player profile incomplete. Missing: ${playerValidation.missingFields.join(', ')}`);
     }
 
+    // Check video selection
     if (selectedVideos.length === 0) {
-      toast({
-        title: "No Videos Selected",
-        description: "Please select at least one video to include in the pitch",
-        variant: "destructive"
-      });
-      return false;
+      errors.push('Please select at least one video to include in the pitch');
     }
 
     if (selectedVideos.length > 6) {
-      toast({
-        title: "Too Many Videos",
-        description: "You can select a maximum of 6 videos per pitch",
-        variant: "destructive"
+      errors.push('You can select a maximum of 6 videos per pitch');
+    }
+
+    // Check international transfer restrictions
+    if (formData.is_international && teamRequirements?.subscription_tier === 'basic') {
+      errors.push('International transfers are not allowed on the basic tier');
+    }
+
+    // Check currency for international transfers
+    if (formData.is_international && !['USD', 'EUR', 'GBP'].includes(formData.currency)) {
+      errors.push('International transfers must be billed in USD, EUR, or GBP only');
+    }
+
+    if (errors.length > 0) {
+      errors.forEach(error => {
+        toast({
+          title: "Validation Error",
+          description: error,
+          variant: "destructive"
+        });
       });
       return false;
     }
@@ -167,38 +308,20 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateRequirements()) return;
+
+    if (!validateRequirements()) {
+      return;
+    }
 
     setLoading(true);
+
     try {
-      // Validate using database function
-      const { data: isValid, error: validationError } = await supabase
-        .rpc('validate_transfer_pitch_requirements', {
-          p_team_id: teamId,
-          p_player_id: selectedPlayer!.id
-        });
+      // Calculate expiration date (30 days from now)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
 
-      if (validationError) {
-        console.error('Validation error:', validationError);
-        toast({
-          title: "Validation Error",
-          description: "Could not validate requirements",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!isValid) {
-        toast({
-          title: "Requirements Not Met",
-          description: "Player profile is incomplete or team doesn't have enough videos",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const pitchData = {
+      // Create basic pitch data (only use existing columns)
+      const pitchData: any = {
         team_id: teamId,
         player_id: selectedPlayer!.id,
         description: formData.description,
@@ -214,11 +337,22 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
         loan_with_obligation: formData.loan_with_obligation,
         is_international: formData.is_international,
         tagged_videos: selectedVideos,
-        expires_at: formData.expires_at,
+        expires_at: expiresAt.toISOString(),
         status: 'active' as const,
         service_charge_rate: 15.0,
-        tier_level: 'basic'
+        tier_level: 'basic' // Default value
       };
+
+      // Try to add enhanced fields if they exist
+      try {
+        pitchData.pitch_duration_days = 30;
+        pitchData.auto_expire_enabled = true;
+        pitchData.international_currency = formData.is_international ? formData.currency : null;
+        pitchData.domestic_currency = !formData.is_international ? formData.currency : null;
+      } catch (enhancedError) {
+        console.log('Enhanced fields not available yet:', enhancedError);
+        // Continue with basic fields only
+      }
 
       const { error } = await supabase
         .from('transfer_pitches')
@@ -226,9 +360,26 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
 
       if (error) throw error;
 
+      // TEMPORARY: Skip monthly counter update until DB is updated
+      // TODO: Uncomment when database is updated
+      /*
+      try {
+        if (teamRequirements) {
+          await supabase
+            .from('teams')
+            .update({ 
+              pitches_used_this_month: teamRequirements.pitches_used_this_month + 1 
+            })
+            .eq('id', teamId);
+        }
+      } catch (counterError) {
+        console.log('Monthly counter update failed:', counterError);
+      }
+      */
+
       toast({
         title: "Success",
-        description: "Transfer pitch created successfully!",
+        description: "Transfer pitch created successfully! It will expire in 30 days.",
       });
 
       onPitchCreated();
@@ -246,13 +397,36 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
   };
 
   const toggleVideoSelection = (videoId: string) => {
-    setSelectedVideos(prev => 
-      prev.includes(videoId) 
+    setSelectedVideos(prev =>
+      prev.includes(videoId)
         ? prev.filter(id => id !== videoId)
-        : prev.length < 6 
+        : prev.length < 6
           ? [...prev, videoId]
           : prev
     );
+  };
+
+  const getRequirementStatus = (type: string) => {
+    switch (type) {
+      case 'subscription':
+        return teamRequirements?.subscription_status === 'active';
+      case 'contact_warnings':
+        return teamRequirements ? teamRequirements.contact_warnings < 3 : true;
+      case 'videos':
+        return videoRequirements && videoRequirements.video_count >= 5;
+      case 'monthly_limit':
+        return teamRequirements ? teamRequirements.pitches_used_this_month < teamRequirements.max_pitches_per_month : true;
+      case 'player_profile':
+        return playerValidation?.isComplete;
+      case 'video_selection':
+        return selectedVideos.length > 0 && selectedVideos.length <= 6;
+      case 'international_allowed':
+        return !formData.is_international || teamRequirements?.subscription_tier !== 'basic';
+      case 'currency_valid':
+        return !formData.is_international || ['USD', 'EUR', 'GBP'].includes(formData.currency);
+      default:
+        return false;
+    }
   };
 
   if (!isOpen) return null;
@@ -269,20 +443,48 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
         <CardContent className="space-y-6">
           {/* Requirements Check */}
           <div className="bg-gray-800 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertCircle className="h-5 w-5 text-yellow-400" />
+            <div className="flex items-center gap-2 mb-4">
+              <Shield className="h-5 w-5 text-yellow-400" />
               <h3 className="font-polysans text-white">Requirements Check</h3>
             </div>
-            <div className="space-y-1 text-sm">
-              <div className={`flex items-center gap-2 ${videoRequirements && videoRequirements.video_count >= 5 ? 'text-green-400' : 'text-red-400'}`}>
-                <div className={`w-2 h-2 rounded-full ${videoRequirements && videoRequirements.video_count >= 5 ? 'bg-green-400' : 'bg-red-400'}`} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div className={`flex items-center gap-2 ${getRequirementStatus('subscription') ? 'text-green-400' : 'text-red-400'}`}>
+                {getRequirementStatus('subscription') ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                Subscription Status: {teamRequirements?.subscription_status || 'Unknown'}
+              </div>
+              <div className={`flex items-center gap-2 ${getRequirementStatus('contact_warnings') ? 'text-green-400' : 'text-red-400'}`}>
+                {getRequirementStatus('contact_warnings') ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                Contact Warnings: {teamRequirements?.contact_warnings || 0}/3
+              </div>
+              <div className={`flex items-center gap-2 ${getRequirementStatus('videos') ? 'text-green-400' : 'text-red-400'}`}>
+                {getRequirementStatus('videos') ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                 Team Videos: {videoRequirements?.video_count || 0}/5 required
               </div>
-              <div className={`flex items-center gap-2 ${players.length > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                <div className={`w-2 h-2 rounded-full ${players.length > 0 ? 'bg-green-400' : 'bg-red-400'}`} />
-                Complete Player Profiles: {players.length}
+              <div className={`flex items-center gap-2 ${getRequirementStatus('monthly_limit') ? 'text-green-400' : 'text-red-400'}`}>
+                {getRequirementStatus('monthly_limit') ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                Monthly Usage: {teamRequirements?.pitches_used_this_month || 0}/{teamRequirements?.max_pitches_per_month || 5}
               </div>
             </div>
+
+            {/* Tier Information */}
+            {teamRequirements && (
+              <div className="mt-3 p-3 bg-gray-700 rounded">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge variant={teamRequirements.subscription_tier === 'basic' ? 'secondary' : 'default'}>
+                    {teamRequirements.subscription_tier.toUpperCase()} TIER
+                  </Badge>
+                  {teamRequirements.subscription_tier === 'basic' && (
+                    <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                  )}
+                </div>
+                <p className="text-xs text-gray-300">
+                  {teamRequirements.subscription_tier === 'basic'
+                    ? 'Basic tier: Domestic transfers only, same member association'
+                    : 'Premium/Enterprise: International transfers allowed'
+                  }
+                </p>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -304,6 +506,34 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Player Validation Status */}
+              {selectedPlayer && playerValidation && (
+                <div className="mt-2 p-3 bg-gray-700 rounded">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="h-4 w-4" />
+                    <span className="text-sm font-medium text-white">{selectedPlayer.full_name}</span>
+                    <Badge variant={playerValidation.isComplete ? 'default' : 'destructive'}>
+                      {playerValidation.isComplete ? 'Complete' : 'Incomplete'}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className={`flex items-center gap-1 ${playerValidation.hasPhoto ? 'text-green-400' : 'text-red-400'}`}>
+                      {playerValidation.hasPhoto ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                      Photo
+                    </div>
+                    <div className={`flex items-center gap-1 ${playerValidation.hasVideos ? 'text-green-400' : 'text-red-400'}`}>
+                      {playerValidation.hasVideos ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                      Videos Selected
+                    </div>
+                  </div>
+                  {!playerValidation.isComplete && (
+                    <p className="text-xs text-red-400 mt-1">
+                      Missing: {playerValidation.missingFields.join(', ')}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Video Selection */}
@@ -329,183 +559,204 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({ isOpen, onClo
             </div>
 
             {/* Transfer Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-white">Transfer Type *</Label>
-                <Select value={formData.transfer_type} onValueChange={(value: 'permanent' | 'loan') => 
-                  setFormData({...formData, transfer_type: value})
-                }>
-                  <SelectTrigger className="bg-[#111111] border-0 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1a1a1a] border-0">
-                    <SelectItem value="permanent" className="text-white">Permanent Transfer</SelectItem>
-                    <SelectItem value="loan" className="text-white">Loan Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white">Transfer Type *</Label>
+                  <Select value={formData.transfer_type} onValueChange={(value) => setFormData(prev => ({ ...prev, transfer_type: value as 'permanent' | 'loan' }))}>
+                    <SelectTrigger className="bg-[#111111] border-0 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a1a] border-0">
+                      <SelectItem value="permanent" className="text-white">Permanent Transfer</SelectItem>
+                      <SelectItem value="loan" className="text-white">Loan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-                <Label className="text-white">Currency</Label>
-                <Select value={formData.currency} onValueChange={(value) => 
-                  setFormData({...formData, currency: value})
-                }>
-                  <SelectTrigger className="bg-[#111111] border-0 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1a1a1a] border-0">
-                    <SelectItem value="USD" className="text-white">USD ($)</SelectItem>
-                    <SelectItem value="EUR" className="text-white">EUR (€)</SelectItem>
-                    <SelectItem value="GBP" className="text-white">GBP (£)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-white">
-                  {formData.transfer_type === 'permanent' ? 'Transfer Fee' : 'Loan Fee'}
-                </Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.transfer_type === 'permanent' ? formData.asking_price : formData.loan_fee}
-                  onChange={(e) => setFormData({
-                    ...formData, 
-                    [formData.transfer_type === 'permanent' ? 'asking_price' : 'loan_fee']: e.target.value
-                  })}
-                  className="bg-[#111111] border-0 text-white"
-                  placeholder="Enter amount"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-white">Expires On</Label>
-                <Input
-                  type="date"
-                  value={formData.expires_at}
-                  onChange={(e) => setFormData({...formData, expires_at: e.target.value})}
-                  className="bg-[#111111] border-0 text-white"
-                />
-              </div>
-            </div>
-
-            {/* Permanent Transfer Fields */}
-            {formData.transfer_type === 'permanent' && (
-              <div className="space-y-4">
-                <h3 className="text-white font-polysans">Contract Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-white">Sign-on Bonus</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.sign_on_bonus}
-                      onChange={(e) => setFormData({...formData, sign_on_bonus: e.target.value})}
-                      className="bg-[#111111] border-0 text-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-white">Performance Bonus</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.performance_bonus}
-                      onChange={(e) => setFormData({...formData, performance_bonus: e.target.value})}
-                      className="bg-[#111111] border-0 text-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-white">Player Salary</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.player_salary}
-                      onChange={(e) => setFormData({...formData, player_salary: e.target.value})}
-                      className="bg-[#111111] border-0 text-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-white">Relocation Support</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.relocation_support}
-                      onChange={(e) => setFormData({...formData, relocation_support: e.target.value})}
-                      className="bg-[#111111] border-0 text-white"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label className="text-white">Currency *</Label>
+                  <Select value={formData.currency} onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}>
+                    <SelectTrigger className="bg-[#111111] border-0 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1a1a] border-0">
+                      <SelectItem value="USD" className="text-white">USD</SelectItem>
+                      <SelectItem value="EUR" className="text-white">EUR</SelectItem>
+                      <SelectItem value="GBP" className="text-white">GBP</SelectItem>
+                      <SelectItem value="NGN" className="text-white">NGN</SelectItem>
+                      <SelectItem value="KES" className="text-white">KES</SelectItem>
+                      <SelectItem value="GHS" className="text-white">GHS</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            )}
 
-            {/* Loan Transfer Fields */}
-            {formData.transfer_type === 'loan' && (
-              <div className="space-y-4">
-                <h3 className="text-white font-polysans">Loan Details</h3>
+              {/* International Transfer Warning */}
+              {formData.is_international && teamRequirements?.subscription_tier === 'basic' && (
+                <div className="p-3 bg-red-900/20 border border-red-500 rounded">
+                  <div className="flex items-center gap-2 text-red-400">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="text-sm font-medium">International transfers not allowed on basic tier</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Currency Warning for International */}
+              {formData.is_international && !['USD', 'EUR', 'GBP'].includes(formData.currency) && (
+                <div className="p-3 bg-yellow-900/20 border border-yellow-500 rounded">
+                  <div className="flex items-center gap-2 text-yellow-400">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="text-sm">International transfers must be billed in USD, EUR, or GBP only</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-white">Description</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Describe the transfer opportunity..."
+                  className="bg-[#111111] border-0 text-white"
+                  rows={3}
+                />
+              </div>
+
+              {/* Financial Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {formData.transfer_type === 'permanent' ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-white">Asking Price</Label>
+                      <Input
+                        type="number"
+                        value={formData.asking_price}
+                        onChange={(e) => setFormData(prev => ({ ...prev, asking_price: e.target.value }))}
+                        placeholder="0"
+                        className="bg-[#111111] border-0 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Sign-on Bonus</Label>
+                      <Input
+                        type="number"
+                        value={formData.sign_on_bonus}
+                        onChange={(e) => setFormData(prev => ({ ...prev, sign_on_bonus: e.target.value }))}
+                        placeholder="0"
+                        className="bg-[#111111] border-0 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Player Salary (Annual)</Label>
+                      <Input
+                        type="number"
+                        value={formData.player_salary}
+                        onChange={(e) => setFormData(prev => ({ ...prev, player_salary: e.target.value }))}
+                        placeholder="0"
+                        className="bg-[#111111] border-0 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Performance Bonus</Label>
+                      <Input
+                        type="number"
+                        value={formData.performance_bonus}
+                        onChange={(e) => setFormData(prev => ({ ...prev, performance_bonus: e.target.value }))}
+                        placeholder="0"
+                        className="bg-[#111111] border-0 text-white"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-white">Loan Fee</Label>
+                      <Input
+                        type="number"
+                        value={formData.loan_fee}
+                        onChange={(e) => setFormData(prev => ({ ...prev, loan_fee: e.target.value }))}
+                        placeholder="0"
+                        className="bg-[#111111] border-0 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Relocation Support</Label>
+                      <Input
+                        type="number"
+                        value={formData.relocation_support}
+                        onChange={(e) => setFormData(prev => ({ ...prev, relocation_support: e.target.value }))}
+                        placeholder="0"
+                        className="bg-[#111111] border-0 text-white"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Loan Options */}
+              {formData.transfer_type === 'loan' && (
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="loan_with_option"
                       checked={formData.loan_with_option}
-                      onCheckedChange={(checked) => setFormData({...formData, loan_with_option: checked as boolean})}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, loan_with_option: checked as boolean }))}
                     />
-                    <label htmlFor="loan_with_option" className="text-white">
-                      Loan with Option to Buy
+                    <label htmlFor="loan_with_option" className="text-sm text-white">
+                      Option to buy
                     </label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="loan_with_obligation"
                       checked={formData.loan_with_obligation}
-                      onCheckedChange={(checked) => setFormData({...formData, loan_with_obligation: checked as boolean})}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, loan_with_obligation: checked as boolean }))}
                     />
-                    <label htmlFor="loan_with_obligation" className="text-white">
-                      Loan with Obligation to Buy
+                    <label htmlFor="loan_with_obligation" className="text-sm text-white">
+                      Obligation to buy
                     </label>
                   </div>
                 </div>
+              )}
+
+              {/* International Transfer */}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is_international"
+                  checked={formData.is_international}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_international: checked as boolean }))}
+                  disabled={teamRequirements?.subscription_tier === 'basic'}
+                />
+                <label htmlFor="is_international" className="text-sm text-white">
+                  International Transfer
+                  {teamRequirements?.subscription_tier === 'basic' && (
+                    <span className="text-red-400 ml-1">(Premium/Enterprise only)</span>
+                  )}
+                </label>
               </div>
-            )}
 
-            {/* International Transfer */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="is_international"
-                checked={formData.is_international}
-                onCheckedChange={(checked) => setFormData({...formData, is_international: checked as boolean})}
-              />
-              <label htmlFor="is_international" className="text-white">
-                International Transfer (Premium tier required)
-              </label>
-            </div>
+              {/* Service Charge Notice */}
+              <div className="p-3 bg-blue-900/20 border border-blue-500 rounded">
+                <div className="flex items-center gap-2 text-blue-400">
+                  <DollarSign className="h-4 w-4" />
+                  <span className="text-sm">15% service charge applies when contract is finalized</span>
+                </div>
+              </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label className="text-white">Pitch Description</Label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="bg-[#111111] border-0 text-white resize-none"
-                placeholder="Describe the player and what makes them a great transfer opportunity..."
-                rows={4}
-              />
-            </div>
-
-            {/* Service Charge Notice */}
-            <div className="bg-blue-900/20 border border-blue-700 p-4 rounded-lg">
-              <div className="flex items-center gap-2 text-blue-400">
-                <DollarSign className="h-4 w-4" />
-                <span className="text-sm">
-                  A 15% service charge applies to all successful transfers
-                </span>
+              {/* Expiration Notice */}
+              <div className="p-3 bg-gray-700 rounded">
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-sm">Pitch will automatically expire in 30 days</span>
+                </div>
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex gap-4">
               <Button
                 type="submit"
-                disabled={loading || !selectedPlayer || selectedVideos.length === 0}
+                disabled={loading || !selectedPlayer || selectedVideos.length === 0 || !validateRequirements()}
                 className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
               >
                 {loading ? 'Creating Pitch...' : 'Create Transfer Pitch'}
