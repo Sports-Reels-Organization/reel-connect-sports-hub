@@ -1,56 +1,104 @@
+
 import { useState, useEffect } from 'react';
 
 interface Country {
-    name: {
-        common: string;
-        official: string;
-    };
-    flags: {
-        png: string;
-        svg: string;
-    };
-    cca2: string;
+  name: {
+    common: string;
+    official?: string;
+  };
+  cca2: string;
+  cca3: string;
+  flag: string;
+  languages?: Record<string, string>;
+  currencies?: Record<string, any>;
+  region?: string;
+  subregion?: string;
 }
 
-export const useCountries = () => {
-    const [countries, setCountries] = useState<Country[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+interface UseCountriesReturn {
+  countries: Country[];
+  loading: boolean;
+  error: string | null;
+}
 
-    useEffect(() => {
-        const fetchCountries = async () => {
-            try {
-                setLoading(true);
-                const response = await fetch('https://restcountries.com/v3.1/all?fields=name,flags,cca2');
+export const useCountries = (): UseCountriesReturn => {
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch countries');
-                }
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-                const data = await response.json();
-                const sortedCountries = data.sort((a: Country, b: Country) =>
-                    a.name.common.localeCompare(b.name.common)
-                );
+        const response = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,cca3,flag,languages,currencies,region,subregion');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+          setCountries(data);
+        } else {
+          throw new Error('Invalid data format received');
+        }
+      } catch (err) {
+        console.error('Error fetching countries:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch countries');
+        
+        // Provide fallback countries data
+        setCountries([
+          {
+            name: { common: 'United States' },
+            cca2: 'US',
+            cca3: 'USA',
+            flag: '🇺🇸',
+            languages: { eng: 'English' },
+            region: 'Americas'
+          },
+          {
+            name: { common: 'United Kingdom' },
+            cca2: 'GB',
+            cca3: 'GBR',
+            flag: '🇬🇧',
+            languages: { eng: 'English' },
+            region: 'Europe'
+          },
+          {
+            name: { common: 'Spain' },
+            cca2: 'ES',
+            cca3: 'ESP',
+            flag: '🇪🇸',
+            languages: { spa: 'Spanish' },
+            region: 'Europe'
+          },
+          {
+            name: { common: 'France' },
+            cca2: 'FR',
+            cca3: 'FRA',
+            flag: '🇫🇷',
+            languages: { fra: 'French' },
+            region: 'Europe'
+          },
+          {
+            name: { common: 'Germany' },
+            cca2: 'DE',
+            cca3: 'DEU',
+            flag: '🇩🇪',
+            languages: { deu: 'German' },
+            region: 'Europe'
+          }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-                setCountries(sortedCountries);
-                setError(null);
-            } catch (err) {
-                console.error('Error fetching countries:', err);
-                setError('Failed to load countries');
-                // Fallback to some basic countries
-                setCountries([
-                    { name: { common: 'Nigeria', official: 'Federal Republic of Nigeria' }, flags: { png: '', svg: '' }, cca2: 'NG' },
-                    { name: { common: 'Ghana', official: 'Republic of Ghana' }, flags: { png: '', svg: '' }, cca2: 'GH' },
-                    { name: { common: 'United Kingdom', official: 'United Kingdom of Great Britain and Northern Ireland' }, flags: { png: '', svg: '' }, cca2: 'GB' },
-                    { name: { common: 'United States', official: 'United States of America' }, flags: { png: '', svg: '' }, cca2: 'US' }
-                ]);
-            } finally {
-                setLoading(false);
-            }
-        };
+    fetchCountries();
+  }, []);
 
-        fetchCountries();
-    }, []);
-
-    return { countries, loading, error };
+  return { countries, loading, error };
 };
