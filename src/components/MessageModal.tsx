@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useMessages, Message } from '@/hooks/useMessages';
 import { useToast } from '@/hooks/use-toast';
-import { contractService } from '@/services/contractService';
+import { contractService, ContractData } from '@/services/contractService';
 import { cn } from '@/lib/utils';
 
 // Extend the Message interface to include isNew property
@@ -257,13 +257,29 @@ export function MessageModal({
         if (!playerId || !receiverId) return;
 
         try {
-            const contractUrl = await contractService.generateContract(playerId, currentUserId);
+            // Create contract data object matching the ContractData interface
+            const contractData: ContractData = {
+                pitchId: pitchId || '',
+                playerName: displayPlayerName,
+                teamName: displayTeamName,
+                transferType: 'permanent', // Default transfer type
+                currency: 'USD',
+                contractDetails: {
+                    duration: '2 years',
+                    salary: 50000,
+                    signOnBonus: 10000,
+                    performanceBonus: 5000,
+                    relocationSupport: 3000
+                }
+            };
+
+            const contractHTML = await contractService.generateContract(contractData);
 
             await sendMessage(
                 "Contract generated and attached",
                 receiverId,
                 pitchId,
-                contractUrl
+                contractHTML
             );
 
             setShowContractOptions(false);
@@ -558,4 +574,4 @@ export function MessageModal({
     );
 }
 
-export default MessageModal; 
+export default MessageModal;
