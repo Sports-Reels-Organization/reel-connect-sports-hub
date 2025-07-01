@@ -276,22 +276,42 @@ const Timeline = () => {
       // Transform the data to match the interface
       const transformedData = (data || [])
         .filter(pitch => isValidPlayer(pitch.player))
-        .map(pitch => ({
-          ...pitch,
-          tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
-          player: pitch.player,
-          team: pitch.team || {
-            id: '',
-            full_name: 'Unknown Team',
-            country: 'Unknown'
-          },
-          agent: pitch.agent || {
-            id: '',
-            full_name: 'Unknown Agent',
-            email: '',
-            phone: undefined
+        .map(pitch => {
+          // Safely handle tagged_videos
+          let taggedVideos: string[] = [];
+          if (Array.isArray(pitch.tagged_videos)) {
+            taggedVideos = pitch.tagged_videos.map(video => 
+              typeof video === 'string' ? video : String(video)
+            );
           }
-        })) as TransferPitch[];
+
+          return {
+            ...pitch,
+            tagged_videos: taggedVideos,
+            player: pitch.player,
+            team: pitch.team ? {
+              id: pitch.team.id || '',
+              full_name: pitch.team.full_name || 'Unknown Team',
+              country: pitch.team.country || 'Unknown',
+              team_name: pitch.team.full_name || 'Unknown Team',
+              logo_url: undefined,
+              member_association: undefined
+            } : {
+              id: '',
+              full_name: 'Unknown Team',
+              country: 'Unknown',
+              team_name: 'Unknown Team',
+              logo_url: undefined,
+              member_association: undefined
+            },
+            agent: pitch.agent || {
+              id: '',
+              full_name: 'Unknown Agent',
+              email: '',
+              phone: undefined
+            }
+          } as TransferPitch;
+        });
 
       setTransferPitches(transformedData);
     } catch (error) {
@@ -320,12 +340,12 @@ const Timeline = () => {
             market_value
           ),
           team:profiles!transfer_pitches_team_id_fkey(
+            id,
             full_name,
-            country,
-            league,
-            logo_url
+            country
           ),
           agent:profiles!transfer_pitches_agent_id_fkey(
+            id,
             full_name,
             email,
             phone
@@ -344,9 +364,32 @@ const Timeline = () => {
         return null;
       }
 
+      // Safely handle tagged_videos
+      let taggedVideos: string[] = [];
+      if (Array.isArray(data.tagged_videos)) {
+        taggedVideos = data.tagged_videos.map(video => 
+          typeof video === 'string' ? video : String(video)
+        );
+      }
+
       return {
         ...data,
-        tagged_videos: Array.isArray(data.tagged_videos) ? data.tagged_videos : [],
+        tagged_videos: taggedVideos,
+        team: data.team ? {
+          id: data.team.id || '',
+          full_name: data.team.full_name || 'Unknown Team',
+          country: data.team.country || 'Unknown',
+          team_name: data.team.full_name || 'Unknown Team',
+          logo_url: undefined,
+          member_association: undefined
+        } : {
+          id: '',
+          full_name: 'Unknown Team',
+          country: 'Unknown',
+          team_name: 'Unknown Team',
+          logo_url: undefined,
+          member_association: undefined
+        }
       } as TransferPitch;
     } catch (error) {
       console.error('Error in fetchPitchWithDetails:', error);
