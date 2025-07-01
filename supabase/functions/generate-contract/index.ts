@@ -168,11 +168,14 @@ const generateContractHTML = (data: ContractRequest) => {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('Contract generation request received');
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -184,12 +187,11 @@ serve(async (req) => {
     );
 
     const contractData: ContractRequest = await req.json();
+    console.log('Contract data received:', contractData);
     
     // Generate the HTML contract
     const contractHTML = generateContractHTML(contractData);
-    
-    // Here you could also save the contract to the database or storage
-    // For now, we'll return the HTML directly
+    console.log('Contract HTML generated successfully');
     
     return new Response(JSON.stringify({ 
       contractHTML,

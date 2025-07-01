@@ -25,12 +25,15 @@ export const contractService = {
         body: contractData
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
 
       if (data?.success && data?.contractHTML) {
         return data.contractHTML;
       } else {
-        throw new Error('Failed to generate contract');
+        throw new Error(data?.error || 'Failed to generate contract');
       }
     } catch (error) {
       console.error('Error generating contract:', error);
@@ -40,8 +43,11 @@ export const contractService = {
 
   async uploadContract(file: File, onProgress?: (progress: { percentage: number }) => void): Promise<string> {
     try {
-      const fileName = `contract-${Date.now()}-${file.name}`;
-      const filePath = `contracts/${fileName}`;
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const fileName = `${user.id}/contract-${Date.now()}-${file.name}`;
 
       // Simulate progress if callback provided
       if (onProgress) {
@@ -57,13 +63,13 @@ export const contractService = {
 
       const { data, error } = await supabase.storage
         .from('contracts')
-        .upload(filePath, file);
+        .upload(fileName, file);
 
       if (error) throw error;
 
       const { data: { publicUrl } } = supabase.storage
         .from('contracts')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       return publicUrl;
     } catch (error) {

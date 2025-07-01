@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, X, File, Image } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FileUploadProps {
   onFileUploaded: (fileUrl: string, fileName: string, fileSize: number, fileType: string) => void;
@@ -16,10 +17,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded, disabled
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
     // Check file size (50MB limit)
     if (file.size > 50 * 1024 * 1024) {
@@ -36,8 +38,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded, disabled
 
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
       // Simulate progress since Supabase doesn't support onUploadProgress
       const progressInterval = setInterval(() => {
@@ -49,7 +50,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded, disabled
 
       const { data, error } = await supabase.storage
         .from('message-attachments')
-        .upload(filePath, file);
+        .upload(fileName, file);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -58,7 +59,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded, disabled
 
       const { data: { publicUrl } } = supabase.storage
         .from('message-attachments')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       onFileUploaded(publicUrl, file.name, file.size, file.type);
       
@@ -90,7 +91,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded, disabled
         onChange={handleFileSelect}
         className="hidden"
         accept="image/*,.pdf,.doc,.docx,.txt"
-        disabled={disabled || uploading}
+        disabled={disabled || uploading || !user}
       />
       
       <Button
@@ -98,7 +99,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded, disabled
         variant="outline"
         size="sm"
         onClick={() => fileInputRef.current?.click()}
-        disabled={disabled || uploading}
+        disabled={disabled || uploading || !user}
         className="w-fit"
       >
         <Upload className="w-4 h-4 mr-2" />

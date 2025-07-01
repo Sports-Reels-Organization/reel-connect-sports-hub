@@ -1,13 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-// TypeScript cache refresh - MessageModal component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -16,15 +13,11 @@ import {
     Download,
     FileText,
     User,
-    Building2,
     Clock,
     CheckCircle,
-    AlertCircle,
     Paperclip,
     X,
-    MessageSquare,
-    Phone,
-    Mail
+    MessageSquare
 } from 'lucide-react';
 import { useMessages, Message } from '@/hooks/useMessages';
 import { useToast } from '@/hooks/use-toast';
@@ -75,7 +68,7 @@ export function MessageModal({
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
     const [showContractOptions, setShowContractOptions] = useState(false);
-    const [typingIndicator, setTypingIndicator] = useState(false);
+    const [generatingContract, setGeneratingContract] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const { toast } = useToast();
@@ -134,27 +127,10 @@ export function MessageModal({
 
         setIsLoadingReceiver(true);
         try {
-            const { data, error } = await fetch('/api/supabase').then(res => res.json());
-
-            if (error) {
-                console.error('Error fetching receiver ID:', error);
-                return;
-            }
-
-            // Fetch the team profile ID from the transfer pitch
-            const { data: pitchData, error: pitchError } = await data
-                .from('transfer_pitches')
-                .select('team_id')
-                .eq('id', pitchId)
-                .single();
-
-            if (pitchError) {
-                console.error('Error fetching pitch data:', pitchError);
-                return;
-            }
-
-            if (pitchData?.team_id) {
-                setReceiverId(pitchData.team_id);
+            // This should be handled by the parent component
+            // For now, we'll use the provided receiverId
+            if (propReceiverId) {
+                setReceiverId(propReceiverId);
             }
         } catch (error) {
             console.error('Error in fetchReceiverId:', error);
@@ -169,7 +145,6 @@ export function MessageModal({
         try {
             await sendMessage(message, receiverId, pitchId);
             setMessage('');
-            setTypingIndicator(false);
 
             // Reset textarea height
             if (textareaRef.current) {
@@ -229,8 +204,7 @@ export function MessageModal({
             await sendMessage(
                 `Contract uploaded: ${contractFile.name}`,
                 receiverId,
-                pitchId,
-                contractUrl
+                pitchId
             );
 
             setContractFile(null);
@@ -254,7 +228,16 @@ export function MessageModal({
     };
 
     const handleGenerateContract = async () => {
-        if (!playerId || !receiverId) return;
+        if (!playerId || !receiverId) {
+            toast({
+                title: "Missing Information",
+                description: "Player and receiver information required for contract generation",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        setGeneratingContract(true);
 
         try {
             // Create contract data object matching the ContractData interface
@@ -278,8 +261,7 @@ export function MessageModal({
             await sendMessage(
                 "Contract generated and attached",
                 receiverId,
-                pitchId,
-                contractHTML
+                pitchId
             );
 
             setShowContractOptions(false);
@@ -291,9 +273,11 @@ export function MessageModal({
             console.error('Error generating contract:', error);
             toast({
                 title: "Generation Failed",
-                description: "Failed to generate contract",
+                description: "Failed to generate contract. Please try again.",
                 variant: "destructive"
             });
+        } finally {
+            setGeneratingContract(false);
         }
     };
 
@@ -482,10 +466,10 @@ export function MessageModal({
                                             size="sm"
                                             variant="outline"
                                             onClick={handleGenerateContract}
-                                            disabled={!playerId}
+                                            disabled={generatingContract || !playerId}
                                         >
                                             <FileText className="h-4 w-4 mr-2" />
-                                            Generate Contract
+                                            {generatingContract ? 'Generating...' : 'Generate Contract'}
                                         </Button>
                                         <Button
                                             size="sm"
