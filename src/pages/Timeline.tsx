@@ -285,15 +285,21 @@ const Timeline = () => {
             );
           }
 
+          // Handle team data (might be array or single object)
+          const teamData = Array.isArray(pitch.team) ? pitch.team[0] : pitch.team;
+          
+          // Handle agent data (might be array or single object)
+          const agentData = Array.isArray(pitch.agent) ? pitch.agent[0] : pitch.agent;
+
           return {
             ...pitch,
             tagged_videos: taggedVideos,
             player: pitch.player,
-            team: pitch.team ? {
-              id: pitch.team.id || '',
-              full_name: pitch.team.full_name || 'Unknown Team',
-              country: pitch.team.country || 'Unknown',
-              team_name: pitch.team.full_name || 'Unknown Team',
+            team: teamData ? {
+              id: teamData.id || '',
+              full_name: teamData.full_name || 'Unknown Team',
+              country: teamData.country || 'Unknown',
+              team_name: teamData.full_name || 'Unknown Team',
               logo_url: undefined,
               member_association: undefined
             } : {
@@ -304,7 +310,12 @@ const Timeline = () => {
               logo_url: undefined,
               member_association: undefined
             },
-            agent: pitch.agent || {
+            agent: agentData ? {
+              id: agentData.id || '',
+              full_name: agentData.full_name || 'Unknown Agent',
+              email: agentData.email || '',
+              phone: agentData.phone
+            } : {
               id: '',
               full_name: 'Unknown Agent',
               email: '',
@@ -372,14 +383,17 @@ const Timeline = () => {
         );
       }
 
+      // Handle team data (might be array or single object)
+      const teamData = Array.isArray(data.team) ? data.team[0] : data.team;
+
       return {
         ...data,
         tagged_videos: taggedVideos,
-        team: data.team ? {
-          id: data.team.id || '',
-          full_name: data.team.full_name || 'Unknown Team',
-          country: data.team.country || 'Unknown',
-          team_name: data.team.full_name || 'Unknown Team',
+        team: teamData ? {
+          id: teamData.id || '',
+          full_name: teamData.full_name || 'Unknown Team',
+          country: teamData.country || 'Unknown',
+          team_name: teamData.full_name || 'Unknown Team',
           logo_url: undefined,
           member_association: undefined
         } : {
