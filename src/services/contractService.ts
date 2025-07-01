@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-interface ContractData {
+export interface ContractData {
   pitchId: string;
   playerName: string;
   teamName: string;
@@ -34,6 +34,63 @@ export const contractService = {
       }
     } catch (error) {
       console.error('Error generating contract:', error);
+      throw error;
+    }
+  },
+
+  async uploadContract(file: File, onProgress?: (progress: { percentage: number }) => void): Promise<string> {
+    try {
+      const fileName = `contract-${Date.now()}-${file.name}`;
+      const filePath = `contracts/${fileName}`;
+
+      // Simulate progress if callback provided
+      if (onProgress) {
+        const interval = setInterval(() => {
+          onProgress({ percentage: Math.random() * 90 });
+        }, 200);
+        
+        setTimeout(() => {
+          clearInterval(interval);
+          onProgress({ percentage: 100 });
+        }, 2000);
+      }
+
+      const { data, error } = await supabase.storage
+        .from('contracts')
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('contracts')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading contract:', error);
+      throw error;
+    }
+  },
+
+  async saveContract(contractData: any): Promise<string> {
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .insert({
+          contract_type: contractData.transferType || 'transfer',
+          player_id: contractData.playerId,
+          team_id: contractData.teamId,
+          agent_id: contractData.agentId,
+          terms: contractData,
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data.id;
+    } catch (error) {
+      console.error('Error saving contract:', error);
       throw error;
     }
   },

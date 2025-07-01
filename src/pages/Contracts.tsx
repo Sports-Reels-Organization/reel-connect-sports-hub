@@ -118,32 +118,23 @@ const Contracts = () => {
             }
 
             const contractData: ContractData = {
-                player_id: contractForm.playerId,
-                agent_id: contractForm.agentId,
-                team_id: profile?.id,
-                contract_terms: `Transfer contract for ${contractForm.playerName} from ${contractForm.sellingClub} to ${contractForm.buyingClub}`,
-                salary: contractForm.playerSalary ? parseFloat(contractForm.playerSalary) : undefined,
-                duration: contractForm.contractDuration || undefined,
-                start_date: contractForm.transferDate,
-                end_date: contractForm.contractDuration ? new Date(new Date(contractForm.transferDate).getTime() + parseInt(contractForm.contractDuration) * 365 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-                bonuses: contractForm.signOnBonus || contractForm.performanceBonus ? `Sign-on: ${contractForm.signOnBonus || '0'}, Performance: ${contractForm.performanceBonus || '0'}` : undefined,
-                clauses: `Transfer fee: ${contractForm.transferFee} ${contractForm.currency}`
+                pitchId: '', // Will be set if related to a pitch
+                playerName: contractForm.playerName,
+                teamName: contractForm.buyingClub,
+                transferType: contractForm.transferType,
+                askingPrice: contractForm.transferFee ? parseFloat(contractForm.transferFee) : undefined,
+                currency: contractForm.currency,
+                contractDetails: {
+                    duration: contractForm.contractDuration,
+                    salary: contractForm.playerSalary ? parseFloat(contractForm.playerSalary) : 0,
+                    signOnBonus: contractForm.signOnBonus ? parseFloat(contractForm.signOnBonus) : undefined,
+                    performanceBonus: contractForm.performanceBonus ? parseFloat(contractForm.performanceBonus) : undefined,
+                }
             };
 
-            // Validate contract data
-            const validation = (contractService.constructor as any).validateContractData(contractData);
-            if (!validation.isValid) {
-                toast({
-                    title: "Validation Error",
-                    description: validation.errors.join(', '),
-                    variant: "destructive"
-                });
-                return;
-            }
-
             // Generate contract
-            const contractUrl = await contractService.generateContract(contractForm.playerId, contractForm.agentId, contractData);
-            if (!contractUrl) {
+            const contractHTML = await contractService.generateContract(contractData);
+            if (!contractHTML) {
                 toast({
                     title: t('error'),
                     description: "Failed to generate contract",
@@ -152,8 +143,15 @@ const Contracts = () => {
                 return;
             }
 
-            // Save contract
-            const contractId = await contractService.saveContract(contractData);
+            // Save contract to database
+            const contractId = await contractService.saveContract({
+                playerId: contractForm.playerId,
+                agentId: contractForm.agentId,
+                teamId: profile?.id,
+                transferType: contractForm.transferType,
+                ...contractData
+            });
+
             if (!contractId) {
                 toast({
                     title: t('error'),
@@ -326,7 +324,7 @@ const Contracts = () => {
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-3 mb-3">
                                                     <h3 className="text-xl font-polysans font-semibold text-white">
-                                                        {contract.player_name}
+                                                        Contract #{contract.id.slice(0, 8)}
                                                     </h3>
                                                     {getStatusBadge(contract.status)}
                                                 </div>
@@ -335,33 +333,19 @@ const Contracts = () => {
                                                     <div className="flex items-center gap-2">
                                                         <User className="h-4 w-4 text-gray-400" />
                                                         <span className="text-gray-300 text-sm">
-                                                            {contract.player_position}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Building className="h-4 w-4 text-gray-400" />
-                                                        <span className="text-gray-300 text-sm">
-                                                            {contract.selling_club} → {contract.buying_club}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <DollarSign className="h-4 w-4 text-gray-400" />
-                                                        <span className="text-gray-300 text-sm">
-                                                            {contract.currency} {contract.transfer_fee?.toLocaleString()}
+                                                            {contract.contract_type}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <Calendar className="h-4 w-4 text-gray-400" />
                                                         <span className="text-gray-300 text-sm">
-                                                            {new Date(contract.transfer_date).toLocaleDateString()}
+                                                            {new Date(contract.created_at).toLocaleDateString()}
                                                         </span>
                                                     </div>
                                                 </div>
 
                                                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                                                    <span>{t('serviceCharge')}: {contract.service_charge}%</span>
-                                                    <span>•</span>
-                                                    <span>{t('transferType')}: {contract.transfer_type}</span>
+                                                    <span>Status: {contract.status}</span>
                                                 </div>
                                             </div>
 
@@ -427,4 +411,4 @@ const Contracts = () => {
     );
 };
 
-export default Contracts; 
+export default Contracts;

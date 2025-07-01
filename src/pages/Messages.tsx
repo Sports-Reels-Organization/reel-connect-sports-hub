@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -90,7 +89,17 @@ const Messages = () => {
       // Group messages by conversation partner
       const conversationMap = new Map<string, Conversation>();
 
-      allMessages?.forEach(message => {
+      allMessages?.forEach(rawMessage => {
+        // Transform the raw message to match our Message interface
+        const message: Message = {
+          ...rawMessage,
+          attachment_urls: Array.isArray(rawMessage.attachment_urls) 
+            ? rawMessage.attachment_urls as string[]
+            : rawMessage.attachment_urls 
+              ? [rawMessage.attachment_urls as string]
+              : []
+        };
+
         const isFromMe = message.sender_id === profile?.id;
         const partnerId = isFromMe ? message.receiver_id : message.sender_id;
         const partnerProfile = isFromMe ? message.receiver_profile : message.sender_profile;
@@ -143,10 +152,20 @@ const Messages = () => {
 
       if (error) throw error;
 
-      setMessages(data || []);
+      // Transform the raw messages to match our Message interface
+      const transformedMessages: Message[] = (data || []).map(rawMessage => ({
+        ...rawMessage,
+        attachment_urls: Array.isArray(rawMessage.attachment_urls) 
+          ? rawMessage.attachment_urls as string[]
+          : rawMessage.attachment_urls 
+            ? [rawMessage.attachment_urls as string]
+            : []
+      }));
+
+      setMessages(transformedMessages);
 
       // Mark messages as read
-      const unreadMessages = data?.filter(msg => 
+      const unreadMessages = transformedMessages?.filter(msg => 
         msg.receiver_id === profile?.id && msg.status !== 'read'
       );
 
@@ -194,7 +213,17 @@ const Messages = () => {
 
       if (error) throw error;
 
-      setMessages(prev => [...prev, data]);
+      // Transform the response to match our Message interface
+      const transformedMessage: Message = {
+        ...data,
+        attachment_urls: Array.isArray(data.attachment_urls) 
+          ? data.attachment_urls as string[]
+          : data.attachment_urls 
+            ? [data.attachment_urls as string]
+            : []
+      };
+
+      setMessages(prev => [...prev, transformedMessage]);
       setNewMessage('');
       setAttachments([]);
       fetchConversations(); // Refresh conversations to update last message
