@@ -6,9 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, DollarSign, MapPin, MessageSquare, User, Clock, Target, Plus, Video, Star } from 'lucide-react';
-import MessagePlayerModal from '@/components/MessagePlayerModal';
+import { Calendar, DollarSign, MapPin, MessageSquare, User, Clock, Target, Plus, Video, Star, Building2 } from 'lucide-react';
+import { MessageModal } from '@/components/MessageModal';
 import CreateTransferPitch from '@/components/CreateTransferPitch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { contractService } from '@/services/contractService';
+import { cn } from '@/lib/utils';
 
 interface TransferPitch {
   player_id: any;
@@ -20,7 +25,7 @@ interface TransferPitch {
   status: string;
   created_at: string;
   expires_at: string;
-  tagged_videos: string[];
+  tagged_videos: any;
   sign_on_bonus: number;
   performance_bonus: number;
   player_salary: number;
@@ -30,12 +35,13 @@ interface TransferPitch {
   loan_with_obligation: boolean;
   is_international: boolean;
   service_charge_rate: number;
-  players: {
+  player?: {
     id: string;
     full_name: string;
     position: string;
     citizenship: string;
-    headshot_url: string;
+    nationality?: string;
+    headshot_url?: string;
     photo_url: string;
     jersey_number: number;
     age?: number;
@@ -44,11 +50,13 @@ interface TransferPitch {
     height: number;
     weight: number;
   };
-  teams: {
-    team_name: string;
+  team?: {
+    id?: string;
+    team_name?: string;
+    full_name: string;
     country: string;
-    logo_url: string;
-    member_association: string;
+    logo_url?: string;
+    member_association?: string;
   };
   tagged_video_details?: {
     id: string;
@@ -56,22 +64,151 @@ interface TransferPitch {
     thumbnail_url: string;
     duration: number;
   }[];
+  agent?: {
+    id?: string;
+    full_name: string;
+    email: string;
+    phone?: string;
+  };
+}
+
+interface Message {
+  id: string;
+  content: string;
+  sender_id: string;
+  receiver_id: string;
+  pitch_id?: string;
+  contract_file_url?: string;
+  created_at: string;
+  status?: 'sent' | 'delivered' | 'read';
+  sender_profile?: {
+    full_name: string;
+    user_type: string;
+  };
+}
+
+function isValidPlayer(player: any): player is TransferPitch['player'] {
+  return (
+    player &&
+    typeof player === 'object' &&
+    !('error' in player) &&
+    typeof player.id === 'string' &&
+    typeof player.full_name === 'string' &&
+    typeof player.position === 'string' &&
+    typeof player.citizenship === 'string'
+  );
 }
 
 const Timeline = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const [pitches, setPitches] = useState<TransferPitch[]>([]);
+  const [transferPitches, setTransferPitches] = useState<TransferPitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showCreatePitch, setShowCreatePitch] = useState(false);
   const [currentTeamAssociation, setCurrentTeamAssociation] = useState<string>('');
+  const [selectedPitchId, setSelectedPitchId] = useState<string | null>(null);
+  const [selectedTeamProfileId, setSelectedTeamProfileId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [realTimeConnected, setRealTimeConnected] = useState(false);
 
   useEffect(() => {
     fetchCurrentTeamAssociation();
     fetchTransferPitches();
   }, []);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    // Subscribe to new transfer pitches
+    const pitchesSubscription = supabase
+      .channel('transfer_pitches')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transfer_pitches',
+          filter: 'status=eq.active'
+        },
+        (payload) => {
+          console.log('New transfer pitch received:', payload.new);
+
+          // Fetch full pitch data with joins
+          fetchPitchWithDetails(payload.new.id).then(newPitch => {
+            if (newPitch) {
+              setTransferPitches(prev => [newPitch, ...prev]);
+
+              // Show notification
+              toast({
+                title: "New Transfer Pitch",
+                description: `${newPitch.player?.full_name} is now available for transfer`,
+                duration: 5000,
+              });
+            }
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'transfer_pitches'
+        },
+        (payload) => {
+          // Update existing pitch
+          setTransferPitches(prev =>
+            prev.map(pitch =>
+              pitch.id === payload.new.id ? { ...pitch, ...payload.new } : pitch
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    // Subscribe to new messages
+    const messagesSubscription = supabase
+      .channel('timeline_messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${profile?.id}`
+        },
+        (payload) => {
+          console.log('New message received:', payload.new);
+
+          // Update unread count
+          setUnreadCount(prev => prev + 1);
+
+          // Add to messages if modal is open
+          if (showMessageModal && selectedPlayer) {
+            setMessages(prev => [...prev, payload.new as Message]);
+          }
+
+          // Show notification
+          toast({
+            title: "New Message",
+            description: `You have a new message about ${selectedPlayer?.full_name || 'a transfer'}`,
+            duration: 4000,
+          });
+        }
+      )
+      .subscribe();
+
+    setRealTimeConnected(true);
+
+    return () => {
+      pitchesSubscription.unsubscribe();
+      messagesSubscription.unsubscribe();
+      setRealTimeConnected(false);
+    };
+  }, [profile?.id, showMessageModal, selectedPlayer, toast]);
 
   const fetchCurrentTeamAssociation = async () => {
     if (!profile?.id) return;
@@ -93,90 +230,125 @@ const Timeline = () => {
 
   const fetchTransferPitches = async () => {
     try {
-      let query = supabase
+      setLoading(true);
+
+      const { data, error } = await supabase
         .from('transfer_pitches')
         .select(`
           *,
-          players!inner(
+          player:players(
             id,
             full_name,
             position,
             citizenship,
-            headshot_url,
+            age,
+            height,
+            weight,
             photo_url,
             jersey_number,
-            date_of_birth,
             bio,
-            market_value,
-            height,
-            weight
+            market_value
           ),
-          teams!inner(
-            team_name,
-            country,
-            logo_url,
-            member_association
+          team:profiles!transfer_pitches_team_id_fkey(
+            id,
+            full_name,
+            country
+          ),
+          agent:profiles!transfer_pitches_agent_id_fkey(
+            id,
+            full_name,
+            email,
+            phone
           )
         `)
         .eq('status', 'active')
-        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
-      // For basic tier, filter by same member association
-      if (currentTeamAssociation) {
-        query = query.eq('teams.member_association', currentTeamAssociation);
+      if (error) {
+        console.error('Error fetching transfer pitches:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load transfer timeline",
+          variant: "destructive"
+        });
+        return;
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      // Process the data to include video details and calculate age
-      const processedData = await Promise.all((data || []).map(async (pitch) => {
-        // Calculate age
-        const age = pitch.players.date_of_birth
-          ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
-          : undefined;
-
-        // Handle tagged_videos - ensure it's an array of strings
-        const taggedVideos = Array.isArray(pitch.tagged_videos)
-          ? pitch.tagged_videos as string[]
-          : pitch.tagged_videos
-            ? [pitch.tagged_videos as string]
-            : [];
-
-        // Fetch video details for tagged videos
-        let tagged_video_details = [];
-        if (taggedVideos.length > 0) {
-          const { data: videoData } = await supabase
-            .from('videos')
-            .select('id, title, thumbnail_url, duration')
-            .in('id', taggedVideos);
-
-          tagged_video_details = videoData || [];
-        }
-
-        return {
+      // Transform the data to match the interface
+      const transformedData = (data || [])
+        .filter(pitch => isValidPlayer(pitch.player))
+        .map(pitch => ({
           ...pitch,
-          tagged_videos: taggedVideos,
-          players: {
-            ...pitch.players,
-            age
+          player: pitch.player,
+          team: pitch.team || {
+            id: '',
+            full_name: 'Unknown Team',
+            country: 'Unknown'
           },
-          tagged_video_details
-        };
-      }));
+          agent: pitch.agent || {
+            id: '',
+            full_name: 'Unknown Agent',
+            email: '',
+            phone: undefined
+          }
+        }));
 
-      setPitches(processedData);
+      setTransferPitches(transformedData);
     } catch (error) {
-      console.error('Error fetching transfer pitches:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch transfer pitches",
-        variant: "destructive"
-      });
+      console.error('Error in fetchTransferPitches:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPitchWithDetails = async (pitchId: string): Promise<TransferPitch | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('transfer_pitches')
+        .select(`
+          *,
+          player:players(
+            id,
+            full_name,
+            position,
+            citizenship,
+            age,
+            height,
+            weight,
+            photo_url,
+            jersey_number,
+            bio,
+            market_value
+          ),
+          team:profiles!transfer_pitches_team_id_fkey(
+            full_name,
+            country,
+            league,
+            logo_url
+          ),
+          agent:profiles!transfer_pitches_agent_id_fkey(
+            full_name,
+            email,
+            phone
+          )
+        `)
+        .eq('id', pitchId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching pitch details:', error);
+        return null;
+      }
+
+      if (!data || !isValidPlayer(data.player)) {
+        console.error('Invalid player data in pitch details');
+        return null;
+      }
+
+      return data as unknown as TransferPitch;
+    } catch (error) {
+      console.error('Error in fetchPitchWithDetails:', error);
+      return null;
     }
   };
 
@@ -213,9 +385,52 @@ const Timeline = () => {
     setSelectedPlayer(player);
   };
 
-  const handleSendMessage = (player: any, pitchId: string) => {
-    setSelectedPlayer({ ...player, pitchId });
-    setShowMessageModal(true);
+  const handleSendMessage = async (player: any, pitchId: string) => {
+    try {
+      // Get the pitch data to find the team ID
+      const { data: pitchData, error: pitchError } = await supabase
+        .from('transfer_pitches')
+        .select('team_id')
+        .eq('id', pitchId)
+        .single();
+
+      if (pitchError || !pitchData) {
+        toast({
+          title: "Error",
+          description: "Could not find pitch information",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get the team's profile ID for messaging
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .select('profile_id')
+        .eq('id', pitchData.team_id)
+        .single();
+
+      if (teamError || !teamData) {
+        toast({
+          title: "Error",
+          description: "Could not find team information",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setSelectedPlayer({ ...player, pitchId });
+      setSelectedPitchId(pitchId);
+      setSelectedTeamProfileId(teamData.profile_id);
+      setShowMessageModal(true);
+    } catch (error) {
+      console.error('Error getting team info:', error);
+      toast({
+        title: "Error",
+        description: "Failed to get team information",
+        variant: "destructive"
+      });
+    }
   };
 
   const handlePitchCreated = () => {
@@ -283,6 +498,139 @@ const Timeline = () => {
     }
   };
 
+  const handleMessageClick = async (pitch: TransferPitch) => {
+    if (!pitch.player) {
+      toast({
+        title: "Error",
+        description: "Player information not available",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSelectedPlayer(pitch.player);
+    setShowMessageModal(true);
+
+    // Fetch existing messages for this pitch
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey(
+            full_name,
+            user_type
+          ),
+          receiver_profile:profiles!messages_receiver_id_fkey(
+            full_name,
+            user_type
+          )
+        `)
+        .eq('pitch_id', pitch.id)
+        .or(`sender_id.eq.${profile?.id},receiver_id.eq.${profile?.id}`)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching messages:', error);
+      } else {
+        setMessages(data || []);
+
+        // Mark messages as read
+        const unreadMessages = data
+          ?.filter(msg => msg.receiver_id === profile?.id && msg.status !== 'read')
+          .map(msg => msg.id);
+
+        if (unreadMessages && unreadMessages.length > 0) {
+          await supabase
+            .from('messages')
+            .update({ status: 'read' })
+            .in('id', unreadMessages);
+
+          setUnreadCount(prev => Math.max(0, prev - unreadMessages.length));
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleMessageClick:', error);
+    }
+  };
+
+  const handleSendMessageToPlayer = async (content: string, receiverId: string, pitchId?: string) => {
+    if (!profile) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          content,
+          sender_id: profile.id,
+          receiver_id: receiverId,
+          pitch_id: pitchId,
+        })
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey(
+            full_name,
+            user_type
+          ),
+          receiver_profile:profiles!messages_receiver_id_fkey(
+            full_name,
+            user_type
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error sending message:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send message",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Add message to local state for instant feedback
+      setMessages(prev => [...prev, data]);
+
+      toast({
+        title: "Message Sent",
+        description: "Your message has been sent successfully",
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Error in handleSendMessageToPlayer:', error);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h ago`;
+    } else if (diffInHours < 168) { // 7 days
+      return `${Math.floor(diffInHours / 24)}d ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'completed':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6 bg-background min-h-screen p-[3rem]">
@@ -316,7 +664,7 @@ const Timeline = () => {
               </Card>
             ))}
           </div>
-        ) : pitches.length === 0 ? (
+        ) : transferPitches.length === 0 ? (
           <Card className="border-gray-700">
             <CardContent className="p-12 text-center">
               <Target className="w-16 h-16 mx-auto mb-4 text-gray-500" />
@@ -342,7 +690,7 @@ const Timeline = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pitches.map((pitch) => (
+            {transferPitches.map((pitch) => (
               <Card key={pitch.id} className="border-gray-700 hover:border-rosegold/50 transition-colors group">
                 <CardContent className="p-6">
                   <div className="space-y-4">
@@ -350,12 +698,12 @@ const Timeline = () => {
                     <div className="flex items-center gap-4">
                       <div
                         className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 cursor-pointer"
-                        onClick={() => handlePlayerClick(pitch.players)}
+                        onClick={() => pitch.player && handlePlayerClick(pitch.player)}
                       >
-                        {pitch.players.headshot_url || pitch.players.photo_url ? (
+                        {pitch.player?.photo_url ? (
                           <img
-                            src={pitch.players.headshot_url || pitch.players.photo_url}
-                            alt={pitch.players.full_name}
+                            src={pitch.player.photo_url}
+                            alt={pitch.player.full_name}
                             className="w-full h-full object-cover"
                           />
                         ) : (
@@ -367,25 +715,25 @@ const Timeline = () => {
                       <div className="flex-1">
                         <h3
                           className="font-polysans font-bold text-white text-lg cursor-pointer hover:text-rosegold"
-                          onClick={() => handlePlayerClick(pitch.players)}
+                          onClick={() => pitch.player && handlePlayerClick(pitch.player)}
                         >
-                          {pitch.players.full_name}
+                          {pitch.player?.full_name || 'Unknown Player'}
                         </h3>
                         <p className="text-gray-300 font-poppins text-sm">
-                          {pitch.players.position}
+                          {pitch.player?.position || 'Unknown Position'}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                          {pitch.players.jersey_number && (
+                          {pitch.player?.jersey_number && (
                             <Badge variant="outline" className="text-rosegold border-rosegold">
-                              #{pitch.players.jersey_number}
+                              #{pitch.player.jersey_number}
                             </Badge>
                           )}
                           <Badge variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}>
                             {pitch.transfer_type.toUpperCase()}
                           </Badge>
-                          {pitch.is_international && (
+                          {pitch.player?.citizenship && (
                             <Badge variant="outline" className="text-blue-400 border-blue-400">
-                              INT'L
+                              {pitch.player.citizenship}
                             </Badge>
                           )}
                         </div>
@@ -395,28 +743,28 @@ const Timeline = () => {
                     {/* Team Info */}
                     <div className="flex items-center gap-2 text-sm text-gray-400">
                       <MapPin className="h-3 w-3" />
-                      <span>{pitch.teams.team_name}, {pitch.teams.country}</span>
+                      <span>{pitch.team?.team_name || pitch.team?.full_name}, {pitch.team?.country || 'Unknown'}</span>
                     </div>
 
                     {/* Player Stats */}
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Age:</span>
-                        <span className="text-white">{pitch.players.age || 'N/A'}</span>
+                        <span className="text-white">{pitch.player?.age || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Height:</span>
-                        <span className="text-white">{pitch.players.height || 'N/A'} cm</span>
+                        <span className="text-white">{pitch.player?.height || 'N/A'} cm</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Nationality:</span>
-                        <span className="text-white">{pitch.players.citizenship}</span>
+                        <span className="text-white">{pitch.player?.citizenship || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Value:</span>
                         <span className="text-white">
-                          {pitch.players.market_value
-                            ? formatCurrency(pitch.players.market_value, pitch.currency)
+                          {pitch.player?.market_value
+                            ? formatCurrency(pitch.player.market_value, pitch.currency)
                             : 'N/A'
                           }
                         </span>
@@ -497,7 +845,7 @@ const Timeline = () => {
                     <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-700">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {formatTimeAgo(pitch.created_at)}
+                        {formatDate(pitch.created_at)}
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
@@ -509,12 +857,12 @@ const Timeline = () => {
                     {profile?.user_type === 'agent' && (
                       <div className="space-y-2">
                         <Button
-                          onClick={() => handleSendMessage(pitch.players, pitch.id)}
+                          onClick={() => handleMessageClick(pitch)}
                           size="sm"
                           className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins"
                         >
                           <MessageSquare className="h-4 w-4 mr-1" />
-                          Express Interest
+                          Message
                         </Button>
                         <Button
                           onClick={() => addToShortlist(pitch)}
@@ -543,13 +891,19 @@ const Timeline = () => {
 
         {/* Message Player Modal */}
         {showMessageModal && selectedPlayer && (
-          <MessagePlayerModal
-            player={selectedPlayer}
+          <MessageModal
             isOpen={showMessageModal}
             onClose={() => {
               setShowMessageModal(false);
               setSelectedPlayer(null);
+              setMessages([]);
             }}
+            pitchId={selectedPitchId}
+            playerId={selectedPlayer.id}
+            teamId={selectedTeamProfileId}
+            currentUserId={profile?.id || ''}
+            playerName={selectedPlayer.full_name}
+            teamName={selectedPlayer.team?.team_name}
           />
         )}
       </div>

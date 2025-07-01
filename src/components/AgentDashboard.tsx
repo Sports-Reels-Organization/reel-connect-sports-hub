@@ -28,6 +28,9 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useMessages } from '@/hooks/useMessages';
+import { MessageModal } from '@/components/MessageModal';
+import { TransferPitch } from '@/types/tranfer';
 
 const AgentDashboard = () => {
   const { profile } = useAuth();
@@ -42,6 +45,13 @@ const AgentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [timelineData, setTimelineData] = useState([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const [messageReceiver, setMessageReceiver] = useState<{
+    id: string;
+    name: string;
+    type: 'agent' | 'team';
+  } | null>(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
 
   console.log('AgentDashboard render - profile:', profile, 'loading:', loading);
 
@@ -510,11 +520,88 @@ const AgentDashboard = () => {
     }
   };
 
+  const handleSendMessage = async (pitch: TransferPitch) => {
+    if (!profile?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to send messages",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Determine the receiver based on user type
+      let receiverId: string;
+      let receiverName: string;
+      let receiverType: 'agent' | 'team';
+
+      if (profile.user_type === 'agent') {
+        // Agent is messaging the team that owns the player
+        // Get the team's profile_id from the teams table using the team_name
+        const { data: teamData, error: teamError } = await supabase
+          .from('teams')
+          .select(`
+            profile_id,
+            profiles!inner(
+              id,
+              full_name
+            )
+          `)
+          .eq('team_name', pitch.teams.team_name)
+          .single();
+
+        if (teamError || !teamData) {
+          throw new Error('Could not find team information');
+        }
+
+        receiverId = teamData.profiles.id;
+        receiverName = teamData.profiles.full_name || pitch.teams.team_name;
+        receiverType = 'team';
+      } else {
+        toast({
+          title: "Information",
+          description: "Teams can respond to messages from agents. Agents will contact you if they're interested in your players.",
+        });
+        return;
+      }
+
+      setMessageReceiver({
+        id: receiverId,
+        name: receiverName,
+        type: receiverType
+      });
+      setShowMessageModal(true);
+    } catch (error) {
+      console.error('Error setting up message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to open messaging. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (profile?.user_type !== 'agent') {
     return null;
   }
 
-  
+  // Show loading state while profile is loading
+  if (loading) {
+    return (
+      <div className="space-y-6 p-[3rem]">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rosegold mx-auto mb-4"></div>
+          <h3 className="text-xl font-polysans font-semibold text-white mb-2">
+            Loading Agent Dashboard
+          </h3>
+          <p className="text-gray-400 font-poppins">
+            Please wait while we load your dashboard...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Check if profile is completed
   if (!profile?.profile_completed) {
@@ -940,6 +1027,20 @@ const AgentDashboard = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {showMessageModal && messageReceiver && (
+        <MessageModal
+          isOpen={showMessageModal}
+          onClose={() => {
+            setShowMessageModal(false);
+            setMessageReceiver(null);
+          } }
+          pitchId={selectedPlayer?.pitchId}
+          receiverId={messageReceiver.id}
+          receiverName={messageReceiver.name}
+          receiverType={messageReceiver.type}
+          pitchTitle={selectedPlayer ? `${selectedPlayer.full_name} - Transfer Pitch` : undefined} currentUserId={''}        />
+      )}
     </div>
   );
 };
