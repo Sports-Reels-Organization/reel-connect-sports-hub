@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     showFlag = true,
     showNativeName = false
 }) => {
-    const { currentLanguage, setLanguage, availableLanguages, loading } = useLanguage();
+    const { currentLanguage, setLanguage, availableLanguages, isLoading } = useLanguage();
     const [open, setOpen] = useState(false);
 
     const currentLang = availableLanguages.find(lang => lang.code === currentLanguage);
@@ -29,7 +30,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         setOpen(false);
     };
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className={cn("animate-pulse bg-gray-700 rounded", className)}>
                 <div className="h-8 w-20"></div>
@@ -44,13 +45,9 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                     <SelectValue>
                         <div className="flex items-center gap-2">
                             {showFlag && currentLang?.flag && (
-                                <img
-                                    src={currentLang.flag}
-                                    alt={currentLang.name}
-                                    className="w-4 h-3 object-cover rounded"
-                                />
+                                <span className="text-sm">{currentLang.flag}</span>
                             )}
-                            <span>{showNativeName ? currentLang?.nativeName : currentLang?.name}</span>
+                            <span>{showNativeName ? currentLang?.nativeName || currentLang?.name : currentLang?.name}</span>
                         </div>
                     </SelectValue>
                 </SelectTrigger>
@@ -63,13 +60,9 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                         >
                             <div className="flex items-center gap-2">
                                 {showFlag && language.flag && (
-                                    <img
-                                        src={language.flag}
-                                        alt={language.name}
-                                        className="w-4 h-3 object-cover rounded"
-                                    />
+                                    <span className="text-sm">{language.flag}</span>
                                 )}
-                                <span>{showNativeName ? language.nativeName : language.name}</span>
+                                <span>{showNativeName ? language.nativeName || language.name : language.name}</span>
                             </div>
                         </SelectItem>
                     ))}
@@ -88,13 +81,9 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                     >
                         <Globe className="h-4 w-4" />
                         {showFlag && currentLang?.flag && (
-                            <img
-                                src={currentLang.flag}
-                                alt={currentLang.name}
-                                className="w-4 h-3 object-cover rounded"
-                            />
+                            <span className="text-sm">{currentLang.flag}</span>
                         )}
-                        <span>{showNativeName ? currentLang?.nativeName : currentLang?.name}</span>
+                        <span>{showNativeName ? currentLang?.nativeName || currentLang?.name : currentLang?.name}</span>
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-48 bg-[#1a1a1a] border-gray-600 p-2">
@@ -111,13 +100,9 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                             >
                                 <div className="flex items-center gap-2 flex-1">
                                     {showFlag && language.flag && (
-                                        <img
-                                            src={language.flag}
-                                            alt={language.name}
-                                            className="w-4 h-3 object-cover rounded"
-                                        />
+                                        <span className="text-sm">{language.flag}</span>
                                     )}
-                                    <span className="flex-1">{showNativeName ? language.nativeName : language.name}</span>
+                                    <span className="flex-1">{showNativeName ? language.nativeName || language.name : language.name}</span>
                                     {currentLanguage === language.code && (
                                         <Check className="h-4 w-4 text-rosegold" />
                                     )}
@@ -138,13 +123,9 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                     <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4" />
                         {showFlag && currentLang?.flag && (
-                            <img
-                                src={currentLang.flag}
-                                alt={currentLang.name}
-                                className="w-4 h-3 object-cover rounded"
-                            />
+                            <span className="text-sm">{currentLang.flag}</span>
                         )}
-                        <span className="text-sm">{showNativeName ? currentLang?.nativeName : currentLang?.name}</span>
+                        <span className="text-sm">{showNativeName ? currentLang?.nativeName || currentLang?.name : currentLang?.name}</span>
                     </div>
                 </SelectValue>
             </SelectTrigger>
@@ -157,13 +138,9 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                     >
                         <div className="flex items-center gap-2">
                             {showFlag && language.flag && (
-                                <img
-                                    src={language.flag}
-                                    alt={language.name}
-                                    className="w-4 h-3 object-cover rounded"
-                                />
+                                <span className="text-sm">{language.flag}</span>
                             )}
-                            <span>{showNativeName ? language.nativeName : language.name}</span>
+                            <span>{showNativeName ? language.nativeName || language.name : language.name}</span>
                         </div>
                     </SelectItem>
                 ))}
@@ -172,4 +149,4 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     );
 };
 
-export default LanguageSelector; 
+export default LanguageSelector;

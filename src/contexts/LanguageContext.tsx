@@ -7,6 +7,7 @@ interface Language {
   name: string;
   flag: string;
   rtl?: boolean;
+  nativeName?: string;
 }
 
 interface LanguageContextType {
@@ -38,6 +39,10 @@ const translations: Record<string, Record<string, string>> = {
     'loading': 'Loading...',
     'error': 'Error',
     'success': 'Success',
+    'signInWithGoogle': 'Sign in with Google',
+    'termsDescription': 'I accept the terms and conditions and privacy policy',
+    'save': 'Save',
+    'cancel': 'Cancel',
   },
   es: {
     'welcome': 'Bienvenido',
@@ -56,6 +61,10 @@ const translations: Record<string, Record<string, string>> = {
     'loading': 'Cargando...',
     'error': 'Error',
     'success': 'Éxito',
+    'signInWithGoogle': 'Iniciar sesión con Google',
+    'termsDescription': 'Acepto los términos y condiciones y la política de privacidad',
+    'save': 'Guardar',
+    'cancel': 'Cancelar',
   },
   fr: {
     'welcome': 'Bienvenue',
@@ -74,6 +83,10 @@ const translations: Record<string, Record<string, string>> = {
     'loading': 'Chargement...',
     'error': 'Erreur',
     'success': 'Succès',
+    'signInWithGoogle': 'Se connecter avec Google',
+    'termsDescription': 'J\'accepte les termes et conditions et la politique de confidentialité',
+    'save': 'Enregistrer',
+    'cancel': 'Annuler',
   }
 };
 
@@ -90,16 +103,16 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         
         // Fallback languages if countries data is not available
         const fallbackLanguages: Language[] = [
-          { code: 'en', name: 'English', flag: '🇺🇸' },
-          { code: 'es', name: 'Español', flag: '🇪🇸' },
-          { code: 'fr', name: 'Français', flag: '🇫🇷' },
-          { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-          { code: 'it', name: 'Italiano', flag: '🇮🇹' },
-          { code: 'pt', name: 'Português', flag: '🇵🇹' },
-          { code: 'ru', name: 'Русский', flag: '🇷🇺' },
-          { code: 'zh', name: '中文', flag: '🇨🇳' },
-          { code: 'ja', name: '日本語', flag: '🇯🇵' },
-          { code: 'ar', name: 'العربية', flag: '🇸🇦', rtl: true }
+          { code: 'en', name: 'English', flag: '🇺🇸', nativeName: 'English' },
+          { code: 'es', name: 'Español', flag: '🇪🇸', nativeName: 'Español' },
+          { code: 'fr', name: 'Français', flag: '🇫🇷', nativeName: 'Français' },
+          { code: 'de', name: 'Deutsch', flag: '🇩🇪', nativeName: 'Deutsch' },
+          { code: 'it', name: 'Italiano', flag: '🇮🇹', nativeName: 'Italiano' },
+          { code: 'pt', name: 'Português', flag: '🇵🇹', nativeName: 'Português' },
+          { code: 'ru', name: 'Русский', flag: '🇷🇺', nativeName: 'Русский' },
+          { code: 'zh', name: '中文', flag: '🇨🇳', nativeName: '中文' },
+          { code: 'ja', name: '日本語', flag: '🇯🇵', nativeName: '日本語' },
+          { code: 'ar', name: 'العربية', flag: '🇸🇦', rtl: true, nativeName: 'العربية' }
         ];
 
         if (countries && Array.isArray(countries) && countries.length > 0) {
@@ -113,7 +126,8 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
                   languageMap.set(code, {
                     code,
                     name,
-                    flag: country.flag || '🏳️'
+                    flag: country.flag || '🏳️',
+                    nativeName: name
                   });
                 }
               });
@@ -130,9 +144,9 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         console.error('Error processing languages:', error);
         // Use fallback languages on error
         setAvailableLanguages([
-          { code: 'en', name: 'English', flag: '🇺🇸' },
-          { code: 'es', name: 'Español', flag: '🇪🇸' },
-          { code: 'fr', name: 'Français', flag: '🇫🇷' }
+          { code: 'en', name: 'English', flag: '🇺🇸', nativeName: 'English' },
+          { code: 'es', name: 'Español', flag: '🇪🇸', nativeName: 'Español' },
+          { code: 'fr', name: 'Français', flag: '🇫🇷', nativeName: 'Français' }
         ]);
       } finally {
         setIsLoading(false);

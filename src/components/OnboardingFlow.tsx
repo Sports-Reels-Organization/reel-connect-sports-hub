@@ -308,12 +308,8 @@ const OnboardingFlow = () => {
                       {countries.map((country) => (
                         <SelectItem key={country.cca2} value={country.name.common}>
                           <div className="flex border-0 outline-none items-center gap-2">
-                            {country.flags.png && (
-                              <img
-                                src={country.flags.png}
-                                alt={`${country.name.common} flag`}
-                                className="w-4 h-3 object-cover"
-                              />
+                            {country.flag && (
+                              <span className="text-sm">{country.flag}</span>
                             )}
                             <span>{country.name.common}</span>
                           </div>
@@ -340,11 +336,7 @@ const OnboardingFlow = () => {
                           <SelectItem key={`${item.code}-${index}-${item.country}`} value={item.code}>
                             <div className="flex items-center gap-2">
                               {item.flag && (
-                                <img
-                                  src={item.flag}
-                                  alt={`${item.country} flag`}
-                                  className="w-4 h-3 object-cover"
-                                />
+                                <span className="text-sm">{item.flag}</span>
                               )}
                               <span>{item.code}</span>
                             </div>

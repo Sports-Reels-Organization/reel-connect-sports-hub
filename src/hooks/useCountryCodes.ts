@@ -54,7 +54,7 @@ export const useCountryCodes = () => {
         return countries.map(country => ({
             code: countryToCallingCode[country.cca2] || '+1',
             country: country.name.common,
-            flag: country.flags.png
+            flag: country.flag
         })).sort((a, b) => a.country.localeCompare(b.country));
     }, [countries]);
 

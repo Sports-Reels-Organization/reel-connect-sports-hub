@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSelector from '@/components/LanguageSelector';
@@ -34,14 +35,10 @@ const LanguageTest: React.FC = () => {
                     {availableLanguages.map((lang) => (
                         <div key={lang.code} className="flex items-center gap-2 p-2 bg-gray-800 rounded">
                             {lang.flag && (
-                                <img
-                                    src={lang.flag}
-                                    alt={lang.name}
-                                    className="w-4 h-3 object-cover rounded"
-                                />
+                                <span className="text-sm">{lang.flag}</span>
                             )}
                             <span className="text-white text-sm">{lang.name}</span>
-                            <span className="text-gray-400 text-xs">({lang.nativeName})</span>
+                            <span className="text-gray-400 text-xs">({lang.nativeName || lang.name})</span>
                         </div>
                     ))}
                 </div>
@@ -50,4 +47,4 @@ const LanguageTest: React.FC = () => {
     );
 };
 
-export default LanguageTest; 
+export default LanguageTest;
