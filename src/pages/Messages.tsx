@@ -1,27 +1,18 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import {
-  MessageSquare,
-  User,
-  Building2,
-  Send,
-  Download,
-  Upload,
-  FileText,
-  Clock,
-  Check,
-  Reply,
-  X
-} from 'lucide-react';
-import { format } from 'date-fns';
-import { MessageModal } from '@/components/MessageModal';
+import { Send, MessageCircle, User, Clock, Paperclip, FileText } from 'lucide-react';
+import { FileUpload } from '@/components/FileUpload';
+import { FilePreview } from '@/components/FilePreview';
 
 interface Message {
   id: string;
@@ -29,16 +20,12 @@ interface Message {
   sender_id: string;
   receiver_id: string;
   pitch_id?: string;
-  player_id?: string;
-  subject?: string;
-  status?: 'sent' | 'delivered' | 'read';
-  is_flagged?: boolean;
-  transfer_pitch_id?: string;
-  message_thread_id?: string;
-  attachment_urls?: any;
-  contract_file_url?: string;
   created_at: string;
-  updated_at: string;
+  status?: 'sent' | 'delivered' | 'read';
+  file_name?: string;
+  file_size?: number;
+  file_type?: string;
+  attachment_urls?: string[];
   sender_profile?: {
     full_name: string;
     user_type: string;
@@ -49,146 +36,207 @@ interface Message {
   };
 }
 
+interface Conversation {
+  participant: {
+    id: string;
+    full_name: string;
+    user_type: string;
+  };
+  lastMessage: Message;
+  unreadCount: number;
+}
+
 const Messages = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('inbox');
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [showReplyModal, setShowReplyModal] = useState(false);
-  const [replyReceiver, setReplyReceiver] = useState<{
-    id: string;
-    name: string;
-    type: 'agent' | 'team';
-  } | null>(null);
+  const [attachments, setAttachments] = useState<{url: string, name: string, size: number, type: string}[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch messages
   useEffect(() => {
     if (profile?.id) {
-      fetchMessages();
+      fetchConversations();
     }
-  }, [profile]);
+  }, [profile?.id]);
 
-  const fetchMessages = async () => {
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages(selectedConversation);
+    }
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const fetchConversations = async () => {
     try {
-      setLoading(true);
-
-      const { data, error } = await supabase
+      const { data: allMessages, error } = await supabase
         .from('messages')
         .select(`
           *,
-          sender_profile:profiles!messages_sender_id_fkey(
-            full_name,
-            user_type
-          ),
-          receiver_profile:profiles!messages_receiver_id_fkey(
-            full_name,
-            user_type
-          )
+          sender_profile:profiles!messages_sender_id_fkey(id, full_name, user_type),
+          receiver_profile:profiles!messages_receiver_id_fkey(id, full_name, user_type)
         `)
         .or(`sender_id.eq.${profile?.id},receiver_id.eq.${profile?.id}`)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching messages:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load messages",
-          variant: "destructive"
-        });
-      } else {
-        setMessages(data || []);
-      }
+      if (error) throw error;
+
+      // Group messages by conversation partner
+      const conversationMap = new Map<string, Conversation>();
+
+      allMessages?.forEach(message => {
+        const isFromMe = message.sender_id === profile?.id;
+        const partnerId = isFromMe ? message.receiver_id : message.sender_id;
+        const partnerProfile = isFromMe ? message.receiver_profile : message.sender_profile;
+
+        if (!conversationMap.has(partnerId)) {
+          conversationMap.set(partnerId, {
+            participant: {
+              id: partnerId,
+              full_name: partnerProfile?.full_name || 'Unknown User',
+              user_type: partnerProfile?.user_type || 'user'
+            },
+            lastMessage: message,
+            unreadCount: !isFromMe && message.status !== 'read' ? 1 : 0
+          });
+        } else {
+          const existing = conversationMap.get(partnerId)!;
+          if (new Date(message.created_at) > new Date(existing.lastMessage.created_at)) {
+            existing.lastMessage = message;
+          }
+          if (!isFromMe && message.status !== 'read') {
+            existing.unreadCount++;
+          }
+        }
+      });
+
+      setConversations(Array.from(conversationMap.values()));
     } catch (error) {
-      console.error('Error in fetchMessages:', error);
+      console.error('Error fetching conversations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load conversations",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const markAsRead = async (messageId: string) => {
+  const fetchMessages = async (participantId: string) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
-        .update({ status: 'read' })
-        .eq('id', messageId);
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey(id, full_name, user_type),
+          receiver_profile:profiles!messages_receiver_id_fkey(id, full_name, user_type)
+        `)
+        .or(`and(sender_id.eq.${profile?.id},receiver_id.eq.${participantId}),and(sender_id.eq.${participantId},receiver_id.eq.${profile?.id})`)
+        .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Error marking message as read:', error);
-      } else {
-        // Update local state
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === messageId ? { ...msg, status: 'read' } : msg
-          )
-        );
+      if (error) throw error;
+
+      setMessages(data || []);
+
+      // Mark messages as read
+      const unreadMessages = data?.filter(msg => 
+        msg.receiver_id === profile?.id && msg.status !== 'read'
+      );
+
+      if (unreadMessages && unreadMessages.length > 0) {
+        await supabase
+          .from('messages')
+          .update({ status: 'read' })
+          .in('id', unreadMessages.map(msg => msg.id));
       }
+
     } catch (error) {
-      console.error('Error in markAsRead:', error);
-    }
-  };
-
-  const handleReply = (message: Message) => {
-    const isIncoming = message.sender_id !== profile?.id;
-    const receiverId = isIncoming ? message.sender_id : message.receiver_id;
-    const receiverProfile = isIncoming ? message.sender_profile : message.receiver_profile;
-
-    setReplyReceiver({
-      id: receiverId,
-      name: receiverProfile?.full_name || 'Unknown',
-      type: receiverProfile?.user_type === 'agent' ? 'agent' : 'team'
-    });
-    setShowReplyModal(true);
-  };
-
-  const handleDownloadContract = async (fileUrl: string, fileName: string) => {
-    try {
-      const response = await fetch(fileUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
+      console.error('Error fetching messages:', error);
       toast({
-        title: "Download Started",
-        description: "Contract download has started",
-      });
-    } catch (error) {
-      console.error('Error downloading contract:', error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to download contract. The file may have been removed or you may not have permission to access it.",
+        title: "Error",
+        description: "Failed to load messages",
         variant: "destructive"
       });
     }
   };
 
-  const getInboxMessages = () => messages.filter(msg => msg.receiver_id === profile?.id);
-  const getSentMessages = () => messages.filter(msg => msg.sender_id === profile?.id);
-  const getUnreadCount = () => getInboxMessages().filter(msg => msg.status !== 'read').length;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() && attachments.length === 0) return;
+    if (!selectedConversation || !profile?.id) return;
 
-  const formatMessageTime = (timestamp: string) => {
-    return format(new Date(timestamp), 'MMM dd, yyyy HH:mm');
+    try {
+      const messageData = {
+        content: newMessage.trim() || 'Attachment',
+        sender_id: profile.id,
+        receiver_id: selectedConversation,
+        attachment_urls: attachments.length > 0 ? attachments.map(att => att.url) : null,
+        file_name: attachments.length > 0 ? attachments[0].name : null,
+        file_size: attachments.length > 0 ? attachments[0].size : null,
+        file_type: attachments.length > 0 ? attachments[0].type : null,
+      };
+
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(messageData)
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey(id, full_name, user_type),
+          receiver_profile:profiles!messages_receiver_id_fkey(id, full_name, user_type)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      setMessages(prev => [...prev, data]);
+      setNewMessage('');
+      setAttachments([]);
+      fetchConversations(); // Refresh conversations to update last message
+
+      toast({
+        title: "Message sent",
+        description: "Your message has been sent successfully",
+      });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleFileUploaded = (fileUrl: string, fileName: string, fileSize: number, fileType: string) => {
+    setAttachments(prev => [...prev, { url: fileUrl, name: fileName, size: fileSize, type: fileType }]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
   };
 
   if (loading) {
     return (
       <Layout>
-        <div className="space-y-6 p-[3rem] bg-background">
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rosegold mx-auto mb-4"></div>
-            <h3 className="text-xl font-polysans font-semibold text-white mb-2">
-              Loading Messages
-            </h3>
-            <p className="text-gray-400 font-poppins">
-              Please wait while we load your messages...
-            </p>
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+            <p className="text-gray-500">Loading messages...</p>
           </div>
         </div>
       </Layout>
@@ -197,260 +245,183 @@ const Messages = () => {
 
   return (
     <Layout>
-      <div className="space-y-6 p-[3rem] bg-background">
-        <div className='text-start'>
-          <h1 className="text-3xl text-start font-polysans font-bold text-white mb-2">
-            Messages
-          </h1>
-          <p className="text-rosegold font-poppins">
-            Communicate with teams and agents about transfer opportunities
-          </p>
+      <div className="flex h-screen bg-background">
+        {/* Conversations Sidebar */}
+        <div className="w-1/3 border-r border-gray-700">
+          <div className="p-4 border-b border-gray-700">
+            <h2 className="text-xl font-polysans font-bold text-white">Messages</h2>
+          </div>
+          
+          <ScrollArea className="h-full">
+            {conversations.length === 0 ? (
+              <div className="p-8 text-center">
+                <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                <p className="text-gray-500">No conversations yet</p>
+              </div>
+            ) : (
+              conversations.map((conversation) => (
+                <div
+                  key={conversation.participant.id}
+                  onClick={() => setSelectedConversation(conversation.participant.id)}
+                  className={`p-4 border-b border-gray-700 cursor-pointer hover:bg-gray-800 transition-colors ${
+                    selectedConversation === conversation.participant.id ? 'bg-gray-800' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-rosegold rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-white">{conversation.participant.full_name}</p>
+                        <p className="text-sm text-gray-400 truncate max-w-[200px]">
+                          {conversation.lastMessage.content}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">
+                        {formatTime(conversation.lastMessage.created_at)}
+                      </p>
+                      {conversation.unreadCount > 0 && (
+                        <Badge variant="destructive" className="mt-1">
+                          {conversation.unreadCount}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </ScrollArea>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-gray-800">
-            <TabsTrigger value="inbox" className="data-[state=active]:bg-rosegold">
-              Inbox {getUnreadCount() > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {getUnreadCount()}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="sent" className="data-[state=active]:bg-rosegold">
-              Sent
-            </TabsTrigger>
-          </TabsList>
+        {/* Messages Area */}
+        <div className="flex-1 flex flex-col">
+          {selectedConversation ? (
+            <>
+              {/* Messages Header */}
+              <div className="p-4 border-b border-gray-700">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-rosegold rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-white">
+                      {conversations.find(c => c.participant.id === selectedConversation)?.participant.full_name}
+                    </h3>
+                    <p className="text-sm text-gray-400">
+                      {conversations.find(c => c.participant.id === selectedConversation)?.participant.user_type}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-          <TabsContent value="inbox" className="space-y-4">
-            {getInboxMessages().length === 0 ? (
-              <Card className="bg-white/5 border-0">
-                <CardContent className="p-12 text-center">
-                  <MessageSquare className="h-12 w-12 text-rosegold mx-auto mb-4" />
-                  <h3 className="text-xl font-polysans text-white mb-2">No Messages</h3>
-                  <p className="text-gray-400 font-poppins">
-                    You don't have any messages yet. Agents will contact you when they're interested in your players.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              getInboxMessages().map((message) => (
-                <Card
-                  key={message.id}
-                  className={`bg-white/5 border-0 cursor-pointer hover:bg-white/10 transition-colors ${message.status !== 'read' ? 'border-l-4 border-l-rosegold' : ''
-                    }`}
-                  onClick={() => {
-                    if (message.status !== 'read') {
-                      markAsRead(message.id);
-                    }
-                    setSelectedMessage(message);
-                  }}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          {message.sender_profile?.user_type === 'agent' ? (
-                            <User className="h-4 w-4 text-blue-400" />
-                          ) : (
-                            <Building2 className="h-4 w-4 text-green-400" />
+              {/* Messages List */}
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                  {messages.map((message) => {
+                    const isFromMe = message.sender_id === profile?.id;
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[70%] p-3 rounded-lg ${
+                            isFromMe
+                              ? 'bg-rosegold text-white'
+                              : 'bg-gray-700 text-white'
+                          }`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          
+                          {/* File attachments */}
+                          {message.attachment_urls && message.attachment_urls.length > 0 && (
+                            <div className="mt-2 space-y-2">
+                              {message.attachment_urls.map((url, index) => (
+                                <FilePreview
+                                  key={index}
+                                  fileUrl={url}
+                                  fileName={message.file_name || `attachment-${index + 1}`}
+                                  fileType={message.file_type || 'application/octet-stream'}
+                                  fileSize={message.file_size || 0}
+                                />
+                              ))}
+                            </div>
                           )}
-                          <span className="font-polysans font-semibold text-white">
-                            {message.sender_profile?.full_name || 'Unknown'}
-                          </span>
-                          {message.status !== 'read' && (
-                            <Badge variant="destructive" className="text-xs">
-                              New
-                            </Badge>
-                          )}
-                        </div>
-
-                        <p className="text-gray-300 text-sm mb-2 line-clamp-2">
-                          {message.content}
-                        </p>
-
-                        {message.subject && (
-                          <div className="text-xs text-gray-400 mb-2">
-                            Subject: {message.subject}
-                          </div>
-                        )}
-
-                        {/* Contract file display - temporarily disabled until database migration
-                        {message.contract_file_url && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <FileText className="h-4 w-4 text-blue-500" />
-                            <span className="text-sm text-blue-500">Contract attached</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(message.contract_file_url!, '_blank')}
-                              className="h-6 px-2 text-xs"
-                            >
-                              View
-                            </Button>
-                          </div>
-                        )}
-                        */}
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-gray-400">
-                            <Clock className="h-3 w-3" />
-                            {formatMessageTime(message.created_at)}
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {/* Contract download - temporarily disabled until database migration
-                            {message.contract_file_url && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownloadContract(
-                                    message.contract_file_url!,
-                                    `contract_${message.id}.pdf`
-                                  );
-                                }}
-                                className="h-6 px-2 text-xs"
-                              >
-                                <Download className="h-3 w-3 mr-1" />
-                                Download
-                              </Button>
+                          
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-xs opacity-70">
+                              {formatTime(message.created_at)}
+                            </p>
+                            {isFromMe && (
+                              <Badge variant={message.status === 'read' ? 'default' : 'secondary'} className="text-xs">
+                                {message.status || 'sent'}
+                              </Badge>
                             )}
-                            */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleReply(message);
-                              }}
-                              className="h-6 px-2 text-xs"
-                            >
-                              <Reply className="h-3 w-3 mr-1" />
-                              Reply
-                            </Button>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
 
-          <TabsContent value="sent" className="space-y-4">
-            {getSentMessages().length === 0 ? (
-              <Card className="bg-white/5 border-0">
-                <CardContent className="p-12 text-center">
-                  <Send className="h-12 w-12 text-rosegold mx-auto mb-4" />
-                  <h3 className="text-xl font-polysans text-white mb-2">No Sent Messages</h3>
-                  <p className="text-gray-400 font-poppins">
-                    You haven't sent any messages yet.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              getSentMessages().map((message) => (
-                <Card key={message.id} className="bg-white/5 border-0">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          {message.receiver_profile?.user_type === 'agent' ? (
-                            <User className="h-4 w-4 text-blue-400" />
-                          ) : (
-                            <Building2 className="h-4 w-4 text-green-400" />
-                          )}
-                          <span className="font-polysans font-semibold text-white">
-                            To: {message.receiver_profile?.full_name || 'Unknown'}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {message.status === 'read' ? (
-                              <Check className="h-3 w-3 text-green-400" />
-                            ) : (
-                              <Clock className="h-3 w-3 text-gray-400" />
-                            )}
-                            <span className="text-xs text-gray-400">
-                              {message.status === 'read' ? 'Read' : 'Sent'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <p className="text-gray-300 text-sm mb-2 line-clamp-2">
-                          {message.content}
-                        </p>
-
-                        {message.subject && (
-                          <div className="text-xs text-gray-400 mb-2">
-                            Subject: {message.subject}
-                          </div>
-                        )}
-
-                        {/* Contract file display - temporarily disabled until database migration
-                        {message.contract_file_url && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <FileText className="h-4 w-4 text-blue-500" />
-                            <span className="text-sm text-blue-500">Contract attached</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(message.contract_file_url!, '_blank')}
-                              className="h-6 px-2 text-xs"
-                            >
-                              View
-                            </Button>
-                          </div>
-                        )}
-                        */}
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-gray-400">
-                            <Clock className="h-3 w-3" />
-                            {formatMessageTime(message.created_at)}
-                          </div>
-
-                          {/* Contract download - temporarily disabled until database migration
-                          {message.contract_file_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadContract(
-                                message.contract_file_url!,
-                                `contract_${message.id}.pdf`
-                              )}
-                              className="h-6 px-2 text-xs"
-                            >
-                              <Download className="h-3 w-3 mr-1" />
-                              Download
-                            </Button>
-                          )}
-                          */}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
-
-        {/* Reply Modal */}
-        {showReplyModal && replyReceiver && (
-          <MessageModal
-            isOpen={showReplyModal}
-            onClose={() => {
-              setShowReplyModal(false);
-              setReplyReceiver(null);
-            }}
-            currentUserId={profile?.id || ''}
-            receiverId={replyReceiver.id}
-            receiverName={replyReceiver.name}
-            receiverType={replyReceiver.type}
-            pitchTitle={selectedMessage?.subject}
-          />
-        )}
+              {/* Message Input */}
+              <div className="p-4 border-t border-gray-700">
+                {/* Attachments Preview */}
+                {attachments.length > 0 && (
+                  <div className="mb-3 space-y-2">
+                    {attachments.map((attachment, index) => (
+                      <FilePreview
+                        key={index}
+                        fileUrl={attachment.url}
+                        fileName={attachment.name}
+                        fileType={attachment.type}
+                        fileSize={attachment.size}
+                        onRemove={() => removeAttachment(index)}
+                        showRemove={true}
+                      />
+                    ))}
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Textarea
+                      placeholder="Type your message..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      className="resize-none"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <FileUpload onFileUploaded={handleFileUploaded} />
+                    <Button onClick={handleSendMessage} className="bg-rosegold hover:bg-rosegold/90">
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                <p className="text-gray-500">Select a conversation to start messaging</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );

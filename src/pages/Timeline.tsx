@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -385,6 +386,9 @@ const Timeline = () => {
 
       // Handle team data (might be array or single object)
       const teamData = Array.isArray(data.team) ? data.team[0] : data.team;
+      
+      // Handle agent data (might be array or single object)
+      const agentData = Array.isArray(data.agent) ? data.agent[0] : data.agent;
 
       return {
         ...data,
@@ -403,6 +407,17 @@ const Timeline = () => {
           team_name: 'Unknown Team',
           logo_url: undefined,
           member_association: undefined
+        },
+        agent: agentData ? {
+          id: agentData.id || '',
+          full_name: agentData.full_name || 'Unknown Agent',
+          email: agentData.email || '',
+          phone: agentData.phone
+        } : {
+          id: '',
+          full_name: 'Unknown Agent',
+          email: '',
+          phone: undefined
         }
       } as TransferPitch;
     } catch (error) {

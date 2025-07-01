@@ -298,6 +298,9 @@ export type Database = {
           content: string
           contract_file_url: string | null
           created_at: string | null
+          file_name: string | null
+          file_size: number | null
+          file_type: string | null
           id: string
           is_flagged: boolean | null
           message_thread_id: string | null
@@ -320,6 +323,9 @@ export type Database = {
           content: string
           contract_file_url?: string | null
           created_at?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
           id?: string
           is_flagged?: boolean | null
           message_thread_id?: string | null
@@ -342,6 +348,9 @@ export type Database = {
           content?: string
           contract_file_url?: string | null
           created_at?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
           id?: string
           is_flagged?: boolean | null
           message_thread_id?: string | null
@@ -886,6 +895,7 @@ export type Database = {
           id: string
           is_verified: boolean | null
           last_contact_check: string | null
+          league: string | null
           newsletter_consent: boolean | null
           phone: string | null
           phone_verified: boolean | null
@@ -909,6 +919,7 @@ export type Database = {
           id?: string
           is_verified?: boolean | null
           last_contact_check?: string | null
+          league?: string | null
           newsletter_consent?: boolean | null
           phone?: string | null
           phone_verified?: boolean | null
@@ -932,6 +943,7 @@ export type Database = {
           id?: string
           is_verified?: boolean | null
           last_contact_check?: string | null
+          league?: string | null
           newsletter_consent?: boolean | null
           phone?: string | null
           phone_verified?: boolean | null
