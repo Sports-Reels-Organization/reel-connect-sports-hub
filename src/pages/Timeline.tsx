@@ -25,7 +25,7 @@ interface TransferPitch {
   status: string;
   created_at: string;
   expires_at: string;
-  tagged_videos: any;
+  tagged_videos: string[];
   sign_on_bonus: number;
   performance_bonus: number;
   player_salary: number;
@@ -241,7 +241,6 @@ const Timeline = () => {
             full_name,
             position,
             citizenship,
-            age,
             height,
             weight,
             photo_url,
@@ -279,6 +278,7 @@ const Timeline = () => {
         .filter(pitch => isValidPlayer(pitch.player))
         .map(pitch => ({
           ...pitch,
+          tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
           player: pitch.player,
           team: pitch.team || {
             id: '',
@@ -291,7 +291,7 @@ const Timeline = () => {
             email: '',
             phone: undefined
           }
-        }));
+        })) as TransferPitch[];
 
       setTransferPitches(transformedData);
     } catch (error) {
@@ -312,7 +312,6 @@ const Timeline = () => {
             full_name,
             position,
             citizenship,
-            age,
             height,
             weight,
             photo_url,
@@ -345,7 +344,10 @@ const Timeline = () => {
         return null;
       }
 
-      return data as unknown as TransferPitch;
+      return {
+        ...data,
+        tagged_videos: Array.isArray(data.tagged_videos) ? data.tagged_videos : [],
+      } as TransferPitch;
     } catch (error) {
       console.error('Error in fetchPitchWithDetails:', error);
       return null;
@@ -749,12 +751,12 @@ const Timeline = () => {
                     {/* Player Stats */}
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-400">Age:</span>
-                        <span className="text-white">{pitch.player?.age || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
                         <span className="text-gray-400">Height:</span>
                         <span className="text-white">{pitch.player?.height || 'N/A'} cm</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Weight:</span>
+                        <span className="text-white">{pitch.player?.weight || 'N/A'} kg</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Nationality:</span>
@@ -772,21 +774,21 @@ const Timeline = () => {
                     </div>
 
                     {/* Videos */}
-                    {pitch.tagged_video_details && pitch.tagged_video_details.length > 0 && (
+                    {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm text-gray-400">
                           <Video className="h-4 w-4" />
-                          <span>{pitch.tagged_video_details.length} video(s) available</span>
+                          <span>{pitch.tagged_videos.length} video(s) available</span>
                         </div>
                         <div className="flex gap-2 overflow-x-auto">
-                          {pitch.tagged_video_details.slice(0, 3).map((video) => (
-                            <div key={video.id} className="flex-shrink-0 w-20 h-12 bg-gray-700 rounded text-xs flex items-center justify-center">
+                          {pitch.tagged_videos.slice(0, 3).map((videoId, index) => (
+                            <div key={index} className="flex-shrink-0 w-20 h-12 bg-gray-700 rounded text-xs flex items-center justify-center">
                               <Video className="h-4 w-4 text-gray-400" />
                             </div>
                           ))}
-                          {pitch.tagged_video_details.length > 3 && (
+                          {pitch.tagged_videos.length > 3 && (
                             <div className="flex-shrink-0 w-20 h-12 bg-gray-700 rounded text-xs flex items-center justify-center text-gray-400">
-                              +{pitch.tagged_video_details.length - 3}
+                              +{pitch.tagged_videos.length - 3}
                             </div>
                           )}
                         </div>

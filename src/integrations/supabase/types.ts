@@ -182,6 +182,44 @@ export type Database = {
           },
         ]
       }
+      international_transfer_restrictions: {
+        Row: {
+          created_at: string | null
+          id: string
+          resolved_at: string | null
+          restriction_active: boolean | null
+          restriction_reason: string | null
+          restriction_type: string
+          team_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          resolved_at?: string | null
+          restriction_active?: boolean | null
+          restriction_reason?: string | null
+          restriction_type: string
+          team_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          resolved_at?: string | null
+          restriction_active?: boolean | null
+          restriction_reason?: string | null
+          restriction_type?: string
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "international_transfer_restrictions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_videos: {
         Row: {
           compressed_video_url: string | null
@@ -256,14 +294,20 @@ export type Database = {
       messages: {
         Row: {
           attachment_urls: Json | null
+          auto_flag_contact: boolean | null
           content: string
+          contract_file_url: string | null
           created_at: string | null
           id: string
           is_flagged: boolean | null
           message_thread_id: string | null
+          message_type: string | null
+          pitch_context: boolean | null
           pitch_id: string | null
           player_id: string | null
           receiver_id: string
+          requires_response: boolean | null
+          response_deadline: string | null
           sender_id: string
           status: Database["public"]["Enums"]["message_status"] | null
           subject: string | null
@@ -272,14 +316,20 @@ export type Database = {
         }
         Insert: {
           attachment_urls?: Json | null
+          auto_flag_contact?: boolean | null
           content: string
+          contract_file_url?: string | null
           created_at?: string | null
           id?: string
           is_flagged?: boolean | null
           message_thread_id?: string | null
+          message_type?: string | null
+          pitch_context?: boolean | null
           pitch_id?: string | null
           player_id?: string | null
           receiver_id: string
+          requires_response?: boolean | null
+          response_deadline?: string | null
           sender_id: string
           status?: Database["public"]["Enums"]["message_status"] | null
           subject?: string | null
@@ -288,14 +338,20 @@ export type Database = {
         }
         Update: {
           attachment_urls?: Json | null
+          auto_flag_contact?: boolean | null
           content?: string
+          contract_file_url?: string | null
           created_at?: string | null
           id?: string
           is_flagged?: boolean | null
           message_thread_id?: string | null
+          message_type?: string | null
+          pitch_context?: boolean | null
           pitch_id?: string | null
           player_id?: string | null
           receiver_id?: string
+          requires_response?: boolean | null
+          response_deadline?: string | null
           sender_id?: string
           status?: Database["public"]["Enums"]["message_status"] | null
           subject?: string | null
@@ -303,6 +359,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
           {
             foreignKeyName: "messages_pitch_id_fkey"
             columns: ["pitch_id"]
@@ -335,10 +405,66 @@ export type Database = {
             foreignKeyName: "messages_transfer_pitch_id_fkey"
             columns: ["transfer_pitch_id"]
             isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_transfer_pitch_id_fkey"
+            columns: ["transfer_pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
+          {
+            foreignKeyName: "messages_transfer_pitch_id_fkey"
+            columns: ["transfer_pitch_id"]
+            isOneToOne: false
             referencedRelation: "transfer_pitches"
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string | null
+          email_notifications: boolean | null
+          id: string
+          in_app_notifications: boolean | null
+          login_notifications: boolean | null
+          message_notifications: boolean | null
+          newsletter_subscription: boolean | null
+          profile_changes: boolean | null
+          transfer_updates: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          in_app_notifications?: boolean | null
+          login_notifications?: boolean | null
+          message_notifications?: boolean | null
+          newsletter_subscription?: boolean | null
+          profile_changes?: boolean | null
+          transfer_updates?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          in_app_notifications?: boolean | null
+          login_notifications?: boolean | null
+          message_notifications?: boolean | null
+          newsletter_subscription?: boolean | null
+          profile_changes?: boolean | null
+          transfer_updates?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -372,6 +498,55 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      pitch_requirements: {
+        Row: {
+          checked_at: string | null
+          id: string
+          pitch_id: string | null
+          requirement_details: Json | null
+          requirement_met: boolean | null
+          requirement_type: string
+        }
+        Insert: {
+          checked_at?: string | null
+          id?: string
+          pitch_id?: string | null
+          requirement_details?: Json | null
+          requirement_met?: boolean | null
+          requirement_type: string
+        }
+        Update: {
+          checked_at?: string | null
+          id?: string
+          pitch_id?: string | null
+          requirement_details?: Json | null
+          requirement_met?: boolean | null
+          requirement_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pitch_requirements_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pitch_requirements_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
+          {
+            foreignKeyName: "pitch_requirements_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       player_messages: {
         Row: {
@@ -420,6 +595,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "player_messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
           {
             foreignKeyName: "player_messages_pitch_id_fkey"
             columns: ["pitch_id"]
@@ -571,6 +760,7 @@ export type Database = {
       }
       players: {
         Row: {
+          age: number | null
           ai_analysis: Json | null
           bio: string | null
           citizenship: string
@@ -604,6 +794,7 @@ export type Database = {
           weight: number | null
         }
         Insert: {
+          age?: number | null
           ai_analysis?: Json | null
           bio?: string | null
           citizenship: string
@@ -637,6 +828,7 @@ export type Database = {
           weight?: number | null
         }
         Update: {
+          age?: number | null
           ai_analysis?: Json | null
           bio?: string | null
           citizenship?: string
@@ -681,45 +873,133 @@ export type Database = {
       }
       profiles: {
         Row: {
+          consent_date: string | null
+          contact_verified: boolean | null
+          contact_warnings: number | null
           country: string | null
+          country_code: string | null
           created_at: string | null
           email: string
+          email_consent: boolean | null
+          email_verified: boolean | null
           full_name: string
           id: string
           is_verified: boolean | null
+          last_contact_check: string | null
+          newsletter_consent: boolean | null
           phone: string | null
+          phone_verified: boolean | null
           profile_completed: boolean | null
+          terms_accepted: boolean | null
           updated_at: string | null
           user_id: string
           user_type: Database["public"]["Enums"]["user_type"]
         }
         Insert: {
+          consent_date?: string | null
+          contact_verified?: boolean | null
+          contact_warnings?: number | null
           country?: string | null
+          country_code?: string | null
           created_at?: string | null
           email: string
+          email_consent?: boolean | null
+          email_verified?: boolean | null
           full_name: string
           id?: string
           is_verified?: boolean | null
+          last_contact_check?: string | null
+          newsletter_consent?: boolean | null
           phone?: string | null
+          phone_verified?: boolean | null
           profile_completed?: boolean | null
+          terms_accepted?: boolean | null
           updated_at?: string | null
           user_id: string
           user_type: Database["public"]["Enums"]["user_type"]
         }
         Update: {
+          consent_date?: string | null
+          contact_verified?: boolean | null
+          contact_warnings?: number | null
           country?: string | null
+          country_code?: string | null
           created_at?: string | null
           email?: string
+          email_consent?: boolean | null
+          email_verified?: boolean | null
           full_name?: string
           id?: string
           is_verified?: boolean | null
+          last_contact_check?: string | null
+          newsletter_consent?: boolean | null
           phone?: string | null
+          phone_verified?: boolean | null
           profile_completed?: boolean | null
+          terms_accepted?: boolean | null
           updated_at?: string | null
           user_id?: string
           user_type?: Database["public"]["Enums"]["user_type"]
         }
         Relationships: []
+      }
+      service_charges: {
+        Row: {
+          charge_amount: number
+          charge_applied_at: string | null
+          charge_currency: string
+          charge_paid_at: string | null
+          charge_rate: number | null
+          charge_status: string | null
+          contract_id: string | null
+          id: string
+          pitch_id: string | null
+        }
+        Insert: {
+          charge_amount: number
+          charge_applied_at?: string | null
+          charge_currency: string
+          charge_paid_at?: string | null
+          charge_rate?: number | null
+          charge_status?: string | null
+          contract_id?: string | null
+          id?: string
+          pitch_id?: string | null
+        }
+        Update: {
+          charge_amount?: number
+          charge_applied_at?: string | null
+          charge_currency?: string
+          charge_paid_at?: string | null
+          charge_rate?: number | null
+          charge_status?: string | null
+          contract_id?: string | null
+          id?: string
+          pitch_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_charges_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_charges_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
+          {
+            foreignKeyName: "service_charges_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shortlist: {
         Row: {
@@ -758,6 +1038,20 @@ export type Database = {
             foreignKeyName: "shortlist_pitch_id_fkey"
             columns: ["pitch_id"]
             isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shortlist_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
+          {
+            foreignKeyName: "shortlist_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
             referencedRelation: "transfer_pitches"
             referencedColumns: ["id"]
           },
@@ -776,11 +1070,18 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          international_transfers_enabled: boolean | null
+          last_pitch_reset_date: string | null
           league: string | null
           logo_url: string | null
+          max_pitches_per_month: number | null
           member_association: string | null
+          pitches_used_this_month: number | null
           profile_id: string
           sport_type: Database["public"]["Enums"]["sport_type"]
+          subscription_expires_at: string | null
+          subscription_status: string | null
+          subscription_tier: string | null
           team_name: string
           titles: string[] | null
           updated_at: string | null
@@ -792,11 +1093,18 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          international_transfers_enabled?: boolean | null
+          last_pitch_reset_date?: string | null
           league?: string | null
           logo_url?: string | null
+          max_pitches_per_month?: number | null
           member_association?: string | null
+          pitches_used_this_month?: number | null
           profile_id: string
           sport_type: Database["public"]["Enums"]["sport_type"]
+          subscription_expires_at?: string | null
+          subscription_status?: string | null
+          subscription_tier?: string | null
           team_name: string
           titles?: string[] | null
           updated_at?: string | null
@@ -808,11 +1116,18 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          international_transfers_enabled?: boolean | null
+          last_pitch_reset_date?: string | null
           league?: string | null
           logo_url?: string | null
+          max_pitches_per_month?: number | null
           member_association?: string | null
+          pitches_used_this_month?: number | null
           profile_id?: string
           sport_type?: Database["public"]["Enums"]["sport_type"]
+          subscription_expires_at?: string | null
+          subscription_status?: string | null
+          subscription_tier?: string | null
           team_name?: string
           titles?: string[] | null
           updated_at?: string | null
@@ -832,78 +1147,120 @@ export type Database = {
       transfer_pitches: {
         Row: {
           asking_price: number | null
+          auto_expire_enabled: boolean | null
           contract_details: Json | null
+          contract_finalized: boolean | null
+          contract_finalized_at: string | null
           created_at: string | null
           currency: string | null
           description: string | null
+          domestic_currency: string | null
           expires_at: string | null
           id: string
+          international_currency: string | null
+          is_featured: boolean | null
           is_international: boolean | null
           loan_fee: number | null
           loan_with_obligation: boolean | null
           loan_with_option: boolean | null
+          message_count: number | null
           performance_bonus: number | null
+          pitch_duration_days: number | null
+          pitch_requirements_met: boolean | null
           player_id: string
           player_salary: number | null
           relocation_support: number | null
+          service_charge_amount: number | null
+          service_charge_applied: boolean | null
           service_charge_rate: number | null
+          shortlist_count: number | null
           sign_on_bonus: number | null
           status: Database["public"]["Enums"]["transfer_status"] | null
           tagged_videos: Json | null
           team_id: string
           tier_level: string | null
+          total_transfer_value: number | null
           transfer_type: Database["public"]["Enums"]["transfer_type"]
           updated_at: string | null
+          view_count: number | null
         }
         Insert: {
           asking_price?: number | null
+          auto_expire_enabled?: boolean | null
           contract_details?: Json | null
+          contract_finalized?: boolean | null
+          contract_finalized_at?: string | null
           created_at?: string | null
           currency?: string | null
           description?: string | null
+          domestic_currency?: string | null
           expires_at?: string | null
           id?: string
+          international_currency?: string | null
+          is_featured?: boolean | null
           is_international?: boolean | null
           loan_fee?: number | null
           loan_with_obligation?: boolean | null
           loan_with_option?: boolean | null
+          message_count?: number | null
           performance_bonus?: number | null
+          pitch_duration_days?: number | null
+          pitch_requirements_met?: boolean | null
           player_id: string
           player_salary?: number | null
           relocation_support?: number | null
+          service_charge_amount?: number | null
+          service_charge_applied?: boolean | null
           service_charge_rate?: number | null
+          shortlist_count?: number | null
           sign_on_bonus?: number | null
           status?: Database["public"]["Enums"]["transfer_status"] | null
           tagged_videos?: Json | null
           team_id: string
           tier_level?: string | null
+          total_transfer_value?: number | null
           transfer_type: Database["public"]["Enums"]["transfer_type"]
           updated_at?: string | null
+          view_count?: number | null
         }
         Update: {
           asking_price?: number | null
+          auto_expire_enabled?: boolean | null
           contract_details?: Json | null
+          contract_finalized?: boolean | null
+          contract_finalized_at?: string | null
           created_at?: string | null
           currency?: string | null
           description?: string | null
+          domestic_currency?: string | null
           expires_at?: string | null
           id?: string
+          international_currency?: string | null
+          is_featured?: boolean | null
           is_international?: boolean | null
           loan_fee?: number | null
           loan_with_obligation?: boolean | null
           loan_with_option?: boolean | null
+          message_count?: number | null
           performance_bonus?: number | null
+          pitch_duration_days?: number | null
+          pitch_requirements_met?: boolean | null
           player_id?: string
           player_salary?: number | null
           relocation_support?: number | null
+          service_charge_amount?: number | null
+          service_charge_applied?: boolean | null
           service_charge_rate?: number | null
+          shortlist_count?: number | null
           sign_on_bonus?: number | null
           status?: Database["public"]["Enums"]["transfer_status"] | null
           tagged_videos?: Json | null
           team_id?: string
           tier_level?: string | null
+          total_transfer_value?: number | null
           transfer_type?: Database["public"]["Enums"]["transfer_type"]
           updated_at?: string | null
+          view_count?: number | null
         }
         Relationships: [
           {
@@ -1061,9 +1418,137 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      active_pitches_view: {
+        Row: {
+          asking_price: number | null
+          auto_expire_enabled: boolean | null
+          contract_details: Json | null
+          contract_finalized: boolean | null
+          contract_finalized_at: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          display_currency: string | null
+          domestic_currency: string | null
+          expires_at: string | null
+          id: string | null
+          international_allowed: boolean | null
+          international_currency: string | null
+          international_transfers_enabled: boolean | null
+          is_featured: boolean | null
+          is_international: boolean | null
+          loan_fee: number | null
+          loan_with_obligation: boolean | null
+          loan_with_option: boolean | null
+          member_association: string | null
+          message_count: number | null
+          performance_bonus: number | null
+          pitch_duration_days: number | null
+          pitch_requirements_met: boolean | null
+          player_citizenship: string | null
+          player_id: string | null
+          player_market_value: number | null
+          player_name: string | null
+          player_position: string | null
+          player_salary: number | null
+          relocation_support: number | null
+          service_charge_amount: number | null
+          service_charge_applied: boolean | null
+          service_charge_rate: number | null
+          shortlist_count: number | null
+          sign_on_bonus: number | null
+          status: Database["public"]["Enums"]["transfer_status"] | null
+          subscription_tier: string | null
+          tagged_videos: Json | null
+          team_country: string | null
+          team_id: string | null
+          team_name: string | null
+          tier_level: string | null
+          total_transfer_value: number | null
+          transfer_type: Database["public"]["Enums"]["transfer_type"] | null
+          updated_at: string | null
+          view_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_pitches_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_pitches_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pitch_statistics_view: {
+        Row: {
+          created_at: string | null
+          current_status: string | null
+          days_active: number | null
+          expires_at: string | null
+          message_count: number | null
+          pitch_id: string | null
+          shortlist_count: number | null
+          view_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_status?: never
+          days_active?: never
+          expires_at?: string | null
+          message_count?: number | null
+          pitch_id?: string | null
+          shortlist_count?: number | null
+          view_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          current_status?: never
+          days_active?: never
+          expires_at?: string | null
+          message_count?: number | null
+          pitch_id?: string | null
+          shortlist_count?: number | null
+          view_count?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      auto_expire_pitches: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      calculate_age: {
+        Args: { birth_date: string }
+        Returns: number
+      }
+      send_message_notification: {
+        Args: { receiver_id: string; sender_name: string; player_name?: string }
+        Returns: boolean
+      }
+      send_profile_change_notification: {
+        Args: { user_uuid: string; change_type: string }
+        Returns: boolean
+      }
+      send_transfer_interest_notification: {
+        Args: { team_owner_id: string; player_name: string; agent_name: string }
+        Returns: boolean
+      }
+      send_welcome_notification: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
+      validate_pitch_requirements: {
+        Args: { p_pitch_id: string }
+        Returns: boolean
+      }
       validate_transfer_pitch_requirements: {
         Args: { p_team_id: string; p_player_id: string }
         Returns: boolean
