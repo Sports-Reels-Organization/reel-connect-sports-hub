@@ -1,3 +1,4 @@
+
 export interface TransferPitch {
     player_id: any;
     id: string;
@@ -18,6 +19,8 @@ export interface TransferPitch {
     loan_with_obligation: boolean;
     is_international: boolean;
     service_charge_rate: number;
+    team_id: string;
+    team_profile_id?: string; // Added for messaging
     players: {
         id: string;
         full_name: string;

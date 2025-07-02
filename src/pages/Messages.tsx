@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +13,7 @@ import { MessageModal } from '@/components/MessageModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 interface Message {
   id: string;
@@ -115,12 +115,31 @@ const Messages = () => {
 
       console.log('Fetched messages:', messages);
 
+      // Transform messages to ensure proper typing
+      const transformedMessages: Message[] = (messages || []).map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender_id: msg.sender_id,
+        receiver_id: msg.receiver_id,
+        pitch_id: msg.pitch_id,
+        player_id: msg.player_id,
+        created_at: msg.created_at,
+        status: msg.status || 'sent',
+        subject: msg.subject,
+        message_type: msg.message_type,
+        contract_file_url: msg.contract_file_url,
+        sender_profile: msg.sender_profile,
+        receiver_profile: msg.receiver_profile,
+        player: msg.player,
+        pitch: msg.pitch
+      }));
+
       // Group messages by conversation (sender/receiver pairs)
-      const threads = groupMessagesByThread(messages || [], profile.id);
+      const threads = groupMessagesByThread(transformedMessages, profile.id);
       setMessageThreads(threads);
 
       // Count unread messages
-      const unread = (messages || []).filter(
+      const unread = transformedMessages.filter(
         msg => msg.receiver_id === profile.id && msg.status !== 'read'
       ).length;
       setUnreadCount(unread);

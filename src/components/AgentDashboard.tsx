@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, MapPin, Plus } from 'lucide-react';
+import { MessageSquare, MapPin, Plus, User, DollarSign, Clock, Calendar } from 'lucide-react';
 import { MessageModal } from '@/components/MessageModal';
 
 interface TransferPitch {
@@ -20,12 +21,14 @@ interface TransferPitch {
   expires_at: string;
   player_id: string;
   team_id: string;
+  loan_fee?: number;
   player_name?: string;
   player_position?: string;
   player_citizenship?: string;
   team_name?: string;
   team_country?: string;
   member_association?: string;
+  team_profile_id?: string;
 }
 
 const AgentDashboard = () => {
@@ -123,8 +126,7 @@ const AgentDashboard = () => {
 
       setSelectedPitch({
         ...pitch,
-        team_profile_id: teamData.profile_id,
-        team_name: teamData.team_name
+        team_profile_id: teamData.profile_id
       });
       setShowMessageModal(true);
     } catch (error) {
