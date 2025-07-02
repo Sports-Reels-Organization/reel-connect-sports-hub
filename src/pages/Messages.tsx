@@ -120,7 +120,9 @@ const Messages = () => {
         // Handle pitch data safely - check if it's a valid object with description
         let pitchData: { description: string } | undefined = undefined;
         
+        // Add null check before accessing pitch properties
         if (msg.pitch && 
+            msg.pitch !== null &&
             typeof msg.pitch === 'object' && 
             !('error' in msg.pitch) && 
             'description' in msg.pitch) {

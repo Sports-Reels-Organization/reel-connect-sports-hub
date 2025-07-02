@@ -26,8 +26,6 @@ interface Message {
   file_type?: string;
   file_size?: number;
   contract_file_url?: string;
-  contract_file_name?: string;
-  contract_file_size?: number;
   is_contract_message?: boolean;
   sender_profile?: {
     full_name: string;
@@ -237,8 +235,6 @@ export const MessageModal: React.FC<MessageModalProps> = ({
         pitch_id: pitchId,
         player_id: playerId,
         contract_file_url: contractUrl,
-        contract_file_name: `${playerName}_Contract.html`,
-        contract_file_size: blob.size,
         is_contract_message: true,
         status: 'sent' as const
       };
@@ -417,7 +413,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
         onClose={() => setShowContractGen(false)}
         pitchId={pitchId}
         playerName={playerName}
-        teamName={teamName || 'Unknown Team'}
+        teamName={teamName || 'Team'}
         onContractGenerated={handleContractGenerated}
       />
     </>
