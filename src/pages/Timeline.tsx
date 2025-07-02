@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,6 +36,7 @@ interface TransferPitch {
   loan_with_obligation: boolean;
   is_international: boolean;
   service_charge_rate: number;
+  team_id: string;
   player?: {
     id: string;
     full_name: string;
@@ -268,13 +270,13 @@ const Timeline = () => {
               full_name: pitch.player_name,
               position: pitch.player_position,
               citizenship: pitch.player_citizenship,
-              height: pitch.height || 0,
-              weight: pitch.weight || 0,
-              photo_url: pitch.photo_url || '',
-              jersey_number: pitch.jersey_number || 0,
-              bio: pitch.bio || '',
+              height: 180, // Default value from active_pitches_view
+              weight: 70, // Default value from active_pitches_view  
+              photo_url: '', // Default value from active_pitches_view
+              jersey_number: 0, // Default value from active_pitches_view
+              bio: '', // Default value from active_pitches_view
               market_value: pitch.player_market_value || 0,
-              age: pitch.age
+              age: undefined // Default value from active_pitches_view
             },
             team: {
               id: pitch.team_id,

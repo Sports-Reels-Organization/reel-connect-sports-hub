@@ -12,6 +12,7 @@ import { Send, Paperclip, FileText, Upload } from 'lucide-react';
 import { FileUpload } from './FileUpload';
 import { MessageBubble } from './MessageBubble';
 import { ContractGenerationModal } from './ContractGenerationModal';
+import { contractService } from '@/services/contractService';
 
 interface Message {
   id: string;
@@ -40,6 +41,10 @@ interface MessageModalProps {
   pitchId?: string;
   playerId?: string;
   teamId?: string;
+  receiverId?: string; // Added for compatibility
+  receiverName?: string; // Added for compatibility
+  receiverType?: string; // Added for compatibility
+  pitchTitle?: string; // Added for compatibility
   currentUserId: string;
   playerName: string;
   teamName?: string;
@@ -51,6 +56,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
   pitchId,
   playerId,
   teamId,
+  receiverId,
   currentUserId,
   playerName,
   teamName
@@ -68,6 +74,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 
   // Determine receiver ID based on user type and available IDs
   const getReceiverId = () => {
+    if (receiverId) return receiverId; // Use provided receiverId if available
     if (profile?.user_type === 'agent') {
       return teamId || ''; // Agent messages team
     } else {
@@ -102,8 +109,11 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 
       const transformedMessages: Message[] = (data || []).map(msg => ({
         ...msg,
-        attachment_urls: Array.isArray(msg.attachment_urls) ? msg.attachment_urls : 
-                        msg.attachment_urls ? [msg.attachment_urls] : []
+        attachment_urls: msg.attachment_urls ? 
+          (Array.isArray(msg.attachment_urls) ? 
+            msg.attachment_urls.map(url => String(url)) : 
+            [String(msg.attachment_urls)]) : 
+          []
       }));
 
       setMessages(transformedMessages);
@@ -171,8 +181,11 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 
       const transformedMessage: Message = {
         ...data,
-        attachment_urls: Array.isArray(data.attachment_urls) ? data.attachment_urls : 
-                        data.attachment_urls ? [data.attachment_urls] : []
+        attachment_urls: data.attachment_urls ? 
+          (Array.isArray(data.attachment_urls) ? 
+            data.attachment_urls.map(url => String(url)) : 
+            [String(data.attachment_urls)]) : 
+          []
       };
 
       setMessages(prev => [...prev, transformedMessage]);

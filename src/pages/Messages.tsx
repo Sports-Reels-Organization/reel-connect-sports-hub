@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,7 +76,12 @@ const Messages = () => {
   const fetchConversations = async () => {
     try {
       const { data: allMessages, error } = await supabase
-        .from('message_threads_view')
+        .from('messages')
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey(full_name, user_type),
+          receiver_profile:profiles!messages_receiver_id_fkey(full_name, user_type)
+        `)
         .or(`sender_id.eq.${profile?.id},receiver_id.eq.${profile?.id}`)
         .order('created_at', { ascending: false });
 
@@ -88,11 +94,11 @@ const Messages = () => {
         // Transform the raw message to match our Message interface
         const message: Message = {
           ...rawMessage,
-          attachment_urls: Array.isArray(rawMessage.attachment_urls) 
-            ? rawMessage.attachment_urls as string[]
-            : rawMessage.attachment_urls 
-              ? [rawMessage.attachment_urls as string]
-              : []
+          attachment_urls: rawMessage.attachment_urls ? 
+            (Array.isArray(rawMessage.attachment_urls) ? 
+              rawMessage.attachment_urls.map(url => String(url)) : 
+              [String(rawMessage.attachment_urls)]) : 
+            []
         };
 
         const isFromMe = message.sender_id === profile?.id;
@@ -136,7 +142,12 @@ const Messages = () => {
   const fetchMessages = async (participantId: string) => {
     try {
       const { data, error } = await supabase
-        .from('message_threads_view')
+        .from('messages')
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey(full_name, user_type),
+          receiver_profile:profiles!messages_receiver_id_fkey(full_name, user_type)
+        `)
         .or(`and(sender_id.eq.${profile?.id},receiver_id.eq.${participantId}),and(sender_id.eq.${participantId},receiver_id.eq.${profile?.id})`)
         .order('created_at', { ascending: true });
 
@@ -145,11 +156,11 @@ const Messages = () => {
       // Transform the raw messages to match our Message interface
       const transformedMessages: Message[] = (data || []).map(rawMessage => ({
         ...rawMessage,
-        attachment_urls: Array.isArray(rawMessage.attachment_urls) 
-          ? rawMessage.attachment_urls as string[]
-          : rawMessage.attachment_urls 
-            ? [rawMessage.attachment_urls as string]
-            : []
+        attachment_urls: rawMessage.attachment_urls ? 
+          (Array.isArray(rawMessage.attachment_urls) ? 
+            rawMessage.attachment_urls.map(url => String(url)) : 
+            [String(rawMessage.attachment_urls)]) : 
+          []
       }));
 
       setMessages(transformedMessages);
@@ -206,11 +217,11 @@ const Messages = () => {
       // Transform the response to match our Message interface
       const transformedMessage: Message = {
         ...data,
-        attachment_urls: Array.isArray(data.attachment_urls) 
-          ? data.attachment_urls as string[]
-          : data.attachment_urls 
-            ? [data.attachment_urls as string]
-            : []
+        attachment_urls: data.attachment_urls ? 
+          (Array.isArray(data.attachment_urls) ? 
+            data.attachment_urls.map(url => String(url)) : 
+            [String(data.attachment_urls)]) : 
+          []
       };
 
       setMessages(prev => [...prev, transformedMessage]);
