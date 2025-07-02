@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +16,6 @@ import { contractService } from '@/services/contractService';
 import { cn } from '@/lib/utils';
 
 interface TransferPitch {
-  player_id: any;
   id: string;
   description: string;
   asking_price: number;
@@ -37,6 +35,7 @@ interface TransferPitch {
   is_international: boolean;
   service_charge_rate: number;
   team_id: string;
+  player_id: string;
   player?: {
     id: string;
     full_name: string;
@@ -233,11 +232,36 @@ const Timeline = () => {
   const fetchTransferPitches = async () => {
     try {
       setLoading(true);
+      console.log('Fetching transfer pitches...');
 
-      // Use the active_pitches_view instead of direct transfer_pitches query
+      // Fetch transfer pitches with full player and team data
       const { data, error } = await supabase
-        .from('active_pitches_view')
-        .select('*')
+        .from('transfer_pitches')
+        .select(`
+          *,
+          players!inner(
+            id,
+            full_name,
+            position,
+            citizenship,
+            height,
+            weight,
+            photo_url,
+            jersey_number,
+            bio,
+            market_value,
+            age
+          ),
+          teams!inner(
+            id,
+            team_name,
+            country,
+            logo_url,
+            member_association
+          )
+        `)
+        .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -250,51 +274,58 @@ const Timeline = () => {
         return;
       }
 
+      console.log('Fetched transfer pitches:', data);
+
       // Transform the data to match the interface
-      const transformedData = (data || [])
-        .filter(pitch => pitch.player_name && pitch.team_name) // Ensure we have valid data
-        .map(pitch => {
-          // Safely handle tagged_videos
-          let taggedVideos: string[] = [];
-          if (Array.isArray(pitch.tagged_videos)) {
-            taggedVideos = pitch.tagged_videos.map(video => 
-              typeof video === 'string' ? video : String(video)
-            );
+      const transformedData = (data || []).map(pitch => {
+        // Safely handle tagged_videos
+        let taggedVideos: string[] = [];
+        if (Array.isArray(pitch.tagged_videos)) {
+          taggedVideos = pitch.tagged_videos.map(video => 
+            typeof video === 'string' ? video : String(video)
+          );
+        }
+
+        // Handle player data
+        const playerData = Array.isArray(pitch.players) ? pitch.players[0] : pitch.players;
+        
+        // Handle team data
+        const teamData = Array.isArray(pitch.teams) ? pitch.teams[0] : pitch.teams;
+
+        return {
+          ...pitch,
+          tagged_videos: taggedVideos,
+          player: playerData ? {
+            id: playerData.id,
+            full_name: playerData.full_name,
+            position: playerData.position,
+            citizenship: playerData.citizenship,
+            height: playerData.height || 180,
+            weight: playerData.weight || 70,
+            photo_url: playerData.photo_url || '',
+            jersey_number: playerData.jersey_number || 0,
+            bio: playerData.bio || '',
+            market_value: playerData.market_value || 0,
+            age: playerData.age
+          } : undefined,
+          team: teamData ? {
+            id: teamData.id,
+            full_name: teamData.team_name,
+            country: teamData.country,
+            team_name: teamData.team_name,
+            logo_url: teamData.logo_url,
+            member_association: teamData.member_association
+          } : undefined,
+          agent: {
+            id: '',
+            full_name: 'Team Agent',
+            email: '',
+            phone: undefined
           }
+        } as TransferPitch;
+      });
 
-          return {
-            ...pitch,
-            tagged_videos: taggedVideos,
-            player: {
-              id: pitch.player_id,
-              full_name: pitch.player_name,
-              position: pitch.player_position,
-              citizenship: pitch.player_citizenship,
-              height: 180, // Default value from active_pitches_view
-              weight: 70, // Default value from active_pitches_view  
-              photo_url: '', // Default value from active_pitches_view
-              jersey_number: 0, // Default value from active_pitches_view
-              bio: '', // Default value from active_pitches_view
-              market_value: pitch.player_market_value || 0,
-              age: undefined // Default value from active_pitches_view
-            },
-            team: {
-              id: pitch.team_id,
-              full_name: pitch.team_name,
-              country: pitch.team_country || 'Unknown',
-              team_name: pitch.team_name,
-              logo_url: undefined,
-              member_association: pitch.member_association
-            },
-            agent: {
-              id: '',
-              full_name: 'Team Agent',
-              email: '',
-              phone: undefined
-            }
-          } as TransferPitch;
-        });
-
+      console.log('Transformed transfer pitches:', transformedData);
       setTransferPitches(transformedData);
     } catch (error) {
       console.error('Error in fetchTransferPitches:', error);
@@ -314,7 +345,7 @@ const Timeline = () => {
         .from('transfer_pitches')
         .select(`
           *,
-          player:players(
+          players!inner(
             id,
             full_name,
             position,
@@ -324,18 +355,15 @@ const Timeline = () => {
             photo_url,
             jersey_number,
             bio,
-            market_value
+            market_value,
+            age
           ),
-          team:profiles!transfer_pitches_team_id_fkey(
+          teams!inner(
             id,
-            full_name,
-            country
-          ),
-          agent:profiles!transfer_pitches_agent_id_fkey(
-            id,
-            full_name,
-            email,
-            phone
+            team_name,
+            country,
+            logo_url,
+            member_association
           )
         `)
         .eq('id', pitchId)
@@ -346,8 +374,8 @@ const Timeline = () => {
         return null;
       }
 
-      if (!data || !isValidPlayer(data.player)) {
-        console.error('Invalid player data in pitch details');
+      if (!data) {
+        console.error('No pitch data found');
         return null;
       }
 
@@ -359,38 +387,39 @@ const Timeline = () => {
         );
       }
 
-      // Handle team data (might be array or single object)
-      const teamData = Array.isArray(data.team) ? data.team[0] : data.team;
+      // Handle player data
+      const playerData = Array.isArray(data.players) ? data.players[0] : data.players;
       
-      // Handle agent data (might be array or single object)
-      const agentData = Array.isArray(data.agent) ? data.agent[0] : data.agent;
+      // Handle team data
+      const teamData = Array.isArray(data.teams) ? data.teams[0] : data.teams;
 
       return {
         ...data,
         tagged_videos: taggedVideos,
+        player: playerData ? {
+          id: playerData.id,
+          full_name: playerData.full_name,
+          position: playerData.position,
+          citizenship: playerData.citizenship,
+          height: playerData.height || 180,
+          weight: playerData.weight || 70,
+          photo_url: playerData.photo_url || '',
+          jersey_number: playerData.jersey_number || 0,
+          bio: playerData.bio || '',
+          market_value: playerData.market_value || 0,
+          age: playerData.age
+        } : undefined,
         team: teamData ? {
-          id: teamData.id || '',
-          full_name: teamData.full_name || 'Unknown Team',
-          country: teamData.country || 'Unknown',
-          team_name: teamData.full_name || 'Unknown Team',
-          logo_url: undefined,
-          member_association: undefined
-        } : {
+          id: teamData.id,
+          full_name: teamData.team_name,
+          country: teamData.country,
+          team_name: teamData.team_name,
+          logo_url: teamData.logo_url,
+          member_association: teamData.member_association
+        } : undefined,
+        agent: {
           id: '',
-          full_name: 'Unknown Team',
-          country: 'Unknown',
-          team_name: 'Unknown Team',
-          logo_url: undefined,
-          member_association: undefined
-        },
-        agent: agentData ? {
-          id: agentData.id || '',
-          full_name: agentData.full_name || 'Unknown Agent',
-          email: agentData.email || '',
-          phone: agentData.phone
-        } : {
-          id: '',
-          full_name: 'Unknown Agent',
+          full_name: 'Team Agent',
           email: '',
           phone: undefined
         }
@@ -933,11 +962,12 @@ const Timeline = () => {
               setMessages([]);
             }}
             pitchId={selectedPitchId}
-            playerId={selectedPlayer.id}
-            teamId={selectedTeamProfileId}
+            receiverId={selectedTeamProfileId}
+            receiverName={selectedPlayer.full_name}
+            receiverType="team"
+            pitchTitle={selectedPlayer ? `${selectedPlayer.full_name} - Transfer Pitch` : undefined}
             currentUserId={profile?.id || ''}
-            playerName={selectedPlayer.full_name}
-            teamName={selectedPlayer.team?.team_name}
+            playerName={selectedPlayer.full_name || 'Unknown Player'}
           />
         )}
       </div>
