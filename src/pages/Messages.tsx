@@ -115,7 +115,7 @@ const Messages = () => {
 
       console.log('Fetched messages:', messages);
 
-      // Transform messages to ensure proper typing
+      // Transform messages to ensure proper typing and handle potential query errors
       const transformedMessages: Message[] = (messages || []).map(msg => ({
         id: msg.id,
         content: msg.content,
@@ -131,7 +131,10 @@ const Messages = () => {
         sender_profile: msg.sender_profile,
         receiver_profile: msg.receiver_profile,
         player: msg.player,
-        pitch: msg.pitch
+        // Handle pitch data safely - check if it's a valid object with description
+        pitch: (msg.pitch && typeof msg.pitch === 'object' && !('error' in msg.pitch) && 'description' in msg.pitch) 
+          ? msg.pitch as { description: string }
+          : undefined
       }));
 
       // Group messages by conversation (sender/receiver pairs)
