@@ -725,10 +725,11 @@ const TeamDashboard = () => {
                     receiverName={selectedMessage.sender_profile?.full_name || 'Unknown Agent'}
                     receiverType="agent"
                     pitchTitle={selectedMessage.subject}
+                    playerName="Player" // We'll need to get this from the message context or pitch data
                 />
             )}
         </div>
     );
 };
 
-export default TeamDashboard; 
+export default TeamDashboard;

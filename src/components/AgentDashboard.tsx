@@ -52,6 +52,7 @@ const AgentDashboard = () => {
   } | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
+  const [selectedPitch, setSelectedPitch] = useState<any>(null);
 
   console.log('AgentDashboard render - profile:', profile, 'loading:', loading);
 
@@ -1028,18 +1029,22 @@ const AgentDashboard = () => {
         </TabsContent>
       </Tabs>
 
-      {showMessageModal && messageReceiver && (
+      {/* Message Modal */}
+      {showMessageModal && selectedPitch && (
         <MessageModal
           isOpen={showMessageModal}
           onClose={() => {
             setShowMessageModal(false);
-            setMessageReceiver(null);
-          } }
-          pitchId={selectedPlayer?.pitchId}
-          receiverId={messageReceiver.id}
-          receiverName={messageReceiver.name}
-          receiverType={messageReceiver.type}
-          pitchTitle={selectedPlayer ? `${selectedPlayer.full_name} - Transfer Pitch` : undefined} currentUserId={''}        />
+            setSelectedPitch(null);
+          }}
+          pitchId={selectedPitch?.id}
+          receiverId={selectedPitch?.team_id}
+          receiverName={selectedPitch?.team_name || 'Unknown Team'}
+          receiverType="team"
+          pitchTitle={selectedPitch?.description}
+          currentUserId={profile?.id || ''}
+          playerName={selectedPitch?.player_name || 'Unknown Player'}
+        />
       )}
     </div>
   );
