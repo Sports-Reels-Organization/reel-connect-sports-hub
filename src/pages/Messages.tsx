@@ -116,26 +116,35 @@ const Messages = () => {
       console.log('Fetched messages:', messages);
 
       // Transform messages to ensure proper typing and handle potential query errors
-      const transformedMessages: Message[] = (messages || []).map(msg => ({
-        id: msg.id,
-        content: msg.content,
-        sender_id: msg.sender_id,
-        receiver_id: msg.receiver_id,
-        pitch_id: msg.pitch_id,
-        player_id: msg.player_id,
-        created_at: msg.created_at,
-        status: msg.status || 'sent',
-        subject: msg.subject,
-        message_type: msg.message_type,
-        contract_file_url: msg.contract_file_url,
-        sender_profile: msg.sender_profile,
-        receiver_profile: msg.receiver_profile,
-        player: msg.player,
+      const transformedMessages: Message[] = (messages || []).map(msg => {
         // Handle pitch data safely - check if it's a valid object with description
-        pitch: (msg.pitch && typeof msg.pitch === 'object' && !('error' in msg.pitch) && 'description' in msg.pitch) 
-          ? msg.pitch as { description: string }
-          : undefined
-      }));
+        let pitchData: { description: string } | undefined = undefined;
+        
+        if (msg.pitch && 
+            typeof msg.pitch === 'object' && 
+            !('error' in msg.pitch) && 
+            'description' in msg.pitch) {
+          pitchData = msg.pitch as { description: string };
+        }
+
+        return {
+          id: msg.id,
+          content: msg.content,
+          sender_id: msg.sender_id,
+          receiver_id: msg.receiver_id,
+          pitch_id: msg.pitch_id,
+          player_id: msg.player_id,
+          created_at: msg.created_at,
+          status: msg.status || 'sent',
+          subject: msg.subject,
+          message_type: msg.message_type,
+          contract_file_url: msg.contract_file_url,
+          sender_profile: msg.sender_profile,
+          receiver_profile: msg.receiver_profile,
+          player: msg.player,
+          pitch: pitchData
+        };
+      });
 
       // Group messages by conversation (sender/receiver pairs)
       const threads = groupMessagesByThread(transformedMessages, profile.id);
