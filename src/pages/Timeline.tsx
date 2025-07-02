@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, DollarSign, MapPin, MessageSquare, User, Clock, Target, Plus, Video, Star, Building2 } from 'lucide-react';
+import { Calendar, DollarSign, MapPin, MessageSquare, User, Clock, Target, Plus, Video, Star, Building2, Search, Filter, TrendingUp, Eye, Flag, Trophy, Zap } from 'lucide-react';
 import { MessageModal } from '@/components/MessageModal';
 import CreateTransferPitch from '@/components/CreateTransferPitch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,6 +14,8 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { contractService } from '@/services/contractService';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface TransferPitch {
   id: string;
@@ -36,6 +38,10 @@ interface TransferPitch {
   service_charge_rate: number;
   team_id: string;
   player_id: string;
+  view_count?: number;
+  message_count?: number;
+  shortlist_count?: number;
+  is_featured?: boolean;
   player?: {
     id: string;
     full_name: string;
@@ -88,18 +94,6 @@ interface Message {
   };
 }
 
-function isValidPlayer(player: any): player is TransferPitch['player'] {
-  return (
-    player &&
-    typeof player === 'object' &&
-    !('error' in player) &&
-    typeof player.id === 'string' &&
-    typeof player.full_name === 'string' &&
-    typeof player.position === 'string' &&
-    typeof player.citizenship === 'string'
-  );
-}
-
 const Timeline = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -108,15 +102,15 @@ const Timeline = () => {
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showCreatePitch, setShowCreatePitch] = useState(false);
-  const [currentTeamAssociation, setCurrentTeamAssociation] = useState<string>('');
   const [selectedPitchId, setSelectedPitchId] = useState<string | null>(null);
   const [selectedTeamProfileId, setSelectedTeamProfileId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [realTimeConnected, setRealTimeConnected] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('newest');
 
   useEffect(() => {
-    fetchCurrentTeamAssociation();
     fetchTransferPitches();
   }, []);
 
@@ -152,82 +146,12 @@ const Timeline = () => {
           });
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'transfer_pitches'
-        },
-        (payload) => {
-          // Update existing pitch
-          setTransferPitches(prev =>
-            prev.map(pitch =>
-              pitch.id === payload.new.id ? { ...pitch, ...payload.new } : pitch
-            )
-          );
-        }
-      )
       .subscribe();
-
-    // Subscribe to new messages
-    const messagesSubscription = supabase
-      .channel('timeline_messages')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `receiver_id=eq.${profile?.id}`
-        },
-        (payload) => {
-          console.log('New message received:', payload.new);
-
-          // Update unread count
-          setUnreadCount(prev => prev + 1);
-
-          // Add to messages if modal is open
-          if (showMessageModal && selectedPlayer) {
-            setMessages(prev => [...prev, payload.new as Message]);
-          }
-
-          // Show notification
-          toast({
-            title: "New Message",
-            description: `You have a new message about ${selectedPlayer?.full_name || 'a transfer'}`,
-            duration: 4000,
-          });
-        }
-      )
-      .subscribe();
-
-    setRealTimeConnected(true);
 
     return () => {
       pitchesSubscription.unsubscribe();
-      messagesSubscription.unsubscribe();
-      setRealTimeConnected(false);
     };
-  }, [profile?.id, showMessageModal, selectedPlayer, toast]);
-
-  const fetchCurrentTeamAssociation = async () => {
-    if (!profile?.id) return;
-
-    try {
-      const { data: team } = await supabase
-        .from('teams')
-        .select('member_association')
-        .eq('profile_id', profile.id)
-        .single();
-
-      if (team) {
-        setCurrentTeamAssociation(team.member_association || '');
-      }
-    } catch (error) {
-      console.error('Error fetching team association:', error);
-    }
-  };
+  }, [profile?.id, toast]);
 
   const fetchTransferPitches = async () => {
     try {
@@ -439,16 +363,6 @@ const Timeline = () => {
     }).format(amount);
   };
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (diffInDays === 0) return 'Today';
-    if (diffInDays === 1) return '1 day ago';
-    return `${diffInDays} days ago`;
-  };
-
   const formatDaysLeft = (expiresAt: string) => {
     const expires = new Date(expiresAt);
     const now = new Date();
@@ -459,33 +373,22 @@ const Timeline = () => {
     return `${diffInDays} days left`;
   };
 
-  const handlePlayerClick = (player: any) => {
-    setSelectedPlayer(player);
-  };
+  const handleMessageClick = async (pitch: TransferPitch) => {
+    if (!pitch.player) {
+      toast({
+        title: "Error",
+        description: "Player information not available",
+        variant: "destructive"
+      });
+      return;
+    }
 
-  const handleSendMessage = async (player: any, pitchId: string) => {
+    // Get the team's profile ID for messaging
     try {
-      // Get the pitch data to find the team ID
-      const { data: pitchData, error: pitchError } = await supabase
-        .from('transfer_pitches')
-        .select('team_id')
-        .eq('id', pitchId)
-        .single();
-
-      if (pitchError || !pitchData) {
-        toast({
-          title: "Error",
-          description: "Could not find pitch information",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Get the team's profile ID for messaging
       const { data: teamData, error: teamError } = await supabase
         .from('teams')
         .select('profile_id')
-        .eq('id', pitchData.team_id)
+        .eq('id', pitch.team_id)
         .single();
 
       if (teamError || !teamData) {
@@ -497,8 +400,8 @@ const Timeline = () => {
         return;
       }
 
-      setSelectedPlayer({ ...player, pitchId });
-      setSelectedPitchId(pitchId);
+      setSelectedPlayer(pitch.player);
+      setSelectedPitchId(pitch.id);
       setSelectedTeamProfileId(teamData.profile_id);
       setShowMessageModal(true);
     } catch (error) {
@@ -509,10 +412,6 @@ const Timeline = () => {
         variant: "destructive"
       });
     }
-  };
-
-  const handlePitchCreated = () => {
-    fetchTransferPitches();
   };
 
   const addToShortlist = async (pitch: TransferPitch) => {
@@ -576,226 +475,256 @@ const Timeline = () => {
     }
   };
 
-  const handleMessageClick = async (pitch: TransferPitch) => {
-    if (!pitch.player) {
-      toast({
-        title: "Error",
-        description: "Player information not available",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handlePitchCreated = () => {
+    fetchTransferPitches();
+  };
 
-    // Get the team's profile ID for messaging
-    try {
-      const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .select('profile_id')
-        .eq('id', pitch.team_id)
-        .single();
+  const filteredAndSortedPitches = transferPitches
+    .filter(pitch => {
+      const matchesSearch = 
+        pitch.player?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pitch.team?.team_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pitch.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pitch.player?.position?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      if (teamError || !teamData) {
-        toast({
-          title: "Error",
-          description: "Could not find team information",
-          variant: "destructive"
-        });
-        return;
+      const matchesFilter = 
+        filterType === 'all' ||
+        (filterType === 'permanent' && pitch.transfer_type === 'permanent') ||
+        (filterType === 'loan' && pitch.transfer_type === 'loan') ||
+        (filterType === 'featured' && pitch.is_featured) ||
+        (filterType === 'international' && pitch.is_international);
+
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'price_high':
+          return (b.asking_price || 0) - (a.asking_price || 0);
+        case 'price_low':
+          return (a.asking_price || 0) - (b.asking_price || 0);
+        case 'expiring':
+          return new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime();
+        default:
+          return 0;
       }
-
-      setSelectedPlayer(pitch.player);
-      setSelectedPitchId(pitch.id);
-      setSelectedTeamProfileId(teamData.profile_id);
-      setShowMessageModal(true);
-    } catch (error) {
-      console.error('Error getting team info:', error);
-      toast({
-        title: "Error",
-        description: "Failed to get team information",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSendMessageToPlayer = async (content: string, receiverId: string, pitchId?: string) => {
-    if (!profile) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          content,
-          sender_id: profile.id,
-          receiver_id: receiverId,
-          pitch_id: pitchId,
-        })
-        .select(`
-          *,
-          sender_profile:profiles!messages_sender_id_fkey(
-            full_name,
-            user_type
-          ),
-          receiver_profile:profiles!messages_receiver_id_fkey(
-            full_name,
-            user_type
-          )
-        `)
-        .single();
-
-      if (error) {
-        console.error('Error sending message:', error);
-        toast({
-          title: "Error",
-          description: "Failed to send message",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Add message to local state for instant feedback
-      setMessages(prev => [...prev, data]);
-
-      toast({
-        title: "Message Sent",
-        description: "Your message has been sent successfully",
-        duration: 2000,
-      });
-    } catch (error) {
-      console.error('Error in handleSendMessageToPlayer:', error);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-    if (diffInHours < 1) {
-      return 'Just now';
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h ago`;
-    } else if (diffInHours < 168) { // 7 days
-      return `${Math.floor(diffInHours / 24)}d ago`;
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'completed':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+    });
 
   return (
     <Layout>
-      <div className="space-y-6 bg-background min-h-screen p-[3rem]">
-        <div className="flex items-center justify-between">
-          <div className='text-start'>
-            <h1 className="text-3xl font-polysans font-bold text-white mb-2">
-              Transfer Timeline
-            </h1>
-            <p className="text-gray-400 font-poppins">
-              Discover and promote player transfer opportunities
-            </p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+        {/* Hero Section */}
+        <div className="mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="text-center lg:text-left">
+              <h1 className="text-5xl font-polysans font-bold text-white mb-4 bg-gradient-to-r from-rosegold to-bright-pink bg-clip-text text-transparent">
+                Transfer Timeline
+              </h1>
+              <p className="text-gray-400 font-poppins text-xl max-w-2xl">
+                Discover exceptional talent and explore transfer opportunities from clubs worldwide
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="flex items-center gap-4">
+                <Badge variant="outline" className="text-rosegold border-rosegold px-4 py-2 text-sm">
+                  <Zap className="w-4 h-4 mr-2" />
+                  {transferPitches.length} Live Pitches
+                </Badge>
+                {profile?.user_type === 'agent' && (
+                  <Badge variant="outline" className="text-blue-400 border-blue-400 px-4 py-2 text-sm">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Agent View
+                  </Badge>
+                )}
+              </div>
+              
+              {profile?.user_type === 'team' && (
+                <Button
+                  onClick={() => setShowCreatePitch(true)}
+                  className="bg-gradient-to-r from-rosegold to-bright-pink hover:from-rosegold/90 hover:to-bright-pink/90 text-white font-polysans font-medium px-6 py-3 shadow-lg hover:shadow-rosegold/25 transition-all duration-300"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Create Pitch
+                </Button>
+              )}
+            </div>
           </div>
-          {profile?.user_type === 'team' && (
-            <Button
-              onClick={() => setShowCreatePitch(true)}
-              className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Pitch
-            </Button>
-          )}
         </div>
 
+        {/* Filters and Search */}
+        <Card className="border-gray-700 bg-gray-800/50 backdrop-blur-sm mb-8 shadow-xl">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search players, teams, positions..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-800 border-gray-600 text-white"
+                />
+              </div>
+              
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Transfers</SelectItem>
+                  <SelectItem value="permanent">Permanent</SelectItem>
+                  <SelectItem value="loan">Loan</SelectItem>
+                  <SelectItem value="featured">Featured</SelectItem>
+                  <SelectItem value="international">International</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="price_high">Price: High to Low</SelectItem>
+                  <SelectItem value="price_low">Price: Low to High</SelectItem>
+                  <SelectItem value="expiring">Expiring Soon</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="flex items-center justify-center text-sm text-gray-400 bg-gray-900/50 rounded-lg px-4 py-2">
+                <Eye className="w-4 h-4 mr-2" />
+                {filteredAndSortedPitches.length} results
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main Content */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="border-gray-700 animate-pulse">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Card key={i} className="border-gray-700 bg-gray-800/30 animate-pulse">
                 <CardContent className="p-6">
-                  <div className="h-48 bg-gray-700 rounded"></div>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-16 bg-gray-700 rounded-full"></div>
+                      <div className="flex-1">
+                        <div className="h-5 bg-gray-700 rounded mb-2"></div>
+                        <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+                      </div>
+                    </div>
+                    <div className="h-24 bg-gray-700 rounded"></div>
+                    <div className="h-10 bg-gray-700 rounded"></div>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        ) : transferPitches.length === 0 ? (
-          <Card className="border-gray-700">
-            <CardContent className="p-12 text-center">
-              <Target className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-              <h3 className="text-xl font-polysans font-semibold text-white mb-2">
-                No Active Transfer Pitches
+        ) : filteredAndSortedPitches.length === 0 ? (
+          <Card className="border-gray-700 bg-gray-800/30 backdrop-blur-sm shadow-xl">
+            <CardContent className="p-16 text-center">
+              <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-br from-rosegold to-bright-pink rounded-full flex items-center justify-center">
+                <Trophy className="w-12 h-12 text-white" />
+              </div>
+              <h3 className="text-3xl font-polysans font-semibold text-white mb-4">
+                {searchTerm || filterType !== 'all' ? 'No Matches Found' : 'No Active Transfer Pitches'}
               </h3>
-              <p className="text-gray-400 font-poppins mb-6">
-                {profile?.user_type === 'team'
-                  ? "Create your first transfer pitch to promote your players"
-                  : "There are currently no active player transfer opportunities available."
+              <p className="text-gray-400 font-poppins text-lg mb-8 max-w-md mx-auto">
+                {searchTerm || filterType !== 'all' 
+                  ? "Try adjusting your search criteria or filters to discover more opportunities"
+                  : profile?.user_type === 'team'
+                    ? "Create your first transfer pitch to promote your players to the global market"
+                    : "There are currently no active player transfer opportunities. Check back soon for new listings."
                 }
               </p>
-              {profile?.user_type === 'team' && (
+              {(searchTerm || filterType !== 'all') ? (
+                <Button 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterType('all');
+                  }}
+                  className="bg-gradient-to-r from-rosegold to-bright-pink hover:from-rosegold/90 hover:to-bright-pink/90 text-white"
+                >
+                  Clear Filters
+                </Button>
+              ) : profile?.user_type === 'team' && (
                 <Button
                   onClick={() => setShowCreatePitch(true)}
-                  className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+                  className="bg-gradient-to-r from-rosegold to-bright-pink hover:from-rosegold/90 hover:to-bright-pink/90 text-white font-polysans"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-5 h-5 mr-2" />
                   Create Your First Pitch
                 </Button>
               )}
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {transferPitches.map((pitch) => (
-              <Card key={pitch.id} className="border-gray-700 hover:border-rosegold/50 transition-colors group">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredAndSortedPitches.map((pitch) => (
+              <Card 
+                key={pitch.id} 
+                className="border-gray-700 bg-gray-800/30 backdrop-blur-sm hover:bg-gray-800/50 hover:border-rosegold/50 transition-all duration-500 group hover:shadow-2xl hover:shadow-rosegold/20 hover:scale-[1.02]"
+              >
                 <CardContent className="p-6">
-                  <div className="space-y-4">
+                  <div className="space-y-5">
+                    {/* Featured Badge */}
+                    {pitch.is_featured && (
+                      <div className="flex justify-between items-center">
+                        <Badge className="bg-gradient-to-r from-rosegold to-bright-pink text-white border-0 px-3 py-1">
+                          <Star className="w-3 h-3 mr-1" />
+                          Featured
+                        </Badge>
+                        {pitch.is_international && (
+                          <Badge variant="outline" className="text-cyan-400 border-cyan-400">
+                            <Building2 className="w-3 h-3 mr-1" />
+                            International
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
                     {/* Player Header */}
                     <div className="flex items-center gap-4">
-                      <div
-                        className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 cursor-pointer"
-                        onClick={() => pitch.player && handlePlayerClick(pitch.player)}
-                      >
-                        {pitch.player?.photo_url ? (
-                          <img
-                            src={pitch.player.photo_url}
-                            alt={pitch.player.full_name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <User className="w-8 h-8 text-gray-400" />
+                      <div className="relative">
+                        <Avatar className="w-16 h-16 border-2 border-gray-600 group-hover:border-rosegold transition-colors duration-300">
+                          {pitch.player?.photo_url ? (
+                            <AvatarImage src={pitch.player.photo_url} alt={pitch.player.full_name} />
+                          ) : (
+                            <AvatarFallback className="bg-gradient-to-br from-gray-700 to-gray-600 text-white text-lg">
+                              <User className="w-8 h-8" />
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        {pitch.team?.logo_url && (
+                          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full overflow-hidden border-2 border-gray-800 bg-white">
+                            <img src={pitch.team.logo_url} alt={pitch.team.team_name} className="w-full h-full object-cover" />
                           </div>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <h3
-                          className="font-polysans font-bold text-white text-lg cursor-pointer hover:text-rosegold"
-                          onClick={() => pitch.player && handlePlayerClick(pitch.player)}
-                        >
+                      
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-polysans font-bold text-white text-lg truncate group-hover:text-rosegold transition-colors duration-300">
                           {pitch.player?.full_name || 'Unknown Player'}
                         </h3>
-                        <p className="text-gray-300 font-poppins text-sm">
-                          {pitch.player?.position || 'Unknown Position'}
+                        <p className="text-gray-300 font-poppins text-sm mb-2">
+                          {pitch.player?.position || 'Unknown Position'} 
+                          {pitch.player?.age && ` • ${pitch.player.age} years`}
                         </p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'} className="text-xs">
+                            {pitch.transfer_type?.toUpperCase()}
+                          </Badge>
                           {pitch.player?.jersey_number && (
-                            <Badge variant="outline" className="text-rosegold border-rosegold">
+                            <Badge variant="outline" className="text-cyan-400 border-cyan-400 text-xs">
                               #{pitch.player.jersey_number}
                             </Badge>
                           )}
-                          <Badge variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}>
-                            {pitch.transfer_type.toUpperCase()}
-                          </Badge>
                           {pitch.player?.citizenship && (
-                            <Badge variant="outline" className="text-blue-400 border-blue-400">
+                            <Badge variant="outline" className="text-blue-400 border-blue-400 text-xs">
+                              <Flag className="w-3 h-3 mr-1" />
                               {pitch.player.citizenship}
                             </Badge>
                           )}
@@ -804,51 +733,45 @@ const Timeline = () => {
                     </div>
 
                     {/* Team Info */}
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                      <MapPin className="h-3 w-3" />
-                      <span>{pitch.team?.team_name || pitch.team?.full_name}, {pitch.team?.country || 'Unknown'}</span>
+                    <div className="flex items-center gap-2 text-sm text-gray-300 bg-gray-900/50 rounded-lg p-3 border border-gray-700/50">
+                      <MapPin className="h-4 w-4 text-rosegold flex-shrink-0" />
+                      <span className="font-medium truncate">{pitch.team?.team_name || pitch.team?.full_name}</span>
+                      <span className="text-gray-500">•</span>
+                      <span className="text-gray-400 truncate">{pitch.team?.country || 'Unknown'}</span>
                     </div>
 
                     {/* Player Stats */}
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Height:</span>
-                        <span className="text-white">{pitch.player?.height || 'N/A'} cm</span>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700/50">
+                        <div className="text-gray-400 text-xs mb-1">Height</div>
+                        <div className="text-white font-medium">{pitch.player?.height || 'N/A'} cm</div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Weight:</span>
-                        <span className="text-white">{pitch.player?.weight || 'N/A'} kg</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Nationality:</span>
-                        <span className="text-white">{pitch.player?.citizenship || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Value:</span>
-                        <span className="text-white">
+                      <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700/50">
+                        <div className="text-gray-400 text-xs mb-1">Market Value</div>
+                        <div className="text-white font-medium">
                           {pitch.player?.market_value
                             ? formatCurrency(pitch.player.market_value, pitch.currency)
                             : 'N/A'
                           }
-                        </span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Videos */}
                     {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <div className="bg-blue-900/20 rounded-lg p-3 border border-blue-500/20">
+                        <div className="flex items-center gap-2 text-sm text-blue-400 mb-2">
                           <Video className="h-4 w-4" />
-                          <span>{pitch.tagged_videos.length} video(s) available</span>
+                          <span>{pitch.tagged_videos.length} highlight video(s)</span>
                         </div>
                         <div className="flex gap-2 overflow-x-auto">
                           {pitch.tagged_videos.slice(0, 3).map((videoId, index) => (
-                            <div key={index} className="flex-shrink-0 w-20 h-12 bg-gray-700 rounded text-xs flex items-center justify-center">
-                              <Video className="h-4 w-4 text-gray-400" />
+                            <div key={index} className="flex-shrink-0 w-16 h-12 bg-blue-800/30 rounded text-xs flex items-center justify-center border border-blue-500/30">
+                              <Video className="h-4 w-4 text-blue-400" />
                             </div>
                           ))}
                           {pitch.tagged_videos.length > 3 && (
-                            <div className="flex-shrink-0 w-20 h-12 bg-gray-700 rounded text-xs flex items-center justify-center text-gray-400">
+                            <div className="flex-shrink-0 w-16 h-12 bg-blue-800/30 rounded text-xs flex items-center justify-center text-blue-400 border border-blue-500/30">
                               +{pitch.tagged_videos.length - 3}
                             </div>
                           )}
@@ -858,82 +781,116 @@ const Timeline = () => {
 
                     {/* Description */}
                     {pitch.description && (
-                      <p className="text-gray-300 font-poppins text-sm line-clamp-3">
+                      <p className="text-gray-300 font-poppins text-sm line-clamp-3 leading-relaxed bg-gray-900/30 rounded-lg p-3 border border-gray-700/50">
                         {pitch.description}
                       </p>
                     )}
 
-                    {/* Price */}
-                    <div className="space-y-2">
+                    {/* Price Section */}
+                    <div className="space-y-3">
                       {pitch.transfer_type === 'permanent' && pitch.asking_price && (
-                        <div className="flex items-center gap-2 text-lg font-bold text-bright-pink">
-                          <DollarSign className="h-5 w-5" />
-                          {formatCurrency(pitch.asking_price, pitch.currency)}
+                        <div className="bg-gradient-to-r from-bright-pink/10 to-rosegold/10 rounded-lg p-4 border border-bright-pink/20">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="h-5 w-5 text-bright-pink" />
+                              <span className="text-sm text-gray-400">Transfer Fee</span>
+                            </div>
+                            <span className="text-xl font-bold text-bright-pink">
+                              {formatCurrency(pitch.asking_price, pitch.currency)}
+                            </span>
+                          </div>
                         </div>
                       )}
+                      
                       {pitch.transfer_type === 'loan' && pitch.loan_fee && (
-                        <div className="flex items-center gap-2 text-lg font-bold text-bright-pink">
-                          <DollarSign className="h-5 w-5" />
-                          {formatCurrency(pitch.loan_fee, pitch.currency)} (Loan)
+                        <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg p-4 border border-blue-500/20">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="h-5 w-5 text-blue-400" />
+                              <span className="text-sm text-gray-400">Loan Fee</span>
+                            </div>
+                            <span className="text-xl font-bold text-blue-400">
+                              {formatCurrency(pitch.loan_fee, pitch.currency)}
+                            </span>
+                          </div>
+                          {(pitch.loan_with_option || pitch.loan_with_obligation) && (
+                            <div className="mt-2 text-xs text-blue-300">
+                              {pitch.loan_with_option && <span>• Option to buy</span>}
+                              {pitch.loan_with_obligation && <span>• Obligation to buy</span>}
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {/* Additional fees for permanent transfers */}
-                      {pitch.transfer_type === 'permanent' && (
-                        <div className="text-xs text-gray-400 space-y-1">
+                      {pitch.transfer_type === 'permanent' && (pitch.sign_on_bonus || pitch.player_salary) && (
+                        <div className="text-xs text-gray-400 space-y-1 bg-gray-900/30 rounded-lg p-3">
                           {pitch.sign_on_bonus && (
-                            <div>Sign-on: {formatCurrency(pitch.sign_on_bonus, pitch.currency)}</div>
+                            <div className="flex justify-between">
+                              <span>Sign-on bonus:</span>
+                              <span className="text-white">{formatCurrency(pitch.sign_on_bonus, pitch.currency)}</span>
+                            </div>
                           )}
                           {pitch.player_salary && (
-                            <div>Salary: {formatCurrency(pitch.player_salary, pitch.currency)}</div>
+                            <div className="flex justify-between">
+                              <span>Annual salary:</span>
+                              <span className="text-white">{formatCurrency(pitch.player_salary, pitch.currency)}</span>
+                            </div>
                           )}
-                        </div>
-                      )}
-
-                      {/* Loan options */}
-                      {pitch.transfer_type === 'loan' && (
-                        <div className="text-xs text-gray-400">
-                          {pitch.loan_with_option && <div>• Option to buy</div>}
-                          {pitch.loan_with_obligation && <div>• Obligation to buy</div>}
                         </div>
                       )}
                     </div>
 
                     {/* Service charge notice */}
-                    <div className="text-xs text-blue-400 bg-blue-900/20 p-2 rounded">
-                      {pitch.service_charge_rate}% service charge applies
+                    <div className="text-xs text-blue-400 bg-blue-900/20 p-3 rounded-lg border border-blue-500/20 text-center">
+                      {pitch.service_charge_rate}% service charge applies to completed transfers
                     </div>
 
-                    {/* Footer */}
+                    {/* Footer Stats */}
                     <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-700">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatDate(pitch.created_at)}
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(pitch.created_at).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDaysLeft(pitch.expires_at)}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {formatDaysLeft(pitch.expires_at)}
+                      
+                      <div className="flex items-center gap-3">
+                        {pitch.view_count && (
+                          <div className="flex items-center gap-1">
+                            <Eye className="h-3 w-3" />
+                            {pitch.view_count}
+                          </div>
+                        )}
+                        {pitch.message_count && (
+                          <div className="flex items-center gap-1">
+                            <MessageSquare className="h-3 w-3" />
+                            {pitch.message_count}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* Action Buttons */}
                     {profile?.user_type === 'agent' && (
-                      <div className="space-y-2">
+                      <div className="space-y-3 pt-2">
                         <Button
                           onClick={() => handleMessageClick(pitch)}
-                          size="sm"
-                          className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins"
+                          className="w-full bg-gradient-to-r from-bright-pink to-rosegold hover:from-bright-pink/90 hover:to-rosegold/90 text-white font-poppins font-medium transition-all duration-300 hover:shadow-lg hover:shadow-rosegold/25"
                         >
-                          <MessageSquare className="h-4 w-4 mr-1" />
-                          Message
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Contact Team
                         </Button>
                         <Button
                           onClick={() => addToShortlist(pitch)}
-                          size="sm"
                           variant="outline"
-                          className="w-full border-rosegold text-rosegold hover:bg-rosegold hover:text-white font-poppins"
+                          className="w-full border-rosegold text-rosegold hover:bg-rosegold hover:text-white font-poppins transition-all duration-300"
                         >
-                          <Star className="h-4 w-4 mr-1" />
+                          <Star className="h-4 w-4 mr-2" />
                           Add to Shortlist
                         </Button>
                       </div>
