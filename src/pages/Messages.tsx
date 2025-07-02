@@ -80,7 +80,7 @@ const Messages = () => {
       setLoading(true);
       console.log('Fetching messages for profile:', profile.id);
 
-      // Fetch messages where user is sender or receiver - simplified query to avoid relationship conflicts
+      // Fetch messages where user is sender or receiver
       const { data: messages, error } = await supabase
         .from('messages')
         .select(`
@@ -95,6 +95,9 @@ const Messages = () => {
           ),
           player:players(
             full_name
+          ),
+          pitch:transfer_pitches(
+            description
           )
         `)
         .or(`sender_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
@@ -112,8 +115,20 @@ const Messages = () => {
 
       console.log('Fetched messages:', messages);
 
-      // Transform messages to ensure proper typing
+      // Transform messages to ensure proper typing and handle potential query errors
       const transformedMessages: Message[] = (messages || []).map(msg => {
+        // Handle pitch data safely - check if it's a valid object with description
+        let pitchData: { description: string } | undefined = undefined;
+        
+        // Add null check before accessing pitch properties
+        if (msg.pitch && 
+            msg.pitch !== null &&
+            typeof msg.pitch === 'object' && 
+            !('error' in msg.pitch) && 
+            'description' in msg.pitch) {
+          pitchData = msg.pitch as { description: string };
+        }
+
         return {
           id: msg.id,
           content: msg.content,
@@ -129,8 +144,7 @@ const Messages = () => {
           sender_profile: msg.sender_profile,
           receiver_profile: msg.receiver_profile,
           player: msg.player,
-          // Remove pitch data for now to avoid relationship conflicts
-          pitch: undefined
+          pitch: pitchData
         };
       });
 
