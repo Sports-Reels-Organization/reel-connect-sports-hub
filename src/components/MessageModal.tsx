@@ -1,561 +1,412 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-    Send,
-    Upload,
-    Download,
-    FileText,
-    User,
-    Clock,
-    CheckCircle,
-    Paperclip,
-    X,
-    MessageSquare
-} from 'lucide-react';
-import { useMessages, Message } from '@/hooks/useMessages';
 import { useToast } from '@/hooks/use-toast';
-import { contractService, ContractData } from '@/services/contractService';
-import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Send, Paperclip, FileText, Upload } from 'lucide-react';
+import { FileUpload } from './FileUpload';
+import { MessageBubble } from './MessageBubble';
+import { ContractGenerationModal } from './ContractGenerationModal';
 
-// Extend the Message interface to include isNew property
-interface ExtendedMessage extends Message {
-    isNew?: boolean;
-    isOptimistic?: boolean;
+interface Message {
+  id: string;
+  content: string;
+  sender_id: string;
+  receiver_id: string;
+  created_at: string;
+  status?: 'sent' | 'delivered' | 'read';
+  attachment_urls?: string[];
+  file_name?: string;
+  file_type?: string;
+  file_size?: number;
+  contract_file_url?: string;
+  contract_file_name?: string;
+  contract_file_size?: number;
+  is_contract_message?: boolean;
+  sender_profile?: {
+    full_name: string;
+    user_type: string;
+  };
 }
 
 interface MessageModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    pitchId?: string;
-    playerId?: string;
-    teamId?: string;
-    currentUserId: string;
-    playerName?: string;
-    teamName?: string;
-    // Legacy props for backward compatibility
-    receiverId?: string;
-    receiverName?: string;
-    receiverType?: 'agent' | 'team';
-    pitchTitle?: string;
+  isOpen: boolean;
+  onClose: () => void;
+  pitchId?: string;
+  playerId?: string;
+  teamId?: string;
+  currentUserId: string;
+  playerName: string;
+  teamName?: string;
 }
 
-export function MessageModal({
-    isOpen,
-    onClose,
-    pitchId,
-    playerId,
-    teamId,
-    currentUserId,
-    playerName,
-    teamName,
-    // Legacy props for backward compatibility
-    receiverId: propReceiverId,
-    receiverName,
-    receiverType,
-    pitchTitle
-}: MessageModalProps) {
-    const [message, setMessage] = useState('');
-    const [receiverId, setReceiverId] = useState<string>(propReceiverId || '');
-    const [isLoadingReceiver, setIsLoadingReceiver] = useState(false);
-    const [contractFile, setContractFile] = useState<File | null>(null);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const [isUploading, setIsUploading] = useState(false);
-    const [showContractOptions, setShowContractOptions] = useState(false);
-    const [generatingContract, setGeneratingContract] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const { toast } = useToast();
+export const MessageModal: React.FC<MessageModalProps> = ({
+  isOpen,
+  onClose,
+  pitchId,
+  playerId,
+  teamId,
+  currentUserId,
+  playerName,
+  teamName
+}) => {
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [attachments, setAttachments] = useState<{url: string, name: string, size: number, type: string}[]>([]);
+  const [showContractGen, setShowContractGen] = useState(false);
+  const [showAttachments, setShowAttachments] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Use legacy props if new props are not provided
-    const displayPlayerName = playerName || receiverName || 'Unknown Player';
-    const displayTeamName = teamName || (receiverType === 'team' ? receiverName : 'Unknown Team');
+  // Determine receiver ID based on user type and available IDs
+  const getReceiverId = () => {
+    if (profile?.user_type === 'agent') {
+      return teamId || ''; // Agent messages team
+    } else {
+      return playerId || ''; // Team messages player agent
+    }
+  };
 
-    const {
-        messages,
-        loading,
-        sending,
-        sendMessage,
-        markAsRead,
-        getMessageStats
-    } = useMessages({
-        pitchId,
-        currentUserId,
-    });
+  useEffect(() => {
+    if (isOpen) {
+      fetchMessages();
+    }
+  }, [isOpen, pitchId]);
 
-    // Auto-scroll to bottom when new messages arrive
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-    // Mark messages as read when modal opens
-    useEffect(() => {
-        if (isOpen && messages.length > 0) {
-            const unreadMessages = messages
-                .filter(msg => msg.receiver_id === currentUserId && msg.status !== 'read')
-                .map(msg => msg.id);
+  const fetchMessages = async () => {
+    if (!pitchId) return;
 
-            if (unreadMessages.length > 0) {
-                markAsRead(unreadMessages);
-            }
-        }
-    }, [isOpen, messages, currentUserId, markAsRead]);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey(full_name, user_type)
+        `)
+        .eq('pitch_id', pitchId)
+        .order('created_at', { ascending: true });
 
-    // Fetch receiver ID when modal opens
-    useEffect(() => {
-        if (isOpen && pitchId && !receiverId) {
-            fetchReceiverId();
-        }
-    }, [isOpen, pitchId, receiverId]);
+      if (error) throw error;
 
-    // Auto-resize textarea
-    useEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-        }
-    }, [message]);
+      const transformedMessages: Message[] = (data || []).map(msg => ({
+        ...msg,
+        attachment_urls: Array.isArray(msg.attachment_urls) ? msg.attachment_urls : 
+                        msg.attachment_urls ? [msg.attachment_urls] : []
+      }));
 
-    const fetchReceiverId = async () => {
-        if (!pitchId) return;
+      setMessages(transformedMessages);
 
-        setIsLoadingReceiver(true);
-        try {
-            // This should be handled by the parent component
-            // For now, we'll use the provided receiverId
-            if (propReceiverId) {
-                setReceiverId(propReceiverId);
-            }
-        } catch (error) {
-            console.error('Error in fetchReceiverId:', error);
-        } finally {
-            setIsLoadingReceiver(false);
-        }
-    };
+      // Mark messages as read
+      const unreadMessages = transformedMessages.filter(msg => 
+        msg.receiver_id === profile?.id && msg.status !== 'read'
+      );
 
-    const handleSendMessage = async () => {
-        if (!message.trim() || !receiverId) return;
+      if (unreadMessages.length > 0) {
+        await supabase
+          .from('messages')
+          .update({ status: 'read' })
+          .in('id', unreadMessages.map(msg => msg.id));
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load messages",
+        variant: "destructive"
+      });
+    }
+  };
 
-        try {
-            await sendMessage(message, receiverId, pitchId);
-            setMessage('');
+  const sendMessage = async () => {
+    if (!newMessage.trim() && attachments.length === 0) return;
+    if (!profile) return;
 
-            // Reset textarea height
-            if (textareaRef.current) {
-                textareaRef.current.style.height = 'auto';
-            }
-        } catch (error) {
-            console.error('Error sending message:', error);
-        }
-    };
+    const receiverId = getReceiverId();
+    if (!receiverId) {
+      toast({
+        title: "Error",
+        description: "Unable to determine message recipient",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-        }
-    };
+    setLoading(true);
+    try {
+      const messageData = {
+        content: newMessage.trim() || 'Attachment',
+        sender_id: profile.id,
+        receiver_id: receiverId,
+        pitch_id: pitchId,
+        player_id: playerId,
+        attachment_urls: attachments.length > 0 ? attachments.map(att => att.url) : null,
+        file_name: attachments.length > 0 ? attachments[0].name : null,
+        file_size: attachments.length > 0 ? attachments[0].size : null,
+        file_type: attachments.length > 0 ? attachments[0].type : null,
+        status: 'sent' as const
+      };
 
-    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(messageData)
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey(full_name, user_type)
+        `)
+        .single();
 
-        // Validate file type
-        if (!file.type.includes('pdf') && !file.type.includes('image')) {
-            toast({
-                title: "Invalid File Type",
-                description: "Please upload a PDF or image file",
-                variant: "destructive"
-            });
-            return;
-        }
+      if (error) throw error;
 
-        // Validate file size (5MB limit)
-        if (file.size > 5 * 1024 * 1024) {
-            toast({
-                title: "File Too Large",
-                description: "Please upload a file smaller than 5MB",
-                variant: "destructive"
-            });
-            return;
-        }
+      const transformedMessage: Message = {
+        ...data,
+        attachment_urls: Array.isArray(data.attachment_urls) ? data.attachment_urls : 
+                        data.attachment_urls ? [data.attachment_urls] : []
+      };
 
-        setContractFile(file);
-    };
+      setMessages(prev => [...prev, transformedMessage]);
+      setNewMessage('');
+      setAttachments([]);
+      setShowAttachments(false);
 
-    const handleContractUpload = async () => {
-        if (!contractFile || !receiverId) return;
+      toast({
+        title: "Message sent",
+        description: "Your message has been sent successfully",
+      });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setIsUploading(true);
-        setUploadProgress(0);
+  const handleFileUploaded = (fileUrl: string, fileName: string, fileSize: number, fileType: string) => {
+    setAttachments(prev => [...prev, { url: fileUrl, name: fileName, size: fileSize, type: fileType }]);
+  };
 
-        try {
-            const contractUrl = await contractService.uploadContract(contractFile, (progress) => {
-                setUploadProgress(progress.percentage);
-            });
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
 
-            // Send message with contract
-            await sendMessage(
-                `Contract uploaded: ${contractFile.name}`,
-                receiverId,
-                pitchId
-            );
+  const handleContractGenerated = async (contractHtml: string) => {
+    // Convert HTML to blob and upload
+    try {
+      const blob = new Blob([contractHtml], { type: 'text/html' });
+      const file = new File([blob], `${playerName}_Contract_${Date.now()}.html`, { type: 'text/html' });
+      
+      // Upload contract
+      const contractUrl = await contractService.uploadContract(file);
+      
+      // Send contract message
+      const receiverId = getReceiverId();
+      if (!receiverId || !profile) return;
 
-            setContractFile(null);
-            setUploadProgress(0);
-            setShowContractOptions(false);
+      const contractMessage = {
+        content: `📄 Contract generated for ${playerName}`,
+        sender_id: profile.id,
+        receiver_id: receiverId,
+        pitch_id: pitchId,
+        player_id: playerId,
+        contract_file_url: contractUrl,
+        contract_file_name: `${playerName}_Contract.html`,
+        contract_file_size: blob.size,
+        is_contract_message: true,
+        status: 'sent' as const
+      };
 
-            toast({
-                title: "Contract Uploaded",
-                description: "Contract has been uploaded and sent successfully",
-            });
-        } catch (error) {
-            console.error('Error uploading contract:', error);
-            toast({
-                title: "Upload Failed",
-                description: "Failed to upload contract",
-                variant: "destructive"
-            });
-        } finally {
-            setIsUploading(false);
-        }
-    };
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(contractMessage)
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey(full_name, user_type)
+        `)
+        .single();
 
-    const handleGenerateContract = async () => {
-        if (!playerId || !receiverId) {
-            toast({
-                title: "Missing Information",
-                description: "Player and receiver information required for contract generation",
-                variant: "destructive"
-            });
-            return;
-        }
+      if (error) throw error;
 
-        setGeneratingContract(true);
+      const transformedMessage: Message = {
+        ...data,
+        attachment_urls: []
+      };
 
-        try {
-            // Create contract data object matching the ContractData interface
-            const contractData: ContractData = {
-                pitchId: pitchId || '',
-                playerName: displayPlayerName,
-                teamName: displayTeamName,
-                transferType: 'permanent', // Default transfer type
-                currency: 'USD',
-                contractDetails: {
-                    duration: '2 years',
-                    salary: 50000,
-                    signOnBonus: 10000,
-                    performanceBonus: 5000,
-                    relocationSupport: 3000
-                }
-            };
+      setMessages(prev => [...prev, transformedMessage]);
+      setShowContractGen(false);
 
-            const contractHTML = await contractService.generateContract(contractData);
+      toast({
+        title: "Contract Sent",
+        description: "Contract has been generated and sent",
+      });
+    } catch (error) {
+      console.error('Error sending contract:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send contract",
+        variant: "destructive"
+      });
+    }
+  };
 
-            await sendMessage(
-                "Contract generated and attached",
-                receiverId,
-                pitchId
-            );
+  const handleSignedContractUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-            setShowContractOptions(false);
-            toast({
-                title: "Contract Generated",
-                description: "Contract has been generated and sent successfully",
-            });
-        } catch (error) {
-            console.error('Error generating contract:', error);
-            toast({
-                title: "Generation Failed",
-                description: "Failed to generate contract. Please try again.",
-                variant: "destructive"
-            });
-        } finally {
-            setGeneratingContract(false);
-        }
-    };
+    // Handle signed contract upload
+    handleFileUploaded(URL.createObjectURL(file), file.name, file.size, file.type);
+  };
 
-    const handleDownloadContract = async (contractUrl: string, fileName: string) => {
-        try {
-            await contractService.downloadContract(contractUrl, fileName);
-            toast({
-                title: "Download Started",
-                description: "Contract download has started",
-            });
-        } catch (error) {
-            console.error('Error downloading contract:', error);
-            toast({
-                title: "Download Failed",
-                description: "Failed to download contract",
-                variant: "destructive"
-            });
-        }
-    };
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[80vh] bg-gray-900 border-gray-700 text-white flex flex-col">
+          <DialogHeader className="border-b border-gray-700 pb-4">
+            <DialogTitle className="flex items-center justify-between">
+              <span>Message about {playerName}</span>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowContractGen(true)}
+                  size="sm"
+                  className="bg-rosegold hover:bg-rosegold/90"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Generate Contract
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleSignedContractUpload}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  size="sm"
+                  variant="outline"
+                  className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Signed
+                </Button>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
 
-    const formatTime = (timestamp: string) => {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-        if (diffInHours < 1) {
-            return 'Just now';
-        } else if (diffInHours < 24) {
-            return `${Math.floor(diffInHours)}h ago`;
-        } else {
-            return date.toLocaleDateString();
-        }
-    };
-
-    const messageStats = getMessageStats();
-
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
-                <DialogHeader className="p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-100 rounded-full">
-                                <MessageSquare className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                                <DialogTitle className="text-xl font-semibold text-gray-900">
-                                    Transfer Discussion
-                                </DialogTitle>
-                                <DialogDescription className="text-sm text-gray-600">
-                                    {displayPlayerName} • {displayTeamName}
-                                </DialogDescription>
-                            </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Badge variant="secondary" className="text-xs">
-                                {messageStats.total} messages
-                            </Badge>
-                            {messageStats.unread > 0 && (
-                                <Badge variant="destructive" className="text-xs">
-                                    {messageStats.unread} new
-                                </Badge>
-                            )}
-                        </div>
-                    </div>
-                </DialogHeader>
-
-                <div className="flex-1 flex flex-col min-h-0">
-                    {/* Messages Area */}
-                    <ScrollArea className="flex-1 p-6">
-                        {loading ? (
-                            <div className="flex items-center justify-center h-32">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                            </div>
-                        ) : messages.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-32 text-gray-500">
-                                <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-                                <p className="text-lg font-medium">No messages yet</p>
-                                <p className="text-sm">Start the conversation about this transfer</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {messages.map((msg) => (
-                                    <div
-                                        key={msg.id}
-                                        className={cn(
-                                            "flex gap-3 transition-all duration-300",
-                                            msg.sender_id === currentUserId ? "justify-end" : "justify-start",
-                                            (msg as ExtendedMessage).isNew && "animate-pulse bg-blue-50 rounded-lg p-2"
-                                        )}
-                                    >
-                                        {msg.sender_id !== currentUserId && (
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarImage src="" />
-                                                <AvatarFallback className="text-xs">
-                                                    {msg.sender_profile?.user_type === 'agent' ? 'A' : 'T'}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                        )}
-
-                                        <div className={cn(
-                                            "max-w-[70%] space-y-2",
-                                            msg.sender_id === currentUserId ? "items-end" : "items-start"
-                                        )}>
-                                            <div className={cn(
-                                                "rounded-2xl px-4 py-3 shadow-sm",
-                                                msg.sender_id === currentUserId
-                                                    ? "bg-blue-600 text-white"
-                                                    : "bg-gray-100 text-gray-900"
-                                            )}>
-                                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-
-                                                {/* Contract attachment */}
-                                                {msg.contract_file_url && (
-                                                    <div className="mt-3 p-3 bg-white/10 rounded-lg">
-                                                        <div className="flex items-center space-x-2">
-                                                            <FileText className="h-4 w-4" />
-                                                            <span className="text-xs font-medium">Contract Attached</span>
-                                                        </div>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="mt-2 h-6 text-xs"
-                                                            onClick={() => handleDownloadContract(msg.contract_file_url!, 'contract.pdf')}
-                                                        >
-                                                            <Download className="h-3 w-3 mr-1" />
-                                                            Download
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                                <span>{formatTime(msg.created_at)}</span>
-                                                {msg.sender_id === currentUserId && (
-                                                    <>
-                                                        {msg.status === 'read' ? (
-                                                            <CheckCircle className="h-3 w-3 text-green-500" />
-                                                        ) : msg.status === 'delivered' ? (
-                                                            <CheckCircle className="h-3 w-3 text-blue-500" />
-                                                        ) : (
-                                                            <Clock className="h-3 w-3 text-gray-400" />
-                                                        )}
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {msg.sender_id === currentUserId && (
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarImage src="" />
-                                                <AvatarFallback className="text-xs bg-blue-600 text-white">
-                                                    Me
-                                                </AvatarFallback>
-                                            </Avatar>
-                                        )}
-                                    </div>
-                                ))}
-                                <div ref={messagesEndRef} />
-                            </div>
-                        )}
-                    </ScrollArea>
-
-                    {/* Input Area */}
-                    <div className="border-t bg-white p-4">
-                        {/* Contract Options */}
-                        {showContractOptions && (
-                            <Card className="mb-4 border-blue-200 bg-blue-50">
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-sm font-medium text-blue-900">
-                                        Contract Management
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="flex items-center space-x-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => document.getElementById('contract-upload')?.click()}
-                                            disabled={isUploading}
-                                        >
-                                            <Upload className="h-4 w-4 mr-2" />
-                                            Upload Contract
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={handleGenerateContract}
-                                            disabled={generatingContract || !playerId}
-                                        >
-                                            <FileText className="h-4 w-4 mr-2" />
-                                            {generatingContract ? 'Generating...' : 'Generate Contract'}
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => setShowContractOptions(false)}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-
-                                    {contractFile && (
-                                        <div className="flex items-center justify-between p-2 bg-white rounded border">
-                                            <span className="text-sm text-gray-600">{contractFile.name}</span>
-                                            <Button
-                                                size="sm"
-                                                onClick={handleContractUpload}
-                                                disabled={isUploading}
-                                            >
-                                                {isUploading ? `Uploading ${uploadProgress}%` : 'Send'}
-                                            </Button>
-                                        </div>
-                                    )}
-
-                                    {isUploading && (
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                                style={{ width: `${uploadProgress}%` }}
-                                            ></div>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {/* Message Input */}
-                        <div className="flex items-end space-x-3">
-                            <div className="flex-1">
-                                <Textarea
-                                    ref={textareaRef}
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    onKeyPress={handleKeyPress}
-                                    placeholder="Type your message..."
-                                    className="min-h-[60px] max-h-32 resize-none border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                                    disabled={sending || isLoadingReceiver}
-                                />
-                            </div>
-
-                            <div className="flex items-center space-x-2">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setShowContractOptions(!showContractOptions)}
-                                    disabled={sending}
-                                >
-                                    <Paperclip className="h-4 w-4" />
-                                </Button>
-
-                                <Button
-                                    onClick={handleSendMessage}
-                                    disabled={!message.trim() || sending || isLoadingReceiver}
-                                    className="bg-blue-600 hover:bg-blue-700"
-                                >
-                                    {sending ? (
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                    ) : (
-                                        <Send className="h-4 w-4" />
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Hidden file input */}
-                        <input
-                            id="contract-upload"
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={handleFileUpload}
-                            className="hidden"
-                        />
-                    </div>
+          {/* Messages Area */}
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-2">
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-400 py-8">
+                  <p>No messages yet. Start the conversation!</p>
                 </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
+              ) : (
+                messages.map((message) => (
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    isFromMe={message.sender_id === profile?.id}
+                    senderName={message.sender_profile?.full_name}
+                  />
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
 
-export default MessageModal;
+          {/* Attachments Preview */}
+          {attachments.length > 0 && (
+            <div className="border-t border-gray-700 p-3">
+              <div className="flex flex-wrap gap-2">
+                {attachments.map((attachment, index) => (
+                  <div key={index} className="flex items-center gap-2 bg-gray-800 rounded-lg p-2">
+                    <FileText className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm truncate max-w-32">{attachment.name}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-4 w-4 p-0 text-red-400 hover:text-red-300"
+                      onClick={() => removeAttachment(index)}
+                    >
+                      ×
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Message Input */}
+          <div className="border-t border-gray-700 p-4">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Textarea
+                  placeholder="Type your message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  className="resize-none bg-gray-800 border-gray-600"
+                  rows={2}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => setShowAttachments(!showAttachments)}
+                  size="sm"
+                  variant="outline"
+                  className="border-gray-600 hover:bg-gray-700"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={sendMessage}
+                  disabled={loading || (!newMessage.trim() && attachments.length === 0)}
+                  size="sm"
+                  className="bg-rosegold hover:bg-rosegold/90"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* File Upload Section */}
+            {showAttachments && (
+              <div className="mt-3 p-3 bg-gray-800 rounded-lg">
+                <FileUpload onFileUploaded={handleFileUploaded} />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contract Generation Modal */}
+      <ContractGenerationModal
+        isOpen={showContractGen}
+        onClose={() => setShowContractGen(false)}
+        pitchId={pitchId}
+        playerName={playerName}
+        teamName={teamName || 'Unknown Team'}
+        onContractGenerated={handleContractGenerated}
+      />
+    </>
+  );
+};

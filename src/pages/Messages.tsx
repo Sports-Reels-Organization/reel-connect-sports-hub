@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Send, MessageCircle, User, Clock, Paperclip, FileText } from 'lucide-react';
 import { FileUpload } from '@/components/FileUpload';
-import { FilePreview } from '@/components/FilePreview';
+import { MessageBubble } from '@/components/MessageBubble';
 
 interface Message {
   id: string;
@@ -75,12 +75,7 @@ const Messages = () => {
   const fetchConversations = async () => {
     try {
       const { data: allMessages, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender_profile:profiles!messages_sender_id_fkey(id, full_name, user_type),
-          receiver_profile:profiles!messages_receiver_id_fkey(id, full_name, user_type)
-        `)
+        .from('message_threads_view')
         .or(`sender_id.eq.${profile?.id},receiver_id.eq.${profile?.id}`)
         .order('created_at', { ascending: false });
 
@@ -141,12 +136,7 @@ const Messages = () => {
   const fetchMessages = async (participantId: string) => {
     try {
       const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender_profile:profiles!messages_sender_id_fkey(id, full_name, user_type),
-          receiver_profile:profiles!messages_receiver_id_fkey(id, full_name, user_type)
-        `)
+        .from('message_threads_view')
         .or(`and(sender_id.eq.${profile?.id},receiver_id.eq.${participantId}),and(sender_id.eq.${participantId},receiver_id.eq.${profile?.id})`)
         .order('created_at', { ascending: true });
 
@@ -346,54 +336,17 @@ const Messages = () => {
                 </div>
               </div>
 
-              {/* Messages List */}
+              {/* Messages List with Enhanced Bubbles */}
               <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {messages.map((message) => {
-                    const isFromMe = message.sender_id === profile?.id;
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-[70%] p-3 rounded-lg ${
-                            isFromMe
-                              ? 'bg-rosegold text-white'
-                              : 'bg-gray-700 text-white'
-                          }`}
-                        >
-                          <p className="text-sm">{message.content}</p>
-                          
-                          {/* File attachments */}
-                          {message.attachment_urls && message.attachment_urls.length > 0 && (
-                            <div className="mt-2 space-y-2">
-                              {message.attachment_urls.map((url, index) => (
-                                <FilePreview
-                                  key={index}
-                                  fileUrl={url}
-                                  fileName={message.file_name || `attachment-${index + 1}`}
-                                  fileType={message.file_type || 'application/octet-stream'}
-                                  fileSize={message.file_size || 0}
-                                />
-                              ))}
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center justify-between mt-1">
-                            <p className="text-xs opacity-70">
-                              {formatTime(message.created_at)}
-                            </p>
-                            {isFromMe && (
-                              <Badge variant={message.status === 'read' ? 'default' : 'secondary'} className="text-xs">
-                                {message.status || 'sent'}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="space-y-2">
+                  {messages.map((message) => (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      isFromMe={message.sender_id === profile?.id}
+                      senderName={message.sender_profile?.full_name}
+                    />
+                  ))}
                   <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
@@ -404,15 +357,18 @@ const Messages = () => {
                 {attachments.length > 0 && (
                   <div className="mb-3 space-y-2">
                     {attachments.map((attachment, index) => (
-                      <FilePreview
-                        key={index}
-                        fileUrl={attachment.url}
-                        fileName={attachment.name}
-                        fileType={attachment.type}
-                        fileSize={attachment.size}
-                        onRemove={() => removeAttachment(index)}
-                        showRemove={true}
-                      />
+                      <div key={index} className="flex items-center gap-2 bg-gray-800 rounded-lg p-2">
+                        <FileText className="w-4 h-4 text-blue-400" />
+                        <span className="text-sm text-white truncate flex-1">{attachment.name}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                          onClick={() => removeAttachment(index)}
+                        >
+                          ×
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -429,7 +385,7 @@ const Messages = () => {
                           handleSendMessage();
                         }
                       }}
-                      className="resize-none"
+                      className="resize-none bg-gray-800 border-gray-600"
                       rows={3}
                     />
                   </div>

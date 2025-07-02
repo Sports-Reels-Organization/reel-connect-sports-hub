@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -233,35 +232,10 @@ const Timeline = () => {
     try {
       setLoading(true);
 
+      // Use the active_pitches_view instead of direct transfer_pitches query
       const { data, error } = await supabase
-        .from('transfer_pitches')
-        .select(`
-          *,
-          player:players(
-            id,
-            full_name,
-            position,
-            citizenship,
-            height,
-            weight,
-            photo_url,
-            jersey_number,
-            bio,
-            market_value
-          ),
-          team:profiles!transfer_pitches_team_id_fkey(
-            id,
-            full_name,
-            country
-          ),
-          agent:profiles!transfer_pitches_agent_id_fkey(
-            id,
-            full_name,
-            email,
-            phone
-          )
-        `)
-        .eq('status', 'active')
+        .from('active_pitches_view')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -276,7 +250,7 @@ const Timeline = () => {
 
       // Transform the data to match the interface
       const transformedData = (data || [])
-        .filter(pitch => isValidPlayer(pitch.player))
+        .filter(pitch => pitch.player_name && pitch.team_name) // Ensure we have valid data
         .map(pitch => {
           // Safely handle tagged_videos
           let taggedVideos: string[] = [];
@@ -286,39 +260,33 @@ const Timeline = () => {
             );
           }
 
-          // Handle team data (might be array or single object)
-          const teamData = Array.isArray(pitch.team) ? pitch.team[0] : pitch.team;
-          
-          // Handle agent data (might be array or single object)
-          const agentData = Array.isArray(pitch.agent) ? pitch.agent[0] : pitch.agent;
-
           return {
             ...pitch,
             tagged_videos: taggedVideos,
-            player: pitch.player,
-            team: teamData ? {
-              id: teamData.id || '',
-              full_name: teamData.full_name || 'Unknown Team',
-              country: teamData.country || 'Unknown',
-              team_name: teamData.full_name || 'Unknown Team',
-              logo_url: undefined,
-              member_association: undefined
-            } : {
-              id: '',
-              full_name: 'Unknown Team',
-              country: 'Unknown',
-              team_name: 'Unknown Team',
-              logo_url: undefined,
-              member_association: undefined
+            player: {
+              id: pitch.player_id,
+              full_name: pitch.player_name,
+              position: pitch.player_position,
+              citizenship: pitch.player_citizenship,
+              height: pitch.height || 0,
+              weight: pitch.weight || 0,
+              photo_url: pitch.photo_url || '',
+              jersey_number: pitch.jersey_number || 0,
+              bio: pitch.bio || '',
+              market_value: pitch.player_market_value || 0,
+              age: pitch.age
             },
-            agent: agentData ? {
-              id: agentData.id || '',
-              full_name: agentData.full_name || 'Unknown Agent',
-              email: agentData.email || '',
-              phone: agentData.phone
-            } : {
+            team: {
+              id: pitch.team_id,
+              full_name: pitch.team_name,
+              country: pitch.team_country || 'Unknown',
+              team_name: pitch.team_name,
+              logo_url: undefined,
+              member_association: pitch.member_association
+            },
+            agent: {
               id: '',
-              full_name: 'Unknown Agent',
+              full_name: 'Team Agent',
               email: '',
               phone: undefined
             }
@@ -328,6 +296,11 @@ const Timeline = () => {
       setTransferPitches(transformedData);
     } catch (error) {
       console.error('Error in fetchTransferPitches:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load transfer pitches",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -582,49 +555,34 @@ const Timeline = () => {
       return;
     }
 
-    setSelectedPlayer(pitch.player);
-    setShowMessageModal(true);
-
-    // Fetch existing messages for this pitch
+    // Get the team's profile ID for messaging
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender_profile:profiles!messages_sender_id_fkey(
-            full_name,
-            user_type
-          ),
-          receiver_profile:profiles!messages_receiver_id_fkey(
-            full_name,
-            user_type
-          )
-        `)
-        .eq('pitch_id', pitch.id)
-        .or(`sender_id.eq.${profile?.id},receiver_id.eq.${profile?.id}`)
-        .order('created_at', { ascending: true });
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .select('profile_id')
+        .eq('id', pitch.team_id)
+        .single();
 
-      if (error) {
-        console.error('Error fetching messages:', error);
-      } else {
-        setMessages(data || []);
-
-        // Mark messages as read
-        const unreadMessages = data
-          ?.filter(msg => msg.receiver_id === profile?.id && msg.status !== 'read')
-          .map(msg => msg.id);
-
-        if (unreadMessages && unreadMessages.length > 0) {
-          await supabase
-            .from('messages')
-            .update({ status: 'read' })
-            .in('id', unreadMessages);
-
-          setUnreadCount(prev => Math.max(0, prev - unreadMessages.length));
-        }
+      if (teamError || !teamData) {
+        toast({
+          title: "Error",
+          description: "Could not find team information",
+          variant: "destructive"
+        });
+        return;
       }
+
+      setSelectedPlayer(pitch.player);
+      setSelectedPitchId(pitch.id);
+      setSelectedTeamProfileId(teamData.profile_id);
+      setShowMessageModal(true);
     } catch (error) {
-      console.error('Error in handleMessageClick:', error);
+      console.error('Error getting team info:', error);
+      toast({
+        title: "Error",
+        description: "Failed to get team information",
+        variant: "destructive"
+      });
     }
   };
 
