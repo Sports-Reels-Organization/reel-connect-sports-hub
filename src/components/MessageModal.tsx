@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, Paperclip, FileText, Upload } from 'lucide-react';
+import { Send, Paperclip, FileText, Upload, Loader2 } from 'lucide-react';
 import { FileUpload } from './FileUpload';
 import { MessageBubble } from './MessageBubble';
 import { ContractGenerationModal } from './ContractGenerationModal';
@@ -65,6 +64,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [contractGenerating, setContractGenerating] = useState(false);
   const [attachments, setAttachments] = useState<{url: string, name: string, size: number, type: string}[]>([]);
   const [showContractGen, setShowContractGen] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
@@ -219,6 +219,15 @@ export const MessageModal: React.FC<MessageModalProps> = ({
   const handleContractGenerated = async (contractHtml: string) => {
     console.log('handleContractGenerated called with HTML length:', contractHtml.length);
     
+    setContractGenerating(true);
+    
+    // Show immediate feedback
+    toast({
+      title: "Processing Contract",
+      description: "Converting contract to PDF...",
+      duration: 2000,
+    });
+    
     try {
       console.log('Step 1: Starting PDF conversion...');
       
@@ -261,6 +270,13 @@ export const MessageModal: React.FC<MessageModalProps> = ({
         // Remove temporary div
         document.body.removeChild(tempDiv);
         
+        // Show upload progress
+        toast({
+          title: "Uploading Contract",
+          description: "Saving contract file...",
+          duration: 2000,
+        });
+        
         // Create PDF
         const pdf = new jsPDF('p', 'mm', 'a4');
         const imgData = canvas.toDataURL('image/png');
@@ -274,16 +290,19 @@ export const MessageModal: React.FC<MessageModalProps> = ({
         // Convert PDF to blob
         const pdfBlob = pdf.output('blob');
         const timestamp = Date.now();
-        const fileName = `${playerName}_Contract_${timestamp}.pdf`;
+        // Clean filename - remove spaces and special characters
+        const cleanPlayerName = playerName.replace(/[^a-zA-Z0-9]/g, '_');
+        const fileName = `${cleanPlayerName}_Contract_${timestamp}.pdf`;
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
         
         console.log('Step 6: File created, size:', file.size, 'bytes');
         
-        // Upload contract to message-attachments bucket (which we know exists and works)
+        // Upload contract to message-attachments bucket
         console.log('Step 7: Starting contract upload to message-attachments bucket...');
         let contractUrl: string | null = null;
         
         try {
+          // Use simple file path without special characters
           const filePath = `contracts/${fileName}`;
           
           const { data: uploadData, error: uploadError } = await supabase.storage
@@ -311,7 +330,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
           
           toast({
             title: "Upload Failed",
-            description: "Failed to upload contract. Please try again or contact support.",
+            description: "Failed to upload contract. Please try again.",
             variant: "destructive",
             duration: 5000,
           });
@@ -371,8 +390,9 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 
         console.log('Step 13: Contract sent successfully!');
         toast({
-          title: "Contract Sent",
-          description: "Contract has been generated and sent successfully",
+          title: "Contract Sent Successfully!",
+          description: "Contract has been generated and sent to the recipient",
+          duration: 4000,
         });
       } catch (canvasError) {
         console.error('Canvas conversion failed:', canvasError);
@@ -381,10 +401,13 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     } catch (error) {
       console.error('Error in handleContractGenerated:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send contract",
-        variant: "destructive"
+        title: "Contract Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate contract",
+        variant: "destructive",
+        duration: 5000,
       });
+    } finally {
+      setContractGenerating(false);
     }
   };
 
@@ -406,11 +429,21 @@ export const MessageModal: React.FC<MessageModalProps> = ({
               <div className="flex gap-2">
                 <Button
                   onClick={() => setShowContractGen(true)}
+                  disabled={contractGenerating}
                   size="sm"
-                  className="bg-rosegold hover:bg-rosegold/90"
+                  className="bg-rosegold hover:bg-rosegold/90 disabled:opacity-50"
                 >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Generate Contract
+                  {contractGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Generate Contract
+                    </>
+                  )}
                 </Button>
                 <input
                   ref={fileInputRef}
@@ -431,6 +464,19 @@ export const MessageModal: React.FC<MessageModalProps> = ({
               </div>
             </DialogTitle>
           </DialogHeader>
+
+          {/* Loading overlay when generating contract */}
+          {contractGenerating && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 rounded-lg">
+              <div className="bg-gray-800 p-6 rounded-lg flex flex-col items-center gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-rosegold" />
+                <div className="text-center">
+                  <p className="text-white font-semibold">Generating Contract</p>
+                  <p className="text-gray-400 text-sm">This may take a few moments...</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Messages Area */}
           <ScrollArea className="flex-1 p-4">
