@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, DollarSign, MapPin, MessageSquare, User, Clock, Target, Plus, Video, Star, Building2 } from 'lucide-react';
-import { MessageModal } from '@/components/MessageModal';
+import MessageModal from '@/components/MessageModal';
 import CreateTransferPitch from '@/components/CreateTransferPitch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -265,10 +265,10 @@ const Timeline = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching transfer pitches:', error);
+        console.error('Supabase error:', error, data);
         toast({
           title: "Error",
-          description: "Failed to load transfer timeline",
+          description: error.message || "Failed to load transfer timeline",
           variant: "destructive"
         });
         return;
@@ -281,14 +281,14 @@ const Timeline = () => {
         // Safely handle tagged_videos
         let taggedVideos: string[] = [];
         if (Array.isArray(pitch.tagged_videos)) {
-          taggedVideos = pitch.tagged_videos.map(video => 
+          taggedVideos = pitch.tagged_videos.map(video =>
             typeof video === 'string' ? video : String(video)
           );
         }
 
         // Handle player data
         const playerData = Array.isArray(pitch.players) ? pitch.players[0] : pitch.players;
-        
+
         // Handle team data
         const teamData = Array.isArray(pitch.teams) ? pitch.teams[0] : pitch.teams;
 
@@ -382,14 +382,14 @@ const Timeline = () => {
       // Safely handle tagged_videos
       let taggedVideos: string[] = [];
       if (Array.isArray(data.tagged_videos)) {
-        taggedVideos = data.tagged_videos.map(video => 
+        taggedVideos = data.tagged_videos.map(video =>
           typeof video === 'string' ? video : String(video)
         );
       }
 
       // Handle player data
       const playerData = Array.isArray(data.players) ? data.players[0] : data.players;
-      
+
       // Handle team data
       const teamData = Array.isArray(data.teams) ? data.teams[0] : data.teams;
 
@@ -473,6 +473,7 @@ const Timeline = () => {
         .single();
 
       if (pitchError || !pitchData) {
+        console.error('Supabase error:', pitchError, pitchData);
         toast({
           title: "Error",
           description: "Could not find pitch information",
@@ -489,6 +490,7 @@ const Timeline = () => {
         .single();
 
       if (teamError || !teamData) {
+        console.error('Supabase error:', teamError, teamData);
         toast({
           title: "Error",
           description: "Could not find team information",
@@ -544,6 +546,7 @@ const Timeline = () => {
         .single();
 
       if (existing) {
+        console.log('Supabase existing shortlist:', existing);
         toast({
           title: "Already Shortlisted",
           description: "This player is already in your shortlist",
@@ -560,7 +563,10 @@ const Timeline = () => {
           pitch_id: pitch.id
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -595,6 +601,7 @@ const Timeline = () => {
         .single();
 
       if (teamError || !teamData) {
+        console.error('Supabase error:', teamError, teamData);
         toast({
           title: "Error",
           description: "Could not find team information",
@@ -643,10 +650,10 @@ const Timeline = () => {
         .single();
 
       if (error) {
-        console.error('Error sending message:', error);
+        console.error('Supabase error:', error, data);
         toast({
           title: "Error",
-          description: "Failed to send message",
+          description: error.message || "Failed to send message",
           variant: "destructive"
         });
         return;

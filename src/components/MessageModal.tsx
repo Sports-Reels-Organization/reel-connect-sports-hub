@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +12,8 @@ import { FileUpload } from './FileUpload';
 import { MessageBubble } from './MessageBubble';
 import { ContractGenerationModal } from './ContractGenerationModal';
 import { contractService } from '@/services/contractService';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface Message {
   id: string;
@@ -26,7 +27,6 @@ interface Message {
   file_type?: string;
   file_size?: number;
   contract_file_url?: string;
-  is_contract_message?: boolean;
   sender_profile?: {
     full_name: string;
     user_type: string;
@@ -216,60 +216,252 @@ export const MessageModal: React.FC<MessageModalProps> = ({
   };
 
   const handleContractGenerated = async (contractHtml: string) => {
-    // Convert HTML to blob and upload
+    console.log('handleContractGenerated called with HTML length:', contractHtml.length);
+    
+    // Convert HTML to PDF and upload
     try {
-      const blob = new Blob([contractHtml], { type: 'text/html' });
-      const file = new File([blob], `${playerName}_Contract_${Date.now()}.html`, { type: 'text/html' });
+      console.log('Step 1: Starting PDF conversion...');
       
-      // Upload contract
-      const contractUrl = await contractService.uploadContract(file);
+      // Create a temporary div to render the HTML with proper styling
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = contractHtml;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '800px';
+      tempDiv.style.backgroundColor = 'white';
+      tempDiv.style.color = 'black';
+      tempDiv.style.fontFamily = 'Arial, sans-serif';
+      tempDiv.style.fontSize = '12px';
+      tempDiv.style.lineHeight = '1.4';
+      tempDiv.style.padding = '20px';
+      document.body.appendChild(tempDiv);
       
-      // Send contract message
-      const receiverId = getReceiverId();
-      if (!receiverId || !profile) return;
+      console.log('Step 2: Temporary div created and added to DOM');
+      
+      // Wait a bit for styles to apply
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('Step 3: Starting canvas conversion...');
+      
+      try {
+        // Convert to canvas with better settings
+        const canvas = await html2canvas(tempDiv, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          width: 800,
+          height: tempDiv.scrollHeight,
+          logging: false
+        });
+        
+        console.log('Step 4: Canvas conversion successful, canvas size:', canvas.width, 'x', canvas.height);
+        
+        // Remove temporary div
+        document.body.removeChild(tempDiv);
+        
+        // Create PDF
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgData = canvas.toDataURL('image/png');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        
+        console.log('Step 5: PDF created successfully');
+        
+        // Convert PDF to blob
+        const pdfBlob = pdf.output('blob');
+        const file = new File([pdfBlob], `${playerName}_Contract_${Date.now()}.pdf`, { type: 'application/pdf' });
+        
+        console.log('Step 6: File created, size:', file.size, 'bytes');
+        
+        // Try to upload contract
+        console.log('Step 7: Starting contract upload...');
+        let contractUrl: string | null = null;
+        
+        try {
+          contractUrl = await contractService.uploadContract(file);
+          console.log('Step 8: Contract uploaded successfully, URL:', contractUrl);
+        } catch (uploadError) {
+          console.error('Upload failed:', uploadError);
+          contractUrl = null;
+          
+          // Show error toast
+          toast({
+            title: "Upload Failed",
+            description: "Failed to upload contract. Please try again or contact support.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          
+          // Don't proceed with sending the message if upload failed
+          return;
+        }
+        
+        // Send contract message
+        console.log('Step 9: Preparing to send message...');
+        const receiverId = getReceiverId();
+        if (!receiverId || !profile) {
+          console.error('Step 9 ERROR: Missing receiverId or profile');
+          toast({
+            title: "Error",
+            description: "Unable to determine message recipient",
+            variant: "destructive"
+          });
+          return;
+        }
 
-      const contractMessage = {
-        content: `📄 Contract generated for ${playerName}`,
-        sender_id: profile.id,
-        receiver_id: receiverId,
-        pitch_id: pitchId,
-        player_id: playerId,
-        contract_file_url: contractUrl,
-        is_contract_message: true,
-        status: 'sent' as const
-      };
+        console.log('Step 10: Creating contract message...');
+        const contractMessage = {
+          content: `📄 Contract generated for ${playerName}`,
+          sender_id: profile.id,
+          receiver_id: receiverId,
+          pitch_id: pitchId,
+          player_id: playerId,
+          contract_file_url: contractUrl,
+          status: 'sent' as const
+        };
 
-      const { data, error } = await supabase
-        .from('messages')
-        .insert(contractMessage)
-        .select(`
-          *,
-          sender_profile:profiles!messages_sender_id_fkey(full_name, user_type)
-        `)
-        .single();
+        console.log('Step 11: Inserting message into database...');
+        const { data, error } = await supabase
+          .from('messages')
+          .insert(contractMessage)
+          .select('*')
+          .single();
 
-      if (error) throw error;
+        if (error) {
+          console.error('Step 11 ERROR: Database insert failed:', error);
+          throw error;
+        }
 
-      const transformedMessage: Message = {
-        ...data,
-        attachment_urls: []
-      };
+        console.log('Step 12: Message inserted successfully:', data);
 
-      setMessages(prev => [...prev, transformedMessage]);
-      setShowContractGen(false);
+        const transformedMessage: Message = {
+          ...data,
+          attachment_urls: [],
+          sender_profile: {
+            full_name: profile.full_name || 'You',
+            user_type: profile.user_type || 'user'
+          }
+        };
 
-      toast({
-        title: "Contract Sent",
-        description: "Contract has been generated and sent",
-      });
+        setMessages(prev => [...prev, transformedMessage]);
+        setShowContractGen(false);
+
+        console.log('Step 13: Contract sent successfully!');
+        toast({
+          title: "Contract Sent",
+          description: contractUrl 
+            ? "Contract has been generated and sent" 
+            : "Contract has been generated and sent as text message",
+        });
+      } catch (canvasError) {
+        console.error('Canvas conversion failed:', canvasError);
+        throw new Error(`PDF generation failed: ${canvasError.message}`);
+      }
     } catch (error) {
-      console.error('Error sending contract:', error);
+      console.error('Error in handleContractGenerated:', error);
       toast({
         title: "Error",
-        description: "Failed to send contract",
+        description: error instanceof Error ? error.message : "Failed to send contract",
         variant: "destructive"
       });
     }
+  };
+
+  // Helper function to extract text from contract HTML
+  const extractContractText = (html: string): string => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Get the text content
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    
+    // Clean up the text by removing extra whitespace and formatting
+    const lines = textContent
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .filter(line => !line.includes('{') && !line.includes('}') && !line.includes('px') && !line.includes('color'))
+      .filter(line => !line.includes('font-family') && !line.includes('background-color'))
+      .filter(line => !line.includes('border') && !line.includes('margin') && !line.includes('padding'))
+      .filter(line => !line.includes('solid') && !line.includes('collapse') && !line.includes('text-align'))
+      .filter(line => !line.includes('font-weight') && !line.includes('font-size') && !line.includes('line-height'))
+      .filter(line => !line.includes('max-width') && !line.includes('position') && !line.includes('absolute'))
+      .filter(line => !line.includes('left') && !line.includes('top') && !line.includes('width'))
+      .filter(line => !line.includes('height') && !line.includes('transform') && !line.includes('translate'));
+    
+    // Extract key contract information
+    const contractInfo = [];
+    
+    // Find player name
+    const playerMatch = lines.find(line => line.includes('Player:'));
+    if (playerMatch) {
+      contractInfo.push(`👤 ${playerMatch}`);
+    }
+    
+    // Find team name
+    const teamMatch = lines.find(line => line.includes('Acquiring Club:'));
+    if (teamMatch) {
+      contractInfo.push(`🏟️ ${teamMatch}`);
+    }
+    
+    // Find transfer type
+    const transferMatch = lines.find(line => line.includes('Transfer Type:'));
+    if (transferMatch) {
+      contractInfo.push(`📋 ${transferMatch}`);
+    }
+    
+    // Find salary
+    const salaryMatch = lines.find(line => line.includes('Player Salary'));
+    if (salaryMatch) {
+      contractInfo.push(`💰 ${salaryMatch}`);
+    }
+    
+    // Find duration
+    const durationMatch = lines.find(line => line.includes('valid for a period of'));
+    if (durationMatch) {
+      contractInfo.push(`⏰ Contract Duration: ${durationMatch.split('valid for a period of')[1]?.trim() || 'Not specified'}`);
+    }
+    
+    // Find transfer fee or loan fee
+    const feeMatch = lines.find(line => line.includes('Transfer Fee') || line.includes('Loan Fee'));
+    if (feeMatch) {
+      contractInfo.push(`💵 ${feeMatch}`);
+    }
+    
+    // Add date
+    const dateMatch = lines.find(line => line.includes('Date:'));
+    if (dateMatch) {
+      contractInfo.push(`📅 ${dateMatch}`);
+    }
+    
+    // If we found structured contract info, return it
+    if (contractInfo.length > 0) {
+      return contractInfo.join('\n');
+    }
+    
+    // Fallback: try to extract just the main content without CSS
+    const cleanLines = lines.filter(line => 
+      line.includes('PROFESSIONAL FOOTBALL') ||
+      line.includes('Player:') ||
+      line.includes('Acquiring Club:') ||
+      line.includes('Transfer Type:') ||
+      line.includes('Transfer Fee') ||
+      line.includes('Loan Fee') ||
+      line.includes('Player Salary') ||
+      line.includes('valid for a period of') ||
+      line.includes('Date:') ||
+      line.includes('PARTIES') ||
+      line.includes('TRANSFER TERMS') ||
+      line.includes('CONTRACT DURATION')
+    );
+    
+    return cleanLines.length > 0 
+      ? cleanLines.join('\n')
+      : 'Contract generated successfully. Please check the full contract for details.';
   };
 
   const handleSignedContractUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -400,7 +592,30 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             {/* File Upload Section */}
             {showAttachments && (
               <div className="mt-3 p-3 bg-gray-800 rounded-lg">
-                <FileUpload onFileUploaded={handleFileUploaded} />
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-300 mb-2">Upload Files</div>
+                  <FileUpload onFileUploaded={handleFileUploaded} />
+                  
+                  {/* Quick Upload Buttons */}
+                  <div className="flex gap-2 pt-2 border-t border-gray-600">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
+                      onChange={handleSignedContractUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      size="sm"
+                      variant="outline"
+                      className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Files
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -419,3 +634,5 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     </>
   );
 };
+
+export default MessageModal;

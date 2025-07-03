@@ -28,7 +28,7 @@ import TeamProfileSetup from './TeamProfileSetup';
 import PlayerManagement from './PlayerManagement';
 import VideoManagement from './VideoManagement';
 import CreateTransferPitch from './CreateTransferPitch';
-import { MessageModal } from './MessageModal';
+import MessageModal from './MessageModal';
 import { format } from 'date-fns';
 
 const TeamDashboard = () => {
@@ -113,7 +113,7 @@ const TeamDashboard = () => {
 
             // Test basic table access
             console.log('Testing basic table access...');
-            
+
             // Test players table
             const { data: playersTest, error: playersTestError } = await supabase
                 .from('players')
@@ -226,7 +226,7 @@ const TeamDashboard = () => {
     const fetchMessages = async () => {
         try {
             setMessagesLoading(true);
-            
+
             const { data, error } = await supabase
                 .from('messages')
                 .select(`
@@ -286,8 +286,8 @@ const TeamDashboard = () => {
                 console.error('Error marking message as read:', error);
             } else {
                 // Update local state
-                setMessages(prev => 
-                    prev.map(msg => 
+                setMessages(prev =>
+                    prev.map(msg =>
                         msg.id === messageId ? { ...msg, status: 'read' } : msg
                     )
                 );
@@ -303,7 +303,7 @@ const TeamDashboard = () => {
             if (!response.ok) {
                 throw new Error('Failed to fetch contract file');
             }
-            
+
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -365,7 +365,7 @@ const TeamDashboard = () => {
                     <p className="text-gray-400 font-poppins mb-4">
                         Please complete your team profile setup to access the dashboard.
                     </p>
-                    <Button 
+                    <Button
                         onClick={() => window.location.reload()}
                         className="bg-rosegold hover:bg-rosegold/90"
                     >
@@ -624,11 +624,10 @@ const TeamDashboard = () => {
                             ) : (
                                 <div className="space-y-4">
                                     {messages.map((message) => (
-                                        <Card 
-                                            key={message.id} 
-                                            className={`bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-700 transition-colors ${
-                                                message.status !== 'read' ? 'border-l-4 border-l-rosegold' : ''
-                                            }`}
+                                        <Card
+                                            key={message.id}
+                                            className={`bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-700 transition-colors ${message.status !== 'read' ? 'border-l-4 border-l-rosegold' : ''
+                                                }`}
                                             onClick={() => {
                                                 if (message.status !== 'read') {
                                                     markMessageAsRead(message.id);
@@ -657,7 +656,7 @@ const TeamDashboard = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        
+
                                                         <p className="text-gray-300 text-sm mb-2 line-clamp-2">
                                                             {message.content}
                                                         </p>
@@ -667,7 +666,7 @@ const TeamDashboard = () => {
                                                                 {formatMessageTime(message.created_at)}
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                              {/* Contract file - temporarily disabled until database migration
+                                                                {/* Contract file - temporarily disabled until database migration
                                                               {message.contract_file_url && (
                                                                 <Button
                                                                   variant="outline"
@@ -680,15 +679,15 @@ const TeamDashboard = () => {
                                                                 </Button>
                                                               )}
                                                               */}
-                                                              <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleReplyToMessage(message)}
-                                                                className="h-6 px-2 text-xs"
-                                                              >
-                                                                <Reply className="h-3 w-3 mr-1" />
-                                                                Reply
-                                                              </Button>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => handleReplyToMessage(message)}
+                                                                    className="h-6 px-2 text-xs"
+                                                                >
+                                                                    <Reply className="h-3 w-3 mr-1" />
+                                                                    Reply
+                                                                </Button>
                                                             </div>
                                                         </div>
                                                     </div>

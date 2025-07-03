@@ -55,6 +55,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   };
 
   const isPDF = fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
+  const isHTML = fileType === 'text/html' || fileName.toLowerCase().endsWith('.html');
   const isImage = fileType.startsWith('image/');
 
   return (
@@ -99,6 +100,21 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           {isPDF ? (
             <iframe
               src={`${fileUrl}#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH`}
+              className="w-full h-96 border-0"
+              title={fileName}
+              onLoad={() => setLoading(false)}
+              onError={() => {
+                setLoading(false);
+                toast({
+                  title: "Preview Error",
+                  description: "Unable to preview this document. Please download it instead.",
+                  variant: "destructive"
+                });
+              }}
+            />
+          ) : isHTML ? (
+            <iframe
+              src={fileUrl}
               className="w-full h-96 border-0"
               title={fileName}
               onLoad={() => setLoading(false)}
