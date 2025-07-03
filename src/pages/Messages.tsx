@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DocumentPreview } from '@/components/DocumentPreview';
 
 interface Message {
   id: string;
@@ -986,66 +987,15 @@ const Messages = () => {
       </div>
 
       {/* File Preview Dialog */}
-      <Dialog open={showFilePreview} onOpenChange={setShowFilePreview}>
-        <DialogContent className="max-w-4xl bg-gray-900 border-gray-700 text-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-rosegold" />
-              {previewFile?.name}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="mt-4">
-            {previewFile?.type === 'image' ? (
-              <div className="flex justify-center">
-                <img
-                  src={previewFile.url}
-                  alt={previewFile.name}
-                  className="max-w-full max-h-96 object-contain rounded-lg"
-                />
-              </div>
-            ) : previewFile?.type === 'pdf' ? (
-              <div className="w-full h-96">
-                <iframe
-                  src={previewFile.url}
-                  className="w-full h-full border-0 rounded-lg"
-                  title={previewFile.name}
-                  onError={() => {
-                    // Fallback if iframe fails to load
-                    console.log('PDF iframe failed to load, showing download option');
-                  }}
-                />
-                <div className="mt-2 text-center">
-                  <p className="text-sm text-gray-400 mb-2">
-                    If the PDF doesn't load, you can download it below
-                  </p>
-                  <Button
-                    onClick={() => downloadFile(previewFile!.url, previewFile!.name)}
-                    className="bg-rosegold hover:bg-rosegold/90"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                <p className="text-gray-400 mb-4">
-                  Preview not available for this file type
-                </p>
-                <Button
-                  onClick={() => downloadFile(previewFile!.url, previewFile!.name)}
-                  className="bg-rosegold hover:bg-rosegold/90"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download File
-                </Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {previewFile && (
+        <DocumentPreview
+          fileUrl={previewFile.url}
+          fileName={previewFile.name}
+          fileType={previewFile.type}
+          isOpen={showFilePreview}
+          onClose={() => setShowFilePreview(false)}
+        />
+      )}
     </Layout>
   );
 };
