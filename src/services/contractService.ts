@@ -31,13 +31,13 @@ export const contractService = {
       }
 
       console.log('Available buckets:', buckets?.map(b => b.name));
-      const contractsBucket = buckets?.find(b => b.name === 'contracts');
+      const messageAttachmentsBucket = buckets?.find(b => b.name === 'message-attachments');
 
-      if (contractsBucket) {
-        console.log('Contracts bucket found:', contractsBucket);
+      if (messageAttachmentsBucket) {
+        console.log('Message-attachments bucket found:', messageAttachmentsBucket);
         return true;
       } else {
-        console.log('Contracts bucket not found');
+        console.log('Message-attachments bucket not found');
         return false;
       }
     } catch (error) {
@@ -242,7 +242,7 @@ export const contractService = {
 
       console.log('Uploading to path:', filePath);
 
-      // Upload the file to message-attachments bucket (which we know exists)
+      // Upload the file to message-attachments bucket
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('message-attachments')
         .upload(filePath, file, {

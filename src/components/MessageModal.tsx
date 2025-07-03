@@ -279,15 +279,15 @@ export const MessageModal: React.FC<MessageModalProps> = ({
         
         console.log('Step 6: File created, size:', file.size, 'bytes');
         
-        // Upload contract to contracts bucket (not message-attachments)
-        console.log('Step 7: Starting contract upload to contracts bucket...');
+        // Upload contract to message-attachments bucket (which we know exists and works)
+        console.log('Step 7: Starting contract upload to message-attachments bucket...');
         let contractUrl: string | null = null;
         
         try {
           const filePath = `contracts/${fileName}`;
           
           const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('contracts')
+            .from('message-attachments')
             .upload(filePath, file, {
               contentType: 'application/pdf',
               upsert: true
@@ -300,7 +300,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 
           // Get the public URL
           const { data: urlData } = supabase.storage
-            .from('contracts')
+            .from('message-attachments')
             .getPublicUrl(filePath);
 
           contractUrl = urlData.publicUrl;
