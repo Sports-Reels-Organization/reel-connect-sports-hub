@@ -5,15 +5,18 @@ import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, DollarSign, MapPin, MessageSquare, User, Clock, Target, Plus, Video, Star, Building2 } from 'lucide-react';
 import MessageModal from '@/components/MessageModal';
 import CreateTransferPitch from '@/components/CreateTransferPitch';
+import PlayerProfileModal from '@/components/PlayerProfileModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { contractService } from '@/services/contractService';
 import { cn } from '@/lib/utils';
+import { usePlayerProfile } from '@/hooks/usePlayerProfile';
 
 interface TransferPitch {
   id: string;
@@ -114,6 +117,14 @@ const Timeline = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [realTimeConnected, setRealTimeConnected] = useState(false);
+
+  const {
+    selectedPlayerId,
+    selectedPlayerName,
+    isModalOpen: isPlayerModalOpen,
+    openPlayerProfile,
+    closePlayerProfile
+  } = usePlayerProfile();
 
   useEffect(() => {
     fetchCurrentTeamAssociation();
@@ -459,8 +470,30 @@ const Timeline = () => {
     return `${diffInDays} days left`;
   };
 
-  const handlePlayerClick = (player: any) => {
-    setSelectedPlayer(player);
+  const handlePlayerClick = async (player: any) => {
+    if (player && player.id) {
+      openPlayerProfile(player.id, player.full_name);
+    }
+  };
+
+  const handlePlayerTagClick = async (playerName: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .select('id, full_name')
+        .ilike('full_name', `%${playerName}%`)
+        .limit(1)
+        .single();
+
+      if (error || !data) {
+        console.error('Player not found:', playerName);
+        return;
+      }
+
+      openPlayerProfile(data.id, data.full_name);
+    } catch (error) {
+      console.error('Error finding player:', error);
+    }
   };
 
   const handleSendMessage = async (player: any, pitchId: string) => {
@@ -701,6 +734,19 @@ const Timeline = () => {
     }
   };
 
+  const getTaggedPlayerNames = (video: TransferPitch) => {
+    // Handle the Json type from database - it could be null, string[], or other Json types
+    const taggedPlayersData = video.tagged_videos;
+    if (!taggedPlayersData || !Array.isArray(taggedPlayersData)) return [];
+
+    return (taggedPlayersData as string[])
+      .map((playerId: string) => {
+        const player = transferPitches.flatMap(p => p.player ? [p.player] : []).find(p => p.id === playerId);
+        return player ? { id: playerId, name: player.full_name } : null;
+      })
+      .filter(Boolean);
+  };
+
   return (
     <Layout>
       <div className="space-y-6 bg-background min-h-screen p-[3rem]">
@@ -767,8 +813,8 @@ const Timeline = () => {
                     {/* Player Header */}
                     <div className="flex items-center gap-4">
                       <div
-                        className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 cursor-pointer"
-                        onClick={() => pitch.player && handlePlayerClick(pitch.player)}
+                        className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 cursor-pointer hover:ring-2 hover:ring-rosegold transition-all"
+                        onClick={() => handlePlayerClick(pitch.player)}
                       >
                         {pitch.player?.photo_url ? (
                           <img
@@ -784,8 +830,8 @@ const Timeline = () => {
                       </div>
                       <div className="flex-1">
                         <h3
-                          className="font-polysans font-bold text-white text-lg cursor-pointer hover:text-rosegold"
-                          onClick={() => pitch.player && handlePlayerClick(pitch.player)}
+                          className="font-polysans font-bold text-white text-lg cursor-pointer hover:text-rosegold transition-colors"
+                          onClick={() => handlePlayerClick(pitch.player)}
                         >
                           {pitch.player?.full_name || 'Unknown Player'}
                         </h3>
@@ -923,6 +969,41 @@ const Timeline = () => {
                       </div>
                     </div>
 
+                    {/* Enhanced Tagged Players with clickable names */}
+                    {getTaggedPlayerNames(pitch).length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-white text-sm">Tagged Players:</Label>
+                        <div className="flex flex-wrap gap-1">
+                          {getTaggedPlayerNames(pitch).map((player: any) => (
+                            <Badge
+                              key={player.id}
+                              variant="secondary"
+                              className="cursor-pointer hover:bg-bright-pink hover:text-white border-0 transition-colors"
+                              onClick={() => handlePlayerTagClick(player.name)}
+                            >
+                              <User className="w-3 h-3 mr-1" />
+                              {player.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tags */}
+                    {pitch.tags && pitch.tags.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-white text-sm">Tags:</Label>
+                        <div className="flex flex-wrap gap-1">
+                          {pitch.tags.map((tag: string, index: number) => (
+                            <Badge key={index} variant="outline" className="text-gray-400 border-0">
+                              <Star className="w-3 h-3 mr-1" />
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Action Buttons */}
                     {profile?.user_type === 'agent' && (
                       <div className="space-y-2">
@@ -977,6 +1058,14 @@ const Timeline = () => {
             playerName={selectedPlayer.full_name || 'Unknown Player'}
           />
         )}
+
+        {/* Player Profile Modal */}
+        <PlayerProfileModal
+          isOpen={isPlayerModalOpen}
+          onClose={closePlayerProfile}
+          playerId={selectedPlayerId || ''}
+          playerName={selectedPlayerName || ''}
+        />
       </div>
     </Layout>
   );

@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,6 +7,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import Players from "./pages/Players";
 import Videos from "./pages/Videos";
+import VideoShowcase from "./pages/VideoShowcase";
 import Profile from "./pages/Profile";
 import Messages from "./pages/Messages";
 import Timeline from "./pages/Timeline";
@@ -26,6 +28,7 @@ function App() {
             <Route path="/" element={<Index />} />
             <Route path="/players" element={<Players />} />
             <Route path="/videos" element={<Videos />} />
+            <Route path="/showcase" element={<VideoShowcase />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/timeline" element={<Timeline />} />
