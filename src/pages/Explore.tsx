@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { AgentTimeline } from '@/components/AgentTimeline';
 import ExploreRequests from '@/components/ExploreRequests';
-import { Timeline, Search } from 'lucide-react';
+import { Clock, Search } from 'lucide-react';
 
 const Explore = () => {
   const { profile } = useAuth();
@@ -16,7 +16,7 @@ const Explore = () => {
         <Tabs defaultValue="timeline" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="timeline" className="flex items-center gap-2">
-              <Timeline className="w-4 h-4" />
+              <Clock className="w-4 h-4" />
               Transfer Timeline
             </TabsTrigger>
             <TabsTrigger value="requests" className="flex items-center gap-2">
