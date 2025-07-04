@@ -8,11 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Filter, Eye, MessageCircle, Heart, Play, DollarSign, Clock, MapPin, User } from 'lucide-react';
+import { Search, Filter, Eye, MessageCircle, Heart, Play, DollarSign, Clock, MapPin, User, Building2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ShortlistManager } from './ShortlistManager';
 import MessageModal from './MessageModal';
-import { PlayerDetailModal } from './PlayerDetailModal';
+import PlayerDetailModal from './PlayerDetailModal';
 
 interface TimelinePlayer {
   id: string;
@@ -104,7 +104,28 @@ export const AgentTimeline: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPlayers(data || []);
+      
+      // Transform the data to match our interface, handling Json types properly
+      const transformedData = (data || []).map((pitch: any) => ({
+        id: pitch.id,
+        player_name: pitch.player_name,
+        player_position: pitch.player_position,
+        player_citizenship: pitch.player_citizenship,
+        player_market_value: pitch.player_market_value,
+        asking_price: pitch.asking_price,
+        currency: pitch.currency,
+        transfer_type: pitch.transfer_type,
+        expires_at: pitch.expires_at,
+        team_name: pitch.team_name,
+        team_country: pitch.team_country,
+        team_id: pitch.team_id,
+        player_id: pitch.player_id,
+        description: pitch.description,
+        tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
+        status: pitch.status
+      }));
+      
+      setPlayers(transformedData);
     } catch (error) {
       console.error('Error fetching timeline players:', error);
       toast({

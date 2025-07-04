@@ -82,13 +82,47 @@ export const ExploreRequests: React.FC = () => {
 
   const fetchRequests = async () => {
     try {
+      // Query agent_requests directly with joins instead of using the view
       const { data, error } = await supabase
-        .from('active_agent_requests_view')
-        .select('*')
+        .from('agent_requests')
+        .select(`
+          *,
+          agents!inner(
+            agency_name,
+            logo_url,
+            profiles!inner(
+              full_name,
+              country
+            )
+          )
+        `)
+        .eq('is_public', true)
+        .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setRequests(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData = (data || []).map((request: any) => ({
+        id: request.id,
+        title: request.title,
+        description: request.description,
+        sport_type: request.sport_type,
+        transfer_type: request.transfer_type,
+        position: request.position,
+        budget_min: request.budget_min,
+        budget_max: request.budget_max,
+        currency: request.currency,
+        expires_at: request.expires_at,
+        created_at: request.created_at,
+        tagged_players: request.tagged_players || [],
+        agency_name: request.agents?.agency_name || '',
+        agent_logo_url: (request.agents as any)?.logo_url || '',
+        agent_name: request.agents?.profiles?.full_name || '',
+        agent_country: request.agents?.profiles?.country || ''
+      }));
+      
+      setRequests(transformedData);
     } catch (error) {
       console.error('Error fetching requests:', error);
       toast({
@@ -111,12 +145,12 @@ export const ExploreRequests: React.FC = () => {
 
     setLoading(true);
     try {
-      const requestData = {
+      const requestData: any = {
         agent_id: agentId,
         title: newRequest.title,
         description: newRequest.description,
-        sport_type: newRequest.sport_type,
-        transfer_type: newRequest.transfer_type,
+        sport_type: newRequest.sport_type as any,
+        transfer_type: newRequest.transfer_type as any,
         position: newRequest.position || null,
         budget_min: newRequest.budget_min ? parseFloat(newRequest.budget_min) : null,
         budget_max: newRequest.budget_max ? parseFloat(newRequest.budget_max) : null,

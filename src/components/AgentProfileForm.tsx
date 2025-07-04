@@ -60,9 +60,9 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
           fifa_id: data.fifa_id || '',
           license_number: data.license_number || '',
           website: data.website || '',
-          logo_url: data.logo_url || '',
-          year_founded: data.year_founded?.toString() || '',
-          member_association: data.member_association || '',
+          logo_url: (data as any).logo_url || '',
+          year_founded: (data as any).year_founded?.toString() || '',
+          member_association: (data as any).member_association || '',
           specialization: data.specialization || []
         });
       }
@@ -129,18 +129,20 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
 
     setLoading(true);
     try {
-      const dataToSave = {
+      const dataToSave: any = {
         profile_id: profile.id,
         agency_name: agentData.agency_name,
         bio: agentData.bio,
         fifa_id: agentData.fifa_id || null,
         license_number: agentData.license_number || null,
         website: agentData.website || null,
-        logo_url: agentData.logo_url || null,
-        year_founded: agentData.year_founded ? parseInt(agentData.year_founded) : null,
-        member_association: agentData.member_association || null,
-        specialization: agentData.specialization
+        specialization: agentData.specialization as any
       };
+
+      // Add the new fields as raw data since they're not in the TypeScript types yet
+      if (agentData.logo_url) dataToSave.logo_url = agentData.logo_url;
+      if (agentData.year_founded) dataToSave.year_founded = parseInt(agentData.year_founded);
+      if (agentData.member_association) dataToSave.member_association = agentData.member_association;
 
       const { error } = await supabase
         .from('agents')
