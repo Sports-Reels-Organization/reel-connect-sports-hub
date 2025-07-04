@@ -989,21 +989,6 @@ const Timeline = () => {
                       </div>
                     )}
 
-                    {/* Tags */}
-                    {pitch.tags && pitch.tags.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-white text-sm">Tags:</Label>
-                        <div className="flex flex-wrap gap-1">
-                          {pitch.tags.map((tag: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-gray-400 border-0">
-                              <Star className="w-3 h-3 mr-1" />
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     {/* Action Buttons */}
                     {profile?.user_type === 'agent' && (
                       <div className="space-y-2">

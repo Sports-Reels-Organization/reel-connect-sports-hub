@@ -1,4 +1,3 @@
-
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const API_KEY = 'AIzaSyAUtissoQa3viWRpM4tWcRDsTqYhpxHBr0';
@@ -32,7 +31,7 @@ export const analyzeVideo = async (
   }
 ): Promise<VideoAnalysis[]> => {
   try {
-    const model = genAI.getModel('gemini-2.0-flash-exp');
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     
     const prompt = `
       Analyze this football match video based on the following metadata:
@@ -73,7 +72,7 @@ export const analyzePlayer = async (
   }
 ): Promise<PlayerAnalysis> => {
   try {
-    const model = genAI.getModel('gemini-2.0-flash-exp');
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     
     const prompt = `
       Analyze this football player for transfer evaluation:
