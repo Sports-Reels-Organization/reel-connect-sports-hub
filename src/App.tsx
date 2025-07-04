@@ -19,29 +19,25 @@ const queryClient = new QueryClient();
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <AuthProvider>
       <LanguageProvider>
-        <AuthProvider>
-          <Router>
-            <div className="min-h-screen bg-background">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/players" element={<Players />} />
-                <Route path="/videos" element={<Videos />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/messages" element={<Messages />} />
-                <Route path="/timeline" element={<Timeline />} />
-                <Route path="/explore" element={<Explore />} />
-                <Route path="/notifications" element={<Notification />} />
-                <Route path="/contracts" element={<Contracts />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </div>
-            <Toaster />
-          </Router>
-        </AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/players" element={<Players />} />
+            <Route path="/videos" element={<Videos />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/timeline" element={<Timeline />} />
+            <Route path="/contracts" element={<Contracts />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/notification" element={<Notification />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Router>
+        <Toaster />
       </LanguageProvider>
-    </QueryClientProvider>
+    </AuthProvider>
   );
 }
 
