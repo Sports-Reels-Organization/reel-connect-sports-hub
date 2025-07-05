@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,7 +25,10 @@ import {
   User,
   LogOut,
   Bell,
-  FileText
+  FileText,
+  Clock,
+  Newspaper,
+  Heart
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -38,31 +42,22 @@ export function AppSidebar() {
   const { toast } = useToast();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  const menuItems = [
+  // Base menu items for both user types
+  const baseMenuItems = [
     {
       title: t('dashboard'),
       url: "/",
       icon: Home,
     },
     {
-      title: t('players'),
-      url: "/players",
-      icon: Users,
+      title: 'History',
+      url: "/history",
+      icon: Clock,
     },
     {
-      title: t('videos'),
-      url: "/videos",
-      icon: Video,
-    },
-    {
-      title: t('timeline'),
-      url: "/timeline",
-      icon: Calendar,
-    },
-    {
-      title: t('explore'),
-      url: "/explore",
-      icon: Search,
+      title: 'News',
+      url: "/news",
+      icon: Newspaper,
     },
     {
       title: t('messages'),
@@ -86,6 +81,53 @@ export function AppSidebar() {
       icon: User,
     },
   ];
+
+  // Agent-specific menu items
+  const agentMenuItems = [
+    ...baseMenuItems.slice(0, 3), // Dashboard, History, News
+    {
+      title: 'Shortlist',
+      url: "/shortlist",
+      icon: Heart,
+    },
+    {
+      title: t('explore'),
+      url: "/explore",
+      icon: Search,
+    },
+    ...baseMenuItems.slice(3), // Messages, Notifications, Contracts, Profile
+  ];
+
+  // Team-specific menu items
+  const teamMenuItems = [
+    ...baseMenuItems.slice(0, 1), // Dashboard
+    {
+      title: t('players'),
+      url: "/players",
+      icon: Users,
+    },
+    {
+      title: t('videos'),
+      url: "/videos",
+      icon: Video,
+    },
+    {
+      title: t('timeline'),
+      url: "/timeline",
+      icon: Calendar,
+    },
+    ...baseMenuItems.slice(1), // History, News, Messages, Notifications, Contracts, Profile
+  ];
+
+  // Get appropriate menu items based on user type
+  const getMenuItems = () => {
+    if (profile?.user_type === 'agent') {
+      return agentMenuItems;
+    }
+    return teamMenuItems;
+  };
+
+  const menuItems = getMenuItems();
 
   useEffect(() => {
     if (profile?.user_id) {
@@ -182,12 +224,6 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-6 border-0 border-sidebar-border">
         <div className="space-y-4">
-          {/* {profile && (
-            <div className="text-sm text-sidebar-foreground/70">
-              <p className="font-medium text-sidebar-foreground">{profile.full_name}</p>
-              <p>{profile.email}</p>
-            </div>
-          )} */}
           <SidebarMenuButton
             onClick={handleSignOut}
             className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
