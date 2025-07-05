@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageCircle, Send, User } from 'lucide-react';
+import { MessageCircle, Send, User, Clock, Tag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { PlayerTagging } from './PlayerTagging';
 
@@ -36,11 +35,13 @@ interface TaggedPlayer {
 interface RequestCommentsProps {
   requestId: string;
   isPublic: boolean;
+  onPlayerClick?: (playerId: string, playerName: string) => void;
 }
 
 export const RequestComments: React.FC<RequestCommentsProps> = ({
   requestId,
-  isPublic
+  isPublic,
+  onPlayerClick
 }) => {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -219,74 +220,124 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
     }
   };
 
+  const handlePlayerClick = (player: TaggedPlayer) => {
+    if (onPlayerClick) {
+      onPlayerClick(player.id, player.player_name);
+    }
+  };
+
   if (!isPublic) {
     return null;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <MessageCircle className="w-5 h-5 text-rosegold" />
-        <h3 className="text-lg font-semibold text-white">Comments ({comments.length})</h3>
+    <div className="space-y-6">
+      {/* Comments Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-5 h-5 text-rosegold" />
+          <h3 className="text-lg font-semibold text-white">
+            Discussion ({comments.length})
+          </h3>
+        </div>
       </div>
 
       {/* Comments List */}
-      <div className="space-y-3">
-        {comments.map((comment) => (
-          <Card key={comment.id} className="bg-gray-800 border-gray-700">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-gray-400" />
-                  <span className="font-medium text-white">
-                    {comment.agent_name || comment.team_name || comment.profiles.full_name}
-                  </span>
-                  <Badge variant="outline" className="text-xs">
-                    {comment.profiles.user_type}
-                  </Badge>
-                </div>
-                <span className="text-xs text-gray-400">
-                  {formatDistanceToNow(new Date(comment.created_at))} ago
-                </span>
-              </div>
-              
-              <p className="text-gray-300 mb-3">{comment.content}</p>
-              
-              {/* Tagged Players in Comment */}
-              {commentTaggedPlayers[comment.id] && commentTaggedPlayers[comment.id].length > 0 && (
-                <div className="border-t border-gray-600 pt-3">
-                  <p className="text-sm text-gray-400 mb-2">Tagged Players:</p>
-                  <div className="grid gap-2">
-                    {commentTaggedPlayers[comment.id].map((player) => (
-                      <div key={player.id} className="flex items-center justify-between p-2 bg-gray-700 rounded">
-                        <div>
-                          <p className="text-sm font-medium text-white">{player.player_name}</p>
-                          <p className="text-xs text-gray-400">{player.player_position} • {player.team_name}</p>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {player.asking_price?.toLocaleString()} {player.currency}
-                        </Badge>
-                      </div>
-                    ))}
+      <div className="space-y-4">
+        {comments.length === 0 ? (
+          <div className="text-center py-8">
+            <MessageCircle className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">No comments yet. Be the first to comment!</p>
+          </div>
+        ) : (
+          comments.map((comment) => (
+            <Card key={comment.id} className="bg-gray-900/50 border-gray-700 hover:border-gray-600 transition-colors">
+              <CardContent className="p-4">
+                {/* Comment Header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-rosegold/20 rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4 text-rosegold" />
+                    </div>
+                    <div>
+                      <span className="font-medium text-white text-sm">
+                        {comment.agent_name || comment.team_name || comment.profiles.full_name}
+                      </span>
+                      <Badge variant="outline" className="ml-2 text-xs border-gray-600">
+                        {comment.profiles.user_type}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-gray-400">
+                    <Clock className="w-3 h-3" />
+                    {formatDistanceToNow(new Date(comment.created_at))} ago
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                
+                {/* Comment Content */}
+                <div className="mb-4">
+                  <p className="text-gray-300 text-sm leading-relaxed">{comment.content}</p>
+                </div>
+                
+                {/* Tagged Players */}
+                {commentTaggedPlayers[comment.id] && commentTaggedPlayers[comment.id].length > 0 && (
+                  <div className="border-t border-gray-700 pt-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Tag className="w-4 h-4 text-rosegold" />
+                      <span className="text-sm font-medium text-gray-400">Tagged Players:</span>
+                    </div>
+                    <div className="grid gap-2">
+                      {commentTaggedPlayers[comment.id].map((player) => (
+                        <div 
+                          key={player.id} 
+                          className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-rosegold/50 transition-colors cursor-pointer group"
+                          onClick={() => handlePlayerClick(player)}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="text-sm font-medium text-white group-hover:text-rosegold transition-colors">
+                                {player.player_name}
+                              </h4>
+                              <Badge variant="outline" className="text-xs border-gray-600">
+                                {player.player_position}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-gray-400">{player.team_name}</p>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="secondary" className="text-xs bg-rosegold/20 text-rosegold border-rosegold/30">
+                              {player.asking_price?.toLocaleString()} {player.currency}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       {/* Add Comment Form - Only for authenticated users */}
       {profile && (
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-gray-900/30 border-gray-700">
           <CardContent className="p-4">
-            <div className="space-y-3">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-rosegold/20 rounded-full flex items-center justify-center">
+                  <User className="w-4 h-4 text-rosegold" />
+                </div>
+                <span className="text-sm font-medium text-white">Add a comment</span>
+              </div>
+              
               <Textarea
-                placeholder="Add a comment..."
+                placeholder="Share your thoughts or ask questions about this request..."
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 rows={3}
-                className="bg-gray-700 border-gray-600 text-white"
+                className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400 resize-none"
               />
               
               {/* Player Tagging Component */}
@@ -299,10 +350,10 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
                 <Button
                   onClick={submitComment}
                   disabled={loading || !newComment.trim()}
-                  className="bg-rosegold hover:bg-rosegold/90"
+                  className="bg-rosegold hover:bg-rosegold/90 text-white px-6"
                 >
                   <Send className="w-4 h-4 mr-2" />
-                  Comment
+                  {loading ? 'Posting...' : 'Post Comment'}
                 </Button>
               </div>
             </div>

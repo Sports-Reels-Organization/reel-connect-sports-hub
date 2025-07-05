@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Filter, Plus, Building, Calendar, Clock, User, DollarSign } from 'lucide-react';
+import { Search, Filter, Plus, Building, Calendar, Clock, User, DollarSign, Eye, MessageCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import CreateRequestModal from './CreateRequestModal';
 import { RequestComments } from './RequestComments';
+import { PlayerProfileModal } from './PlayerProfileModal';
+import { usePlayerProfile } from '@/hooks/usePlayerProfile';
 
 interface AgentRequest {
   id: string;
@@ -41,6 +43,8 @@ const ExploreRequests = () => {
   const [sportFilter, setSportFilter] = useState('all');
   const [transferTypeFilter, setTransferTypeFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const { selectedPlayerId, selectedPlayerName, isModalOpen, openPlayerProfile, closePlayerProfile } = usePlayerProfile();
+  const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchRequests();
@@ -105,17 +109,33 @@ const ExploreRequests = () => {
     fetchRequests();
   };
 
+  const toggleRequestExpansion = (requestId: string) => {
+    const newExpanded = new Set(expandedRequests);
+    if (newExpanded.has(requestId)) {
+      newExpanded.delete(requestId);
+    } else {
+      newExpanded.add(requestId);
+    }
+    setExpandedRequests(newExpanded);
+  };
+
+  const truncateText = (text: string, maxLength: number = 120) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Explore Requests</h1>
-          <p className="text-gray-400">Discover transfer opportunities and requirements from agents worldwide</p>
+          <p className="text-gray-400">Discover transfer opportunities from agents worldwide</p>
         </div>
         {profile?.user_type === 'agent' && (
           <Button
             onClick={() => setShowCreateModal(true)}
-            className="bg-rosegold hover:bg-rosegold/90 text-white"
+            className="bg-rosegold hover:bg-rosegold/90 text-white px-6 py-2"
           >
             <Plus className="w-4 h-4 mr-2" />
             Post Request
@@ -123,8 +143,8 @@ const ExploreRequests = () => {
         )}
       </div>
 
-      {/* Filters */}
-      <Card>
+      {/* Improved Filters */}
+      <Card className="bg-gray-800 border-gray-700">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
@@ -133,14 +153,14 @@ const ExploreRequests = () => {
                 placeholder="Search requests..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-gray-700 border-gray-600 text-white"
               />
             </div>
             <Select value={sportFilter} onValueChange={setSportFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                 <SelectValue placeholder="All Sports" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-800 border-gray-600">
                 <SelectItem value="all">All Sports</SelectItem>
                 <SelectItem value="football">Football</SelectItem>
                 <SelectItem value="basketball">Basketball</SelectItem>
@@ -149,10 +169,10 @@ const ExploreRequests = () => {
               </SelectContent>
             </Select>
             <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                 <SelectValue placeholder="Transfer Type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-800 border-gray-600">
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="permanent">Permanent</SelectItem>
                 <SelectItem value="loan">Loan</SelectItem>
@@ -165,6 +185,7 @@ const ExploreRequests = () => {
                 setSportFilter('all');
                 setTransferTypeFilter('all');
               }}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
             >
               <Filter className="w-4 h-4 mr-2" />
               Clear
@@ -173,83 +194,131 @@ const ExploreRequests = () => {
         </CardContent>
       </Card>
 
-      {/* Requests List */}
-      <div className="space-y-6">
+      {/* Enhanced Requests List */}
+      <div className="space-y-4">
         {filteredRequests.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No requests found</p>
-              <p className="text-sm text-gray-400 mt-1">Try adjusting your filters or check back later</p>
+          <Card className="bg-gray-800 border-gray-700">
+            <CardContent className="p-8 text-center">
+              <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">No requests found</h3>
+              <p className="text-gray-400">Try adjusting your filters or check back later</p>
             </CardContent>
           </Card>
         ) : (
-          filteredRequests.map((request) => (
-            <Card key={request.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-xl font-bold text-white">{request.title}</h3>
-                      <Badge variant="secondary" className="capitalize">
-                        {request.sport_type}
-                      </Badge>
-                      <Badge variant="outline" className="capitalize">
-                        {request.transfer_type}
-                      </Badge>
+          filteredRequests.map((request) => {
+            const isExpanded = expandedRequests.has(request.id);
+            return (
+              <Card key={request.id} className="bg-gray-800 border-gray-700 hover:border-rosegold/30 transition-all duration-200">
+                <CardContent className="p-6">
+                  {/* Request Header */}
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-xl font-bold text-white truncate">{request.title}</h3>
+                        <div className="flex gap-2 flex-shrink-0">
+                          <Badge variant="secondary" className="capitalize text-xs">
+                            {request.sport_type}
+                          </Badge>
+                          <Badge variant="outline" className="capitalize text-xs border-rosegold/50 text-rosegold">
+                            {request.transfer_type}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      {/* Request Meta Info */}
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-3">
+                        <span className="flex items-center gap-1">
+                          <Building className="w-4 h-4" />
+                          {request.agents?.agency_name}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {formatDistanceToNow(new Date(request.created_at))} ago
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {formatDistanceToNow(new Date(request.expires_at))} left
+                        </span>
+                      </div>
+                      
+                      {/* Request Details */}
+                      <div className="space-y-3">
+                        <p className="text-gray-300 leading-relaxed">
+                          {isExpanded ? request.description : truncateText(request.description)}
+                          {request.description.length > 120 && (
+                            <button
+                              onClick={() => toggleRequestExpansion(request.id)}
+                              className="ml-2 text-rosegold hover:text-rosegold/80 text-sm font-medium"
+                            >
+                              {isExpanded ? 'Show less' : 'Read more'}
+                            </button>
+                          )}
+                        </p>
+                        
+                        {/* Request Tags */}
+                        <div className="flex flex-wrap gap-2">
+                          {request.position && (
+                            <Badge variant="outline" className="flex items-center gap-1 text-xs border-gray-600">
+                              <User className="w-3 h-3" />
+                              {request.position}
+                            </Badge>
+                          )}
+                          {request.budget_min && request.budget_max && (
+                            <Badge variant="outline" className="flex items-center gap-1 text-xs border-gray-600">
+                              <DollarSign className="w-3 h-3" />
+                              {request.budget_min.toLocaleString()} - {request.budget_max.toLocaleString()} {request.currency}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="flex items-center gap-4 text-sm text-gray-400 mb-3">
-                      <span className="flex items-center gap-1">
-                        <Building className="w-4 h-4" />
-                        {request.agents?.agency_name}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {formatDistanceToNow(new Date(request.created_at))} ago
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {formatDistanceToNow(new Date(request.expires_at))} left
-                      </span>
-                    </div>
-                    
-                    <p className="text-gray-300 mb-4">{request.description}</p>
-                    
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {request.position && (
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {request.position}
-                        </Badge>
-                      )}
-                      {request.budget_min && request.budget_max && (
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <DollarSign className="w-3 h-3" />
-                          {request.budget_min.toLocaleString()} - {request.budget_max.toLocaleString()} {request.currency}
-                        </Badge>
-                      )}
+                    {/* Action Button */}
+                    <div className="flex-shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleRequestExpansion(request.id)}
+                        className="border-gray-600 hover:border-rosegold/50 hover:bg-rosegold/10"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        {isExpanded ? 'Collapse' : 'View Details'}
+                      </Button>
                     </div>
                   </div>
-                </div>
 
-                {/* Comments Section */}
-                <RequestComments 
-                  requestId={request.id}
-                  isPublic={request.is_public}
-                />
-              </CardContent>
-            </Card>
-          ))
+                  {/* Comments Section - Only show when expanded */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-700 pt-4">
+                      <RequestComments 
+                        requestId={request.id}
+                        isPublic={request.is_public}
+                        onPlayerClick={openPlayerProfile}
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
 
-      {/* Create Request Modal */}
+      {/* Modals */}
       {showCreateModal && (
         <CreateRequestModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onRequestCreated={handleRequestCreated}
+        />
+      )}
+
+      {isModalOpen && selectedPlayerId && (
+        <PlayerProfileModal
+          playerId={selectedPlayerId}
+          playerName={selectedPlayerName}
+          isOpen={isModalOpen}
+          onClose={closePlayerProfile}
         />
       )}
     </div>
