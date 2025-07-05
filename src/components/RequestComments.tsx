@@ -20,12 +20,8 @@ interface Comment {
     full_name: string;
     user_type: string;
   };
-  agents?: {
-    agency_name: string;
-  };
-  teams?: {
-    team_name: string;
-  };
+  agent_name?: string;
+  team_name?: string;
 }
 
 interface TaggedPlayer {
@@ -78,19 +74,44 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
           profiles!inner(
             full_name,
             user_type
-          ),
-          agents(
-            agency_name
-          ),
-          teams(
-            team_name
           )
         `)
         .eq('request_id', requestId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setComments(data || []);
+
+      // Process the data to handle the typed_players and get agent/team names
+      const processedComments = await Promise.all((data || []).map(async (comment: any) => {
+        let agent_name = '';
+        let team_name = '';
+
+        // Get agent or team name based on user type
+        if (comment.profiles.user_type === 'agent') {
+          const { data: agentData } = await supabase
+            .from('agents')
+            .select('agency_name')
+            .eq('profile_id', comment.profile_id)
+            .single();
+          agent_name = agentData?.agency_name || '';
+        } else if (comment.profiles.user_type === 'team') {
+          const { data: teamData } = await supabase
+            .from('teams')
+            .select('team_name')
+            .eq('profile_id', comment.profile_id)
+            .single();
+          team_name = teamData?.team_name || '';
+        }
+
+        return {
+          ...comment,
+          tagged_players: Array.isArray(comment.tagged_players) ? comment.tagged_players : [],
+          agent_name,
+          team_name
+        };
+      }));
+
+      setComments(processedComments);
     } catch (error) {
       console.error('Error fetching comments:', error);
     }
@@ -218,7 +239,7 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-gray-400" />
                   <span className="font-medium text-white">
-                    {comment.agents?.agency_name || comment.teams?.team_name || comment.profiles.full_name}
+                    {comment.agent_name || comment.team_name || comment.profiles.full_name}
                   </span>
                   <Badge variant="outline" className="text-xs">
                     {comment.profiles.user_type}
