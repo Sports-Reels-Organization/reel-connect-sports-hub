@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { MessageCircle, Send, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import PlayerTaggingModal from './PlayerTaggingModal';
+import { PlayerTagging } from './PlayerTagging';
 
 interface Comment {
   id: string;
@@ -51,7 +51,6 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showTaggingModal, setShowTaggingModal] = useState(false);
   const [taggedPlayers, setTaggedPlayers] = useState<string[]>([]);
   const [commentTaggedPlayers, setCommentTaggedPlayers] = useState<{ [commentId: string]: TaggedPlayer[] }>({});
 
@@ -163,10 +162,6 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
     }
   };
 
-  const handleTagPlayers = (playerIds: string[]) => {
-    setTaggedPlayers(playerIds);
-  };
-
   const submitComment = async () => {
     if (!profile || !newComment.trim()) return;
 
@@ -273,28 +268,13 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
                 className="bg-gray-700 border-gray-600 text-white"
               />
               
-              {/* Tagged Players Display */}
-              {taggedPlayers.length > 0 && (
-                <div className="p-3 bg-gray-700 rounded">
-                  <p className="text-sm text-gray-400 mb-2">Tagged Players ({taggedPlayers.length}):</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowTaggingModal(true)}
-                  >
-                    Manage Tags
-                  </Button>
-                </div>
-              )}
+              {/* Player Tagging Component */}
+              <PlayerTagging
+                selectedPlayers={taggedPlayers}
+                onPlayersChange={setTaggedPlayers}
+              />
               
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowTaggingModal(true)}
-                >
-                  Tag Players
-                </Button>
+              <div className="flex justify-end">
                 <Button
                   onClick={submitComment}
                   disabled={loading || !newComment.trim()}
@@ -308,14 +288,6 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
           </CardContent>
         </Card>
       )}
-
-      {/* Player Tagging Modal */}
-      <PlayerTaggingModal
-        isOpen={showTaggingModal}
-        onClose={() => setShowTaggingModal(false)}
-        onTagPlayers={handleTagPlayers}
-        currentlyTagged={taggedPlayers}
-      />
     </div>
   );
 };
