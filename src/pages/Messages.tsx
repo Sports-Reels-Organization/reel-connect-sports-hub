@@ -652,9 +652,9 @@ const Messages = () => {
     <Layout>
       <div className="flex h-screen bg-background">
         {/* Messages Sidebar */}
-        <div className="w-1/3 border-r border-gray-700 flex flex-col">
+        <div className="w-1/3  bg-black flex flex-col">
           {/* Header */}
-          <div className="p-4 border-b border-gray-700">
+          <div className="p-4 ">
             <div className="flex items-center gap-2 mb-4">
               <MessageSquare className="w-6 h-6 text-rosegold" />
               <h1 className="text-xl font-polysans font-bold text-white">Messages</h1>
@@ -672,16 +672,16 @@ const Messages = () => {
                 placeholder="Search messages..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-800 border-gray-600 text-white"
+                className="pl-10 bg-card boeder-0 text-white"
               />
             </div>
 
             {/* Filters */}
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+              <SelectTrigger className="bg-card border-0 text-white">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className='border-0'>
                 <SelectItem value="all">All Messages</SelectItem>
                 <SelectItem value="unread">Unread</SelectItem>
                 <SelectItem value="agents">From Agents</SelectItem>
@@ -698,10 +698,10 @@ const Messages = () => {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="animate-pulse">
                       <div className="flex items-center gap-3 p-3">
-                        <div className="w-10 h-10 bg-gray-700 rounded-full"></div>
+                        <div className="w-10 h-10 bg-card rounded-full"></div>
                         <div className="flex-1">
-                          <div className="h-4 bg-gray-700 rounded mb-2"></div>
-                          <div className="h-3 bg-gray-700 rounded w-3/4"></div>
+                          <div className="h-4 bg-card rounded mb-2"></div>
+                          <div className="h-3 bg-card rounded w-3/4"></div>
                         </div>
                       </div>
                     </div>
@@ -722,17 +722,17 @@ const Messages = () => {
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-700">
+              <div className="divide-y ">
                 {filteredThreads.map((thread) => (
                   <div
                     key={thread.id}
-                    className={`p-4 cursor-pointer hover:bg-gray-800 transition-colors ${selectedThread?.id === thread.id ? 'bg-gray-800 border-r-2 border-rosegold' : ''
+                    className={`p-4 cursor-pointer hover:bg-card transition-colors ${selectedThread?.id === thread.id ? 'bg-card  border-rosegold' : ''
                       }`}
                     onClick={() => handleThreadSelect(thread)}
                   >
                     <div className="flex items-start gap-3">
                       <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-gray-700 text-white">
+                        <AvatarFallback className="bg-card text-white">
                           {thread.participant.name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -745,7 +745,7 @@ const Messages = () => {
                           <Badge
                             variant="outline"
                             className={cn(
-                              "text-xs",
+                              "text-[.5rem]",
                               thread.participant.type === 'agent'
                                 ? "border-blue-400 text-blue-400"
                                 : "border-green-400 text-green-400"
@@ -760,13 +760,13 @@ const Messages = () => {
                           )}
                         </div>
 
-                        <p className="text-sm text-gray-400 truncate font-poppins">
+                        <p className="text-[.8rem] text-start text-gray-400 truncate font-poppins">
                           {thread.lastMessage.content}
                         </p>
 
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex justify-end items-center gap-2 mt-1">
                           <Clock className="w-3 h-3 text-gray-500" />
-                          <span className="text-xs text-gray-500">
+                          <span className="text-[.6rem] text-gray-500">
                             {formatDate(thread.lastMessage.created_at)}
                           </span>
                           {thread.lastMessage.contract_file_url && (
@@ -794,10 +794,10 @@ const Messages = () => {
           {selectedThread ? (
             <>
               {/* Thread Header */}
-              <div className="p-4 border-b border-gray-700 bg-gray-900">
+              <div className="p-4 bg-[#0b0b0b]">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
-                    <AvatarFallback className="bg-gray-700 text-white">
+                    <AvatarFallback className=" text-white">
                       {selectedThread.participant.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -822,26 +822,26 @@ const Messages = () => {
                         }`}
                     >
                       <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.sender_id === profile?.id
-                            ? 'bg-rosegold text-white'
-                            : 'bg-gray-700 text-white'
+                        className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg ${message.sender_id === profile?.id
+                          ? 'bg-rosegold text-white'
+                          : 'bg-[#0a0a0a] text-[#fffc]'
                           }`}
                       >
-                        <p className="font-poppins">{message.content}</p>
+                        <p className="font-poppins text-[.8rem] text-start">{message.content}</p>
 
                         {/* Contract File */}
                         {message.contract_file_url && (
                           <div className="mt-2">
-                            <div className="flex items-center gap-2 p-2 bg-blue-500/20 rounded border border-blue-500/30">
-                              <FileText className="w-4 h-4 flex-shrink-0 text-blue-400" />
-                              <span className="text-xs truncate flex-1 text-blue-300">
+                            <div className="flex items-center gap-2 p-2 bg-card rounded border-0">
+                              <FileText className="w-4 h-4 flex-shrink-0 text-[#fffc]" />
+                              <span className="text-xs truncate flex-1 text-[#fffc]">
                                 Contract Document
                               </span>
                               <div className="flex gap-1">
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 p-0 hover:bg-blue-500/20 text-blue-400"
+                                  className="h-6 w-6 p-0 text-[#fffc]"
                                   onClick={() => handlePreviewFile(message.contract_file_url!, 'Contract Document.pdf')}
                                 >
                                   <Eye className="w-3 h-3" />
@@ -849,7 +849,7 @@ const Messages = () => {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 p-0 hover:bg-blue-500/20 text-blue-400"
+                                  className="h-6 w-6 p-0  text-[#fffc]"
                                   onClick={() => downloadFile(message.contract_file_url!, 'Contract Document.pdf')}
                                 >
                                   <Download className="w-3 h-3" />
@@ -876,7 +876,7 @@ const Messages = () => {
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-6 w-6 p-0 hover:bg-white/20"
+                                        className="h-6 w-6 p-0 "
                                         onClick={() => handlePreviewFile(url, fileName, 'image')}
                                       >
                                         <Eye className="w-3 h-3" />

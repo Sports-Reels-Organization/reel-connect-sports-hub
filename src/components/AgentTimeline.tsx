@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Filter, Eye, MessageCircle, Heart, Play, DollarSign, Clock, MapPin, User, Building2 } from 'lucide-react';
+import { Search, Filter, Eye, MessageCircle, Heart, Play, DollarSign, Clock, MapPin, User, Building2, Tag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ShortlistManager } from './ShortlistManager';
 import MessageModal from './MessageModal';
@@ -40,13 +39,14 @@ export const AgentTimeline: React.FC = () => {
   const [filteredPlayers, setFilteredPlayers] = useState<TimelinePlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [positionFilter, setPositionFilter] = useState('');
-  const [transferTypeFilter, setTransferTypeFilter] = useState('');
-  const [priceRangeFilter, setPriceRangeFilter] = useState('');
+  const [positionFilter, setPositionFilter] = useState('all');
+  const [transferTypeFilter, setTransferTypeFilter] = useState('all');
+  const [priceRangeFilter, setPriceRangeFilter] = useState('all');
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messagePlayerData, setMessagePlayerData] = useState<any>(null);
   const [canMessage, setCanMessage] = useState(false);
+  const [taggedRequests, setTaggedRequests] = useState<{ [playerId: string]: any[] }>({});
 
   const positions = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward', 'Striker', 'Winger'];
   const transferTypes = ['permanent', 'loan'];
@@ -66,6 +66,12 @@ export const AgentTimeline: React.FC = () => {
   useEffect(() => {
     filterPlayers();
   }, [players, searchTerm, positionFilter, transferTypeFilter, priceRangeFilter]);
+
+  useEffect(() => {
+    if (players.length > 0) {
+      fetchTaggedRequests();
+    }
+  }, [players]);
 
   const checkMessagingPermissions = async () => {
     if (!profile || profile.user_type !== 'agent') {
@@ -96,35 +102,48 @@ export const AgentTimeline: React.FC = () => {
 
   const fetchTimelinePlayers = async () => {
     try {
+      // Use direct query to transfer_pitches table with joins since the view might not exist yet
       const { data, error } = await supabase
-        .from('active_pitches_view')
-        .select('*')
+        .from('transfer_pitches')
+        .select(`
+          *,
+          players!inner(
+            full_name,
+            position,
+            citizenship,
+            market_value
+          ),
+          teams!inner(
+            team_name,
+            country
+          )
+        `)
         .eq('status', 'active')
         .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       // Transform the data to match our interface, handling Json types properly
       const transformedData = (data || []).map((pitch: any) => ({
         id: pitch.id,
-        player_name: pitch.player_name,
-        player_position: pitch.player_position,
-        player_citizenship: pitch.player_citizenship,
-        player_market_value: pitch.player_market_value,
-        asking_price: pitch.asking_price,
-        currency: pitch.currency,
+        player_name: pitch.players?.full_name || '',
+        player_position: pitch.players?.position || '',
+        player_citizenship: pitch.players?.citizenship || '',
+        player_market_value: pitch.players?.market_value || 0,
+        asking_price: pitch.asking_price || 0,
+        currency: pitch.currency || 'USD',
         transfer_type: pitch.transfer_type,
         expires_at: pitch.expires_at,
-        team_name: pitch.team_name,
-        team_country: pitch.team_country,
+        team_name: pitch.teams?.team_name || '',
+        team_country: pitch.teams?.country || '',
         team_id: pitch.team_id,
         player_id: pitch.player_id,
-        description: pitch.description,
+        description: pitch.description || '',
         tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
         status: pitch.status
       }));
-      
+
       setPlayers(transformedData);
     } catch (error) {
       console.error('Error fetching timeline players:', error);
@@ -150,21 +169,21 @@ export const AgentTimeline: React.FC = () => {
     }
 
     // Filter by position
-    if (positionFilter) {
+    if (positionFilter !== 'all') {
       filtered = filtered.filter(player =>
         player.player_position.toLowerCase().includes(positionFilter.toLowerCase())
       );
     }
 
     // Filter by transfer type
-    if (transferTypeFilter) {
+    if (transferTypeFilter !== 'all') {
       filtered = filtered.filter(player =>
         player.transfer_type === transferTypeFilter
       );
     }
 
     // Filter by price range
-    if (priceRangeFilter) {
+    if (priceRangeFilter !== 'all') {
       const [min, max] = priceRangeFilter.split('-').map(Number);
       filtered = filtered.filter(player =>
         player.asking_price >= min && player.asking_price <= max
@@ -224,6 +243,62 @@ export const AgentTimeline: React.FC = () => {
     return hoursUntilExpiry <= 24;
   };
 
+  const fetchTaggedRequests = async () => {
+    try {
+      // Get all player IDs from the timeline
+      const playerIds = players.map(player => player.player_id);
+
+      if (playerIds.length === 0) return;
+
+      // Fetch explore requests that have tagged these players
+      const { data, error } = await supabase
+        .from('agent_requests')
+        .select(`
+          id,
+          title,
+          agent_id,
+          tagged_players,
+          agents!inner(
+            agency_name,
+            profiles!inner(
+              full_name
+            )
+          )
+        `)
+        .eq('is_public', true)
+        .gte('expires_at', new Date().toISOString())
+        .not('tagged_players', 'is', null);
+
+      if (error) throw error;
+
+      // Create a map of player IDs to their tagged requests
+      const taggedMap: { [playerId: string]: any[] } = {};
+
+      (data || []).forEach((request: any) => {
+        const taggedPlayerIds = request.tagged_players || [];
+        taggedPlayerIds.forEach((playerId: string) => {
+          if (playerIds.includes(playerId)) {
+            if (!taggedMap[playerId]) {
+              taggedMap[playerId] = [];
+            }
+            taggedMap[playerId].push({
+              id: request.id,
+              title: request.title,
+              agency_name: request.agents?.agency_name,
+              agent_name: request.agents?.profiles?.full_name
+            });
+          }
+        });
+      });
+
+      setTaggedRequests(taggedMap);
+    } catch (error) {
+      console.error('Error fetching tagged requests:', error);
+      // Set empty results if there's an error
+      setTaggedRequests({});
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -261,7 +336,7 @@ export const AgentTimeline: React.FC = () => {
                 <SelectValue placeholder="All Positions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Positions</SelectItem>
+                <SelectItem value="all">All Positions</SelectItem>
                 {positions.map(position => (
                   <SelectItem key={position} value={position}>
                     {position}
@@ -274,7 +349,7 @@ export const AgentTimeline: React.FC = () => {
                 <SelectValue placeholder="Transfer Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 {transferTypes.map(type => (
                   <SelectItem key={type} value={type}>
                     {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -287,7 +362,7 @@ export const AgentTimeline: React.FC = () => {
                 <SelectValue placeholder="Price Range" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Prices</SelectItem>
+                <SelectItem value="all">All Prices</SelectItem>
                 {priceRanges.map(range => (
                   <SelectItem key={range.value} value={range.value}>
                     {range.label}
@@ -299,9 +374,9 @@ export const AgentTimeline: React.FC = () => {
               variant="outline"
               onClick={() => {
                 setSearchTerm('');
-                setPositionFilter('');
-                setTransferTypeFilter('');
-                setPriceRangeFilter('');
+                setPositionFilter('all');
+                setTransferTypeFilter('all');
+                setPriceRangeFilter('all');
               }}
             >
               <Filter className="w-4 h-4 mr-2" />
@@ -347,7 +422,7 @@ export const AgentTimeline: React.FC = () => {
                     <div className="text-2xl font-bold text-rosegold mb-1">
                       {player.asking_price?.toLocaleString()} {player.currency}
                     </div>
-                    <Badge 
+                    <Badge
                       variant={isExpiringSoon(player.expires_at) ? "destructive" : "secondary"}
                       className="mb-2"
                     >
@@ -379,6 +454,29 @@ export const AgentTimeline: React.FC = () => {
                   </div>
                 )}
 
+                {/* Tagged in Explore Requests */}
+                {taggedRequests[player.player_id] && taggedRequests[player.player_id].length > 0 && (
+                  <div className="mb-4 p-3 bg-gray-800 rounded-lg">
+                    <p className="text-sm text-gray-400 mb-2 flex items-center gap-1">
+                      <Tag className="w-3 h-3" />
+                      Tagged in {taggedRequests[player.player_id].length} Explore Request{taggedRequests[player.player_id].length > 1 ? 's' : ''}:
+                    </p>
+                    <div className="space-y-1">
+                      {taggedRequests[player.player_id].slice(0, 3).map((request: any) => (
+                        <div key={request.id} className="flex items-center justify-between text-xs">
+                          <span className="text-gray-300 truncate">{request.title}</span>
+                          <span className="text-gray-500 ml-2">by {request.agency_name}</span>
+                        </div>
+                      ))}
+                      {taggedRequests[player.player_id].length > 3 && (
+                        <p className="text-xs text-gray-500">
+                          +{taggedRequests[player.player_id].length - 3} more requests
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pt-4 border-t border-gray-700">
                   <div className="flex items-center gap-2">
                     <Button
@@ -389,7 +487,7 @@ export const AgentTimeline: React.FC = () => {
                       <Eye className="w-4 h-4 mr-2" />
                       View Details
                     </Button>
-                    
+
                     {profile?.user_type === 'agent' && (
                       <>
                         <Button
@@ -402,7 +500,7 @@ export const AgentTimeline: React.FC = () => {
                           <MessageCircle className="w-4 h-4 mr-2" />
                           Message
                         </Button>
-                        
+
                         <ShortlistManager
                           pitchId={player.id}
                           playerId={player.player_id}
@@ -410,7 +508,7 @@ export const AgentTimeline: React.FC = () => {
                       </>
                     )}
                   </div>
-                  
+
                   {!canMessage && profile?.user_type === 'agent' && (
                     <Badge variant="secondary" className="text-xs">
                       FIFA ID required for messaging

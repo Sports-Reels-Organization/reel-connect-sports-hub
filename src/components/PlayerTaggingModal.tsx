@@ -1,113 +1,106 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Search, User, X, Tag, Check } from 'lucide-react';
-import { Tables } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
+import { Search, User, MapPin, DollarSign } from 'lucide-react';
 
-type DatabasePlayer = Tables<'players'>;
+interface PitchedPlayer {
+    id: string;
+    player_id: string;
+    player_name: string;
+    player_position: string;
+    player_citizenship: string;
+    asking_price: number;
+    currency: string;
+    team_name: string;
+    team_country: string;
+    transfer_type: string;
+    expires_at: string;
+}
 
 interface PlayerTaggingModalProps {
     isOpen: boolean;
     onClose: () => void;
-    requestId: string;
-    requestTitle: string;
-    onPlayerTagged: (playerId: string, playerName: string) => void;
+    onTagPlayers: (playerIds: string[]) => void;
+    currentlyTagged: string[];
 }
 
-const PlayerTaggingModal: React.FC<PlayerTaggingModalProps> = ({
+export const PlayerTaggingModal: React.FC<PlayerTaggingModalProps> = ({
     isOpen,
     onClose,
-    requestId,
-    requestTitle,
-    onPlayerTagged
+    onTagPlayers,
+    currentlyTagged
 }) => {
-    const { profile } = useAuth();
     const { toast } = useToast();
-    const [players, setPlayers] = useState<DatabasePlayer[]>([]);
-    const [filteredPlayers, setFilteredPlayers] = useState<DatabasePlayer[]>([]);
+    const [pitchedPlayers, setPitchedPlayers] = useState<PitchedPlayer[]>([]);
+    const [filteredPlayers, setFilteredPlayers] = useState<PitchedPlayer[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedPlayers, setSelectedPlayers] = useState<string[]>(currentlyTagged);
     const [loading, setLoading] = useState(false);
-    const [selectedPlayer, setSelectedPlayer] = useState<DatabasePlayer | null>(null);
 
     useEffect(() => {
-        if (isOpen && profile?.user_type === 'team') {
-            fetchTeamPlayers();
+        if (isOpen) {
+            fetchPitchedPlayers();
+            setSelectedPlayers(currentlyTagged);
         }
-    }, [isOpen, profile]);
+    }, [isOpen, currentlyTagged]);
 
     useEffect(() => {
-        if (searchTerm.trim() === '') {
-            setFilteredPlayers(players);
-        } else {
-            const filtered = players.filter(player =>
-                player.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                player.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                player.citizenship?.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-            setFilteredPlayers(filtered);
-        }
-    }, [searchTerm, players]);
+        filterPlayers();
+    }, [pitchedPlayers, searchTerm]);
 
-    const fetchTeamPlayers = async () => {
-        if (!profile?.id) return;
-
+    const fetchPitchedPlayers = async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-
-            // Get team ID
-            const { data: team, error: teamError } = await supabase
-                .from('teams')
-                .select('id')
-                .eq('profile_id', profile.id)
-                .single();
-
-            if (teamError || !team) {
-                throw new Error('Team not found');
-            }
-
-            // Get team's pitched players (only players that are currently pitched)
-            const { data: pitchedPlayers, error: pitchedError } = await supabase
+            const { data, error } = await supabase
                 .from('transfer_pitches')
-                .select('player_id')
-                .eq('team_id', team.id)
+                .select(`
+          id,
+          player_id,
+          asking_price,
+          currency,
+          transfer_type,
+          expires_at,
+          players!inner(
+            full_name,
+            position,
+            citizenship
+          ),
+          teams!inner(
+            team_name,
+            country
+          )
+        `)
                 .eq('status', 'active')
-                .gt('expires_at', new Date().toISOString());
+                .gte('expires_at', new Date().toISOString())
+                .order('created_at', { ascending: false });
 
-            if (pitchedError) throw pitchedError;
+            if (error) throw error;
 
-            const pitchedPlayerIds = pitchedPlayers?.map(p => p.player_id) || [];
+            const transformedData = (data || []).map((pitch: any) => ({
+                id: pitch.id,
+                player_id: pitch.player_id,
+                player_name: pitch.players?.full_name || '',
+                player_position: pitch.players?.position || '',
+                player_citizenship: pitch.players?.citizenship || '',
+                asking_price: pitch.asking_price || 0,
+                currency: pitch.currency || 'USD',
+                team_name: pitch.teams?.team_name || '',
+                team_country: pitch.teams?.country || '',
+                transfer_type: pitch.transfer_type,
+                expires_at: pitch.expires_at
+            }));
 
-            if (pitchedPlayerIds.length === 0) {
-                toast({
-                    title: "No Pitched Players",
-                    description: "You need to have active player pitches to tag players to requests.",
-                    variant: "destructive"
-                });
-                onClose();
-                return;
-            }
-
-            // Get player details for pitched players
-            const { data: playersData, error: playersError } = await supabase
-                .from('players')
-                .select('*')
-                .in('id', pitchedPlayerIds)
-                .order('full_name');
-
-            if (playersError) throw playersError;
-
-            setPlayers(playersData || []);
-            setFilteredPlayers(playersData || []);
+            setPitchedPlayers(transformedData);
         } catch (error) {
-            console.error('Error fetching team players:', error);
+            console.error('Error fetching pitched players:', error);
             toast({
                 title: "Error",
-                description: "Failed to fetch your players",
+                description: "Failed to load pitched players",
                 variant: "destructive"
             });
         } finally {
@@ -115,212 +108,163 @@ const PlayerTaggingModal: React.FC<PlayerTaggingModalProps> = ({
         }
     };
 
-    const handlePlayerSelect = (player: DatabasePlayer) => {
-        setSelectedPlayer(player);
-    };
+    const filterPlayers = () => {
+        let filtered = [...pitchedPlayers];
 
-    const handleTagPlayer = async () => {
-        if (!selectedPlayer) return;
-
-        try {
-            // For now, just log the tag action
-            // Once migrations are deployed, this will work with the database
-            console.log('Tagging player to request:', {
-                requestId,
-                playerId: selectedPlayer.id,
-                playerName: selectedPlayer.full_name,
-                taggedBy: profile?.id
-            });
-
-            toast({
-                title: "Success",
-                description: `${selectedPlayer.full_name} has been tagged to this request`,
-            });
-
-            onPlayerTagged(selectedPlayer.id, selectedPlayer.full_name || '');
-            onClose();
-        } catch (error) {
-            console.error('Error tagging player:', error);
-            toast({
-                title: "Error",
-                description: "Failed to tag player to request",
-                variant: "destructive"
-            });
+        if (searchTerm) {
+            filtered = filtered.filter(player =>
+                player.player_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                player.player_position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                player.team_name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
         }
+
+        setFilteredPlayers(filtered);
     };
 
-    const getPositionBadge = (position: string) => {
-        const positionColors: Record<string, string> = {
-            'Goalkeeper': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-            'Defender': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-            'Midfielder': 'bg-green-500/20 text-green-400 border-green-500/30',
-            'Forward': 'bg-red-500/20 text-red-400 border-red-500/30',
-            'Striker': 'bg-red-500/20 text-red-400 border-red-500/30'
-        };
-
-        const color = positionColors[position] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-
-        return (
-            <Badge variant="outline" className={color}>
-                {position}
-            </Badge>
-        );
+    const togglePlayerSelection = (playerId: string) => {
+        setSelectedPlayers(prev => {
+            if (prev.includes(playerId)) {
+                return prev.filter(id => id !== playerId);
+            } else {
+                return [...prev, playerId];
+            }
+        });
     };
 
-    if (!isOpen) return null;
+    const handleSave = () => {
+        onTagPlayers(selectedPlayers);
+        onClose();
+    };
+
+    const isPlayerSelected = (playerId: string) => selectedPlayers.includes(playerId);
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a1a1a] border-gray-700">
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-white font-polysans">Tag Player to Request</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={onClose}>
-                        <X className="h-4 w-4" />
-                    </Button>
-                </CardHeader>
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+                <DialogHeader>
+                    <DialogTitle>Tag Pitched Players</DialogTitle>
+                    <p className="text-sm text-gray-500">
+                        Select players from the transfer timeline to tag in your request
+                    </p>
+                </DialogHeader>
 
-                <CardContent className="space-y-6">
-                    {/* Request Info */}
-                    <div className="bg-gray-800 p-4 rounded-lg">
-                        <h3 className="text-white font-semibold mb-2">Request Details</h3>
-                        <p className="text-gray-300 text-sm">{requestTitle}</p>
+                <div className="flex flex-col h-full space-y-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <Input
+                            placeholder="Search players by name, position, or team..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10"
+                        />
                     </div>
 
-                    {/* Search */}
-                    <div className="space-y-2">
-                        <label className="text-white text-sm font-medium">Search Players</label>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                                placeholder="Search by name, position, or nationality..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 bg-[#111111] border-0 text-white"
-                            />
-                        </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">
+                            {selectedPlayers.length} player{selectedPlayers.length !== 1 ? 's' : ''} selected
+                        </span>
+                        {selectedPlayers.length > 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedPlayers([])}
+                            >
+                                Clear All
+                            </Button>
+                        )}
                     </div>
 
-                    {/* Players List */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <label className="text-white text-sm font-medium">
-                                Your Pitched Players ({filteredPlayers.length})
-                            </label>
-                            {loading && (
-                                <div className="text-gray-400 text-sm">Loading...</div>
-                            )}
-                        </div>
-
-                        <div className="max-h-64 overflow-y-auto space-y-2">
-                            {filteredPlayers.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <User className="h-12 w-12 text-gray-500 mx-auto mb-2" />
-                                    <p className="text-gray-400 text-sm">
-                                        {searchTerm ? 'No players match your search' : 'No pitched players found'}
-                                    </p>
-                                </div>
-                            ) : (
-                                filteredPlayers.map((player) => (
-                                    <div
-                                        key={player.id}
-                                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${selectedPlayer?.id === player.id
-                                            ? 'border-rosegold bg-rosegold/10'
-                                            : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
-                                            }`}
-                                        onClick={() => handlePlayerSelect(player)}
-                                    >
+                    <div className="flex-1 overflow-y-auto space-y-2">
+                        {loading ? (
+                            <div className="text-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto"></div>
+                                <p className="text-gray-500 mt-2">Loading players...</p>
+                            </div>
+                        ) : filteredPlayers.length === 0 ? (
+                            <div className="text-center py-8">
+                                <p className="text-gray-500">No pitched players found</p>
+                            </div>
+                        ) : (
+                            filteredPlayers.map((player) => (
+                                <Card
+                                    key={player.id}
+                                    className={`cursor-pointer transition-all hover:shadow-md ${isPlayerSelected(player.player_id)
+                                        ? 'ring-2 ring-rosegold bg-rosegold/5'
+                                        : ''
+                                        }`}
+                                    onClick={() => togglePlayerSelection(player.player_id)}
+                                >
+                                    <CardContent className="p-4">
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-                                                    {player.headshot_url || player.photo_url ? (
-                                                        <img
-                                                            src={player.headshot_url || player.photo_url}
-                                                            alt={player.full_name || ''}
-                                                            className="w-full h-full rounded-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <User className="h-5 w-5 text-gray-400" />
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <h3 className="font-semibold text-white">
+                                                        {player.player_name}
+                                                    </h3>
+                                                    {isPlayerSelected(player.player_id) && (
+                                                        <Badge variant="default" className="bg-rosegold">
+                                                            Selected
+                                                        </Badge>
                                                     )}
                                                 </div>
-                                                <div>
-                                                    <h4 className="text-white font-medium">
-                                                        {player.full_name}
-                                                    </h4>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        {player.position && getPositionBadge(player.position)}
-                                                        {player.citizenship && (
-                                                            <span className="text-gray-400 text-xs">
-                                                                {player.citizenship}
-                                                            </span>
-                                                        )}
-                                                    </div>
+
+                                                <div className="flex items-center gap-4 text-sm text-gray-400">
+                                                    <span className="flex items-center gap-1">
+                                                        <User className="w-3 h-3" />
+                                                        {player.player_position}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <MapPin className="w-3 h-3" />
+                                                        {player.player_citizenship}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <DollarSign className="w-3 h-3" />
+                                                        {player.asking_price?.toLocaleString()} {player.currency}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {player.team_name}
+                                                    </Badge>
+                                                    <Badge variant="secondary" className="text-xs">
+                                                        {player.transfer_type}
+                                                    </Badge>
                                                 </div>
                                             </div>
 
-                                            {selectedPlayer?.id === player.id && (
-                                                <Check className="h-5 w-5 text-rosegold" />
-                                            )}
+                                            <div className="ml-4">
+                                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${isPlayerSelected(player.player_id)
+                                                    ? 'bg-rosegold border-rosegold'
+                                                    : 'border-gray-300'
+                                                    }`}>
+                                                    {isPlayerSelected(player.player_id) && (
+                                                        <div className="w-2 h-2 bg-white rounded-sm"></div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))
+                        )}
                     </div>
 
-                    {/* Selected Player Info */}
-                    {selectedPlayer && (
-                        <div className="bg-gray-800 p-4 rounded-lg">
-                            <h3 className="text-white font-semibold mb-2">Selected Player</h3>
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
-                                    {selectedPlayer.headshot_url || selectedPlayer.photo_url ? (
-                                        <img
-                                            src={selectedPlayer.headshot_url || selectedPlayer.photo_url}
-                                            alt={selectedPlayer.full_name || ''}
-                                            className="w-full h-full rounded-full object-cover"
-                                        />
-                                    ) : (
-                                        <User className="h-6 w-6 text-gray-400" />
-                                    )}
-                                </div>
-                                <div>
-                                    <h4 className="text-white font-medium">
-                                        {selectedPlayer.full_name}
-                                    </h4>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        {selectedPlayer.position && getPositionBadge(selectedPlayer.position)}
-                                        {selectedPlayer.citizenship && (
-                                            <span className="text-gray-400 text-xs">
-                                                {selectedPlayer.citizenship}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex gap-4 pt-4">
-                        <Button
-                            onClick={handleTagPlayer}
-                            disabled={!selectedPlayer}
-                            className="flex-1 bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
-                        >
-                            <Tag className="h-4 w-4 mr-2" />
-                            Tag Player
-                        </Button>
-                        <Button
-                            onClick={onClose}
-                            variant="outline"
-                            className="flex-1 border-gray-600 text-gray-400 hover:bg-gray-700"
-                        >
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                        <Button variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
+                        <Button
+                            onClick={handleSave}
+                            className="bg-rosegold hover:bg-rosegold/90"
+                        >
+                            Tag {selectedPlayers.length} Player{selectedPlayers.length !== 1 ? 's' : ''}
+                        </Button>
                     </div>
-                </CardContent>
-            </Card>
-        </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 };
 

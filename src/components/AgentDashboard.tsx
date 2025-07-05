@@ -587,21 +587,7 @@ const AgentDashboard = () => {
   }
 
   // Show loading state while profile is loading
-  if (loading) {
-    return (
-      <div className="space-y-6 p-[3rem]">
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rosegold mx-auto mb-4"></div>
-          <h3 className="text-xl font-polysans font-semibold text-white mb-2">
-            Loading Agent Dashboard
-          </h3>
-          <p className="text-gray-400 font-poppins">
-            Please wait while we load your dashboard...
-          </p>
-        </div>
-      </div>
-    );
-  }
+
 
   // Check if profile is completed
   if (!profile?.profile_completed) {

@@ -20,7 +20,7 @@ const Index = () => {
             alt="Sports Reels"
             className="w-[100px] h-[100px] mx-auto mb-4 animate-pulse"
           />
-          <p className="text-white text-sm">Loading...</p>
+
         </div>
       </div>
     );

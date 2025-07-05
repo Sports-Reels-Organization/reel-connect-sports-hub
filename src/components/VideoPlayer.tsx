@@ -77,7 +77,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         videoTitle: youTubeVideoInfo?.title || title,
         videoDescription: youTubeVideoInfo?.description || ''
       };
-      
+
       analyzeVideo(enhancedMetadata).then(result => {
         setAnalysis(result);
         setIsAnalyzing(false);
@@ -87,8 +87,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     if (analysis.length > 0) {
-      const current = analysis.find(a => 
-        currentTime >= a.timestamp && 
+      const current = analysis.find(a =>
+        currentTime >= a.timestamp &&
         currentTime < (a.timestamp + (duration / analysis.length))
       );
       setCurrentAnalysis(current || analysis[0]);
@@ -283,7 +283,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             {/* Video Metadata */}
             <div className="p-6 border-t border-[#d4af37]/20 bg-[#1a1a1a]">
               <h3 className="font-polysans text-2xl font-bold text-white mb-4">{title}</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
                 <div className="space-y-2">
                   <div className="flex items-center text-gray-300">
@@ -299,7 +299,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     <span className="text-pink-400 font-bold">{metadata.matchDetails.finalScore}</span>
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="flex items-center text-gray-300 mb-3">
                     <span className="text-[#d4af37] font-semibold">Featured Players:</span>
@@ -332,7 +332,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <BarChart3 className="w-6 h-6" />
                 AI Match Analysis
               </h3>
-              <p className="text-black/80 text-sm font-poppins">Powered by Gemini 2.0 Flash</p>
+
             </div>
 
             <div className="p-6">
@@ -355,8 +355,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                       <span className="font-poppins font-semibold text-black">Performance Rating</span>
                       <span className="text-2xl font-bold text-[#d4af37]">{currentAnalysis.performanceRating.toFixed(1)}/10</span>
                     </div>
-                    <Progress 
-                      value={currentAnalysis.performanceRating * 10} 
+                    <Progress
+                      value={currentAnalysis.performanceRating * 10}
                       className="h-2"
                     />
                   </div>

@@ -40,8 +40,8 @@ export const analyzeVideo = async (
   }
 ): Promise<VideoAnalysis[]> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-    
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
     const prompt = `
       Analyze this football match video in detail based on the following metadata:
       - Players: ${videoMetadata.playerTags.join(', ')}
@@ -68,7 +68,7 @@ export const analyzeVideo = async (
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
+
     return parseAnalysisResponse(text, videoMetadata.duration);
   } catch (error) {
     console.error('Error analyzing video:', error);
@@ -92,8 +92,8 @@ export const analyzePlayer = async (
   }
 ): Promise<PlayerAnalysis> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-    
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
     const prompt = `
       Conduct a comprehensive analysis of this football player for transfer evaluation:
       - Name: ${playerData.name}
@@ -126,7 +126,7 @@ export const analyzePlayer = async (
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
+
     return parsePlayerAnalysis(text);
   } catch (error) {
     console.error('Error analyzing player:', error);
@@ -137,7 +137,7 @@ export const analyzePlayer = async (
 const parseAnalysisResponse = (text: string, duration: number): VideoAnalysis[] => {
   const analyses: VideoAnalysis[] = [];
   const segments = Math.min(12, Math.floor(duration / 25)); // More detailed segments
-  
+
   for (let i = 0; i < segments; i++) {
     const timestamp = (i * duration) / segments;
     analyses.push({
@@ -150,7 +150,7 @@ const parseAnalysisResponse = (text: string, duration: number): VideoAnalysis[] 
       performanceRating: Math.min(10, Math.max(1, 6 + Math.random() * 3))
     });
   }
-  
+
   return analyses;
 };
 
@@ -185,7 +185,7 @@ const parsePlayerAnalysis = (text: string): PlayerAnalysis => {
 const generateFallbackAnalysis = (duration: number): VideoAnalysis[] => {
   const segments = Math.min(12, Math.floor(duration / 25));
   const analyses: VideoAnalysis[] = [];
-  
+
   for (let i = 0; i < segments; i++) {
     const timestamp = (i * duration) / segments;
     analyses.push({
@@ -198,7 +198,7 @@ const generateFallbackAnalysis = (duration: number): VideoAnalysis[] => {
       performanceRating: Math.min(10, Math.max(1, 6 + Math.random() * 3))
     });
   }
-  
+
   return analyses;
 };
 
@@ -220,8 +220,8 @@ const extractPlayerActionsFromText = (text: string, segment: number): string[] =
   const actions = ['goal', 'assist', 'tackle', 'pass', 'shot', 'save', 'foul', 'cross', 'header', 'dribble'];
   const foundActions = actions.filter(action => text.toLowerCase().includes(action));
   const timestamp = `${Math.floor(segment * 3)}:${((segment * 30) % 60).toString().padStart(2, '0')}`;
-  
-  return foundActions.length > 0 
+
+  return foundActions.length > 0
     ? foundActions.map(action => `${action.charAt(0).toUpperCase() + action.slice(1)} at ${timestamp}`)
     : [`Player movement at ${timestamp}`];
 };
@@ -230,8 +230,8 @@ const extractMatchEventsFromText = (text: string, segment: number): string[] => 
   const events = ['yellow card', 'red card', 'substitution', 'corner', 'free kick', 'penalty', 'offside'];
   const foundEvents = events.filter(event => text.toLowerCase().includes(event));
   const minute = Math.floor(segment * 10);
-  
-  return foundEvents.length > 0 
+
+  return foundEvents.length > 0
     ? foundEvents.map(event => `${event} - Minute ${minute}`)
     : [`Match flow - Minute ${minute}`];
 };
@@ -242,7 +242,7 @@ const extractMetricsFromText = (text: string, segment: number): string[] => {
     `Pass accuracy: ${(70 + Math.random() * 25).toFixed(1)}%`,
     `Distance covered: ${(8 + Math.random() * 4).toFixed(1)}km`
   ];
-  
+
   return baseMetrics;
 };
 
@@ -285,14 +285,14 @@ const extractKeyStatsFromText = (text: string): { [key: string]: string } => {
     { key: 'Pass Accuracy', pattern: /pass\s*accuracy\s*:?\s*(\d+%)/i },
     { key: 'Tackles', pattern: /tackles?\s*:?\s*(\d+)/i }
   ];
-  
+
   statPatterns.forEach(({ key, pattern }) => {
     const match = text.match(pattern);
     if (match) {
       stats[key] = match[1];
     }
   });
-  
+
   return Object.keys(stats).length > 0 ? stats : {
     'Goals': '8',
     'Assists': '5',

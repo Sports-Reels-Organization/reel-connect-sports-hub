@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Plus, MessageCircle, Calendar, MapPin, User, DollarSign } from 'lucide-react';
+import { Search, Plus, MessageCircle, Calendar, MapPin, User, DollarSign, Tag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import PlayerTaggingModal from './PlayerTaggingModal';
 
 interface AgentRequest {
   id: string;
@@ -32,14 +32,30 @@ interface AgentRequest {
   agent_country: string;
 }
 
+interface TaggedPlayer {
+  id: string;
+  player_name: string;
+  player_position: string;
+  team_name: string;
+  asking_price: number;
+  currency: string;
+}
+
 export const ExploreRequests: React.FC = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [requests, setRequests] = useState<AgentRequest[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<AgentRequest[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showTaggingModal, setShowTaggingModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(null);
-  
+  const [positionFilter, setPositionFilter] = useState('all');
+  const [sportTypeFilter, setSportTypeFilter] = useState('all');
+  const [transferTypeFilter, setTransferTypeFilter] = useState('all');
+  const [taggedPlayers, setTaggedPlayers] = useState<TaggedPlayer[]>([]);
+  const [requestTaggedPlayers, setRequestTaggedPlayers] = useState<{ [requestId: string]: TaggedPlayer[] }>({});
+
   const [newRequest, setNewRequest] = useState({
     title: '',
     description: '',
@@ -48,7 +64,8 @@ export const ExploreRequests: React.FC = () => {
     position: '',
     budget_min: '',
     budget_max: '',
-    currency: 'USD'
+    currency: 'USD',
+    tagged_players: [] as string[]
   });
 
   const sportTypes = ['football', 'basketball', 'volleyball', 'tennis', 'rugby'];
@@ -63,9 +80,13 @@ export const ExploreRequests: React.FC = () => {
     }
   }, [profile]);
 
+  useEffect(() => {
+    filterRequests();
+  }, [requests, positionFilter, sportTypeFilter, transferTypeFilter]);
+
   const fetchAgentId = async () => {
     if (!profile) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('agents')
@@ -80,49 +101,163 @@ export const ExploreRequests: React.FC = () => {
     }
   };
 
+  const fetchTaggedPlayers = async (playerIds: string[]) => {
+    if (!playerIds.length) {
+      setTaggedPlayers([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('transfer_pitches')
+        .select(`
+          player_id,
+          asking_price,
+          currency,
+          players!inner(
+            full_name,
+            position
+          ),
+          teams!inner(
+            team_name
+          )
+        `)
+        .in('player_id', playerIds)
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      const transformedData = (data || []).map((pitch: any) => ({
+        id: pitch.player_id,
+        player_name: pitch.players?.full_name || '',
+        player_position: pitch.players?.position || '',
+        team_name: pitch.teams?.team_name || '',
+        asking_price: pitch.asking_price || 0,
+        currency: pitch.currency || 'USD'
+      }));
+
+      setTaggedPlayers(transformedData);
+    } catch (error) {
+      console.error('Error fetching tagged players:', error);
+    }
+  };
+
+  const handleTagPlayers = (playerIds: string[]) => {
+    // Update the newRequest with tagged players
+    setNewRequest(prev => ({
+      ...prev,
+      tagged_players: playerIds
+    }));
+
+    // Fetch the player details for display
+    fetchTaggedPlayers(playerIds);
+  };
+
+  const removeTaggedPlayer = (playerId: string) => {
+    const updatedPlayerIds = newRequest.tagged_players?.filter(id => id !== playerId) || [];
+    setNewRequest(prev => ({
+      ...prev,
+      tagged_players: updatedPlayerIds
+    }));
+    fetchTaggedPlayers(updatedPlayerIds);
+  };
+
   const fetchRequests = async () => {
     try {
-      // Query agent_requests directly with joins instead of using the view
-      const { data, error } = await supabase
+      console.log('Fetching agent requests...');
+
+      // First, get the agent requests with basic fields only
+      const { data: requestsData, error: requestsError } = await supabase
         .from('agent_requests')
         .select(`
-          *,
-          agents!inner(
-            agency_name,
-            logo_url,
-            profiles!inner(
-              full_name,
-              country
-            )
-          )
+          id,
+          agent_id,
+          title,
+          description,
+          sport_type,
+          transfer_type,
+          position,
+          budget_min,
+          budget_max,
+          currency,
+          expires_at,
+          created_at,
+          is_public,
+          tagged_players
         `)
         .eq('is_public', true)
         .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
+      if (requestsError) {
+        console.error('Error fetching agent requests:', requestsError);
+        throw requestsError;
+      }
+
+      console.log('Found requests:', requestsData?.length || 0);
+
+      if (!requestsData || requestsData.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Get agent IDs from the requests
+      const agentIds = [...new Set(requestsData.map(req => req.agent_id))];
+
+      // Fetch agents with their profiles
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('agents')
+        .select(`
+          id,
+          agency_name,
+          profiles!inner(
+            full_name,
+            country
+          )
+        `)
+        .in('id', agentIds);
+
+      if (agentsError) {
+        console.error('Error fetching agents:', agentsError);
+        throw agentsError;
+      }
+
+      console.log('Found agents:', agentsData?.length || 0);
+
+      // Create a map of agent data for quick lookup
+      const agentMap = new Map();
+      agentsData?.forEach(agent => {
+        agentMap.set(agent.id, agent);
+      });
+
       // Transform the data to match our interface
-      const transformedData = (data || []).map((request: any) => ({
-        id: request.id,
-        title: request.title,
-        description: request.description,
-        sport_type: request.sport_type,
-        transfer_type: request.transfer_type,
-        position: request.position,
-        budget_min: request.budget_min,
-        budget_max: request.budget_max,
-        currency: request.currency,
-        expires_at: request.expires_at,
-        created_at: request.created_at,
-        tagged_players: request.tagged_players || [],
-        agency_name: request.agents?.agency_name || '',
-        agent_logo_url: (request.agents as any)?.logo_url || '',
-        agent_name: request.agents?.profiles?.full_name || '',
-        agent_country: request.agents?.profiles?.country || ''
-      }));
-      
+      const transformedData = requestsData.map((request: any) => {
+        const agent = agentMap.get(request.agent_id);
+        return {
+          id: request.id,
+          title: request.title || '',
+          description: request.description || '',
+          sport_type: request.sport_type || 'football',
+          transfer_type: request.transfer_type || 'permanent',
+          position: request.position || '',
+          budget_min: request.budget_min || 0,
+          budget_max: request.budget_max || 0,
+          currency: request.currency || 'USD',
+          expires_at: request.expires_at || '',
+          created_at: request.created_at || '',
+          tagged_players: request.tagged_players || [],
+          agency_name: agent?.agency_name || '',
+          agent_logo_url: '', // logo_url field might not exist in current database
+          agent_name: agent?.profiles?.full_name || '',
+          agent_country: agent?.profiles?.country || ''
+        };
+      });
+
+      console.log('Transformed data:', transformedData.length);
       setRequests(transformedData);
+
+      // Fetch tagged player details for requests that have tagged players
+      await fetchRequestTaggedPlayers(transformedData);
     } catch (error) {
       console.error('Error fetching requests:', error);
       toast({
@@ -131,6 +266,99 @@ export const ExploreRequests: React.FC = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const fetchRequestTaggedPlayers = async (requestsData: AgentRequest[]) => {
+    try {
+      // Get all unique player IDs from all requests
+      const allPlayerIds = new Set<string>();
+      requestsData.forEach(request => {
+        if (request.tagged_players && Array.isArray(request.tagged_players)) {
+          request.tagged_players.forEach(playerId => allPlayerIds.add(playerId));
+        }
+      });
+
+      if (allPlayerIds.size === 0) {
+        setRequestTaggedPlayers({});
+        return;
+      }
+
+      const playerIdsArray = Array.from(allPlayerIds);
+
+      // Fetch player details for all tagged players
+      const { data, error } = await supabase
+        .from('transfer_pitches')
+        .select(`
+          player_id,
+          asking_price,
+          currency,
+          players!inner(
+            full_name,
+            position
+          ),
+          teams!inner(
+            team_name
+          )
+        `)
+        .in('player_id', playerIdsArray)
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      // Create a map of player details
+      const playerMap = new Map();
+      (data || []).forEach((pitch: any) => {
+        playerMap.set(pitch.player_id, {
+          id: pitch.player_id,
+          player_name: pitch.players?.full_name || '',
+          player_position: pitch.players?.position || '',
+          team_name: pitch.teams?.team_name || '',
+          asking_price: pitch.asking_price || 0,
+          currency: pitch.currency || 'USD'
+        });
+      });
+
+      // Create a map of request ID to tagged players
+      const requestTaggedMap: { [requestId: string]: TaggedPlayer[] } = {};
+      requestsData.forEach(request => {
+        if (request.tagged_players && Array.isArray(request.tagged_players)) {
+          requestTaggedMap[request.id] = request.tagged_players
+            .map(playerId => playerMap.get(playerId))
+            .filter(Boolean);
+        }
+      });
+
+      setRequestTaggedPlayers(requestTaggedMap);
+    } catch (error) {
+      console.error('Error fetching request tagged players:', error);
+    }
+  };
+
+  const filterRequests = () => {
+    let filtered = [...requests];
+
+    // Filter by position
+    if (positionFilter !== 'all') {
+      filtered = filtered.filter(request =>
+        request.position && request.position.toLowerCase().includes(positionFilter.toLowerCase())
+      );
+    }
+
+    // Filter by sport type
+    if (sportTypeFilter !== 'all') {
+      filtered = filtered.filter(request =>
+        request.sport_type === sportTypeFilter
+      );
+    }
+
+    // Filter by transfer type
+    if (transferTypeFilter !== 'all') {
+      filtered = filtered.filter(request =>
+        request.transfer_type === transferTypeFilter
+      );
+    }
+
+    setFilteredRequests(filtered);
   };
 
   const createRequest = async () => {
@@ -155,6 +383,7 @@ export const ExploreRequests: React.FC = () => {
         budget_min: newRequest.budget_min ? parseFloat(newRequest.budget_min) : null,
         budget_max: newRequest.budget_max ? parseFloat(newRequest.budget_max) : null,
         currency: newRequest.currency,
+        tagged_players: newRequest.tagged_players || [],
         is_public: true
       };
 
@@ -177,8 +406,10 @@ export const ExploreRequests: React.FC = () => {
         position: '',
         budget_min: '',
         budget_max: '',
-        currency: 'USD'
+        currency: 'USD',
+        tagged_players: []
       });
+      setTaggedPlayers([]);
       setShowCreateForm(false);
       fetchRequests();
     } catch (error) {
@@ -205,10 +436,10 @@ export const ExploreRequests: React.FC = () => {
       if (newRequest.budget_max) budget.push(`max ${newRequest.budget_max}`);
       parts.push(`with budget ${budget.join(', ')} ${newRequest.currency}`);
     }
-    
-    setNewRequest(prev => ({ 
-      ...prev, 
-      description: parts.join(' ') + '.' 
+
+    setNewRequest(prev => ({
+      ...prev,
+      description: parts.join(' ') + '.'
     }));
   };
 
@@ -274,6 +505,7 @@ export const ExploreRequests: React.FC = () => {
                     <SelectValue placeholder="Select position" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Positions</SelectItem>
                     {positions.map(position => (
                       <SelectItem key={position} value={position}>
                         {position}
@@ -337,7 +569,57 @@ export const ExploreRequests: React.FC = () => {
                 </Select>
               </div>
             </div>
-            
+
+            {/* Tagged Players Section */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Tagged Players</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTaggingModal(true)}
+                >
+                  <Tag className="w-4 h-4 mr-2" />
+                  Tag Players
+                </Button>
+              </div>
+
+              {taggedPlayers.length > 0 ? (
+                <div className="space-y-2">
+                  {taggedPlayers.map((player) => (
+                    <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <p className="font-medium text-white">{player.player_name}</p>
+                          <p className="text-sm text-gray-400">{player.player_position} • {player.team_name}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">
+                          {player.asking_price?.toLocaleString()} {player.currency}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeTaggedPlayer(player.id)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 border-2 border-dashed border-gray-600 rounded-lg text-center">
+                  <Tag className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-400">No players tagged yet</p>
+                  <p className="text-sm text-gray-500">Click "Tag Players" to select from pitched players</p>
+                </div>
+              )}
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Description *</Label>
@@ -381,18 +663,75 @@ export const ExploreRequests: React.FC = () => {
         </Card>
       )}
 
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Select value={sportTypeFilter} onValueChange={setSportTypeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Sports" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sports</SelectItem>
+                {sportTypes.map(sport => (
+                  <SelectItem key={sport} value={sport}>
+                    {sport.charAt(0).toUpperCase() + sport.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={positionFilter} onValueChange={setPositionFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Positions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Positions</SelectItem>
+                {positions.map(position => (
+                  <SelectItem key={position} value={position}>
+                    {position}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Transfer Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {transferTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPositionFilter('all');
+                setSportTypeFilter('all');
+                setTransferTypeFilter('all');
+              }}
+            >
+              Clear Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Requests List */}
       <div className="grid gap-4">
-        {requests.length === 0 ? (
+        {filteredRequests.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center">
               <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No requests found</p>
-              <p className="text-sm text-gray-400 mt-1">Be the first to post a request</p>
+              <p className="text-sm text-gray-400 mt-1">Try adjusting your filters</p>
             </CardContent>
           </Card>
         ) : (
-          requests.map((request) => (
+          filteredRequests.map((request) => (
             <Card key={request.id}>
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
@@ -448,12 +787,21 @@ export const ExploreRequests: React.FC = () => {
 
                 {request.tagged_players && request.tagged_players.length > 0 && (
                   <div className="mt-4 p-3 bg-gray-800 rounded-lg">
-                    <p className="text-sm text-gray-400 mb-2">Tagged Players:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {request.tagged_players.map((playerId, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          Player {playerId}
-                        </Badge>
+                    <p className="text-sm text-gray-400 mb-2 flex items-center gap-1">
+                      <Tag className="w-3 h-3" />
+                      Tagged Players ({request.tagged_players.length}):
+                    </p>
+                    <div className="space-y-2">
+                      {requestTaggedPlayers[request.id]?.map((player) => (
+                        <div key={player.id} className="flex items-center justify-between p-2 bg-gray-700 rounded">
+                          <div>
+                            <p className="text-sm font-medium text-white">{player.player_name}</p>
+                            <p className="text-xs text-gray-400">{player.player_position} • {player.team_name}</p>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {player.asking_price?.toLocaleString()} {player.currency}
+                          </Badge>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -463,6 +811,14 @@ export const ExploreRequests: React.FC = () => {
           ))
         )}
       </div>
+
+      {/* Player Tagging Modal */}
+      <PlayerTaggingModal
+        isOpen={showTaggingModal}
+        onClose={() => setShowTaggingModal(false)}
+        onTagPlayers={handleTagPlayers}
+        currentlyTagged={newRequest.tagged_players || []}
+      />
     </div>
   );
 };
