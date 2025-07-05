@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Filter, Eye, MessageCircle, Heart, Play, DollarSign, Clock, MapPin, User, Building2, Tag, Users } from 'lucide-react';
+import { Search, Filter, Eye, MessageCircle, Heart, Play, DollarSign, Clock, MapPin, User, Building2, Tag, Users, Star } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ShortlistManager } from './ShortlistManager';
 import MessageModal from './MessageModal';
@@ -365,7 +366,7 @@ export const AgentTimeline: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-gray-800/50 border-gray-700">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
@@ -374,14 +375,14 @@ export const AgentTimeline: React.FC = () => {
                 placeholder="Search players or teams..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-gray-700 border-gray-600 text-white"
               />
             </div>
             <Select value={positionFilter} onValueChange={setPositionFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                 <SelectValue placeholder="All Positions" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-800 border-gray-600">
                 <SelectItem value="all">All Positions</SelectItem>
                 {positions.map(position => (
                   <SelectItem key={position} value={position}>
@@ -391,10 +392,10 @@ export const AgentTimeline: React.FC = () => {
               </SelectContent>
             </Select>
             <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                 <SelectValue placeholder="Transfer Type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-800 border-gray-600">
                 <SelectItem value="all">All Types</SelectItem>
                 {transferTypes.map(type => (
                   <SelectItem key={type} value={type}>
@@ -404,10 +405,10 @@ export const AgentTimeline: React.FC = () => {
               </SelectContent>
             </Select>
             <Select value={priceRangeFilter} onValueChange={setPriceRangeFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                 <SelectValue placeholder="Price Range" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-800 border-gray-600">
                 <SelectItem value="all">All Prices</SelectItem>
                 {priceRanges.map(range => (
                   <SelectItem key={range.value} value={range.value}>
@@ -424,6 +425,7 @@ export const AgentTimeline: React.FC = () => {
                 setTransferTypeFilter('all');
                 setPriceRangeFilter('all');
               }}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
             >
               <Filter className="w-4 h-4 mr-2" />
               Clear
@@ -433,125 +435,134 @@ export const AgentTimeline: React.FC = () => {
       </Card>
 
       {/* Players Grid */}
-      <div className="grid gap-6">
+      <div className="grid gap-4">
         {filteredPlayers.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No players found</p>
-              <p className="text-sm text-gray-400 mt-1">Try adjusting your filters</p>
+          <Card className="bg-gray-800/50 border-gray-700">
+            <CardContent className="p-8 text-center">
+              <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">No players found</h3>
+              <p className="text-gray-400">Try adjusting your filters</p>
             </CardContent>
           </Card>
         ) : (
           filteredPlayers.map((player) => (
-            <Card key={player.id} className="hover:shadow-lg transition-shadow">
+            <Card key={player.id} className="bg-gray-800/30 border-gray-700 hover:border-rosegold/50 transition-all duration-200 hover:shadow-lg">
               <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-white mb-1">{player.player_name}</h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-400">
-                      <span className="flex items-center gap-1">
-                        <User className="w-4 h-4" />
-                        {player.player_position}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {player.player_citizenship}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Building2 className="w-4 h-4" />
-                        {player.team_name}
-                      </span>
+                <div className="flex flex-col lg:flex-row gap-6">
+                  {/* Player Avatar/Image */}
+                  <div className="flex-shrink-0">
+                    <div className="w-20 h-20 bg-gradient-to-br from-rosegold/20 to-rosegold/10 rounded-xl flex items-center justify-center border border-rosegold/20">
+                      <User className="w-10 h-10 text-rosegold" />
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-rosegold mb-1">
-                      {player.asking_price?.toLocaleString()} {player.currency}
-                    </div>
-                    <Badge
-                      variant={isExpiringSoon(player.expires_at) ? "destructive" : "secondary"}
-                      className="mb-2"
-                    >
-                      <Clock className="w-3 h-3 mr-1" />
-                      {formatDistanceToNow(new Date(player.expires_at))} left
-                    </Badge>
-                  </div>
-                </div>
 
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Badge variant="outline">{player.transfer_type}</Badge>
-                  {player.player_market_value && (
-                    <Badge variant="secondary">
-                      Market Value: {player.player_market_value.toLocaleString()} {player.currency}
-                    </Badge>
-                  )}
-                </div>
-
-                {player.description && (
-                  <p className="text-gray-300 mb-4 line-clamp-2">{player.description}</p>
-                )}
-
-                {player.tagged_videos && player.tagged_videos.length > 0 && (
-                  <div className="mb-4">
-                    <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                      <Play className="w-3 h-3" />
-                      {player.tagged_videos.length} Video{player.tagged_videos.length > 1 ? 's' : ''}
-                    </Badge>
-                  </div>
-                )}
-
-                {/* Tagged in Explore Requests */}
-                {taggedRequests[player.player_id] && taggedRequests[player.player_id].length > 0 && (
-                  <div className="mb-4 p-3 bg-gray-800 rounded-lg">
-                    <p className="text-sm text-gray-400 mb-2 flex items-center gap-1">
-                      <Tag className="w-3 h-3" />
-                      Tagged in {taggedRequests[player.player_id].length} Explore Request{taggedRequests[player.player_id].length > 1 ? 's' : ''}:
-                    </p>
-                    <div className="space-y-1">
-                      {taggedRequests[player.player_id].slice(0, 3).map((request: any) => (
-                        <div key={request.id} className="flex items-center justify-between text-xs">
-                          <span className="text-gray-300 truncate">{request.title}</span>
-                          <span className="text-gray-500 ml-2">by {request.agency_name}</span>
+                  {/* Player Info */}
+                  <div className="flex-1 space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-2">{player.player_name}</h3>
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400 mb-3">
+                          <div className="flex items-center gap-1">
+                            <User className="w-4 h-4" />
+                            <span>{player.player_position}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4" />
+                            <span>{player.player_citizenship}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-4 h-4" />
+                            <span>{player.team_name}</span>
+                          </div>
                         </div>
-                      ))}
-                      {taggedRequests[player.player_id].length > 3 && (
-                        <p className="text-xs text-gray-500">
-                          +{taggedRequests[player.player_id].length - 3} more requests
-                        </p>
+                      </div>
+                      
+                      {/* Price and Status */}
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-rosegold mb-1">
+                          ${player.asking_price?.toLocaleString()}
+                        </div>
+                        <Badge
+                          variant={isExpiringSoon(player.expires_at) ? "destructive" : "secondary"}
+                          className="mb-2"
+                        >
+                          <Clock className="w-3 h-3 mr-1" />
+                          {formatDistanceToNow(new Date(player.expires_at))} left
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Transfer Details */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="capitalize">
+                        {player.transfer_type}
+                      </Badge>
+                      {player.player_market_value && (
+                        <Badge variant="secondary" className="bg-gray-700">
+                          Market: ${player.player_market_value.toLocaleString()}
+                        </Badge>
+                      )}
+                      {player.tagged_videos && player.tagged_videos.length > 0 && (
+                        <Badge variant="outline" className="border-rosegold/50 text-rosegold">
+                          <Play className="w-3 h-3 mr-1" />
+                          {player.tagged_videos.length} Video{player.tagged_videos.length > 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    {player.description && (
+                      <p className="text-gray-300 text-sm leading-relaxed line-clamp-2">
+                        {player.description}
+                      </p>
+                    )}
+
+                    {/* Tagged Activity */}
+                    <div className="space-y-2">
+                      {taggedRequests[player.player_id] && taggedRequests[player.player_id].length > 0 && (
+                        <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Tag className="w-4 h-4 text-rosegold" />
+                            <span className="text-sm font-medium text-rosegold">
+                              Tagged in {taggedRequests[player.player_id].length} Request{taggedRequests[player.player_id].length > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {taggedRequests[player.player_id].slice(0, 2).map((request: any) => (
+                              <div key={request.id} className="flex items-center justify-between py-1">
+                                <span className="truncate">{request.title}</span>
+                                <span className="ml-2 text-gray-500">by {request.agency_name}</span>
+                              </div>
+                            ))}
+                            {taggedRequests[player.player_id].length > 2 && (
+                              <span className="text-gray-500">+{taggedRequests[player.player_id].length - 2} more</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {taggedInComments[player.player_id] && taggedInComments[player.player_id].length > 0 && (
+                        <div className="bg-gray-600/20 rounded-lg p-3 border border-gray-500/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MessageCircle className="w-4 h-4 text-blue-400" />
+                            <span className="text-sm font-medium text-blue-400">
+                              Mentioned in {taggedInComments[player.player_id].length} Comment{taggedInComments[player.player_id].length > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
-                )}
+                </div>
 
-                {/* Tagged in Comments */}
-                {taggedInComments[player.player_id] && taggedInComments[player.player_id].length > 0 && (
-                  <div className="mb-4 p-3 bg-gray-700 rounded-lg">
-                    <p className="text-sm text-gray-400 mb-2 flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      Tagged in {taggedInComments[player.player_id].length} Comment{taggedInComments[player.player_id].length > 1 ? 's' : ''}:
-                    </p>
-                    <div className="space-y-1">
-                      {taggedInComments[player.player_id].slice(0, 2).map((comment: any) => (
-                        <div key={comment.id} className="text-xs">
-                          <span className="text-gray-300">on "{comment.title}"</span>
-                          <span className="text-gray-500 ml-2">by {comment.commenter_name} ({comment.commenter_type})</span>
-                        </div>
-                      ))}
-                      {taggedInComments[player.player_id].length > 2 && (
-                        <p className="text-xs text-gray-500">
-                          +{taggedInComments[player.player_id].length - 2} more comments
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-700">
-                  <div className="flex items-center gap-2">
+                {/* Action Buttons */}
+                <div className="flex items-center justify-between pt-4 border-t border-gray-700 mt-4">
+                  <div className="flex items-center gap-3">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleViewPlayer(player.player_id)}
+                      className="border-gray-600 hover:border-rosegold/50 hover:bg-rosegold/10"
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       View Details
@@ -580,7 +591,7 @@ export const AgentTimeline: React.FC = () => {
 
                   {!canMessage && profile?.user_type === 'agent' && (
                     <Badge variant="secondary" className="text-xs">
-                      FIFA ID required for messaging
+                      FIFA ID required
                     </Badge>
                   )}
                 </div>
