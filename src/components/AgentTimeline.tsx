@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Filter, Eye, MessageCircle, Heart, Play, DollarSign, Clock, MapPin, User, Building2, Tag } from 'lucide-react';
+import { Search, Filter, Eye, MessageCircle, Heart, Play, DollarSign, Clock, MapPin, User, Building2, Tag, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ShortlistManager } from './ShortlistManager';
 import MessageModal from './MessageModal';
@@ -47,6 +47,7 @@ export const AgentTimeline: React.FC = () => {
   const [messagePlayerData, setMessagePlayerData] = useState<any>(null);
   const [canMessage, setCanMessage] = useState(false);
   const [taggedRequests, setTaggedRequests] = useState<{ [playerId: string]: any[] }>({});
+  const [taggedInComments, setTaggedInComments] = useState<{ [playerId: string]: any[] }>({});
 
   const positions = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward', 'Striker', 'Winger'];
   const transferTypes = ['permanent', 'loan'];
@@ -251,7 +252,7 @@ export const AgentTimeline: React.FC = () => {
       if (playerIds.length === 0) return;
 
       // Fetch explore requests that have tagged these players
-      const { data, error } = await supabase
+      const { data: requestData, error: requestError } = await supabase
         .from('agent_requests')
         .select(`
           id,
@@ -269,33 +270,78 @@ export const AgentTimeline: React.FC = () => {
         .gte('expires_at', new Date().toISOString())
         .not('tagged_players', 'is', null);
 
-      if (error) throw error;
+      if (requestError) throw requestError;
 
-      // Create a map of player IDs to their tagged requests
-      const taggedMap: { [playerId: string]: any[] } = {};
+      // Fetch comments that have tagged these players
+      const { data: commentData, error: commentError } = await supabase
+        .from('agent_request_comments')
+        .select(`
+          id,
+          tagged_players,
+          agent_requests!inner(
+            title,
+            agents!inner(
+              agency_name
+            )
+          ),
+          profiles!inner(
+            full_name,
+            user_type
+          )
+        `)
+        .not('tagged_players', 'is', null);
 
-      (data || []).forEach((request: any) => {
+      if (commentError) throw commentError;
+
+      // Create maps for tagged requests and comments
+      const requestTaggedMap: { [playerId: string]: any[] } = {};
+      const commentTaggedMap: { [playerId: string]: any[] } = {};
+
+      // Process request tags
+      (requestData || []).forEach((request: any) => {
         const taggedPlayerIds = request.tagged_players || [];
         taggedPlayerIds.forEach((playerId: string) => {
           if (playerIds.includes(playerId)) {
-            if (!taggedMap[playerId]) {
-              taggedMap[playerId] = [];
+            if (!requestTaggedMap[playerId]) {
+              requestTaggedMap[playerId] = [];
             }
-            taggedMap[playerId].push({
+            requestTaggedMap[playerId].push({
               id: request.id,
               title: request.title,
               agency_name: request.agents?.agency_name,
-              agent_name: request.agents?.profiles?.full_name
+              agent_name: request.agents?.profiles?.full_name,
+              type: 'request'
             });
           }
         });
       });
 
-      setTaggedRequests(taggedMap);
+      // Process comment tags
+      (commentData || []).forEach((comment: any) => {
+        const taggedPlayerIds = comment.tagged_players || [];
+        taggedPlayerIds.forEach((playerId: string) => {
+          if (playerIds.includes(playerId)) {
+            if (!commentTaggedMap[playerId]) {
+              commentTaggedMap[playerId] = [];
+            }
+            commentTaggedMap[playerId].push({
+              id: comment.id,
+              title: comment.agent_requests?.title,
+              agency_name: comment.agent_requests?.agents?.agency_name,
+              commenter_name: comment.profiles?.full_name,
+              commenter_type: comment.profiles?.user_type,
+              type: 'comment'
+            });
+          }
+        });
+      });
+
+      setTaggedRequests(requestTaggedMap);
+      setTaggedInComments(commentTaggedMap);
     } catch (error) {
       console.error('Error fetching tagged requests:', error);
-      // Set empty results if there's an error
       setTaggedRequests({});
+      setTaggedInComments({});
     }
   };
 
@@ -471,6 +517,29 @@ export const AgentTimeline: React.FC = () => {
                       {taggedRequests[player.player_id].length > 3 && (
                         <p className="text-xs text-gray-500">
                           +{taggedRequests[player.player_id].length - 3} more requests
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tagged in Comments */}
+                {taggedInComments[player.player_id] && taggedInComments[player.player_id].length > 0 && (
+                  <div className="mb-4 p-3 bg-gray-700 rounded-lg">
+                    <p className="text-sm text-gray-400 mb-2 flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      Tagged in {taggedInComments[player.player_id].length} Comment{taggedInComments[player.player_id].length > 1 ? 's' : ''}:
+                    </p>
+                    <div className="space-y-1">
+                      {taggedInComments[player.player_id].slice(0, 2).map((comment: any) => (
+                        <div key={comment.id} className="text-xs">
+                          <span className="text-gray-300">on "{comment.title}"</span>
+                          <span className="text-gray-500 ml-2">by {comment.commenter_name} ({comment.commenter_type})</span>
+                        </div>
+                      ))}
+                      {taggedInComments[player.player_id].length > 2 && (
+                        <p className="text-xs text-gray-500">
+                          +{taggedInComments[player.player_id].length - 2} more comments
                         </p>
                       )}
                     </div>

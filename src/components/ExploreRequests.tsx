@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Plus, MessageCircle, Calendar, MapPin, User, DollarSign, Tag } from 'lucide-react';
+import { Search, Plus, MessageCircle, Calendar, MapPin, User, DollarSign, Tag, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import PlayerTaggingModal from './PlayerTaggingModal';
+import RequestComments from './RequestComments';
 
 interface AgentRequest {
   id: string;
@@ -55,6 +56,7 @@ export const ExploreRequests: React.FC = () => {
   const [transferTypeFilter, setTransferTypeFilter] = useState('all');
   const [taggedPlayers, setTaggedPlayers] = useState<TaggedPlayer[]>([]);
   const [requestTaggedPlayers, setRequestTaggedPlayers] = useState<{ [requestId: string]: TaggedPlayer[] }>({});
+  const [expandedComments, setExpandedComments] = useState<{ [requestId: string]: boolean }>({});
 
   const [newRequest, setNewRequest] = useState({
     title: '',
@@ -443,6 +445,13 @@ export const ExploreRequests: React.FC = () => {
     }));
   };
 
+  const toggleComments = (requestId: string) => {
+    setExpandedComments(prev => ({
+      ...prev,
+      [requestId]: !prev[requestId]
+    }));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -785,6 +794,7 @@ export const ExploreRequests: React.FC = () => {
                   )}
                 </div>
 
+                {/* Tagged Players in Original Request */}
                 {request.tagged_players && request.tagged_players.length > 0 && (
                   <div className="mt-4 p-3 bg-gray-800 rounded-lg">
                     <p className="text-sm text-gray-400 mb-2 flex items-center gap-1">
@@ -804,6 +814,33 @@ export const ExploreRequests: React.FC = () => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Comments Toggle Button */}
+                <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+                  <Button
+                    variant="ghost"
+                    onClick={() => toggleComments(request.id)}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Comments
+                    {expandedComments[request.id] ? (
+                      <ChevronUp className="w-4 h-4 ml-2" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    )}
+                  </Button>
+                </div>
+
+                {/* Comments Section */}
+                {expandedComments[request.id] && (
+                  <div className="mt-4 pt-4 border-t border-gray-700">
+                    <RequestComments
+                      requestId={request.id}
+                      isPublic={true}
+                    />
                   </div>
                 )}
               </CardContent>
