@@ -1,4 +1,3 @@
-
 const YOUTUBE_API_KEY = 'AIzaSyBr3Gi1V_HYC45etDYrnuywYWBa-cruYL4';
 
 export interface YouTubeVideoInfo {
@@ -62,5 +61,19 @@ export const extractYouTubeVideoId = (url: string): string | null => {
 };
 
 export const getYouTubeEmbedUrl = (videoId: string): string => {
-  return `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${window.location.origin}`;
+  const params = new URLSearchParams({
+    enablejsapi: '1',
+    origin: window.location.origin,
+    rel: '0',
+    modestbranding: '1',
+    controls: '1',
+    disablekb: '0',
+    fs: '1',
+    iv_load_policy: '3',
+    cc_load_policy: '0',
+    autoplay: '0',
+    mute: '0'
+  });
+  
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
 };

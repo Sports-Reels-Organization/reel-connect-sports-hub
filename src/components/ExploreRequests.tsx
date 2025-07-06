@@ -134,9 +134,9 @@ const ExploreRequests = () => {
     <div className="space-y-6">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Explore Requests</h1>
-          <p className="text-gray-400">Discover transfer opportunities from agents worldwide</p>
+        <div className='text-start '>
+          <h1 className="text-3xl font-bold font-polysans text-white mb-2">Explore Requests</h1>
+          <p className="text-gray-500">Discover transfer opportunities from agents worldwide</p>
         </div>
         {profile?.user_type === 'agent' && (
           <Button
@@ -296,7 +296,7 @@ const ExploreRequests = () => {
                             <Eye className="w-4 h-4 mr-1" />
                             {isExpanded ? 'Collapse' : 'View Details'}
                           </Button>
-                          
+
                           <Button
                             variant="outline"
                             size="sm"
@@ -317,7 +317,7 @@ const ExploreRequests = () => {
                       {/* Comments Section - Only show when expanded */}
                       {isExpanded && (
                         <div className="border-t border-gray-700 pt-4 mt-4">
-                          <RequestComments 
+                          <RequestComments
                             requestId={request.id}
                             isPublic={request.is_public}
                             onPlayerClick={openPlayerProfile}

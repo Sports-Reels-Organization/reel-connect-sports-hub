@@ -32,7 +32,7 @@ export const EnhancedVideoManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
-  
+
   const {
     selectedPlayerId,
     selectedPlayerName,
@@ -48,7 +48,7 @@ export const EnhancedVideoManagement: React.FC = () => {
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all public videos with better filtering
       const { data, error } = await supabase
         .from('videos')
@@ -93,7 +93,7 @@ export const EnhancedVideoManagement: React.FC = () => {
         .ilike('full_name', `%${playerName.trim()}%`)
         .limit(1);
 
-      if (error) {  
+      if (error) {
         console.error('Error finding player:', error);
         return;
       }
@@ -110,7 +110,7 @@ export const EnhancedVideoManagement: React.FC = () => {
 
   const extractPlayerTags = (taggedPlayers: any): string[] => {
     if (!taggedPlayers) return [];
-    
+
     try {
       if (Array.isArray(taggedPlayers)) {
         return taggedPlayers.map(player => {
@@ -120,7 +120,7 @@ export const EnhancedVideoManagement: React.FC = () => {
           return 'Unknown Player';
         }).filter(Boolean);
       }
-      
+
       if (typeof taggedPlayers === 'string') {
         try {
           const parsed = JSON.parse(taggedPlayers);
@@ -132,7 +132,7 @@ export const EnhancedVideoManagement: React.FC = () => {
     } catch (error) {
       console.error('Error extracting player tags:', error);
     }
-    
+
     return [];
   };
 
@@ -147,12 +147,12 @@ export const EnhancedVideoManagement: React.FC = () => {
 
   const formatTimeAgo = (dateString?: string) => {
     if (!dateString) return '';
-    
+
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return '1 day ago';
     if (diffDays < 7) return `${diffDays} days ago`;
@@ -219,8 +219,8 @@ export const EnhancedVideoManagement: React.FC = () => {
         {videos.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {videos.map((video) => (
-              <Card 
-                key={video.id} 
+              <Card
+                key={video.id}
                 className="bg-[#1a1a1a] border-[#d4af37]/20 hover:border-[#d4af37] transition-all duration-300 group cursor-pointer shadow-lg hover:shadow-xl"
                 onClick={() => handleVideoClick(video)}
               >
@@ -279,7 +279,7 @@ export const EnhancedVideoManagement: React.FC = () => {
                           </span>
                         </div>
                       )}
-                      
+
                       {video.opposing_team && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-400">vs {video.opposing_team}</span>
@@ -331,9 +331,9 @@ export const EnhancedVideoManagement: React.FC = () => {
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {video.tags.slice(0, 4).map((tag, index) => (
-                            <Badge 
-                              key={index} 
-                              variant="outline" 
+                            <Badge
+                              key={index}
+                              variant="outline"
                               className="text-gray-400 border-gray-600 text-xs hover:border-pink-400 hover:text-pink-400 transition-colors"
                             >
                               {tag}

@@ -3,7 +3,7 @@ import React from 'react';
 import Layout from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import { AgentTimeline } from '@/components/AgentTimeline';
+import AgentTimeline from '@/components/AgentTimeline';
 import ExploreRequests from '@/components/ExploreRequests';
 import { Clock, Search } from 'lucide-react';
 
@@ -24,11 +24,11 @@ const Explore = () => {
               Explore Requests
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="timeline" className="mt-6">
             <AgentTimeline />
           </TabsContent>
-          
+
           <TabsContent value="requests" className="mt-6">
             <ExploreRequests />
           </TabsContent>

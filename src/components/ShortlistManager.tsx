@@ -75,7 +75,7 @@ export const ShortlistManager: React.FC<ShortlistManagerProps> = ({
 
   const fetchAgentId = async () => {
     if (!profile) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('agents')
@@ -149,7 +149,7 @@ export const ShortlistManager: React.FC<ShortlistManagerProps> = ({
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      
+
       setIsShortlisted(!!data);
       setNotes(data?.notes || '');
     } catch (error) {
@@ -352,7 +352,7 @@ export const ShortlistManager: React.FC<ShortlistManagerProps> = ({
 
   // Show shortlist toggle for individual player
   return (
-    <div className="space-y-3">
+    <div className="">
       <div className="flex items-center gap-2">
         <Button
           onClick={toggleShortlist}
@@ -376,8 +376,8 @@ export const ShortlistManager: React.FC<ShortlistManagerProps> = ({
       </div>
 
       {isShortlisted && (
-        <div className="space-y-2">
-          <Textarea
+        <div className="">
+          {/* <Textarea
             placeholder="Add notes about this player..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -391,7 +391,7 @@ export const ShortlistManager: React.FC<ShortlistManagerProps> = ({
             variant="secondary"
           >
             Update Notes
-          </Button>
+          </Button> */}
         </div>
       )}
     </div>

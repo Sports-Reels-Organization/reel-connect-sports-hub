@@ -18,7 +18,7 @@ const Profile = () => {
           <h1 className="text-3xl font-polysans font-bold text-white mb-2">
             Profile Settings
           </h1>
-          <p className="text-rosegold font-poppins">
+          <p className="text-gray-500 font-poppins">
             Manage your account and profile information
           </p>
         </div>
@@ -39,11 +39,11 @@ const Profile = () => {
                 Notifications
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="profile" className="mt-6">
               <AgentProfileForm />
             </TabsContent>
-            
+
             <TabsContent value="shortlist" className="mt-6">
               <Card>
                 <CardContent className="p-6">
@@ -51,7 +51,7 @@ const Profile = () => {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="notifications" className="mt-6">
               <Card>
                 <CardHeader>

@@ -16,9 +16,9 @@ import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import Timeline from "./pages/Timeline";
 import Explore from "./pages/Explore";
-import Notifications from "./pages/Notifications";
-import Contracts from "./pages/Contracts";
-import Shortlist from "./pages/Shortlist";
+// import Notifications from "./pages/Notifications";
+// import Contracts from "./pages/Contracts";
+// import Shortlist from "./pages/Shortlist";
 
 // New pages
 import History from "./components/History";
@@ -43,9 +43,6 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/timeline" element={<Timeline />} />
               <Route path="/explore" element={<Explore />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/contracts" element={<Contracts />} />
-              <Route path="/shortlist" element={<Shortlist />} />
               <Route path="/history" element={<History />} />
               <Route path="/news" element={<News />} />
             </Routes>

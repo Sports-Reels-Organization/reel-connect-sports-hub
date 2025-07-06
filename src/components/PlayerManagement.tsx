@@ -182,7 +182,7 @@ const PlayerManagement: React.FC = () => {
       </div>
 
       {/* Transfer Pitch Requirements Status */}
-      <Card className="border-gray-700 bg-gradient-to-r from-blue-900/20 to-purple-900/20">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-white font-polysans flex items-center gap-2">
             <Target className="h-5 w-5" />

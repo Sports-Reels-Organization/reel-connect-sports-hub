@@ -32,7 +32,7 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
   });
 
   const sportTypes = ['football', 'basketball', 'volleyball', 'tennis', 'rugby'];
-  
+
   useEffect(() => {
     if (profile?.user_type === 'agent') {
       fetchAgentData();
@@ -84,7 +84,7 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${profile.id}-${Date.now()}.${fileExt}`;
-      
+
       const { data, error } = await supabase.storage
         .from('player-photos')
         .upload(`agent-logos/${fileName}`, file);
@@ -96,7 +96,7 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
         .getPublicUrl(`agent-logos/${fileName}`);
 
       setAgentData(prev => ({ ...prev, logo_url: urlData.publicUrl }));
-      
+
       toast({
         title: "Success",
         description: "Logo uploaded successfully",
@@ -181,10 +181,10 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
   }
 
   return (
-    <Card className="max-w-2xl mx-auto">
+    <Card className="max-w-2xl border-0 mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-rosegold">
-          <Building2 className="w-5 h-5" />
+        <CardTitle className="flex items-center gap-2 ">
+
           Agent Profile Setup
         </CardTitle>
       </CardHeader>
@@ -198,9 +198,9 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
             </Label>
             <div className="flex items-center gap-4">
               {agentData.logo_url && (
-                <img 
-                  src={agentData.logo_url} 
-                  alt="Agency Logo" 
+                <img
+                  src={agentData.logo_url}
+                  alt="Agency Logo"
                   className="w-20 h-20 object-cover rounded-lg border"
                 />
               )}
@@ -262,7 +262,7 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
                 placeholder="Enter your FIFA ID"
                 required
               />
-              <p className="text-sm text-amber-600">FIFA ID is required for football agents to message players and offer contracts</p>
+              <p className="text-sm text-red-400">FIFA ID is required for football agents to message players and offer contracts</p>
             </div>
           )}
 
@@ -332,8 +332,8 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
             />
           </div>
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={loading || !agentData.agency_name}
             className="w-full bg-rosegold hover:bg-rosegold/90"
           >

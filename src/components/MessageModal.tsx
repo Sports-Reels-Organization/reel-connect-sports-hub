@@ -65,7 +65,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [contractGenerating, setContractGenerating] = useState(false);
-  const [attachments, setAttachments] = useState<{url: string, name: string, size: number, type: string}[]>([]);
+  const [attachments, setAttachments] = useState<{ url: string, name: string, size: number, type: string }[]>([]);
   const [showContractGen, setShowContractGen] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -108,17 +108,17 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 
       const transformedMessages: Message[] = (data || []).map(msg => ({
         ...msg,
-        attachment_urls: msg.attachment_urls ? 
-          (Array.isArray(msg.attachment_urls) ? 
-            msg.attachment_urls.map(url => String(url)) : 
-            [String(msg.attachment_urls)]) : 
+        attachment_urls: msg.attachment_urls ?
+          (Array.isArray(msg.attachment_urls) ?
+            msg.attachment_urls.map(url => String(url)) :
+            [String(msg.attachment_urls)]) :
           []
       }));
 
       setMessages(transformedMessages);
 
       // Mark messages as read
-      const unreadMessages = transformedMessages.filter(msg => 
+      const unreadMessages = transformedMessages.filter(msg =>
         msg.receiver_id === profile?.id && msg.status !== 'read'
       );
 
@@ -180,10 +180,10 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 
       const transformedMessage: Message = {
         ...data,
-        attachment_urls: data.attachment_urls ? 
-          (Array.isArray(data.attachment_urls) ? 
-            data.attachment_urls.map(url => String(url)) : 
-            [String(data.attachment_urls)]) : 
+        attachment_urls: data.attachment_urls ?
+          (Array.isArray(data.attachment_urls) ?
+            data.attachment_urls.map(url => String(url)) :
+            [String(data.attachment_urls)]) :
           []
       };
 
@@ -218,19 +218,19 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 
   const handleContractGenerated = async (contractHtml: string) => {
     console.log('handleContractGenerated called with HTML length:', contractHtml.length);
-    
+
     setContractGenerating(true);
-    
+
     // Show immediate feedback
     toast({
       title: "Processing Contract",
       description: "Converting contract to PDF...",
       duration: 2000,
     });
-    
+
     try {
       console.log('Step 1: Starting PDF conversion...');
-      
+
       // Create a temporary div to render the HTML with proper styling
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = contractHtml;
@@ -245,14 +245,14 @@ export const MessageModal: React.FC<MessageModalProps> = ({
       tempDiv.style.lineHeight = '1.4';
       tempDiv.style.padding = '20px';
       document.body.appendChild(tempDiv);
-      
+
       console.log('Step 2: Temporary div created and added to DOM');
-      
+
       // Wait a bit for styles to apply
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       console.log('Step 3: Starting canvas conversion...');
-      
+
       try {
         // Convert to canvas with better settings
         const canvas = await html2canvas(tempDiv, {
@@ -264,29 +264,29 @@ export const MessageModal: React.FC<MessageModalProps> = ({
           height: tempDiv.scrollHeight,
           logging: false
         });
-        
+
         console.log('Step 4: Canvas conversion successful, canvas size:', canvas.width, 'x', canvas.height);
-        
+
         // Remove temporary div
         document.body.removeChild(tempDiv);
-        
+
         // Show upload progress
         toast({
           title: "Uploading Contract",
           description: "Saving contract file...",
           duration: 2000,
         });
-        
+
         // Create PDF
         const pdf = new jsPDF('p', 'mm', 'a4');
         const imgData = canvas.toDataURL('image/png');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
+
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        
+
         console.log('Step 5: PDF created successfully');
-        
+
         // Convert PDF to blob
         const pdfBlob = pdf.output('blob');
         const timestamp = Date.now();
@@ -294,17 +294,17 @@ export const MessageModal: React.FC<MessageModalProps> = ({
         const cleanPlayerName = playerName.replace(/[^a-zA-Z0-9]/g, '_');
         const fileName = `${cleanPlayerName}_Contract_${timestamp}.pdf`;
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-        
+
         console.log('Step 6: File created, size:', file.size, 'bytes');
-        
+
         // Upload contract to message-attachments bucket
         console.log('Step 7: Starting contract upload to message-attachments bucket...');
         let contractUrl: string | null = null;
-        
+
         try {
           // Use simple file path without special characters
           const filePath = `contracts/${fileName}`;
-          
+
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('message-attachments')
             .upload(filePath, file, {
@@ -327,17 +327,17 @@ export const MessageModal: React.FC<MessageModalProps> = ({
         } catch (uploadError) {
           console.error('Upload failed:', uploadError);
           contractUrl = null;
-          
+
           toast({
             title: "Upload Failed",
             description: "Failed to upload contract. Please try again.",
             variant: "destructive",
             duration: 5000,
           });
-          
+
           return;
         }
-        
+
         // Send contract message
         console.log('Step 9: Preparing to send message...');
         const receiverId = getReceiverId();
@@ -565,7 +565,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 <div className="space-y-3">
                   <div className="text-sm text-gray-300 mb-2">Upload Files</div>
                   <FileUpload onFileUploaded={handleFileUploaded} />
-                  
+
                   {/* Quick Upload Buttons */}
                   <div className="flex gap-2 pt-2 border-t border-gray-600">
                     <input

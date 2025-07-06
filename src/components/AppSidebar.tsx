@@ -50,26 +50,17 @@ export function AppSidebar() {
       icon: Home,
     },
     {
-      title: 'History',
-      url: "/history",
-      icon: Clock,
+      title: t('explore'),
+      url: "/explore",
+      icon: Search,
     },
-    {
-      title: 'News',
-      url: "/news",
-      icon: Newspaper,
-    },
+
     {
       title: t('messages'),
       url: "/messages",
       icon: MessageSquare,
     },
-    {
-      title: t('notifications'),
-      url: "/notifications",
-      icon: Bell,
-      showBadge: true,
-    },
+
     {
       title: t('contracts'),
       url: "/contracts",
@@ -79,6 +70,19 @@ export function AppSidebar() {
       title: t('profile'),
       url: "/profile",
       icon: User,
+    }, {
+      title: t('notifications'),
+      url: "/notifications",
+      icon: Bell,
+      showBadge: true,
+    }, {
+      title: 'News',
+      url: "/news",
+      icon: Newspaper,
+    }, {
+      title: 'History',
+      url: "/history",
+      icon: Clock,
     },
   ];
 
@@ -90,11 +94,7 @@ export function AppSidebar() {
       url: "/shortlist",
       icon: Heart,
     },
-    {
-      title: t('explore'),
-      url: "/explore",
-      icon: Search,
-    },
+
     ...baseMenuItems.slice(3), // Messages, Notifications, Contracts, Profile
   ];
 

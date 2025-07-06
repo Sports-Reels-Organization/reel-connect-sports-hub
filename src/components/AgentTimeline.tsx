@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,8 @@ interface TimelinePlayer {
   description: string;
   tagged_videos: any[];
   status: string;
+  player_image?: string;
+  specialization?: string;
 }
 
 export const AgentTimeline: React.FC = () => {
@@ -90,7 +91,6 @@ export const AgentTimeline: React.FC = () => {
 
       if (error) throw error;
 
-      // For football agents, FIFA ID is required for messaging
       if (data.specialization?.includes('football')) {
         setCanMessage(!!data.fifa_id);
       } else {
@@ -104,7 +104,6 @@ export const AgentTimeline: React.FC = () => {
 
   const fetchTimelinePlayers = async () => {
     try {
-      // Use direct query to transfer_pitches table with joins since the view might not exist yet
       const { data, error } = await supabase
         .from('transfer_pitches')
         .select(`
@@ -113,7 +112,8 @@ export const AgentTimeline: React.FC = () => {
             full_name,
             position,
             citizenship,
-            market_value
+            market_value,
+            portrait_url
           ),
           teams!inner(
             team_name,
@@ -126,7 +126,6 @@ export const AgentTimeline: React.FC = () => {
 
       if (error) throw error;
 
-      // Transform the data to match our interface, handling Json types properly
       const transformedData = (data || []).map((pitch: any) => ({
         id: pitch.id,
         player_name: pitch.players?.full_name || '',
@@ -143,7 +142,9 @@ export const AgentTimeline: React.FC = () => {
         player_id: pitch.player_id,
         description: pitch.description || '',
         tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
-        status: pitch.status
+        status: pitch.status,
+        player_image: pitch.players?.portrait_url,
+        specialization: pitch.players?.specialization
       }));
 
       setPlayers(transformedData);
@@ -162,7 +163,6 @@ export const AgentTimeline: React.FC = () => {
   const filterPlayers = () => {
     let filtered = [...players];
 
-    // Search by name
     if (searchTerm) {
       filtered = filtered.filter(player =>
         player.player_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -170,21 +170,18 @@ export const AgentTimeline: React.FC = () => {
       );
     }
 
-    // Filter by position
     if (positionFilter !== 'all') {
       filtered = filtered.filter(player =>
         player.player_position.toLowerCase().includes(positionFilter.toLowerCase())
       );
     }
 
-    // Filter by transfer type
     if (transferTypeFilter !== 'all') {
       filtered = filtered.filter(player =>
         player.transfer_type === transferTypeFilter
       );
     }
 
-    // Filter by price range
     if (priceRangeFilter !== 'all') {
       const [min, max] = priceRangeFilter.split('-').map(Number);
       filtered = filtered.filter(player =>
@@ -247,12 +244,9 @@ export const AgentTimeline: React.FC = () => {
 
   const fetchTaggedRequests = async () => {
     try {
-      // Get all player IDs from the timeline
       const playerIds = players.map(player => player.player_id);
-
       if (playerIds.length === 0) return;
 
-      // Fetch explore requests that have tagged these players
       const { data: requestData, error: requestError } = await supabase
         .from('agent_requests')
         .select(`
@@ -273,7 +267,6 @@ export const AgentTimeline: React.FC = () => {
 
       if (requestError) throw requestError;
 
-      // Fetch comments that have tagged these players
       const { data: commentData, error: commentError } = await supabase
         .from('agent_request_comments')
         .select(`
@@ -294,11 +287,9 @@ export const AgentTimeline: React.FC = () => {
 
       if (commentError) throw commentError;
 
-      // Create maps for tagged requests and comments
       const requestTaggedMap: { [playerId: string]: any[] } = {};
       const commentTaggedMap: { [playerId: string]: any[] } = {};
 
-      // Process request tags
       (requestData || []).forEach((request: any) => {
         const taggedPlayerIds = request.tagged_players || [];
         taggedPlayerIds.forEach((playerId: string) => {
@@ -317,7 +308,6 @@ export const AgentTimeline: React.FC = () => {
         });
       });
 
-      // Process comment tags
       (commentData || []).forEach((comment: any) => {
         const taggedPlayerIds = comment.tagged_players || [];
         taggedPlayerIds.forEach((playerId: string) => {
@@ -358,28 +348,30 @@ export const AgentTimeline: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Transfer Timeline</h1>
-        <p className="text-gray-400">Discover and connect with players available for transfer</p>
+      <div className="text-start space-y-4">
+        <h1 className="text-3xl font-bold text-white mb-2  font-polysans">Transfer Timeline</h1>
+        <p className="text-gray-500">
+          Discover exceptional talent and connect with players ready for their next opportunity
+        </p>
       </div>
 
       {/* Filters */}
-      <Card className="bg-gray-800/50 border-gray-700">
+      <Card className="border-0">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className=" absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search players or teams..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-700 border-gray-600 text-white"
+                className="pl-10   text-white placeholder:text-gray-500"
               />
             </div>
             <Select value={positionFilter} onValueChange={setPositionFilter}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="  text-white">
                 <SelectValue placeholder="All Positions" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-600">
@@ -392,7 +384,7 @@ export const AgentTimeline: React.FC = () => {
               </SelectContent>
             </Select>
             <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className=" text-white">
                 <SelectValue placeholder="Transfer Type" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-600">
@@ -405,7 +397,7 @@ export const AgentTimeline: React.FC = () => {
               </SelectContent>
             </Select>
             <Select value={priceRangeFilter} onValueChange={setPriceRangeFilter}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className=" text-white">
                 <SelectValue placeholder="Price Range" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-600">
@@ -425,175 +417,189 @@ export const AgentTimeline: React.FC = () => {
                 setTransferTypeFilter('all');
                 setPriceRangeFilter('all');
               }}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:border-rosegold/50"
             >
               <Filter className="w-4 h-4 mr-2" />
-              Clear
+              Clear Filters
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Players Grid */}
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredPlayers.length === 0 ? (
-          <Card className="bg-gray-800/50 border-gray-700">
-            <CardContent className="p-8 text-center">
-              <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No players found</h3>
-              <p className="text-gray-400">Try adjusting your filters</p>
-            </CardContent>
-          </Card>
+          <div className="col-span-full">
+            <Card className="border-0">
+              <CardContent className="p-12 text-center">
+                <Search className="w-20 h-20 text-gray-400 mx-auto mb-6" />
+                <h3 className="text-2xl font-semibold text-white mb-3">No players found</h3>
+                <p className="text-gray-400 text-lg">Try adjusting your search criteria or filters</p>
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           filteredPlayers.map((player) => (
-            <Card key={player.id} className="bg-gray-800/30 border-gray-700 hover:border-rosegold/50 transition-all duration-200 hover:shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row gap-6">
-                  {/* Player Avatar/Image */}
-                  <div className="flex-shrink-0">
-                    <div className="w-20 h-20 bg-gradient-to-br from-rosegold/20 to-rosegold/10 rounded-xl flex items-center justify-center border border-rosegold/20">
-                      <User className="w-10 h-10 text-rosegold" />
-                    </div>
-                  </div>
-
-                  {/* Player Info */}
-                  <div className="flex-1 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-xl font-bold text-white mb-2">{player.player_name}</h3>
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400 mb-3">
-                          <div className="flex items-center gap-1">
-                            <User className="w-4 h-4" />
-                            <span>{player.player_position}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            <span>{player.player_citizenship}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Building2 className="w-4 h-4" />
-                            <span>{player.team_name}</span>
-                          </div>
+            <Card
+              key={player.id}
+              className="group bg-gradient-to-br border-0 overflow-hidden"
+            >
+              <CardContent className="p-0 bg-card border-0">
+                <div className="flex">
+                  {/* Player Image Section */}
+                  <div className="w-1/3 relative overflow-hidden">
+                    <div className="aspect-square bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
+                      {player.player_image ? (
+                        <img
+                          src={player.player_image}
+                          alt={player.player_name}
+                          className="w-full h-full min-h-[391px] object-cover object-top"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            target.nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-rosegold/20 to-rosegold/10 flex items-center justify-center">
+                          <User className="w-16 h-16 text-rosegold/70" />
                         </div>
-                      </div>
-                      
-                      {/* Price and Status */}
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-rosegold mb-1">
-                          ${player.asking_price?.toLocaleString()}
-                        </div>
-                        <Badge
-                          variant={isExpiringSoon(player.expires_at) ? "destructive" : "secondary"}
-                          className="mb-2"
-                        >
-                          <Clock className="w-3 h-3 mr-1" />
-                          {formatDistanceToNow(new Date(player.expires_at))} left
-                        </Badge>
+                      )}
+                      <div className="hidden w-full h-full bg-gradient-to-br from-rosegold/20 to-rosegold/10  items-center justify-center">
+                        <User className="w-16 h-16 text-rosegold/70" />
                       </div>
                     </div>
 
-                    {/* Transfer Details */}
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline" className="capitalize">
+                    {/* Overlays */}
+                    <div className="absolute top-3 right-3">
+                      <Badge
+                        variant={isExpiringSoon(player.expires_at) ? "destructive" : "secondary"}
+                        className="text-xs font-medium"
+                      >
+                        <Clock className="w-3 h-3 mr-1" />
+                        {formatDistanceToNow(new Date(player.expires_at))} left
+                      </Badge>
+                    </div>
+
+                    <div className="absolute bottom-3 left-3">
+                      <Badge variant="outline" className="capitalize text-xs bg-black/50 backdrop-blur-sm">
                         {player.transfer_type}
                       </Badge>
-                      {player.player_market_value && (
-                        <Badge variant="secondary" className="bg-gray-700">
-                          Market: ${player.player_market_value.toLocaleString()}
-                        </Badge>
-                      )}
-                      {player.tagged_videos && player.tagged_videos.length > 0 && (
-                        <Badge variant="outline" className="border-rosegold/50 text-rosegold">
-                          <Play className="w-3 h-3 mr-1" />
-                          {player.tagged_videos.length} Video{player.tagged_videos.length > 1 ? 's' : ''}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Description */}
-                    {player.description && (
-                      <p className="text-gray-300 text-sm leading-relaxed line-clamp-2">
-                        {player.description}
-                      </p>
-                    )}
-
-                    {/* Tagged Activity */}
-                    <div className="space-y-2">
-                      {taggedRequests[player.player_id] && taggedRequests[player.player_id].length > 0 && (
-                        <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Tag className="w-4 h-4 text-rosegold" />
-                            <span className="text-sm font-medium text-rosegold">
-                              Tagged in {taggedRequests[player.player_id].length} Request{taggedRequests[player.player_id].length > 1 ? 's' : ''}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {taggedRequests[player.player_id].slice(0, 2).map((request: any) => (
-                              <div key={request.id} className="flex items-center justify-between py-1">
-                                <span className="truncate">{request.title}</span>
-                                <span className="ml-2 text-gray-500">by {request.agency_name}</span>
-                              </div>
-                            ))}
-                            {taggedRequests[player.player_id].length > 2 && (
-                              <span className="text-gray-500">+{taggedRequests[player.player_id].length - 2} more</span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {taggedInComments[player.player_id] && taggedInComments[player.player_id].length > 0 && (
-                        <div className="bg-gray-600/20 rounded-lg p-3 border border-gray-500/20">
-                          <div className="flex items-center gap-2 mb-2">
-                            <MessageCircle className="w-4 h-4 text-blue-400" />
-                            <span className="text-sm font-medium text-blue-400">
-                              Mentioned in {taggedInComments[player.player_id].length} Comment{taggedInComments[player.player_id].length > 1 ? 's' : ''}
-                            </span>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
-                </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-700 mt-4">
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewPlayer(player.player_id)}
-                      className="border-gray-600 hover:border-rosegold/50 hover:bg-rosegold/10"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Details
-                    </Button>
+                  {/* Content Section */}
+                  <div className="w-2/3 p-6 flex flex-col justify-between">
+                    {/* Header */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-bold text-white group-hover:text-rosegold/90 transition-colors">
+                          {player.player_name}
+                        </h3>
+                        <p className="text-sm text-gray-400 font-medium">
+                          {player.specialization || 'Professional Player'}
+                        </p>
+                      </div>
 
-                    {profile?.user_type === 'agent' && (
-                      <>
+                      {/* Player Stats */}
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <User className="w-4 h-4 text-rosegold/70" />
+                          <span>{player.player_position}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <MapPin className="w-4 h-4 text-rosegold/70" />
+                          <span>{player.player_citizenship}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <Building2 className="w-4 h-4 text-rosegold/70" />
+                          <span>{player.team_name}, {player.team_country}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Footer */}
+                    <div className="space-y-6 ">
+                      {/* Price and Market Value */}
+                      <div className="flex items-center justify-between">
+                        <div className="text-right">
+                          <div className="text-xl font-bold text-rosegold">
+                            ${player.asking_price?.toLocaleString()}
+                          </div>
+                          {player.player_market_value && (
+                            <div className="text-xs text-start text-gray-400">
+                              Market: ${player.player_market_value.toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {player.tagged_videos && player.tagged_videos.length > 0 && (
+                            <Badge variant="outline" className="border-rosegold/50 text-rosegold bg-rosegold/5">
+                              <Play className="w-3 h-3 mr-1" />
+                              {player.tagged_videos.length} Video{player.tagged_videos.length > 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Tagged Activity */}
+                      {(taggedRequests[player.player_id]?.length > 0 || taggedInComments[player.player_id]?.length > 0) && (
+                        <div className="space-y-1">
+                          {taggedRequests[player.player_id] && taggedRequests[player.player_id].length > 0 && (
+                            <div className="flex items-center gap-2 text-xs text-rosegold/80">
+                              <Tag className="w-3 h-3" />
+                              <span>Tagged in {taggedRequests[player.player_id].length} request{taggedRequests[player.player_id].length > 1 ? 's' : ''}</span>
+                            </div>
+                          )}
+                          {taggedInComments[player.player_id] && taggedInComments[player.player_id].length > 0 && (
+                            <div className="flex items-center gap-2 text-xs text-blue-400/80">
+                              <MessageCircle className="w-3 h-3" />
+                              <span>Mentioned in {taggedInComments[player.player_id].length} comment{taggedInComments[player.player_id].length > 1 ? 's' : ''}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 pt-2">
                         <Button
-                          variant={canMessage ? "default" : "secondary"}
+                          variant="outline"
                           size="sm"
-                          onClick={() => handleMessagePlayer(player)}
-                          disabled={!canMessage}
-                          className={canMessage ? "bg-rosegold hover:bg-rosegold/90" : ""}
+                          onClick={() => handleViewPlayer(player.player_id)}
+                          className=""
                         >
-                          <MessageCircle className="w-4 h-4 mr-2" />
-                          Message
+                          <Eye className="w-4 h-4 " />
+
                         </Button>
 
-                        <ShortlistManager
-                          pitchId={player.id}
-                          playerId={player.player_id}
-                        />
-                      </>
-                    )}
-                  </div>
+                        {profile?.user_type === 'agent' && (
+                          <>
+                            <Button
+                              variant={canMessage ? "default" : "secondary"}
+                              size="sm"
+                              onClick={() => handleMessagePlayer(player)}
+                              disabled={!canMessage}
+                              className={canMessage ? "bg-rosegold hover:bg-rosegold  text-white" : ""}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </Button>
 
-                  {!canMessage && profile?.user_type === 'agent' && (
-                    <Badge variant="secondary" className="text-xs">
-                      FIFA ID required
-                    </Badge>
-                  )}
+                            <ShortlistManager
+                              pitchId={player.id}
+                              playerId={player.player_id}
+                            />
+                          </>
+                        )}
+                      </div>
+
+                      {!canMessage && profile?.user_type === 'agent' && (
+                        <div className="text-center">
+                          <Badge variant="secondary" className="text-xs">
+                            FIFA ID required for messaging
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -602,23 +608,27 @@ export const AgentTimeline: React.FC = () => {
       </div>
 
       {/* Modals */}
-      {selectedPlayer && (
-        <PlayerDetailModal
-          player={selectedPlayer}
-          isOpen={!!selectedPlayer}
-          onClose={() => setSelectedPlayer(null)}
-        />
-      )}
+      {
+        selectedPlayer && (
+          <PlayerDetailModal
+            player={selectedPlayer}
+            isOpen={!!selectedPlayer}
+            onClose={() => setSelectedPlayer(null)}
+          />
+        )
+      }
 
-      {showMessageModal && messagePlayerData && (
-        <MessageModal
-          isOpen={showMessageModal}
-          onClose={() => setShowMessageModal(false)}
-          {...messagePlayerData}
-          currentUserId={profile?.id || ''}
-        />
-      )}
-    </div>
+      {
+        showMessageModal && messagePlayerData && (
+          <MessageModal
+            isOpen={showMessageModal}
+            onClose={() => setShowMessageModal(false)}
+            {...messagePlayerData}
+            currentUserId={profile?.id || ''}
+          />
+        )
+      }
+    </div >
   );
 };
 
