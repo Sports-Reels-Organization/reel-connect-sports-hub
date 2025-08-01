@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -98,7 +97,7 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
 
     try {
       const { data, error } = await supabase
-        .from('shortlists')
+        .from('shortlist')
         .select('id')
         .eq('player_id', player.id)
         .single();
@@ -113,15 +112,60 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
     if (!player) return;
 
     try {
+      // First, get the current user's agent ID
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (!profile) {
+        toast({
+          title: "Error",
+          description: "Unable to find your profile.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { data: agent } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (!agent) {
+        toast({
+          title: "Error",
+          description: "You must be an agent to add players to shortlist.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Find an active pitch for this player
+      const { data: pitch } = await supabase
+        .from('transfer_pitches')
+        .select('id')
+        .eq('player_id', player.id)
+        .eq('status', 'active')
+        .single();
+
+      if (!pitch) {
+        toast({
+          title: "Error",
+          description: "No active pitch found for this player.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { error } = await supabase
-        .from('shortlists')
+        .from('shortlist')
         .insert({
+          agent_id: agent.id,
           player_id: player.id,
-          player_name: player.full_name,
-          sport_type: player.sport_type,
-          position: player.position,
-          nationality: player.nationality,
-          market_value: player.market_value
+          pitch_id: pitch.id
         });
 
       if (error) throw error;
@@ -146,7 +190,7 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
 
     try {
       const { error } = await supabase
-        .from('shortlists')
+        .from('shortlist')
         .delete()
         .eq('player_id', player.id);
 
