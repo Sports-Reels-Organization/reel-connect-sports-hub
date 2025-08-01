@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Play, User, Calendar, Tag, Video as VideoIcon, Star, Clock, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import PlayerProfileModal from './PlayerProfileModal';
+import PlayerProfileWrapper from './PlayerProfileWrapper';
 import VideoModal from './VideoModal';
 import { usePlayerProfile } from '@/hooks/usePlayerProfile';
 
@@ -386,7 +386,7 @@ export const EnhancedVideoManagement: React.FC = () => {
       />
 
       {/* Player Profile Modal */}
-      <PlayerProfileModal
+      <PlayerProfileWrapper
         isOpen={isPlayerModalOpen}
         onClose={closePlayerProfile}
         playerId={selectedPlayerId || ''}
