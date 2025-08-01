@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +46,21 @@ interface Team {
   logo_url: string;
   country: string;
   sport_type: string;
+}
+
+// Extended Profile interface to include avatar_url
+interface ExtendedProfile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  user_type: 'agent' | 'team';
+  profile_completed?: boolean;
+  country?: string;
+  phone?: string;
+  country_code?: string;
+  is_verified?: boolean;
+  avatar_url?: string;
 }
 
 const initialPosts: Post[] = [
@@ -177,6 +193,7 @@ const initialPosts: Post[] = [
 
 const Timeline = () => {
   const { profile } = useAuth();
+  const extendedProfile = profile as ExtendedProfile;
   const { toast } = useToast();
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [newPost, setNewPost] = useState('');
@@ -245,9 +262,9 @@ const Timeline = () => {
       likes: 0,
       shares: 0,
       views: 0,
-      author_id: profile?.id || 'userX',
-      author_name: profile?.full_name || 'Anonymous',
-      author_avatar: profile?.avatar_url || 'https://i.pravatar.cc/50?img=8',
+      author_id: extendedProfile?.id || 'userX',
+      author_name: extendedProfile?.full_name || 'Anonymous',
+      author_avatar: extendedProfile?.avatar_url || 'https://i.pravatar.cc/50?img=8',
       comments: [],
       tagged_players: []
     };
@@ -280,9 +297,9 @@ const Timeline = () => {
       id: String(Date.now()),
       created_at: new Date().toISOString(),
       content: commentContent,
-      author_id: profile?.id || 'userX',
-      author_name: profile?.full_name || 'Anonymous',
-      author_avatar: profile?.avatar_url || 'https://i.pravatar.cc/50?img=8',
+      author_id: extendedProfile?.id || 'userX',
+      author_name: extendedProfile?.full_name || 'Anonymous',
+      author_avatar: extendedProfile?.avatar_url || 'https://i.pravatar.cc/50?img=8',
     };
 
     setPosts(posts.map(post =>
@@ -391,11 +408,11 @@ const Timeline = () => {
           <CardContent className="p-4">
             <div className="flex items-center space-x-4 mb-4">
               <img
-                src={profile?.avatar_url || 'https://i.pravatar.cc/50?img=8'}
+                src={extendedProfile?.avatar_url || 'https://i.pravatar.cc/50?img=8'}
                 alt="Profile"
                 className="w-8 h-8 rounded-full"
               />
-              <div className="text-white font-semibold">{profile?.full_name || 'Anonymous'}</div>
+              <div className="text-white font-semibold">{extendedProfile?.full_name || 'Anonymous'}</div>
             </div>
             <Textarea
               value={newPost}
@@ -541,7 +558,7 @@ const Timeline = () => {
                   {/* Add Comment */}
                   <div className="flex items-center space-x-2 mt-3">
                     <img
-                      src={profile?.avatar_url || 'https://i.pravatar.cc/50?img=8'}
+                      src={extendedProfile?.avatar_url || 'https://i.pravatar.cc/50?img=8'}
                       alt="Your Avatar"
                       className="w-6 h-6 rounded-full"
                     />
@@ -550,8 +567,9 @@ const Timeline = () => {
                       placeholder="Add a comment..."
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                          handleAddComment(post.id, e.target.value);
-                          (e.target as HTMLInputElement).value = ''; // Clear the input after submitting
+                          const target = e.target as HTMLInputElement;
+                          handleAddComment(post.id, target.value);
+                          target.value = ''; // Clear the input after submitting
                         }
                       }}
                       className="bg-gray-700 text-white border border-gray-600 rounded-md px-3 py-1 text-sm w-full focus:outline-none"
