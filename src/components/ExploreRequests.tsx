@@ -1,83 +1,97 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { Search, Filter, Plus, Building, Calendar, Clock, User, DollarSign, Eye, MessageCircle, Users, Tag } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import CreateRequestModal from './CreateRequestModal';
-import { RequestComments } from './RequestComments';
-import { PlayerProfileModal } from './PlayerProfileModal';
+import { Search, Send, Globe, Calendar, User } from 'lucide-react';
+import PlayerProfileWrapper from './PlayerProfileWrapper';
 import { usePlayerProfile } from '@/hooks/usePlayerProfile';
 
 interface AgentRequest {
   id: string;
   title: string;
   description: string;
+  position?: string;
   sport_type: string;
   transfer_type: string;
-  position: string | null;
-  budget_min: number | null;
-  budget_max: number | null;
+  budget_min?: number;
+  budget_max?: number;
   currency: string;
   expires_at: string;
   created_at: string;
   is_public: boolean;
-  agent_id: string;
-  agents?: {
+  agents: {
     agency_name: string;
   };
 }
+
+const transferTypes = [
+  { value: 'permanent', label: 'Permanent Transfer' },
+  { value: 'loan', label: 'Loan' },
+  { value: 'free', label: 'Free Transfer' }
+];
+
+const positions = [
+  'Goalkeeper', 'Centre-Back', 'Left-Back', 'Right-Back', 'Defensive Midfielder',
+  'Central Midfielder', 'Attacking Midfielder', 'Left Winger', 'Right Winger',
+  'Centre-Forward', 'Striker'
+];
 
 const ExploreRequests = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [requests, setRequests] = useState<AgentRequest[]>([]);
-  const [filteredRequests, setFilteredRequests] = useState<AgentRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sportFilter, setSportFilter] = useState('all');
-  const [transferTypeFilter, setTransferTypeFilter] = useState('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const { selectedPlayerId, selectedPlayerName, isModalOpen, openPlayerProfile, closePlayerProfile } = usePlayerProfile();
-  const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set());
-  const [taggedPlayersModal, setTaggedPlayersModal] = useState<{ isOpen: boolean; request: any }>({ isOpen: false, request: null });
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    position: '',
+    sport_type: 'football',
+    transfer_type: 'permanent',
+    budget_min: '',
+    budget_max: '',
+    currency: 'USD'
+  });
+
+  const {
+    selectedPlayerId,
+    selectedPlayerName,
+    isModalOpen: isPlayerModalOpen,
+    openPlayerProfile,
+    closePlayerProfile
+  } = usePlayerProfile();
 
   useEffect(() => {
     fetchRequests();
   }, []);
 
-  useEffect(() => {
-    filterRequests();
-  }, [requests, searchTerm, sportFilter, transferTypeFilter]);
-
   const fetchRequests = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('agent_requests')
         .select(`
           *,
-          agents (
+          agents!inner(
             agency_name
           )
         `)
         .eq('is_public', true)
-        .gte('expires_at', new Date().toISOString())
+        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
       setRequests(data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);
       toast({
         title: "Error",
-        description: "Failed to load requests",
+        description: "Failed to fetch explore requests",
         variant: "destructive"
       });
     } finally {
@@ -85,313 +99,356 @@ const ExploreRequests = () => {
     }
   };
 
-  const filterRequests = () => {
-    let filtered = [...requests];
+  const handleSubmitRequest = async () => {
+    if (!profile?.id) return;
 
-    if (searchTerm) {
-      filtered = filtered.filter(request =>
-        request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (request.agents?.agency_name && request.agents.agency_name.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+    if (!formData.title || !formData.description) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in title and description",
+        variant: "destructive"
+      });
+      return;
     }
 
-    if (sportFilter !== 'all') {
-      filtered = filtered.filter(request => request.sport_type === sportFilter);
+    if (formData.description.length > 550) {
+      toast({
+        title: "Description Too Long",
+        description: "Description must be 550 characters or less",
+        variant: "destructive"
+      });
+      return;
     }
 
-    if (transferTypeFilter !== 'all') {
-      filtered = filtered.filter(request => request.transfer_type === transferTypeFilter);
+    try {
+      // Get agent ID
+      const { data: agentData } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (!agentData) {
+        toast({
+          title: "Profile Required",
+          description: "Please complete your agent profile first",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('agent_requests')
+        .insert({
+          agent_id: agentData.id,
+          title: formData.title,
+          description: formData.description,
+          position: formData.position || null,
+          sport_type: formData.sport_type as any,
+          transfer_type: formData.transfer_type as any,
+          budget_min: formData.budget_min ? parseFloat(formData.budget_min) : null,
+          budget_max: formData.budget_max ? parseFloat(formData.budget_max) : null,
+          currency: formData.currency,
+          is_public: true
+        });
+
+      if (error) throw error;
+
+      setFormData({
+        title: '',
+        description: '',
+        position: '',
+        sport_type: 'football',
+        transfer_type: 'permanent',
+        budget_min: '',
+        budget_max: '',
+        currency: 'USD'
+      });
+      setShowCreateForm(false);
+      
+      toast({
+        title: "Success",
+        description: "Request posted successfully",
+      });
+
+      fetchRequests();
+    } catch (error) {
+      console.error('Error posting request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to post request",
+        variant: "destructive"
+      });
     }
-
-    setFilteredRequests(filtered);
   };
 
-  const handleRequestCreated = () => {
-    fetchRequests();
+  const formatCurrency = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
-  const toggleRequestExpansion = (requestId: string) => {
-    const newExpanded = new Set(expandedRequests);
-    if (newExpanded.has(requestId)) {
-      newExpanded.delete(requestId);
-    } else {
-      newExpanded.add(requestId);
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffInDays === 0) return 'Today';
+    if (diffInDays === 1) return '1 day ago';
+    return `${diffInDays} days ago`;
+  };
+
+  const handlePlayerTagClick = async (playerName: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .select('id, full_name')
+        .ilike('full_name', `%${playerName.trim()}%`)
+        .limit(1);
+
+      if (error) {
+        console.error('Error finding player:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        openPlayerProfile(data[0].id, data[0].full_name);
+      } else {
+        console.log('Player not found:', playerName);
+      }
+    } catch (error) {
+      console.error('Error in handlePlayerTagClick:', error);
     }
-    setExpandedRequests(newExpanded);
-  };
-
-  const truncateText = (text: string, maxLength: number = 120) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
-
-  const showTaggedPlayersModal = (request: any) => {
-    setTaggedPlayersModal({ isOpen: true, request });
   };
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className='text-start '>
-          <h1 className="text-3xl font-bold font-polysans text-white mb-2">Explore Requests</h1>
-          <p className="text-gray-500">Discover transfer opportunities from agents worldwide</p>
-        </div>
-        {profile?.user_type === 'agent' && (
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-rosegold hover:bg-rosegold/90 text-white px-6 py-2"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Post Request
-          </Button>
-        )}
-      </div>
-
-      {/* Filters */}
-      <Card className="bg-gray-800/50 border-gray-700">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search requests..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-700 border-gray-600 text-white"
-              />
+      {/* Create Request Section */}
+      <Card className="border-gray-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white font-polysans">
+            <Search className="w-5 h-5" />
+            Post a Player Request
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!showCreateForm ? (
+            <div className="text-center py-6">
+              <p className="text-gray-400 mb-4">
+                Let teams know what type of player you're looking for
+              </p>
+              <Button
+                onClick={() => setShowCreateForm(true)}
+                className="bg-rosegold hover:bg-rosegold/90 text-white"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Create Request
+              </Button>
             </div>
-            <Select value={sportFilter} onValueChange={setSportFilter}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                <SelectValue placeholder="All Sports" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="all">All Sports</SelectItem>
-                <SelectItem value="football">Football</SelectItem>
-                <SelectItem value="basketball">Basketball</SelectItem>
-                <SelectItem value="tennis">Tennis</SelectItem>
-                <SelectItem value="rugby">Rugby</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                <SelectValue placeholder="Transfer Type" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="permanent">Permanent</SelectItem>
-                <SelectItem value="loan">Loan</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('');
-                setSportFilter('all');
-                setTransferTypeFilter('all');
-              }}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Clear
-            </Button>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-gray-300 text-sm font-medium">Request Title</label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                  placeholder="e.g., Looking for Central Midfielder"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-gray-300 text-sm font-medium">Position</label>
+                  <Select value={formData.position} onValueChange={(value) => setFormData({ ...formData, position: value })}>
+                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-600">
+                      {positions.map((position) => (
+                        <SelectItem key={position} value={position} className="text-white hover:bg-gray-700">
+                          {position}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-gray-300 text-sm font-medium">Transfer Type</label>
+                  <Select value={formData.transfer_type} onValueChange={(value) => setFormData({ ...formData, transfer_type: value })}>
+                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-600">
+                      {transferTypes.map((type) => (
+                        <SelectItem key={type.value} value={type.value} className="text-white hover:bg-gray-700">
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-gray-300 text-sm font-medium">Min Budget</label>
+                  <input
+                    type="number"
+                    value={formData.budget_min}
+                    onChange={(e) => setFormData({ ...formData, budget_min: e.target.value })}
+                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-gray-300 text-sm font-medium">Max Budget</label>
+                  <input
+                    type="number"
+                    value={formData.budget_max}
+                    onChange={(e) => setFormData({ ...formData, budget_max: e.target.value })}
+                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-gray-300 text-sm font-medium">Currency</label>
+                  <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
+                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-600">
+                      <SelectItem value="USD" className="text-white hover:bg-gray-700">USD</SelectItem>
+                      <SelectItem value="EUR" className="text-white hover:bg-gray-700">EUR</SelectItem>
+                      <SelectItem value="GBP" className="text-white hover:bg-gray-700">GBP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-gray-300 text-sm font-medium">Description (max 550 characters)</label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="bg-gray-800 border-gray-600 text-white resize-none"
+                  placeholder="I am looking for a central midfielder for a Premier League club in England for a permanent transfer with EU passport..."
+                  rows={4}
+                  maxLength={550}
+                />
+                <p className="text-xs text-gray-400 text-right">{formData.description.length}/550</p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSubmitRequest}
+                  disabled={!formData.title || !formData.description}
+                  className="bg-rosegold hover:bg-rosegold/90 text-white"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Post Request
+                </Button>
+                <Button
+                  onClick={() => setShowCreateForm(false)}
+                  variant="outline"
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Requests List */}
-      <div className="space-y-4">
-        {filteredRequests.length === 0 ? (
-          <Card className="bg-gray-800/50 border-gray-700">
-            <CardContent className="p-8 text-center">
-              <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No requests found</h3>
-              <p className="text-gray-400">Try adjusting your filters or check back later</p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredRequests.map((request) => {
-            const isExpanded = expandedRequests.has(request.id);
-            return (
-              <Card key={request.id} className="bg-gray-800/30 border-gray-700 hover:border-rosegold/30 transition-all duration-200 hover:shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex gap-4">
-                    {/* Agent Avatar */}
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center border border-blue-500/20">
-                        <Building className="w-6 h-6 text-blue-400" />
-                      </div>
-                    </div>
-
-                    {/* Request Content */}
-                    <div className="flex-1 space-y-4">
-                      {/* Header */}
+      {/* Requests Feed */}
+      <Card className="border-gray-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white font-polysans">
+            <Globe className="w-5 h-5" />
+            Explore Requests ({requests.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-24 bg-gray-700 rounded"></div>
+                </div>
+              ))}
+            </div>
+          ) : requests.length === 0 ? (
+            <div className="text-center py-12">
+              <Search className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+              <h3 className="text-xl font-polysans font-semibold text-white mb-2">
+                No Active Requests
+              </h3>
+              <p className="text-gray-400 font-poppins">
+                Be the first to post a player request and let teams know what you're looking for.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {requests.map((request) => (
+                <Card key={request.id} className="border-gray-600 hover:border-rosegold/50 transition-colors">
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
                       <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-xl font-bold text-white mb-1">{request.title}</h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
-                            <span className="flex items-center gap-1">
-                              <Building className="w-4 h-4" />
-                              {request.agents?.agency_name}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {formatDistanceToNow(new Date(request.created_at))} ago
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              {formatDistanceToNow(new Date(request.expires_at))} left
-                            </span>
-                          </div>
+                        <div className="flex-1">
+                          <h3 className="font-polysans font-bold text-white mb-1">
+                            {request.title}
+                          </h3>
+                          <p className="text-gray-300 text-sm mb-2">
+                            by {request.agents.agency_name}
+                          </p>
+                        </div>
+                        <div className="text-xs text-gray-400 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {formatTimeAgo(request.created_at)}
                         </div>
                       </div>
 
-                      {/* Tags */}
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="secondary" className="capitalize bg-rosegold/20 text-rosegold border-rosegold/30">
-                          {request.sport_type}
-                        </Badge>
-                        <Badge variant="outline" className="capitalize border-gray-600">
-                          {request.transfer_type}
-                        </Badge>
+                      <div className="flex gap-2 flex-wrap">
                         {request.position && (
-                          <Badge variant="outline" className="border-gray-600">
-                            <User className="w-3 h-3 mr-1" />
+                          <Badge variant="outline" className="text-rosegold border-rosegold">
                             {request.position}
                           </Badge>
                         )}
+                        <Badge variant={request.transfer_type === 'permanent' ? 'default' : 'secondary'}>
+                          {request.transfer_type.toUpperCase()}
+                        </Badge>
                         {request.budget_min && request.budget_max && (
-                          <Badge variant="outline" className="border-green-600 text-green-400">
-                            <DollarSign className="w-3 h-3 mr-1" />
-                            ${request.budget_min.toLocaleString()} - ${request.budget_max.toLocaleString()}
+                          <Badge variant="outline" className="text-bright-pink border-bright-pink">
+                            {formatCurrency(request.budget_min, request.currency)} - {formatCurrency(request.budget_max, request.currency)}
                           </Badge>
                         )}
                       </div>
 
-                      {/* Description */}
-                      <div className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30">
-                        <p className="text-gray-300 leading-relaxed">
-                          {isExpanded ? request.description : truncateText(request.description)}
-                        </p>
-                        {request.description.length > 120 && (
-                          <button
-                            onClick={() => toggleRequestExpansion(request.id)}
-                            className="mt-2 text-rosegold hover:text-rosegold/80 text-sm font-medium"
-                          >
-                            {isExpanded ? 'Show less' : 'Read more'}
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center justify-between pt-2">
-                        <div className="flex items-center gap-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleRequestExpansion(request.id)}
-                            className="border-gray-600 hover:border-rosegold/50 hover:bg-rosegold/10"
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            {isExpanded ? 'Collapse' : 'View Details'}
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => showTaggedPlayersModal(request)}
-                            className="border-gray-600 hover:border-blue-500/50 hover:bg-blue-500/10"
-                          >
-                            <Users className="w-4 h-4 mr-1" />
-                            Tagged Players
-                          </Button>
-                        </div>
-
-                        <Badge variant="secondary" className="bg-gray-700">
-                          <MessageCircle className="w-3 h-3 mr-1" />
-                          Discussion
-                        </Badge>
-                      </div>
-
-                      {/* Comments Section - Only show when expanded */}
-                      {isExpanded && (
-                        <div className="border-t border-gray-700 pt-4 mt-4">
-                          <RequestComments
-                            requestId={request.id}
-                            isPublic={request.is_public}
-                            onPlayerClick={openPlayerProfile}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
-
-      {/* Tagged Players Modal */}
-      <Dialog open={taggedPlayersModal.isOpen} onOpenChange={(open) => setTaggedPlayersModal({ isOpen: open, request: null })}>
-        <DialogContent className="bg-gray-800 border-gray-700 max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-white">Tagged Players</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 max-h-96 overflow-y-auto">
-            {taggedPlayersModal.request?.tagged_players?.length > 0 ? (
-              taggedPlayersModal.request.tagged_players.map((playerId: string) => (
-                <Card key={playerId} className="bg-gray-700/50 border-gray-600">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-rosegold/20 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-rosegold" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-white">Player #{playerId.slice(-8)}</h4>
-                        <p className="text-sm text-gray-400">Click to view details</p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openPlayerProfile(playerId, `Player ${playerId.slice(-8)}`)}
-                        className="border-gray-600 hover:border-rosegold/50"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </Button>
+                      <p className="text-gray-300 text-sm">
+                        {request.description}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <Tag className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-400">No players tagged in this request</p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modals */}
-      {showCreateModal && (
-        <CreateRequestModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onRequestCreated={handleRequestCreated}
-        />
-      )}
-
-      {isModalOpen && selectedPlayerId && (
-        <PlayerProfileModal
-          playerId={selectedPlayerId}
-          playerName={selectedPlayerName}
-          isOpen={isModalOpen}
-          onClose={closePlayerProfile}
-        />
-      )}
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Player Profile Modal */}
+      <PlayerProfileWrapper
+        isOpen={isPlayerModalOpen}
+        onClose={closePlayerProfile}
+        playerId={selectedPlayerId || ''}
+        playerName={selectedPlayerName || ''}
+      />
     </div>
   );
 };
