@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instanciate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.12 (cd3cf9e)"
+  }
   public: {
     Tables: {
       agent_request_comments: {
@@ -166,6 +171,50 @@ export type Database = {
           },
         ]
       }
+      ai_analysis: {
+        Row: {
+          analysis_timestamp: number
+          confidence_score: number | null
+          created_at: string | null
+          description: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          tagged_players: string[] | null
+          video_id: string | null
+        }
+        Insert: {
+          analysis_timestamp: number
+          confidence_score?: number | null
+          created_at?: string | null
+          description: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          tagged_players?: string[] | null
+          video_id?: string | null
+        }
+        Update: {
+          analysis_timestamp?: number
+          confidence_score?: number | null
+          created_at?: string | null
+          description?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          tagged_players?: string[] | null
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           agent_id: string | null
@@ -264,6 +313,93 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leagues: {
+        Row: {
+          country: string
+          created_at: string | null
+          id: string
+          name: string
+          region: string | null
+          sport_type: string
+          tier_level: number | null
+        }
+        Insert: {
+          country: string
+          created_at?: string | null
+          id?: string
+          name: string
+          region?: string | null
+          sport_type: string
+          tier_level?: number | null
+        }
+        Update: {
+          country?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          region?: string | null
+          sport_type?: string
+          tier_level?: number | null
+        }
+        Relationships: []
+      }
+      match_statistics: {
+        Row: {
+          assists: number | null
+          created_at: string | null
+          goals: number | null
+          id: string
+          jersey_number: number | null
+          minutes_played: number | null
+          player_id: string | null
+          red_cards: number | null
+          second_yellow_cards: number | null
+          video_id: string | null
+          yellow_cards: number | null
+        }
+        Insert: {
+          assists?: number | null
+          created_at?: string | null
+          goals?: number | null
+          id?: string
+          jersey_number?: number | null
+          minutes_played?: number | null
+          player_id?: string | null
+          red_cards?: number | null
+          second_yellow_cards?: number | null
+          video_id?: string | null
+          yellow_cards?: number | null
+        }
+        Update: {
+          assists?: number | null
+          created_at?: string | null
+          goals?: number | null
+          id?: string
+          jersey_number?: number | null
+          minutes_played?: number | null
+          player_id?: string | null
+          red_cards?: number | null
+          second_yellow_cards?: number | null
+          video_id?: string | null
+          yellow_cards?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_statistics_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_statistics_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
             referencedColumns: ["id"]
           },
         ]
@@ -1403,11 +1539,18 @@ export type Database = {
       }
       videos: {
         Row: {
+          ai_analysis_status: string | null
+          compressed_url: string | null
           created_at: string | null
           description: string | null
           duration: number | null
+          file_size: number | null
+          final_score_away: number | null
+          final_score_home: number | null
+          home_or_away: string | null
           id: string
           is_public: boolean | null
+          league_id: string | null
           match_date: string | null
           opposing_team: string | null
           player_id: string | null
@@ -1418,15 +1561,23 @@ export type Database = {
           thumbnail_url: string | null
           title: string
           updated_at: string | null
+          upload_status: string | null
           video_type: string | null
           video_url: string
         }
         Insert: {
+          ai_analysis_status?: string | null
+          compressed_url?: string | null
           created_at?: string | null
           description?: string | null
           duration?: number | null
+          file_size?: number | null
+          final_score_away?: number | null
+          final_score_home?: number | null
+          home_or_away?: string | null
           id?: string
           is_public?: boolean | null
+          league_id?: string | null
           match_date?: string | null
           opposing_team?: string | null
           player_id?: string | null
@@ -1437,15 +1588,23 @@ export type Database = {
           thumbnail_url?: string | null
           title: string
           updated_at?: string | null
+          upload_status?: string | null
           video_type?: string | null
           video_url: string
         }
         Update: {
+          ai_analysis_status?: string | null
+          compressed_url?: string | null
           created_at?: string | null
           description?: string | null
           duration?: number | null
+          file_size?: number | null
+          final_score_away?: number | null
+          final_score_home?: number | null
+          home_or_away?: string | null
           id?: string
           is_public?: boolean | null
+          league_id?: string | null
           match_date?: string | null
           opposing_team?: string | null
           player_id?: string | null
@@ -1456,10 +1615,18 @@ export type Database = {
           thumbnail_url?: string | null
           title?: string
           updated_at?: string | null
+          upload_status?: string | null
           video_type?: string | null
           video_url?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "videos_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "videos_player_id_fkey"
             columns: ["player_id"]
@@ -1629,21 +1796,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -1661,14 +1832,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -1684,14 +1857,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -1707,14 +1882,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -1722,14 +1899,16 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
