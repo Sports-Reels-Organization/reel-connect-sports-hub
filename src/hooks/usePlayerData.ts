@@ -18,6 +18,28 @@ interface Player {
   achievements?: string[];
   bio?: string;
   stats?: any;
+  // Additional required fields based on your requirements
+  gender?: string;
+  date_of_birth?: string;
+  jersey_number?: number;
+  citizenship?: string;
+  place_of_birth?: string;
+  foot?: string;
+  player_agent?: string;
+  current_club?: string;
+  joined_date?: string;
+  contract_expires?: string;
+  fifa_id?: string;
+  headshot_url?: string;
+  portrait_url?: string;
+  full_body_url?: string;
+  photo_url?: string;
+  leagues_participated?: string[];
+  titles_seasons?: string[];
+  transfer_history?: any;
+  international_duty?: any;
+  match_stats?: any;
+  ai_analysis?: any;
 }
 
 export const usePlayerData = (playerId: string | null) => {
@@ -36,6 +58,8 @@ export const usePlayerData = (playerId: string | null) => {
         setLoading(true);
         setError(null);
 
+        console.log('Fetching player data for ID:', playerId);
+
         const { data, error: fetchError } = await supabase
           .from('players')
           .select(`
@@ -50,6 +74,24 @@ export const usePlayerData = (playerId: string | null) => {
             citizenship,
             foot,
             photo_url,
+            headshot_url,
+            portrait_url,
+            full_body_url,
+            gender,
+            date_of_birth,
+            jersey_number,
+            place_of_birth,
+            player_agent,
+            current_club,
+            joined_date,
+            contract_expires,
+            fifa_id,
+            leagues_participated,
+            titles_seasons,
+            transfer_history,
+            international_duty,
+            match_stats,
+            ai_analysis,
             teams!inner(
               team_name,
               sport_type,
@@ -59,9 +101,14 @@ export const usePlayerData = (playerId: string | null) => {
           .eq('id', playerId)
           .single();
 
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+          console.error('Fetch error:', fetchError);
+          throw fetchError;
+        }
 
         if (data) {
+          console.log('Player data received:', data);
+          
           const transformedPlayer: Player = {
             id: data.id,
             full_name: data.full_name,
@@ -74,13 +121,37 @@ export const usePlayerData = (playerId: string | null) => {
             weight: data.weight?.toString(),
             preferred_foot: data.foot,
             market_value: data.market_value,
-            profile_image: data.photo_url,
+            profile_image: data.headshot_url || data.photo_url || data.portrait_url,
             bio: data.bio,
-            achievements: [],
-            stats: {}
+            achievements: data.titles_seasons || [],
+            stats: data.match_stats || {},
+            // Additional fields
+            gender: data.gender,
+            date_of_birth: data.date_of_birth,
+            jersey_number: data.jersey_number,
+            citizenship: data.citizenship,
+            place_of_birth: data.place_of_birth,
+            foot: data.foot,
+            player_agent: data.player_agent,
+            current_club: data.current_club,
+            joined_date: data.joined_date,
+            contract_expires: data.contract_expires,
+            fifa_id: data.fifa_id,
+            headshot_url: data.headshot_url,
+            portrait_url: data.portrait_url,
+            full_body_url: data.full_body_url,
+            photo_url: data.photo_url,
+            leagues_participated: data.leagues_participated,
+            titles_seasons: data.titles_seasons,
+            transfer_history: data.transfer_history,
+            international_duty: data.international_duty,
+            match_stats: data.match_stats,
+            ai_analysis: data.ai_analysis
           };
 
           setPlayer(transformedPlayer);
+        } else {
+          setError('Player not found');
         }
       } catch (err: any) {
         console.error('Error fetching player:', err);
