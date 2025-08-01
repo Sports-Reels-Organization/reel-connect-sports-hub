@@ -86,6 +86,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({
         <VideoPlayer
           videoUrl={video.video_url}
           title={video.title}
+          videoId={video.id}
           metadata={metadata}
           onPlayerTagClick={onPlayerTagClick}
         />

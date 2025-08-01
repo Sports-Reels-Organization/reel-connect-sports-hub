@@ -1,626 +1,483 @@
 
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Progress } from '@/components/ui/progress';
-import { 
-  User, Video, Star, Calendar, MapPin, Trophy, Play, TrendingUp, Target, 
-  Award, BarChart3, DollarSign, Globe, Users, Zap 
-} from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { analyzePlayer, PlayerAnalysis } from '@/services/geminiService';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MapPin, Calendar, Trophy, User, Play, MessageCircle, Star } from 'lucide-react';
 import VideoPlayer from './VideoPlayer';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-interface PlayerProfileModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  playerId: string;
-  playerName?: string;
-}
-
-interface PlayerData {
+interface Player {
   id: string;
   full_name: string;
-  position: string;
+  sport_type: string;
+  position?: string;
   age?: number;
-  height: number;
-  weight: number;
-  citizenship: string;
-  photo_url?: string;
-  jersey_number?: number;
+  nationality?: string;
+  team?: string;
+  height?: string;
+  weight?: string;
+  preferred_foot?: string;
   market_value?: number;
+  profile_image?: string;
+  achievements?: string[];
   bio?: string;
-  fifa_id?: string;
-  date_of_birth?: string;
-  current_club?: string;
-  contract_expires?: string;
-  transfer_history?: any;
-  match_stats?: any;
+  stats?: any;
 }
 
-interface VideoData {
+interface Video {
   id: string;
   title: string;
   video_url: string;
   thumbnail_url?: string;
+  description?: string;
+  tagged_players?: any;
   match_date?: string;
   opposing_team?: string;
   score?: string;
-  tagged_players?: any;
-  tags?: string[];
-  description?: string;
+}
+
+interface PlayerProfileModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  player: Player | null;
+  onMessagePlayer?: (playerId: string, playerName: string) => void;
 }
 
 export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
   isOpen,
   onClose,
-  playerId,
-  playerName
+  player,
+  onMessagePlayer
 }) => {
-  const [player, setPlayer] = useState<PlayerData | null>(null);
-  const [videos, setVideos] = useState<VideoData[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<PlayerAnalysis | null>(null);
-  const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null);
-  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [isShortlisted, setIsShortlisted] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (isOpen && playerId) {
-      fetchPlayerData();
+    if (player && isOpen) {
       fetchPlayerVideos();
+      checkIfShortlisted();
     }
-  }, [isOpen, playerId]);
+  }, [player, isOpen]);
 
-  useEffect(() => {
-    if (player && !aiAnalysis) {
-      generateAIAnalysis();
-    }
-  }, [player, aiAnalysis]);
+  const fetchPlayerVideos = async () => {
+    if (!player) return;
 
-  const fetchPlayerData = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const { data, error } = await supabase
-        .from('players')
+        .from('videos')
         .select('*')
-        .eq('id', playerId)
-        .single();
+        .contains('tagged_players', [player.full_name])
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      if (error) throw error;
-      setPlayer(data);
+      if (error) {
+        console.error('Error fetching videos:', error);
+        return;
+      }
+
+      setVideos(data || []);
     } catch (error) {
-      console.error('Error fetching player:', error);
+      console.error('Error in fetchPlayerVideos:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchPlayerVideos = async () => {
-    try {
-      // First try to find videos where the player is tagged
-      const { data: taggedVideos, error: taggedError } = await supabase
-        .from('videos')
-        .select('*')
-        .contains('tagged_players', [playerId])
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
-
-      if (!taggedError && taggedVideos && taggedVideos.length > 0) {
-        setVideos(taggedVideos);
-        return;
-      }
-
-      // If no tagged videos, try to find videos from the player's team
-      const { data: playerData } = await supabase
-        .from('players')
-        .select('team_id')
-        .eq('id', playerId)
-        .single();
-
-      if (playerData?.team_id) {
-        const { data: teamVideos, error: teamError } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('team_id', playerData.team_id)
-          .eq('is_public', true)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (!teamError && teamVideos) {
-          setVideos(teamVideos);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching player videos:', error);
-    }
-  };
-
-  const generateAIAnalysis = async () => {
+  const checkIfShortlisted = async () => {
     if (!player) return;
 
     try {
-      const analysis = await analyzePlayer({
-        name: player.full_name,
-        position: player.position,
-        age: player.age || 25,
-        height: player.height,
-        weight: player.weight,
-        citizenship: player.citizenship,
-        currentClub: player.current_club,
-        marketValue: player.market_value,
-        stats: player.match_stats || {},
-        recentPerformance: videos.slice(0, 3).map(v => `${v.title} - ${v.opposing_team || 'Unknown opponent'}`),
-        bio: player.bio
-      });
-      setAiAnalysis(analysis);
+      const { data, error } = await supabase
+        .from('shortlists')
+        .select('id')
+        .eq('player_id', player.id)
+        .single();
+
+      setIsShortlisted(!!data && !error);
     } catch (error) {
-      console.error('Error generating AI analysis:', error);
+      console.error('Error checking shortlist status:', error);
     }
   };
 
-  const handleVideoClick = (video: VideoData) => {
-    setSelectedVideo(video);
-    setShowVideoPlayer(true);
+  const handleAddToShortlist = async () => {
+    if (!player) return;
+
+    try {
+      const { error } = await supabase
+        .from('shortlists')
+        .insert({
+          player_id: player.id,
+          player_name: player.full_name,
+          sport_type: player.sport_type,
+          position: player.position,
+          nationality: player.nationality,
+          market_value: player.market_value
+        });
+
+      if (error) throw error;
+
+      setIsShortlisted(true);
+      toast({
+        title: "Added to Shortlist",
+        description: `${player.full_name} has been added to your shortlist.`,
+      });
+    } catch (error: any) {
+      console.error('Error adding to shortlist:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add player to shortlist.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRemoveFromShortlist = async () => {
+    if (!player) return;
+
+    try {
+      const { error } = await supabase
+        .from('shortlists')
+        .delete()
+        .eq('player_id', player.id);
+
+      if (error) throw error;
+
+      setIsShortlisted(false);
+      toast({
+        title: "Removed from Shortlist",
+        description: `${player.full_name} has been removed from your shortlist.`,
+      });
+    } catch (error: any) {
+      console.error('Error removing from shortlist:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove player from shortlist.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  if (!player) return null;
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   const formatCurrency = (amount: number) => {
-    if (amount >= 1000000) {
-      return `$${(amount / 1000000).toFixed(1)}M`;
-    } else if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(0)}K`;
-    }
-    return `$${amount}`;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+  const metadata = selectedVideo ? {
+    playerTags: [player.full_name],
+    matchDetails: {
+      homeTeam: 'Home Team',
+      awayTeam: selectedVideo.opposing_team || 'Away Team',
+      league: 'League',
+      finalScore: selectedVideo.score || '0-0'
+    },
+    duration: 300
+  } : {
+    playerTags: [],
+    matchDetails: {
+      homeTeam: '',
+      awayTeam: '',
+      league: '',
+      finalScore: ''
+    },
+    duration: 0
   };
-
-  const getRatingColor = (rating: number) => {
-    if (rating >= 80) return 'text-green-600';
-    if (rating >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  if (showVideoPlayer && selectedVideo) {
-    return (
-      <Dialog open={isOpen} onOpenChange={() => {
-        setShowVideoPlayer(false);
-        setSelectedVideo(null);
-      }}>
-        <DialogContent className="max-w-7xl w-full h-[90vh] p-6 bg-[#111111]">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="font-polysans text-2xl text-white">
-              {selectedVideo.title}
-            </DialogTitle>
-            <Button
-              onClick={() => {
-                setShowVideoPlayer(false);
-                setSelectedVideo(null);
-              }}
-              variant="outline"
-              className="w-fit border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37] hover:text-black"
-            >
-              Back to Profile
-            </Button>
-          </DialogHeader>
-          
-          <VideoPlayer
-            videoUrl={selectedVideo.video_url}
-            title={selectedVideo.title}
-            metadata={{
-              playerTags: [player?.full_name || ''],
-              matchDetails: {
-                homeTeam: player?.current_club || 'Home Team',
-                awayTeam: selectedVideo.opposing_team || 'Away Team',
-                league: 'League',
-                finalScore: selectedVideo.score || '0-0'
-              },
-              duration: 300
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-full max-h-[90vh] overflow-y-auto bg-white">
-        <DialogHeader className="border-b border-[#d4af37]/20 pb-4">
-          <DialogTitle className="font-polysans text-3xl text-black flex items-center gap-3">
-            <User className="w-8 h-8 text-[#d4af37]" />
-            Player Profile
-          </DialogTitle>
-        </DialogHeader>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="relative">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#d4af37]/20 border-t-[#d4af37]"></div>
-              <User className="absolute inset-0 m-auto w-6 h-6 text-[#d4af37]" />
+      <DialogContent className="max-w-6xl w-full max-h-[90vh] overflow-y-auto bg-[#1a1a1a] border border-rosegold/20">
+        <DialogHeader className="border-b border-rosegold/20 pb-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              <Avatar className="w-16 h-16">
+                <AvatarImage src={player.profile_image} alt={player.full_name} />
+                <AvatarFallback className="bg-rosegold text-black font-bold text-lg">
+                  {getInitials(player.full_name)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <DialogTitle className="text-2xl font-bold text-white mb-2">
+                  {player.full_name}
+                </DialogTitle>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <Badge variant="outline" className="border-rosegold text-rosegold">
+                    {player.sport_type}
+                  </Badge>
+                  {player.position && (
+                    <Badge variant="outline" className="border-rosegold text-rosegold">
+                      {player.position}
+                    </Badge>
+                  )}
+                  {player.nationality && (
+                    <Badge variant="outline" className="border-rosegold text-rosegold">
+                      {player.nationality}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={isShortlisted ? handleRemoveFromShortlist : handleAddToShortlist}
+                className={isShortlisted 
+                  ? "bg-gray-600 hover:bg-gray-700 text-white" 
+                  : "bg-rosegold hover:bg-rosegold/90 text-black"
+                }
+              >
+                <Star className={`w-4 h-4 mr-2 ${isShortlisted ? 'fill-current' : ''}`} />
+                {isShortlisted ? 'Remove from Shortlist' : 'Add to Shortlist'}
+              </Button>
+              {onMessagePlayer && (
+                <Button
+                  onClick={() => onMessagePlayer(player.id, player.full_name)}
+                  variant="outline"
+                  className="border-rosegold text-rosegold hover:bg-rosegold hover:text-black"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Message
+                </Button>
+              )}
             </div>
           </div>
-        ) : player ? (
-          <div className="space-y-6">
-            {/* Enhanced Player Header */}
-            <Card className="bg-gradient-to-r from-[#d4af37]/10 to-pink-400/10 border-[#d4af37]/30 shadow-lg">
-              <CardContent className="p-8">
-                <div className="flex items-start gap-8">
-                  <div className="relative">
-                    <Avatar className="w-32 h-32 border-4 border-[#d4af37] shadow-lg">
-                      <AvatarImage src={player.photo_url} alt={player.full_name} />
-                      <AvatarFallback className="bg-[#d4af37] text-black text-2xl font-bold">
-                        {player.full_name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    {player.jersey_number && (
-                      <div className="absolute -bottom-2 -right-2 bg-[#d4af37] text-black font-bold text-lg rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
-                        {player.jersey_number}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <h2 className="font-polysans text-4xl font-bold text-black mb-3">
-                      {player.full_name}
-                    </h2>
-                    
-                    <div className="flex flex-wrap gap-3 mb-6">
-                      <Badge className="bg-[#d4af37] text-black hover:bg-[#d4af37]/90 text-base px-4 py-2">
-                        {player.position}
-                      </Badge>
-                      <Badge variant="outline" className="border-pink-400 text-pink-600 text-base px-4 py-2">
-                        <Globe className="w-4 h-4 mr-2" />
-                        {player.citizenship}
-                      </Badge>
-                      {player.age && (
-                        <Badge variant="outline" className="border-blue-500 text-blue-600 text-base px-4 py-2">
-                          <Calendar className="w-4 h-4 mr-2" />
-                          {player.age} years old
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                      <div className="text-center p-4 bg-white rounded-lg border border-[#d4af37]/20 shadow-sm">
-                        <p className="text-gray-500 font-poppins text-sm">Height</p>
-                        <p className="font-bold text-black text-xl">{player.height} cm</p>
-                      </div>
-                      <div className="text-center p-4 bg-white rounded-lg border border-[#d4af37]/20 shadow-sm">
-                        <p className="text-gray-500 font-poppins text-sm">Weight</p>
-                        <p className="font-bold text-black text-xl">{player.weight} kg</p>
-                      </div>
-                      <div className="text-center p-4 bg-white rounded-lg border border-[#d4af37]/20 shadow-sm">
-                        <p className="text-gray-500 font-poppins text-sm">Market Value</p>
-                        <p className="font-bold text-[#d4af37] text-xl">
-                          {player.market_value ? formatCurrency(player.market_value) : 'N/A'}
-                        </p>
-                      </div>
-                      <div className="text-center p-4 bg-white rounded-lg border border-[#d4af37]/20 shadow-sm">
-                        <p className="text-gray-500 font-poppins text-sm">Videos</p>
-                        <p className="font-bold text-pink-600 text-xl">{videos.length}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        </DialogHeader>
 
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 bg-gray-100 p-1 rounded-lg">
-                <TabsTrigger value="overview" className="font-poppins data-[state=active]:bg-[#d4af37] data-[state=active]:text-black">
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger value="videos" className="font-poppins data-[state=active]:bg-[#d4af37] data-[state=active]:text-black">
-                  Videos ({videos.length})
-                </TabsTrigger>
-                <TabsTrigger value="stats" className="font-poppins data-[state=active]:bg-[#d4af37] data-[state=active]:text-black">
-                  Statistics
-                </TabsTrigger>
-                <TabsTrigger value="ai-analysis" className="font-poppins data-[state=active]:bg-[#d4af37] data-[state=active]:text-black">
-                  AI Analysis
-                </TabsTrigger>
-              </TabsList>
+        <div className="py-6">
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="videos">Videos ({videos.length})</TabsTrigger>
+              <TabsTrigger value="stats">Statistics</TabsTrigger>
+            </TabsList>
 
-              <TabsContent value="overview" className="space-y-6 mt-6">
-                <Card className="bg-white border-[#d4af37]/20 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="font-polysans text-[#d4af37] flex items-center gap-2">
-                      <User className="w-6 h-6" />
-                      Player Information
-                    </CardTitle>
+            <TabsContent value="overview" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="bg-gray-800 border-rosegold/20">
+                  <CardHeader className="pb-3">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <User className="w-5 h-5 text-rosegold" />
+                      Personal Info
+                    </h3>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    {player.bio && (
-                      <div>
-                        <h4 className="font-poppins font-semibold text-black mb-3">Biography</h4>
-                        <p className="text-gray-700 font-poppins leading-relaxed">{player.bio}</p>
+                  <CardContent className="space-y-3">
+                    {player.age && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Age:</span>
+                        <span className="text-white">{player.age}</span>
                       </div>
                     )}
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {player.fifa_id && (
-                        <div className="p-4 bg-gray-50 rounded-lg">
-                          <h4 className="font-poppins font-semibold text-black mb-2">FIFA ID</h4>
-                          <p className="text-gray-700 font-poppins">{player.fifa_id}</p>
-                        </div>
-                      )}
-                      {player.current_club && (
-                        <div className="p-4 bg-gray-50 rounded-lg">
-                          <h4 className="font-poppins font-semibold text-black mb-2">Current Club</h4>
-                          <p className="text-gray-700 font-poppins">{player.current_club}</p>
-                        </div>
-                      )}
-                      {player.contract_expires && (
-                        <div className="p-4 bg-gray-50 rounded-lg">
-                          <h4 className="font-poppins font-semibold text-black mb-2">Contract Expires</h4>
-                          <p className="text-gray-700 font-poppins">{formatDate(player.contract_expires)}</p>
-                        </div>
-                      )}
-                      {player.date_of_birth && (
-                        <div className="p-4 bg-gray-50 rounded-lg">
-                          <h4 className="font-poppins font-semibold text-black mb-2">Date of Birth</h4>
-                          <p className="text-gray-700 font-poppins">{formatDate(player.date_of_birth)}</p>
-                        </div>
-                      )}
-                    </div>
+                    {player.height && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Height:</span>
+                        <span className="text-white">{player.height}</span>
+                      </div>
+                    )}
+                    {player.weight && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Weight:</span>
+                        <span className="text-white">{player.weight}</span>
+                      </div>
+                    )}
+                    {player.preferred_foot && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Preferred Foot:</span>
+                        <span className="text-white">{player.preferred_foot}</span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
-              </TabsContent>
 
-              <TabsContent value="videos" className="space-y-6 mt-6">
-                {videos.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {videos.map((video) => (
-                      <Card 
-                        key={video.id} 
-                        className="bg-white border-[#d4af37]/20 hover:border-[#d4af37] transition-all duration-200 cursor-pointer group shadow-sm hover:shadow-lg" 
-                        onClick={() => handleVideoClick(video)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="relative mb-4 overflow-hidden rounded-lg">
-                            {video.thumbnail_url ? (
-                              <img
-                                src={video.thumbnail_url}
-                                alt={video.title}
-                                className="w-full h-40 object-cover transition-transform duration-200 group-hover:scale-105"
-                              />
-                            ) : (
-                              <div className="w-full h-40 bg-gradient-to-br from-[#d4af37]/20 to-pink-400/20 flex items-center justify-center">
-                                <Video className="w-12 h-12 text-[#d4af37]" />
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                              <Play className="w-12 h-12 text-white" />
-                            </div>
-                          </div>
-                          
-                          <h4 className="font-poppins font-semibold text-black mb-3 line-clamp-2">
-                            {video.title}
-                          </h4>
-                          
-                          <div className="space-y-2 text-sm text-gray-600">
-                            {video.match_date && (
-                              <p className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-[#d4af37]" />
-                                {formatDate(video.match_date)}
-                              </p>
-                            )}
-                            {video.opposing_team && (
-                              <p className="flex items-center gap-2">
-                                <Trophy className="w-4 h-4 text-pink-500" />
-                                vs {video.opposing_team}
-                              </p>
-                            )}
-                            {video.score && (
-                              <p className="font-semibold text-[#d4af37] text-center bg-[#d4af37]/10 rounded px-2 py-1">
-                                {video.score}
-                              </p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card className="bg-white border-[#d4af37]/20">
-                    <CardContent className="p-16 text-center">
-                      <Video className="w-20 h-20 mx-auto mb-6 text-gray-300" />
-                      <h3 className="font-polysans text-2xl font-semibold text-black mb-3">
-                        No Videos Available
-                      </h3>
-                      <p className="text-gray-600 font-poppins text-lg">
-                        This player hasn't been featured in any videos yet.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
+                <Card className="bg-gray-800 border-rosegold/20">
+                  <CardHeader className="pb-3">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <Trophy className="w-5 h-5 text-rosegold" />
+                      Career Info
+                    </h3>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {player.team && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Current Team:</span>
+                        <span className="text-white">{player.team}</span>
+                      </div>
+                    )}
+                    {player.market_value && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Market Value:</span>
+                        <span className="text-rosegold font-bold">
+                          {formatCurrency(player.market_value)}
+                        </span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-              <TabsContent value="stats" className="space-y-6 mt-6">
-                <Card className="bg-white border-[#d4af37]/20">
-                  <CardHeader>
-                    <CardTitle className="font-polysans text-[#d4af37] flex items-center gap-2">
-                      <BarChart3 className="w-6 h-6" />
-                      Match Statistics
-                    </CardTitle>
+                <Card className="bg-gray-800 border-rosegold/20">
+                  <CardHeader className="pb-3">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <Trophy className="w-5 h-5 text-rosegold" />
+                      Achievements
+                    </h3>
                   </CardHeader>
                   <CardContent>
-                    {player.match_stats ? (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        {Object.entries(player.match_stats as any).map(([key, value]) => (
-                          <div key={key} className="text-center p-6 bg-gradient-to-br from-[#d4af37]/10 to-pink-400/10 rounded-lg border border-[#d4af37]/20">
-                            <p className="text-3xl font-bold text-[#d4af37] mb-2">{value as string}</p>
-                            <p className="text-sm text-gray-600 font-poppins font-medium capitalize">
-                              {key.replace('_', ' ')}
-                            </p>
+                    {player.achievements && player.achievements.length > 0 ? (
+                      <div className="space-y-2">
+                        {player.achievements.slice(0, 5).map((achievement, index) => (
+                          <div key={index} className="text-sm text-gray-300">
+                            • {achievement}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-16">
-                        <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                        <p className="text-gray-600 font-poppins text-lg">
-                          No statistics available for this player.
-                        </p>
-                      </div>
+                      <p className="text-gray-400 text-sm">No achievements recorded</p>
                     )}
                   </CardContent>
                 </Card>
-              </TabsContent>
+              </div>
 
-              <TabsContent value="ai-analysis" className="space-y-6 mt-6">
-                <Card className="bg-white border-[#d4af37]/20">
+              {player.bio && (
+                <Card className="bg-gray-800 border-rosegold/20">
                   <CardHeader>
-                    <CardTitle className="font-polysans text-[#d4af37] flex items-center gap-2">
-                      <Zap className="w-6 h-6" />
-                      AI-Powered Analysis
-                    </CardTitle>
+                    <h3 className="text-lg font-semibold text-white">Biography</h3>
                   </CardHeader>
-                  <CardContent className="space-y-8">
-                    {aiAnalysis ? (
-                      <>
-                        {/* Market Value & Ratings */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div className="text-center p-6 bg-gradient-to-br from-[#d4af37]/20 to-pink-400/20 rounded-xl border border-[#d4af37]/30">
-                            <DollarSign className="w-8 h-8 mx-auto mb-3 text-[#d4af37]" />
-                            <h3 className="font-polysans text-lg font-bold text-black mb-2">Market Value</h3>
-                            <p className="text-3xl font-bold text-[#d4af37]">
-                              {formatCurrency(aiAnalysis.marketValue)}
-                            </p>
-                          </div>
-                          
-                          <div className="text-center p-6 bg-gradient-to-br from-green-100 to-green-200 rounded-xl border border-green-300">
-                            <Target className="w-8 h-8 mx-auto mb-3 text-green-600" />
-                            <h3 className="font-polysans text-lg font-bold text-black mb-2">Current Rating</h3>
-                            <p className={`text-3xl font-bold ${getRatingColor(aiAnalysis.overallRating)}`}>
-                              {aiAnalysis.overallRating}/100
-                            </p>
-                            <Progress value={aiAnalysis.overallRating} className="mt-2" />
-                          </div>
-                          
-                          <div className="text-center p-6 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl border border-blue-300">
-                            <TrendingUp className="w-8 h-8 mx-auto mb-3 text-blue-600" />
-                            <h3 className="font-polysans text-lg font-bold text-black mb-2">Potential</h3>
-                            <p className={`text-3xl font-bold ${getRatingColor(aiAnalysis.potentialRating)}`}>
-                              {aiAnalysis.potentialRating}/100
-                            </p>
-                            <Progress value={aiAnalysis.potentialRating} className="mt-2" />
-                          </div>
-                        </div>
-
-                        {/* Strengths & Weaknesses */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          <div>
-                            <h4 className="font-poppins font-bold text-black mb-4 flex items-center gap-2">
-                              <Award className="w-5 h-5 text-green-500" />
-                              Key Strengths
-                            </h4>
-                            <div className="space-y-3">
-                              {aiAnalysis.strengths.map((strength, index) => (
-                                <div key={index} className="flex items-start gap-3 p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                                  <span className="text-gray-700 font-poppins">{strength}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <h4 className="font-poppins font-bold text-black mb-4 flex items-center gap-2">
-                              <Target className="w-5 h-5 text-orange-500" />
-                              Areas for Improvement
-                            </h4>
-                            <div className="space-y-3">
-                              {aiAnalysis.weaknesses.map((weakness, index) => (
-                                <div key={index} className="flex items-start gap-3 p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
-                                  <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
-                                  <span className="text-gray-700 font-poppins">{weakness}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Playing Style */}
-                        <div>
-                          <h4 className="font-poppins font-bold text-black mb-4">Playing Style Analysis</h4>
-                          <div className="p-6 bg-gradient-to-r from-[#d4af37]/10 to-pink-400/10 rounded-lg border border-[#d4af37]/20">
-                            <p className="text-gray-700 font-poppins leading-relaxed text-lg">
-                              {aiAnalysis.playingStyle}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Key Stats */}
-                        <div>
-                          <h4 className="font-poppins font-bold text-black mb-4">Performance Statistics</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {Object.entries(aiAnalysis.keyStats).map(([key, value]) => (
-                              <div key={key} className="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                <p className="text-2xl font-bold text-[#d4af37] mb-1">{value}</p>
-                                <p className="text-sm text-gray-600 font-poppins">{key}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Comparable Players */}
-                        <div>
-                          <h4 className="font-poppins font-bold text-black mb-4 flex items-center gap-2">
-                            <Users className="w-5 h-5 text-blue-500" />
-                            Similar Players
-                          </h4>
-                          <div className="flex flex-wrap gap-3">
-                            {aiAnalysis.comparisonPlayers.map((player, index) => (
-                              <Badge key={index} variant="outline" className="border-blue-500 text-blue-600 px-4 py-2">
-                                {player}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Transfer Recommendation */}
-                        <div>
-                          <h4 className="font-poppins font-bold text-black mb-4">Transfer Recommendation</h4>
-                          <div className="p-6 bg-gradient-to-r from-pink-400/10 to-[#d4af37]/10 rounded-lg border border-pink-400/20">
-                            <p className="text-gray-700 font-poppins leading-relaxed text-lg">
-                              {aiAnalysis.transferRecommendation}
-                            </p>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center py-16">
-                        <div className="relative mb-6">
-                          <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#d4af37]/20 border-t-[#d4af37] mx-auto"></div>
-                          <Zap className="absolute inset-0 m-auto w-8 h-8 text-[#d4af37]" />
-                        </div>
-                        <p className="text-gray-600 font-poppins font-medium text-lg">Generating AI analysis...</p>
-                        <p className="text-gray-400 text-sm font-poppins mt-2">This may take a few moments</p>
-                      </div>
-                    )}
+                  <CardContent>
+                    <p className="text-gray-300 leading-relaxed">{player.bio}</p>
                   </CardContent>
-                </Card>  
-              </TabsContent>
-            </Tabs>
-          </div>
-        ) : (
-          <div className="text-center py-20">
-            <User className="w-20 h-20 mx-auto mb-6 text-gray-300" />
-            <h3 className="font-polysans text-2xl font-semibold text-black mb-3">
-              Player Not Found
-            </h3>
-            <p className="text-gray-600 font-poppins text-lg">
-              The requested player profile could not be loaded.
-            </p>
-          </div>
-        )}
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="videos" className="space-y-6">
+              {selectedVideo ? (
+                <div className="space-y-4">
+                  <Button
+                    onClick={() => setSelectedVideo(null)}
+                    variant="outline"
+                    className="border-rosegold text-rosegold hover:bg-rosegold hover:text-black"
+                  >
+                    ← Back to Videos
+                  </Button>
+                  <VideoPlayer
+                    videoUrl={selectedVideo.video_url}
+                    title={selectedVideo.title}
+                    videoId={selectedVideo.id}
+                    metadata={metadata}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {loading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto mb-2"></div>
+                      <p className="text-gray-400">Loading videos...</p>
+                    </div>
+                  ) : videos.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {videos.map((video) => (
+                        <Card key={video.id} className="bg-gray-800 border-rosegold/20 cursor-pointer hover:border-rosegold/50 transition-all">
+                          <div className="relative aspect-video bg-black rounded-t-lg overflow-hidden">
+                            {video.thumbnail_url ? (
+                              <img
+                                src={video.thumbnail_url}
+                                alt={video.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full">
+                                <Play className="w-12 h-12 text-rosegold" />
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                              <Button
+                                onClick={() => setSelectedVideo(video)}
+                                size="sm"
+                                className="bg-rosegold hover:bg-rosegold/90 text-black"
+                              >
+                                <Play className="w-4 h-4 mr-2" />
+                                Watch
+                              </Button>
+                            </div>
+                          </div>
+                          <CardContent className="p-4">
+                            <h4 className="font-semibold text-white mb-2 line-clamp-2">
+                              {video.title}
+                            </h4>
+                            {video.description && (
+                              <p className="text-gray-400 text-sm line-clamp-2 mb-2">
+                                {video.description}
+                              </p>
+                            )}
+                            <div className="flex justify-between items-center text-xs text-gray-500">
+                              {video.match_date && (
+                                <span>{new Date(video.match_date).toLocaleDateString()}</span>
+                              )}
+                              {video.opposing_team && (
+                                <span>vs {video.opposing_team}</span>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Play className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <p className="text-gray-400 mb-2">No videos found for this player</p>
+                      <p className="text-gray-500 text-sm">Videos will appear here when the player is tagged</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="stats" className="space-y-6">
+              {player.stats ? (
+                <Card className="bg-gray-800 border-rosegold/20">
+                  <CardHeader>
+                    <h3 className="text-lg font-semibold text-white">Performance Statistics</h3>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {Object.entries(player.stats).map(([key, value]) => (
+                        <div key={key} className="text-center">
+                          <div className="text-2xl font-bold text-rosegold mb-1">
+                            {typeof value === 'number' ? value : String(value)}
+                          </div>
+                          <div className="text-sm text-gray-400 capitalize">
+                            {key.replace(/_/g, ' ')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="text-center py-8">
+                  <Trophy className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-400 mb-2">No statistics available</p>
+                  <p className="text-gray-500 text-sm">Player statistics will be displayed here when available</p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );
