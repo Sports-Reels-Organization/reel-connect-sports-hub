@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Player, User, Save, Upload, X } from 'lucide-react';
+import { User, Save, Upload, X } from 'lucide-react';
 import FifaIdIntegration from '@/components/FifaIdIntegration';
 import { useDataChangeNotification } from '@/hooks/useDataChangeNotification';
 
@@ -224,11 +224,15 @@ export const EnhancedPlayerForm: React.FC<EnhancedPlayerFormProps> = ({
     }
   };
 
+  const handleFifaIdUpdate = (fifaId: string) => {
+    setFormData(prev => ({ ...prev, fifa_id: fifaId }));
+  };
+
   return (
     <Card className="bg-gray-800 border-gray-700">
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
-          <Player className="w-5 h-5" />
+          <User className="w-5 h-5" />
           {player?.id ? 'Edit Player' : 'Add New Player'}
         </CardTitle>
       </CardHeader>
@@ -316,10 +320,10 @@ export const EnhancedPlayerForm: React.FC<EnhancedPlayerFormProps> = ({
 
           {/* FIFA ID Integration */}
           <FifaIdIntegration
-            playerId={player?.id}
-            onDataLoaded={(data) => {
-              setFormData(prev => ({ ...prev, ...data }));
-            }}
+            playerId={player?.id || ''}
+            currentFifaId={formData.fifa_id}
+            playerName={formData.full_name}
+            onFifaIdUpdate={handleFifaIdUpdate}
           />
 
           {/* Bio */}

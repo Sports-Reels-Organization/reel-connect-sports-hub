@@ -168,10 +168,22 @@ export const useTransferRestrictions = () => {
 
   const incrementPitchCount = async (teamId: string) => {
     try {
+      // Get current pitch count
+      const { data: currentTeam } = await supabase
+        .from('teams')
+        .select('pitches_used_this_month')
+        .eq('id', teamId)
+        .single();
+
+      if (!currentTeam) throw new Error('Team not found');
+
+      // Update with incremented count
+      const newCount = (currentTeam.pitches_used_this_month || 0) + 1;
+      
       const { error } = await supabase
         .from('teams')
         .update({
-          pitches_used_this_month: supabase.sql`pitches_used_this_month + 1`
+          pitches_used_this_month: newCount
         })
         .eq('id', teamId);
 
@@ -180,7 +192,7 @@ export const useTransferRestrictions = () => {
       // Update local state
       setRestrictions(prev => ({
         ...prev,
-        pitchesUsedThisMonth: prev.pitchesUsedThisMonth + 1
+        pitchesUsedThisMonth: newCount
       }));
     } catch (error) {
       console.error('Error incrementing pitch count:', error);

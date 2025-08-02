@@ -93,17 +93,28 @@ export const useEnhancedMessageFlagging = () => {
         console.error('Message violations table not available:', violationError);
       }
 
-      // Increment user warning count - using a direct update
-      const { error: warningError } = await supabase
-        .from('profiles')
-        .update({
-          contact_warnings: supabase.sql`contact_warnings + 1`,
-          last_contact_check: new Date().toISOString()
-        })
-        .eq('user_id', userId);
+      // Increment user warning count - using a raw SQL update
+      const { error: warningError } = await supabase.rpc('increment_contact_warnings', {
+        user_id: userId
+      });
 
       if (warningError) {
-        console.error('Error updating warnings:', warningError);
+        // Fallback: direct update without SQL function
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('contact_warnings')
+          .eq('user_id', userId)
+          .single();
+
+        const newWarningCount = (currentProfile?.contact_warnings || 0) + 1;
+
+        await supabase
+          .from('profiles')
+          .update({
+            contact_warnings: newWarningCount,
+            last_contact_check: new Date().toISOString()
+          })
+          .eq('user_id', userId);
       }
 
       // Check if user should be blocked (3 strikes rule)
