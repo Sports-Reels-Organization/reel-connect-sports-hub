@@ -74,26 +74,30 @@ export const useEnhancedMessageFlagging = () => {
 
       if (flagError) throw flagError;
 
-      // Record the violation
-      const { error: violationError } = await supabase
-        .from('message_violations')
-        .insert({
-          message_id: messageId,
-          user_id: userId,
-          violation_type: flaggedContent.map(f => f.type).join(', '),
-          flagged_content: flaggedContent,
-          created_at: new Date().toISOString()
-        });
+      // Record the violation - Note: message_violations table may not exist yet
+      try {
+        const { error: violationError } = await supabase
+          .from('message_violations')
+          .insert({
+            message_id: messageId,
+            user_id: userId,
+            violation_type: flaggedContent.map(f => f.type).join(', '),
+            violation_content: JSON.stringify(flaggedContent),
+            detected_at: new Date().toISOString()
+          });
 
-      if (violationError) {
-        console.error('Error recording violation:', violationError);
+        if (violationError) {
+          console.error('Error recording violation (table may not exist):', violationError);
+        }
+      } catch (violationError) {
+        console.error('Message violations table not available:', violationError);
       }
 
-      // Increment user warning count
+      // Increment user warning count - using a direct update
       const { error: warningError } = await supabase
         .from('profiles')
         .update({
-          contact_warnings: supabase.raw('contact_warnings + 1'),
+          contact_warnings: supabase.sql`contact_warnings + 1`,
           last_contact_check: new Date().toISOString()
         })
         .eq('user_id', userId);

@@ -347,6 +347,39 @@ export type Database = {
         }
         Relationships: []
       }
+      leagues_competitions: {
+        Row: {
+          country: string
+          created_at: string | null
+          id: string
+          name: string
+          region: string | null
+          sport_type: string
+          tier_level: number | null
+          type: string
+        }
+        Insert: {
+          country: string
+          created_at?: string | null
+          id?: string
+          name: string
+          region?: string | null
+          sport_type: string
+          tier_level?: number | null
+          type?: string
+        }
+        Update: {
+          country?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          region?: string | null
+          sport_type?: string
+          tier_level?: number | null
+          type?: string
+        }
+        Relationships: []
+      }
       match_statistics: {
         Row: {
           assists: number | null
@@ -471,6 +504,53 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_violations: {
+        Row: {
+          action_taken: string | null
+          detected_at: string | null
+          id: string
+          message_id: string | null
+          reviewed: boolean | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          user_id: string | null
+          violation_content: string
+          violation_type: string
+        }
+        Insert: {
+          action_taken?: string | null
+          detected_at?: string | null
+          id?: string
+          message_id?: string | null
+          reviewed?: boolean | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          user_id?: string | null
+          violation_content: string
+          violation_type: string
+        }
+        Update: {
+          action_taken?: string | null
+          detected_at?: string | null
+          id?: string
+          message_id?: string | null
+          reviewed?: boolean | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          user_id?: string | null
+          violation_content?: string
+          violation_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_violations_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]
@@ -741,6 +821,119 @@ export type Database = {
           },
         ]
       }
+      player_international_duty: {
+        Row: {
+          appearances: number | null
+          assists: number | null
+          category: string
+          country: string
+          created_at: string | null
+          debut_date: string | null
+          goals: number | null
+          id: string
+          player_id: string | null
+          red_cards: number | null
+          season: string
+          second_yellow_cards: number | null
+          updated_at: string | null
+          yellow_cards: number | null
+        }
+        Insert: {
+          appearances?: number | null
+          assists?: number | null
+          category: string
+          country: string
+          created_at?: string | null
+          debut_date?: string | null
+          goals?: number | null
+          id?: string
+          player_id?: string | null
+          red_cards?: number | null
+          season: string
+          second_yellow_cards?: number | null
+          updated_at?: string | null
+          yellow_cards?: number | null
+        }
+        Update: {
+          appearances?: number | null
+          assists?: number | null
+          category?: string
+          country?: string
+          created_at?: string | null
+          debut_date?: string | null
+          goals?: number | null
+          id?: string
+          player_id?: string | null
+          red_cards?: number | null
+          season?: string
+          second_yellow_cards?: number | null
+          updated_at?: string | null
+          yellow_cards?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_international_duty_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_league_participation: {
+        Row: {
+          appearances: number | null
+          assists: number | null
+          created_at: string | null
+          goals: number | null
+          id: string
+          league_competition_id: string | null
+          minutes_played: number | null
+          player_id: string | null
+          season: string
+          updated_at: string | null
+        }
+        Insert: {
+          appearances?: number | null
+          assists?: number | null
+          created_at?: string | null
+          goals?: number | null
+          id?: string
+          league_competition_id?: string | null
+          minutes_played?: number | null
+          player_id?: string | null
+          season: string
+          updated_at?: string | null
+        }
+        Update: {
+          appearances?: number | null
+          assists?: number | null
+          created_at?: string | null
+          goals?: number | null
+          id?: string
+          league_competition_id?: string | null
+          minutes_played?: number | null
+          player_id?: string | null
+          season?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_league_participation_league_competition_id_fkey"
+            columns: ["league_competition_id"]
+            isOneToOne: false
+            referencedRelation: "leagues_competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_league_participation_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_messages: {
         Row: {
           content: string
@@ -944,6 +1137,97 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "player_stats_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_titles_achievements: {
+        Row: {
+          achievement_type: string
+          competition: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          player_id: string | null
+          season: string
+          title: string
+        }
+        Insert: {
+          achievement_type: string
+          competition?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          player_id?: string | null
+          season: string
+          title: string
+        }
+        Update: {
+          achievement_type?: string
+          competition?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          player_id?: string | null
+          season?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_titles_achievements_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_transfer_history: {
+        Row: {
+          created_at: string | null
+          currency: string | null
+          from_club: string | null
+          id: string
+          notes: string | null
+          player_id: string | null
+          to_club: string | null
+          transfer_date: string
+          transfer_type: string
+          transfer_value: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          currency?: string | null
+          from_club?: string | null
+          id?: string
+          notes?: string | null
+          player_id?: string | null
+          to_club?: string | null
+          transfer_date: string
+          transfer_type?: string
+          transfer_value?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          currency?: string | null
+          from_club?: string | null
+          id?: string
+          notes?: string | null
+          player_id?: string | null
+          to_club?: string | null
+          transfer_date?: string
+          transfer_type?: string
+          transfer_value?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_transfer_history_player_id_fkey"
             columns: ["player_id"]
             isOneToOne: false
             referencedRelation: "players"

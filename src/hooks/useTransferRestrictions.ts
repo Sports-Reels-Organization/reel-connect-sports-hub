@@ -171,7 +171,7 @@ export const useTransferRestrictions = () => {
       const { error } = await supabase
         .from('teams')
         .update({
-          pitches_used_this_month: supabase.raw('pitches_used_this_month + 1')
+          pitches_used_this_month: supabase.sql`pitches_used_this_month + 1`
         })
         .eq('id', teamId);
 

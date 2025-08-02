@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +12,7 @@ interface PlayerStats {
   id?: string;
   player_id: string;
   season: string;
-  league: string;
+  league?: string;
   matches_played: number;
   goals: number;
   assists: number;
@@ -36,7 +35,7 @@ export const PlayerStatsManager: React.FC<PlayerStatsManagerProps> = ({
   const { profile } = useAuth();
   const { toast } = useToast();
   const [stats, setStats] = useState<PlayerStats[]>([]);
-  const [newStat, setNewStat] = useState<Partial<PlayerStats>>({
+  const [newStat, setNewStat] = useState<PlayerStats>({
     player_id: playerId,
     season: '',
     league: '',
@@ -92,7 +91,19 @@ export const PlayerStatsManager: React.FC<PlayerStatsManagerProps> = ({
       setSaving(true);
       const { data, error } = await supabase
         .from('player_performance')
-        .insert(newStat)
+        .insert({
+          player_id: newStat.player_id,
+          season: newStat.season,
+          league: newStat.league,
+          matches_played: newStat.matches_played,
+          goals: newStat.goals,
+          assists: newStat.assists,
+          yellow_cards: newStat.yellow_cards,
+          red_cards: newStat.red_cards,
+          minutes_played: newStat.minutes_played,
+          clean_sheets: newStat.clean_sheets,
+          saves: newStat.saves
+        })
         .select()
         .single();
 
