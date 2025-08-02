@@ -1,755 +1,456 @@
 
-import React, { useState, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Upload, X, Play, Plus } from 'lucide-react';
-import { validateVideoUrl, validateVideoOrientation } from '@/utils/videoValidation';
-import { compressVideo, getVideoDuration } from '@/services/videoCompressionService';
+import { Upload, Video, FileVideo, Zap } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { smartCompress } from '@/services/fastVideoCompressionService';
 
 interface VideoUploadFormProps {
-  onUploadComplete: () => void;
-  onClose: () => void;
+  onVideoUploaded: () => void;
+  onCancel?: () => void;
 }
 
-const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onUploadComplete, onClose }) => {
+const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoUploaded, onCancel }) => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Form state
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [compressionProgress, setCompressionProgress] = useState(0);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    videoUrl: '',
-    videoFile: null as File | null,
-    thumbnailFile: null as File | null,
-    matchDate: '',
-    opposingTeam: '',
-    homeOrAway: 'home' as 'home' | 'away',
-    finalScoreHome: '',
-    finalScoreAway: '',
-    videoType: 'highlight' as 'highlight' | 'full_match' | 'training',
-    leagueId: '',
-    taggedPlayers: [] as string[],
-    tags: [] as string[]
+    tags: '',
+    video_type: 'highlight',
+    match_date: '',
+    opposing_team: '',
+    score: '',
+    home_or_away: '',
+    is_public: true
   });
-
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [teamId, setTeamId] = useState<string>('');
-  const [players, setPlayers] = useState<any[]>([]);
-  const [leagues, setLeagues] = useState<any[]>([]);
 
   React.useEffect(() => {
-    fetchTeamData();
-    fetchLeagues();
+    fetchTeamId();
   }, [profile]);
 
-  const fetchTeamData = async () => {
+  const fetchTeamId = async () => {
     if (!profile?.id) return;
 
     try {
-      const { data: team, error: teamError } = await supabase
+      const { data, error } = await supabase
         .from('teams')
         .select('id')
         .eq('profile_id', profile.id)
         .single();
 
-      if (teamError || !team) {
-        console.error('Error fetching team:', teamError);
+      if (error) {
+        console.error('Error fetching team:', error);
         return;
       }
 
-      setTeamId(team.id);
-
-      // Fetch players
-      const { data: playersData, error: playersError } = await supabase
-        .from('players')
-        .select('id, full_name, position')
-        .eq('team_id', team.id)
-        .order('full_name');
-
-      if (playersError) {
-        console.error('Error fetching players:', playersError);
-        return;
+      if (data) {
+        setTeamId(data.id);
       }
-
-      setPlayers(playersData || []);
     } catch (error) {
-      console.error('Error in fetchTeamData:', error);
+      console.error('Error fetching team:', error);
     }
   };
 
-  const fetchLeagues = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('leagues')
-        .select('id, name, country')
-        .order('name');
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-      if (error) {
-        console.error('Error fetching leagues:', error);
-        return;
-      }
-
-      setLeagues(data || []);
-    } catch (error) {
-      console.error('Error fetching leagues:', error);
+    // Validate file type
+    const validTypes = ['video/mp4', 'video/webm', 'video/mov', 'video/avi', 'video/mkv'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a valid video file (MP4, WebM, MOV, AVI, MKV)",
+        variant: "destructive"
+      });
+      return;
     }
-  };
 
-  const uploadVideoFile = async (file: File): Promise<string> => {
-    try {
-      // Generate unique filename
-      const timestamp = Date.now();
-      const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      
-      // Upload to match-videos bucket
-      const { data, error } = await supabase.storage
-        .from('match-videos')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) {
-        console.error('Storage upload error:', error);
-        throw new Error(`Failed to upload video: ${error.message}`);
-      }
-
-      // Get public URL
-      const { data: publicData } = supabase.storage
-        .from('match-videos')
-        .getPublicUrl(fileName);
-
-      if (!publicData?.publicUrl) {
-        throw new Error('Failed to get public URL for uploaded video');
-      }
-
-      return publicData.publicUrl;
-    } catch (error) {
-      console.error('Error uploading video file:', error);
-      throw error;
+    // Check file size (100MB limit before compression)
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSize) {
+      toast({
+        title: "File Too Large",
+        description: "Please upload a video smaller than 100MB",
+        variant: "destructive"
+      });
+      return;
     }
-  };
 
-  const uploadThumbnail = async (file: File): Promise<string> => {
-    try {
-      const timestamp = Date.now();
-      const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      
-      const { data, error } = await supabase.storage
-        .from('video-thumbnails')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) {
-        throw new Error(`Failed to upload thumbnail: ${error.message}`);
-      }
-
-      const { data: publicData } = supabase.storage
-        .from('video-thumbnails')
-        .getPublicUrl(fileName);
-
-      return publicData?.publicUrl || '';
-    } catch (error) {
-      console.error('Error uploading thumbnail:', error);
-      throw error;
-    }
-  };
-
-  const generateThumbnail = async (videoFile: File): Promise<File | null> => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      video.onloadedmetadata = () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        video.currentTime = Math.min(5, video.duration * 0.1); // 5 seconds or 10% of video
-      };
-
-      video.onseeked = () => {
-        if (ctx) {
-          ctx.drawImage(video, 0, 0);
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const thumbnailFile = new File([blob], 'thumbnail.jpg', { type: 'image/jpeg' });
-              resolve(thumbnailFile);
-            } else {
-              resolve(null);
-            }
-          }, 'image/jpeg', 0.8);
-        } else {
-          resolve(null);
-        }
-      };
-
-      video.onerror = () => resolve(null);
-      video.src = URL.createObjectURL(videoFile);
-    });
+    setVideoFile(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!teamId) {
+    if (!videoFile || !teamId) {
       toast({
-        title: "Error",
-        description: "Team information not found. Please refresh and try again.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!formData.title.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a video title.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (uploadMethod === 'file' && !formData.videoFile) {
-      toast({
-        title: "Error",
-        description: "Please select a video file to upload.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (uploadMethod === 'url' && !formData.videoUrl.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid video URL.",
+        title: "Missing Information",
+        description: "Please select a video file and ensure your team profile is set up",
         variant: "destructive"
       });
       return;
     }
 
     setLoading(true);
+    setUploadProgress(0);
+    setCompressionProgress(0);
 
     try {
-      let videoUrl = formData.videoUrl;
-      let thumbnailUrl = '';
-      let fileSize = 0;
-      let duration = 0;
+      // Step 1: Fast compression (only if needed)
+      setIsCompressing(true);
+      let finalVideoFile = videoFile;
+      
+      const compressionTimer = setInterval(() => {
+        setCompressionProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
 
-      // Handle file upload
-      if (uploadMethod === 'file' && formData.videoFile) {
-        // Validate video orientation
-        const orientationValidation = await validateVideoOrientation(formData.videoFile);
-        if (!orientationValidation.isValid) {
-          toast({
-            title: "Invalid Video",
-            description: orientationValidation.errors[0],
-            variant: "destructive"
-          });
-          setLoading(false);
-          return;
-        }
+      try {
+        finalVideoFile = await smartCompress(videoFile);
+        setCompressionProgress(100);
+        clearInterval(compressionTimer);
+      } catch (compressionError) {
+        console.warn('Compression failed, using original file:', compressionError);
+        finalVideoFile = videoFile;
+        clearInterval(compressionTimer);
+      }
+      
+      setIsCompressing(false);
 
-        // Get duration
-        duration = await getVideoDuration(formData.videoFile);
-        fileSize = formData.videoFile.size;
-
-        // Compress video if needed
-        let videoToUpload = formData.videoFile;
-        if (fileSize > 50 * 1024 * 1024) { // 50MB
-          try {
-            videoToUpload = await compressVideo(formData.videoFile, {
-              maxSizeMB: 20,
-              quality: 0.8
-            });
-            fileSize = videoToUpload.size;
-            
-            toast({
-              title: "Video Compressed",
-              description: "Your video was compressed to optimize upload speed and storage.",
-            });
-          } catch (compressionError) {
-            console.error('Video compression failed:', compressionError);
-            // Continue with original file if compression fails
+      // Step 2: Generate thumbnail (quick capture)
+      const thumbnail = await generateThumbnail(finalVideoFile);
+      
+      // Step 3: Upload video with progress tracking
+      const fileExt = finalVideoFile.name.split('.').pop() || 'mp4';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { data: videoUpload, error: videoUploadError } = await supabase.storage
+        .from('match-videos')
+        .upload(fileName, finalVideoFile, {
+          onUploadProgress: (progress) => {
+            const percent = (progress.loaded / progress.total) * 100;
+            setUploadProgress(Math.round(percent));
           }
-        }
+        });
 
-        // Upload video file
-        videoUrl = await uploadVideoFile(videoToUpload);
+      if (videoUploadError) throw videoUploadError;
 
-        // Generate and upload thumbnail
-        let thumbnailFile = formData.thumbnailFile;
-        if (!thumbnailFile) {
-          thumbnailFile = await generateThumbnail(formData.videoFile);
-        }
-        
-        if (thumbnailFile) {
-          thumbnailUrl = await uploadThumbnail(thumbnailFile);
-        }
-      } else if (uploadMethod === 'url') {
-        // Validate URL
-        const urlValidation = validateVideoUrl(formData.videoUrl);
-        if (!urlValidation.isValid) {
-          toast({
-            title: "Invalid URL",
-            description: urlValidation.errors[0],
-            variant: "destructive"
-          });
-          setLoading(false);
-          return;
+      // Step 4: Upload thumbnail if generated
+      let thumbnailUrl = null;
+      if (thumbnail) {
+        const thumbFileName = `thumb_${fileName.replace(/\.[^/.]+$/, '.jpg')}`;
+        const { data: thumbUpload } = await supabase.storage
+          .from('video-thumbnails')
+          .upload(thumbFileName, thumbnail);
+
+        if (thumbUpload) {
+          const { data: thumbUrlData } = supabase.storage
+            .from('video-thumbnails')
+            .getPublicUrl(thumbFileName);
+          thumbnailUrl = thumbUrlData.publicUrl;
         }
       }
 
-      // Insert video record into database
-      const videoData = {
-        team_id: teamId,
-        title: formData.title.trim(),
-        description: formData.description.trim() || null,
-        video_url: videoUrl,
-        thumbnail_url: thumbnailUrl || null,
-        match_date: formData.matchDate || null,
-        opposing_team: formData.opposingTeam.trim() || null,
-        home_or_away: formData.homeOrAway,
-        final_score_home: formData.finalScoreHome ? parseInt(formData.finalScoreHome) : null,
-        final_score_away: formData.finalScoreAway ? parseInt(formData.finalScoreAway) : null,
-        video_type: formData.videoType,
-        league_id: formData.leagueId || null,
-        tagged_players: formData.taggedPlayers,
-        tags: formData.tags,
-        duration: Math.round(duration),
-        file_size: fileSize,
-        upload_status: 'completed',
-        ai_analysis_status: 'pending',
-        is_public: true
-      };
+      // Step 5: Get video URL and save to database
+      const { data: videoUrlData } = supabase.storage
+        .from('match-videos')
+        .getPublicUrl(fileName);
 
-      const { data: videoRecord, error: insertError } = await supabase
+      const { error: dbError } = await supabase
         .from('videos')
-        .insert(videoData)
-        .select()
-        .single();
+        .insert({
+          team_id: teamId,
+          title: formData.title,
+          description: formData.description,
+          video_url: videoUrlData.publicUrl,
+          thumbnail_url: thumbnailUrl,
+          tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
+          video_type: formData.video_type,
+          match_date: formData.match_date || null,
+          opposing_team: formData.opposing_team || null,
+          score: formData.score || null,
+          home_or_away: formData.home_or_away || null,
+          is_public: formData.is_public,
+          file_size: finalVideoFile.size,
+          upload_status: 'completed',
+          ai_analysis_status: 'pending' // Only uploaded videos get AI analysis
+        });
 
-      if (insertError) {
-        console.error('Database insert error:', insertError);
-        throw new Error(`Failed to save video information: ${insertError.message}`);
-      }
+      if (dbError) throw dbError;
 
       toast({
         title: "Success",
-        description: "Video uploaded successfully and is now available for use in transfer pitches.",
+        description: "Video uploaded successfully! AI analysis will begin shortly.",
       });
 
-      onUploadComplete();
-      onClose();
+      // Reset form
+      setFormData({
+        title: '',
+        description: '',
+        tags: '',
+        video_type: 'highlight',
+        match_date: '',
+        opposing_team: '',
+        score: '',
+        home_or_away: '',
+        is_public: true
+      });
+      setVideoFile(null);
+      
+      onVideoUploaded();
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error uploading video:', error);
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to upload video. Please try again.",
+        description: "Failed to upload video. Please try again.",
         variant: "destructive"
       });
     } finally {
       setLoading(false);
+      setUploadProgress(0);
+      setCompressionProgress(0);
+      setIsCompressing(false);
     }
   };
 
-  const addTag = (tag: string) => {
-    if (tag.trim() && !formData.tags.includes(tag.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag.trim()]
-      }));
-    }
-  };
+  const generateThumbnail = async (file: File): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
 
-  const removeTag = (tagToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
-  };
+      video.onloadeddata = () => {
+        canvas.width = 320; // Small thumbnail for speed
+        canvas.height = (320 * video.videoHeight) / video.videoWidth;
+        
+        video.currentTime = Math.min(2, video.duration / 4); // Get frame from 25% or 2s
+      };
 
-  const togglePlayerTag = (playerId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      taggedPlayers: prev.taggedPlayers.includes(playerId)
-        ? prev.taggedPlayers.filter(id => id !== playerId)
-        : [...prev.taggedPlayers, playerId]
-    }));
+      video.onseeked = () => {
+        ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/jpeg', 0.8);
+      };
+
+      video.onerror = () => resolve(null);
+      video.src = URL.createObjectURL(file);
+    });
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto bg-[#1a1a1a] border-rosegold/20">
+    <Card className="border-0">
       <CardHeader>
-        <CardTitle className="text-white font-polysans text-2xl">Upload Video</CardTitle>
-        <p className="text-gray-400 font-poppins">
-          Add match footage with comprehensive data and player tagging
-        </p>
+        <CardTitle className="flex items-center gap-2 text-white font-polysans">
+          <Upload className="w-5 h-5" />
+          Upload Video
+          <Zap className="w-4 h-4 text-yellow-400" title="Fast compression enabled" />
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Upload Method Selection */}
-          <div className="space-y-3">
-            <Label className="text-white font-polysans">Upload Method</Label>
-            <div className="flex gap-4">
-              <Button
-                type="button"
-                variant={uploadMethod === 'file' ? 'default' : 'outline'}
-                onClick={() => setUploadMethod('file')}
-                className={uploadMethod === 'file' ? 'bg-rosegold text-black' : ''}
-              >
-                Upload File
-              </Button>
-              <Button
-                type="button"
-                variant={uploadMethod === 'url' ? 'default' : 'outline'}
-                onClick={() => setUploadMethod('url')}
-                className={uploadMethod === 'url' ? 'bg-rosegold text-black' : ''}
-              >
-                Video URL
-              </Button>
-            </div>
-          </div>
-
-          {/* Video Upload/URL Input */}
-          {uploadMethod === 'file' ? (
-            <div className="space-y-3">
-              <Label htmlFor="videoFile" className="text-white font-polysans">
-                Video File (Landscape orientation required)
-              </Label>
-              <div className="border-2 border-dashed border-rosegold/30 rounded-lg p-6 text-center">
-                {formData.videoFile ? (
-                  <div className="space-y-3">
-                    <Play className="w-12 h-12 mx-auto text-rosegold" />
-                    <p className="text-white font-medium">{formData.videoFile.name}</p>
-                    <p className="text-gray-400 text-sm">
-                      {(formData.videoFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setFormData(prev => ({ ...prev, videoFile: null }))}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <Upload className="w-12 h-12 mx-auto text-gray-400" />
+          {/* File Upload */}
+          <div className="space-y-2">
+            <Label className="text-gray-300">Video File *</Label>
+            <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-rosegold transition-colors">
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleFileSelect}
+                className="hidden"
+                id="video-upload"
+                disabled={loading}
+              />
+              <label htmlFor="video-upload" className="cursor-pointer">
+                {videoFile ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <FileVideo className="w-8 h-8 text-rosegold" />
                     <div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        Choose Video File
-                      </Button>
-                      <p className="text-gray-400 text-sm mt-2">
-                        Max 100MB. Supported formats: MP4, MOV, AVI
+                      <p className="text-white font-medium">{videoFile.name}</p>
+                      <p className="text-gray-400 text-sm">
+                        {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
                       </p>
                     </div>
                   </div>
+                ) : (
+                  <div>
+                    <Video className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-white mb-2">Click to select video</p>
+                    <p className="text-gray-400 text-sm">
+                      MP4, WebM, MOV, AVI, MKV up to 100MB
+                    </p>
+                  </div>
                 )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="video/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setFormData(prev => ({ ...prev, videoFile: file }));
-                  }
-                }}
-              />
+              </label>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <Label htmlFor="videoUrl" className="text-white font-polysans">
-                Video URL
-              </Label>
-              <Input
-                id="videoUrl"
-                type="url"
-                placeholder="https://youtube.com/watch?v=..."
-                value={formData.videoUrl}
-                onChange={(e) => setFormData(prev => ({ ...prev, videoUrl: e.target.value }))}
-                className="bg-gray-800 border-gray-600 text-white"
-              />
-              <p className="text-gray-400 text-sm">
-                Supported platforms: YouTube, Vimeo, Streamable
-              </p>
+          </div>
+
+          {/* Compression Progress */}
+          {isCompressing && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-400 animate-pulse" />
+                <Label className="text-yellow-400">Fast Compressing Video...</Label>
+              </div>
+              <Progress value={compressionProgress} className="h-2" />
             </div>
           )}
 
-          {/* Basic Video Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="title" className="text-white font-polysans">
-                Video Title *
-              </Label>
+          {/* Upload Progress */}
+          {loading && uploadProgress > 0 && !isCompressing && (
+            <div className="space-y-2">
+              <Label className="text-rosegold">Uploading Video...</Label>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+          )}
+
+          {/* Basic Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-gray-300">Title *</Label>
               <Input
-                id="title"
-                type="text"
-                placeholder="Match vs Arsenal - Goals & Highlights"
                 value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                placeholder="Enter video title"
                 className="bg-gray-800 border-gray-600 text-white"
                 required
               />
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="videoType" className="text-white font-polysans">
-                Video Type
-              </Label>
-              <Select 
-                value={formData.videoType} 
-                onValueChange={(value: 'highlight' | 'full_match' | 'training') => 
-                  setFormData(prev => ({ ...prev, videoType: value }))
-                }
-              >
+            <div className="space-y-2">
+              <Label className="text-gray-300">Video Type</Label>
+              <Select value={formData.video_type} onValueChange={(value) => setFormData({...formData, video_type: value})}>
                 <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="highlight">Highlights</SelectItem>
+                  <SelectItem value="highlight">Match Highlights</SelectItem>
                   <SelectItem value="full_match">Full Match</SelectItem>
-                  <SelectItem value="training">Training</SelectItem>
+                  <SelectItem value="training">Training Session</SelectItem>
+                  <SelectItem value="skills">Skills Showcase</SelectItem>
+                  <SelectItem value="analysis">Match Analysis</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <Label htmlFor="description" className="text-white font-polysans">
-              Description
-            </Label>
+          {/* Description */}
+          <div className="space-y-2">
+            <Label className="text-gray-300">Description</Label>
             <Textarea
-              id="description"
-              placeholder="Detailed description of the match performance..."
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="bg-gray-800 border-gray-600 text-white min-h-[100px]"
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              placeholder="Describe the video content..."
+              className="bg-gray-800 border-gray-600 text-white"
+              rows={3}
             />
           </div>
 
-          {/* Match Information */}
-          <div className="space-y-4">
-            <h3 className="text-white font-polysans text-lg">Match Information</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-3">
-                <Label htmlFor="matchDate" className="text-white font-polysans">
-                  Match Date
-                </Label>
-                <Input
-                  id="matchDate"
-                  type="date"
-                  value={formData.matchDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, matchDate: e.target.value }))}
-                  className="bg-gray-800 border-gray-600 text-white"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label htmlFor="opposingTeam" className="text-white font-polysans">
-                  Opposing Team
-                </Label>
-                <Input
-                  id="opposingTeam"
-                  type="text"
-                  placeholder="Liverpool FC"
-                  value={formData.opposingTeam}
-                  onChange={(e) => setFormData(prev => ({ ...prev, opposingTeam: e.target.value }))}
-                  className="bg-gray-800 border-gray-600 text-white"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label htmlFor="homeOrAway" className="text-white font-polysans">
-                  Home/Away
-                </Label>
-                <Select 
-                  value={formData.homeOrAway} 
-                  onValueChange={(value: 'home' | 'away') => 
-                    setFormData(prev => ({ ...prev, homeOrAway: value }))
-                  }
-                >
-                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="home">Home</SelectItem>
-                    <SelectItem value="away">Away</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Match Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label className="text-gray-300">Match Date</Label>
+              <Input
+                type="date"
+                value={formData.match_date}
+                onChange={(e) => setFormData({...formData, match_date: e.target.value})}
+                className="bg-gray-800 border-gray-600 text-white"
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-3">
-                <Label htmlFor="finalScoreHome" className="text-white font-polysans">
-                  Final Score (Home)
-                </Label>
-                <Input
-                  id="finalScoreHome"
-                  type="number"
-                  min="0"
-                  placeholder="2"
-                  value={formData.finalScoreHome}
-                  onChange={(e) => setFormData(prev => ({ ...prev, finalScoreHome: e.target.value }))}
-                  className="bg-gray-800 border-gray-600 text-white"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label className="text-gray-300">Opposing Team</Label>
+              <Input
+                value={formData.opposing_team}
+                onChange={(e) => setFormData({...formData, opposing_team: e.target.value})}
+                placeholder="vs Team Name"
+                className="bg-gray-800 border-gray-600 text-white"
+              />
+            </div>
 
-              <div className="space-y-3">
-                <Label htmlFor="finalScoreAway" className="text-white font-polysans">
-                  Final Score (Away)
-                </Label>
-                <Input
-                  id="finalScoreAway"
-                  type="number"
-                  min="0"
-                  placeholder="1"
-                  value={formData.finalScoreAway}
-                  onChange={(e) => setFormData(prev => ({ ...prev, finalScoreAway: e.target.value }))}
-                  className="bg-gray-800 border-gray-600 text-white"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label className="text-gray-300">Final Score</Label>
+              <Input
+                value={formData.score}
+                onChange={(e) => setFormData({...formData, score: e.target.value})}
+                placeholder="2-1"
+                className="bg-gray-800 border-gray-600 text-white"
+              />
+            </div>
 
-              <div className="space-y-3">
-                <Label htmlFor="leagueId" className="text-white font-polysans">
-                  League/Competition
-                </Label>
-                <Select 
-                  value={formData.leagueId} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, leagueId: value }))}
-                >
-                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                    <SelectValue placeholder="Select league..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leagues.map((league) => (
-                      <SelectItem key={league.id} value={league.id}>
-                        {league.name} ({league.country})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label className="text-gray-300">Home/Away</Label>
+              <Select value={formData.home_or_away} onValueChange={(value) => setFormData({...formData, home_or_away: value})}>
+                <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="home">Home</SelectItem>
+                  <SelectItem value="away">Away</SelectItem>
+                  <SelectItem value="neutral">Neutral</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          {/* Player Tagging */}
-          {players.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-white font-polysans text-lg">Tag Players</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {players.map((player) => (
-                  <div
-                    key={player.id}
-                    onClick={() => togglePlayerTag(player.id)}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                      formData.taggedPlayers.includes(player.id)
-                        ? 'border-rosegold bg-rosegold/10 text-rosegold'
-                        : 'border-gray-600 text-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="font-medium text-sm">{player.full_name}</div>
-                    <div className="text-xs opacity-75">{player.position}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Tags */}
-          <div className="space-y-4">
-            <h3 className="text-white font-polysans text-lg">Tags</h3>
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="Add a tag..."
-                className="bg-gray-800 border-gray-600 text-white"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addTag((e.target as HTMLInputElement).value);
-                    (e.target as HTMLInputElement).value = '';
-                  }
-                }}
-              />
+          <div className="space-y-2">
+            <Label className="text-gray-300">Tags</Label>
+            <Input
+              value={formData.tags}
+              onChange={(e) => setFormData({...formData, tags: e.target.value})}
+              placeholder="goals, assists, highlights (comma separated)"
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-4">
+            <Button
+              type="submit"
+              disabled={loading || !videoFile}
+              className="flex-1 bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+            >
+              {loading ? (
+                <>
+                  <Upload className="w-4 h-4 mr-2 animate-spin" />
+                  {isCompressing ? 'Compressing...' : 'Uploading...'}
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Video
+                </>
+              )}
+            </Button>
+            
+            {onCancel && (
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  const input = document.querySelector('input[placeholder="Add a tag..."]') as HTMLInputElement;
-                  if (input) {
-                    addTag(input.value);
-                    input.value = '';
-                  }
-                }}
+                onClick={onCancel}
+                disabled={loading}
+                className="px-6"
               >
-                <Plus className="w-4 h-4" />
+                Cancel
               </Button>
-            </div>
-            
-            {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag, index) => (
-                  <Badge
-                    key={index}
-                    variant="secondary"
-                    className="bg-rosegold/20 text-rosegold border-rosegold/30"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="ml-2 text-rosegold/70 hover:text-rosegold"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
             )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-4 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-rosegold hover:bg-rosegold/90 text-black font-polysans"
-            >
-              {loading ? 'Uploading...' : 'Upload Video'}
-            </Button>
           </div>
         </form>
       </CardContent>
