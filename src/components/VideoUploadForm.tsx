@@ -1,68 +1,83 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Upload, Video, FileVideo, Zap } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import { smartCompress } from '@/services/fastVideoCompressionService';
+import { Upload, Video, X, Plus, Loader2 } from 'lucide-react';
+import { useDataChangeNotification } from '@/hooks/useDataChangeNotification';
+import { FastVideoCompressionService } from '@/services/fastVideoCompressionService';
 
 interface VideoUploadFormProps {
-  onVideoUploaded: () => void;
-  onCancel?: () => void;
+  onClose: () => void;
 }
 
-const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoUploaded, onCancel }) => {
+interface SelectedPlayer {
+  id: string;
+  full_name: string;
+  position: string;
+}
+
+export default function VideoUploadForm({ onClose }: VideoUploadFormProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const { sendChangeNotification } = useDataChangeNotification();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [uploading, setUploading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [compressionProgress, setCompressionProgress] = useState(0);
-  const [isCompressing, setIsCompressing] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    tags: '',
-    video_type: 'highlight',
-    match_date: '',
     opposing_team: '',
     score: '',
-    home_or_away: '',
-    is_public: true
+    match_date: '',
+    home_or_away: 'home',
+    video_type: 'highlight',
+    tags: [] as string[],
+    taggedPlayers: [] as SelectedPlayer[]
   });
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [teamId, setTeamId] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [currentTag, setCurrentTag] = useState('');
+  const [availablePlayers, setAvailablePlayers] = useState<SelectedPlayer[]>([]);
+  const [teamId, setTeamId] = useState<string | null>(null);
 
   React.useEffect(() => {
-    fetchTeamId();
+    fetchTeamAndPlayers();
   }, [profile]);
 
-  const fetchTeamId = async () => {
-    if (!profile?.id) return;
+  const fetchTeamAndPlayers = async () => {
+    if (!profile) return;
 
     try {
-      const { data, error } = await supabase
+      // Get team
+      const { data: team, error: teamError } = await supabase
         .from('teams')
         .select('id')
         .eq('profile_id', profile.id)
         .single();
 
-      if (error) {
-        console.error('Error fetching team:', error);
-        return;
-      }
+      if (teamError) throw teamError;
+      
+      setTeamId(team.id);
 
-      if (data) {
-        setTeamId(data.id);
-      }
+      // Get players
+      const { data: players, error: playersError } = await supabase
+        .from('players')
+        .select('id, full_name, position')
+        .eq('team_id', team.id);
+
+      if (playersError) throw playersError;
+      setAvailablePlayers(players || []);
     } catch (error) {
-      console.error('Error fetching team:', error);
+      console.error('Error fetching team data:', error);
     }
   };
 
@@ -71,280 +86,256 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoUploaded, onCa
     if (!file) return;
 
     // Validate file type
-    const validTypes = ['video/mp4', 'video/webm', 'video/mov', 'video/avi', 'video/mkv'];
-    if (!validTypes.includes(file.type)) {
+    if (!file.type.startsWith('video/')) {
       toast({
-        title: "Invalid File Type",
-        description: "Please upload a valid video file (MP4, WebM, MOV, AVI, MKV)",
+        title: "Invalid File",
+        description: "Please select a video file.",
         variant: "destructive"
       });
       return;
     }
 
-    // Check file size (100MB limit before compression)
-    const maxSize = 100 * 1024 * 1024; // 100MB
+    // Validate file size (100MB limit)
+    const maxSize = 100 * 1024 * 1024;
     if (file.size > maxSize) {
       toast({
         title: "File Too Large",
-        description: "Please upload a video smaller than 100MB",
+        description: "Please select a video file smaller than 100MB.",
         variant: "destructive"
       });
       return;
     }
 
-    setVideoFile(file);
+    setSelectedFile(file);
+  };
+
+  const compressVideo = async (file: File): Promise<File> => {
+    setCompressing(true);
+    try {
+      const compressionService = new FastVideoCompressionService();
+      const compressedFile = await compressionService.compressVideo(file, {
+        quality: 0.7,
+        maxWidth: 1280,
+        maxHeight: 720
+      });
+      return compressedFile;
+    } catch (error) {
+      console.error('Video compression failed:', error);
+      return file; // Return original file if compression fails
+    } finally {
+      setCompressing(false);
+    }
+  };
+
+  const uploadToSupabase = async (file: File, fileName: string) => {
+    const { data, error } = await supabase.storage
+      .from('match-videos')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) throw error;
+    return data;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!videoFile || !teamId) {
+    if (!selectedFile || !teamId) {
       toast({
         title: "Missing Information",
-        description: "Please select a video file and ensure your team profile is set up",
+        description: "Please select a video file and ensure your team is set up.",
         variant: "destructive"
       });
       return;
     }
 
-    setLoading(true);
+    if (!formData.title.trim()) {
+      toast({
+        title: "Missing Title",
+        description: "Please provide a title for your video.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploading(true);
     setUploadProgress(0);
-    setCompressionProgress(0);
 
     try {
-      // Step 1: Fast compression (only if needed)
-      setIsCompressing(true);
-      let finalVideoFile = videoFile;
-      
-      const compressionTimer = setInterval(() => {
-        setCompressionProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
+      // Compress video
+      const processedFile = await compressVideo(selectedFile);
+      setUploadProgress(30);
 
-      try {
-        finalVideoFile = await smartCompress(videoFile);
-        setCompressionProgress(100);
-        clearInterval(compressionTimer);
-      } catch (compressionError) {
-        console.warn('Compression failed, using original file:', compressionError);
-        finalVideoFile = videoFile;
-        clearInterval(compressionTimer);
-      }
-      
-      setIsCompressing(false);
+      // Upload to storage
+      const fileName = `${teamId}/${Date.now()}-${processedFile.name}`;
+      const uploadData = await uploadToSupabase(processedFile, fileName);
+      setUploadProgress(70);
 
-      // Step 2: Generate thumbnail (quick capture)
-      const thumbnail = await generateThumbnail(finalVideoFile);
-      
-      // Step 3: Upload video with progress tracking
-      const fileExt = finalVideoFile.name.split('.').pop() || 'mp4';
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      
-      const { data: videoUpload, error: videoUploadError } = await supabase.storage
+      // Get public URL
+      const { data: urlData } = supabase.storage
         .from('match-videos')
-        .upload(fileName, finalVideoFile, {
-          onUploadProgress: (progress) => {
-            const percent = (progress.loaded / progress.total) * 100;
-            setUploadProgress(Math.round(percent));
-          }
-        });
+        .getPublicUrl(uploadData.path);
 
-      if (videoUploadError) throw videoUploadError;
-
-      // Step 4: Upload thumbnail if generated
-      let thumbnailUrl = null;
-      if (thumbnail) {
-        const thumbFileName = `thumb_${fileName.replace(/\.[^/.]+$/, '.jpg')}`;
-        const { data: thumbUpload } = await supabase.storage
-          .from('video-thumbnails')
-          .upload(thumbFileName, thumbnail);
-
-        if (thumbUpload) {
-          const { data: thumbUrlData } = supabase.storage
-            .from('video-thumbnails')
-            .getPublicUrl(thumbFileName);
-          thumbnailUrl = thumbUrlData.publicUrl;
-        }
-      }
-
-      // Step 5: Get video URL and save to database
-      const { data: videoUrlData } = supabase.storage
-        .from('match-videos')
-        .getPublicUrl(fileName);
-
-      const { error: dbError } = await supabase
+      // Save to database
+      const { data: video, error: dbError } = await supabase
         .from('videos')
         .insert({
           team_id: teamId,
           title: formData.title,
           description: formData.description,
-          video_url: videoUrlData.publicUrl,
-          thumbnail_url: thumbnailUrl,
-          tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
-          video_type: formData.video_type,
+          video_url: urlData.publicUrl,
+          opposing_team: formData.opposing_team,
+          score: formData.score,
           match_date: formData.match_date || null,
-          opposing_team: formData.opposing_team || null,
-          score: formData.score || null,
-          home_or_away: formData.home_or_away || null,
-          is_public: formData.is_public,
-          file_size: finalVideoFile.size,
+          home_or_away: formData.home_or_away,
+          video_type: formData.video_type,
+          tags: formData.tags,
+          tagged_players: formData.taggedPlayers.map(p => p.id),
+          duration: 0,
+          file_size: processedFile.size,
           upload_status: 'completed',
-          ai_analysis_status: 'pending' // Only uploaded videos get AI analysis
-        });
+          ai_analysis_status: 'pending'
+        })
+        .select()
+        .single();
 
       if (dbError) throw dbError;
 
+      setUploadProgress(100);
+
+      // Send notification
+      if (profile?.email) {
+        await sendChangeNotification({
+          userId: profile.user_id,
+          email: profile.email,
+          changeType: 'uploaded',
+          entityType: 'video',
+          entityName: formData.title
+        });
+      }
+
       toast({
         title: "Success",
-        description: "Video uploaded successfully! AI analysis will begin shortly.",
+        description: "Video uploaded successfully!",
       });
 
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        tags: '',
-        video_type: 'highlight',
-        match_date: '',
-        opposing_team: '',
-        score: '',
-        home_or_away: '',
-        is_public: true
-      });
-      setVideoFile(null);
-      
-      onVideoUploaded();
-
-    } catch (error) {
-      console.error('Error uploading video:', error);
+      onClose();
+    } catch (error: any) {
+      console.error('Upload error:', error);
       toast({
         title: "Upload Failed",
-        description: "Failed to upload video. Please try again.",
+        description: error.message || "Failed to upload video. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setUploading(false);
       setUploadProgress(0);
-      setCompressionProgress(0);
-      setIsCompressing(false);
     }
   };
 
-  const generateThumbnail = async (file: File): Promise<Blob | null> => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+  const addTag = () => {
+    if (currentTag.trim() && !formData.tags.includes(currentTag.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, currentTag.trim()]
+      }));
+      setCurrentTag('');
+    }
+  };
 
-      video.onloadeddata = () => {
-        canvas.width = 320; // Small thumbnail for speed
-        canvas.height = (320 * video.videoHeight) / video.videoWidth;
-        
-        video.currentTime = Math.min(2, video.duration / 4); // Get frame from 25% or 2s
-      };
+  const removeTag = (tagToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
 
-      video.onseeked = () => {
-        ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => {
-          resolve(blob);
-        }, 'image/jpeg', 0.8);
-      };
+  const addPlayer = (playerId: string) => {
+    const player = availablePlayers.find(p => p.id === playerId);
+    if (player && !formData.taggedPlayers.find(p => p.id === playerId)) {
+      setFormData(prev => ({
+        ...prev,
+        taggedPlayers: [...prev.taggedPlayers, player]
+      }));
+    }
+  };
 
-      video.onerror = () => resolve(null);
-      video.src = URL.createObjectURL(file);
-    });
+  const removePlayer = (playerId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      taggedPlayers: prev.taggedPlayers.filter(p => p.id !== playerId)
+    }));
   };
 
   return (
-    <Card className="border-0">
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white font-polysans">
+        <CardTitle className="text-rosegold flex items-center gap-2">
           <Upload className="w-5 h-5" />
-          Upload Video
-          <Zap className="w-4 h-4 text-yellow-400" title="Fast compression enabled" />
+          Upload Match Video
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* File Upload */}
           <div className="space-y-2">
-            <Label className="text-gray-300">Video File *</Label>
-            <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-rosegold transition-colors">
-              <input
-                type="file"
-                accept="video/*"
-                onChange={handleFileSelect}
-                className="hidden"
-                id="video-upload"
-                disabled={loading}
-              />
-              <label htmlFor="video-upload" className="cursor-pointer">
-                {videoFile ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <FileVideo className="w-8 h-8 text-rosegold" />
-                    <div>
-                      <p className="text-white font-medium">{videoFile.name}</p>
-                      <p className="text-gray-400 text-sm">
-                        {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <Video className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-white mb-2">Click to select video</p>
-                    <p className="text-gray-400 text-sm">
-                      MP4, WebM, MOV, AVI, MKV up to 100MB
-                    </p>
-                  </div>
-                )}
-              </label>
+            <Label>Select Video File</Label>
+            <div 
+              className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-rosegold transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {selectedFile ? (
+                <div className="space-y-2">
+                  <Video className="w-8 h-8 mx-auto text-rosegold" />
+                  <p className="text-white font-medium">{selectedFile.name}</p>
+                  <p className="text-gray-400 text-sm">
+                    {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Upload className="w-8 h-8 mx-auto text-gray-400" />
+                  <p className="text-gray-400">Click to select video file</p>
+                  <p className="text-xs text-gray-500">Max size: 100MB</p>
+                </div>
+              )}
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
           </div>
 
-          {/* Compression Progress */}
-          {isCompressing && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-yellow-400 animate-pulse" />
-                <Label className="text-yellow-400">Fast Compressing Video...</Label>
-              </div>
-              <Progress value={compressionProgress} className="h-2" />
-            </div>
-          )}
-
-          {/* Upload Progress */}
-          {loading && uploadProgress > 0 && !isCompressing && (
-            <div className="space-y-2">
-              <Label className="text-rosegold">Uploading Video...</Label>
-              <Progress value={uploadProgress} className="h-2" />
-            </div>
-          )}
-
-          {/* Basic Info */}
+          {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-300">Title *</Label>
+              <Label htmlFor="title">Video Title *</Label>
               <Input
+                id="title"
                 value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="Enter video title"
-                className="bg-gray-800 border-gray-600 text-white"
+                className="bg-gray-800 border-gray-600"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-gray-300">Video Type</Label>
-              <Select value={formData.video_type} onValueChange={(value) => setFormData({...formData, video_type: value})}>
-                <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+              <Label htmlFor="video_type">Video Type</Label>
+              <Select value={formData.video_type} onValueChange={(value) => setFormData(prev => ({ ...prev, video_type: value }))}>
+                <SelectTrigger className="bg-gray-800 border-gray-600">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="highlight">Match Highlights</SelectItem>
+                  <SelectItem value="highlight">Highlight</SelectItem>
                   <SelectItem value="full_match">Full Match</SelectItem>
-                  <SelectItem value="training">Training Session</SelectItem>
-                  <SelectItem value="skills">Skills Showcase</SelectItem>
-                  <SelectItem value="analysis">Match Analysis</SelectItem>
+                  <SelectItem value="training">Training</SelectItem>
+                  <SelectItem value="analysis">Analysis</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -352,53 +343,46 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoUploaded, onCa
 
           {/* Description */}
           <div className="space-y-2">
-            <Label className="text-gray-300">Description</Label>
+            <Label htmlFor="description">Description</Label>
             <Textarea
+              id="description"
               value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Describe the video content..."
-              className="bg-gray-800 border-gray-600 text-white"
+              className="bg-gray-800 border-gray-600"
               rows={3}
             />
           </div>
 
           {/* Match Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-300">Match Date</Label>
+              <Label htmlFor="opposing_team">Opposing Team</Label>
               <Input
-                type="date"
-                value={formData.match_date}
-                onChange={(e) => setFormData({...formData, match_date: e.target.value})}
-                className="bg-gray-800 border-gray-600 text-white"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-gray-300">Opposing Team</Label>
-              <Input
+                id="opposing_team"
                 value={formData.opposing_team}
-                onChange={(e) => setFormData({...formData, opposing_team: e.target.value})}
-                placeholder="vs Team Name"
-                className="bg-gray-800 border-gray-600 text-white"
+                onChange={(e) => setFormData(prev => ({ ...prev, opposing_team: e.target.value }))}
+                placeholder="Team name"
+                className="bg-gray-800 border-gray-600"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-gray-300">Final Score</Label>
+              <Label htmlFor="score">Final Score</Label>
               <Input
+                id="score"
                 value={formData.score}
-                onChange={(e) => setFormData({...formData, score: e.target.value})}
+                onChange={(e) => setFormData(prev => ({ ...prev, score: e.target.value }))}
                 placeholder="2-1"
-                className="bg-gray-800 border-gray-600 text-white"
+                className="bg-gray-800 border-gray-600"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-gray-300">Home/Away</Label>
-              <Select value={formData.home_or_away} onValueChange={(value) => setFormData({...formData, home_or_away: value})}>
-                <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                  <SelectValue placeholder="Select" />
+              <Label htmlFor="home_or_away">Home/Away</Label>
+              <Select value={formData.home_or_away} onValueChange={(value) => setFormData(prev => ({ ...prev, home_or_away: value }))}>
+                <SelectTrigger className="bg-gray-800 border-gray-600">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="home">Home</SelectItem>
@@ -409,28 +393,109 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoUploaded, onCa
             </div>
           </div>
 
-          {/* Tags */}
           <div className="space-y-2">
-            <Label className="text-gray-300">Tags</Label>
+            <Label htmlFor="match_date">Match Date</Label>
             <Input
-              value={formData.tags}
-              onChange={(e) => setFormData({...formData, tags: e.target.value})}
-              placeholder="goals, assists, highlights (comma separated)"
-              className="bg-gray-800 border-gray-600 text-white"
+              id="match_date"
+              type="date"
+              value={formData.match_date}
+              onChange={(e) => setFormData(prev => ({ ...prev, match_date: e.target.value }))}
+              className="bg-gray-800 border-gray-600"
             />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-4">
+          {/* Tags */}
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <div className="flex gap-2">
+              <Input
+                value={currentTag}
+                onChange={(e) => setCurrentTag(e.target.value)}
+                placeholder="Add a tag"
+                className="bg-gray-800 border-gray-600"
+                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+              />
+              <Button type="button" onClick={addTag} size="sm">
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            {formData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.tags.map(tag => (
+                  <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                    {tag}
+                    <X 
+                      className="w-3 h-3 cursor-pointer" 
+                      onClick={() => removeTag(tag)}
+                    />
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Tagged Players */}
+          <div className="space-y-2">
+            <Label>Tag Players</Label>
+            <Select onValueChange={addPlayer}>
+              <SelectTrigger className="bg-gray-800 border-gray-600">
+                <SelectValue placeholder="Select players to tag" />
+              </SelectTrigger>
+              <SelectContent>
+                {availablePlayers
+                  .filter(player => !formData.taggedPlayers.find(p => p.id === player.id))
+                  .map(player => (
+                    <SelectItem key={player.id} value={player.id}>
+                      {player.full_name} - {player.position}
+                    </SelectItem>
+                  ))
+                }
+              </SelectContent>
+            </Select>
+            {formData.taggedPlayers.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.taggedPlayers.map(player => (
+                  <Badge key={player.id} variant="outline" className="flex items-center gap-1">
+                    {player.full_name}
+                    <X 
+                      className="w-3 h-3 cursor-pointer" 
+                      onClick={() => removePlayer(player.id)}
+                    />
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Progress Bar */}
+          {(uploading || compressing) && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">
+                  {compressing ? 'Compressing video...' : 'Uploading...'}
+                </span>
+                <span className="text-gray-400">{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-rosegold h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Submit Buttons */}
+          <div className="flex gap-3">
             <Button
               type="submit"
-              disabled={loading || !videoFile}
-              className="flex-1 bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+              disabled={uploading || compressing || !selectedFile}
+              className="flex-1 bg-rosegold hover:bg-rosegold/90 text-black"
             >
-              {loading ? (
+              {uploading || compressing ? (
                 <>
-                  <Upload className="w-4 h-4 mr-2 animate-spin" />
-                  {isCompressing ? 'Compressing...' : 'Uploading...'}
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {compressing ? 'Compressing...' : 'Uploading...'}
                 </>
               ) : (
                 <>
@@ -440,22 +505,17 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoUploaded, onCa
               )}
             </Button>
             
-            {onCancel && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onCancel}
-                disabled={loading}
-                className="px-6"
-              >
-                Cancel
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={uploading || compressing}
+            >
+              Cancel
+            </Button>
           </div>
         </form>
       </CardContent>
     </Card>
   );
-};
-
-export default VideoUploadForm;
+}
