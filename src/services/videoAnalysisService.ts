@@ -9,7 +9,27 @@ export interface AIAnalysisEvent {
   metadata?: any;
 }
 
-export async function analyzeVideoWithGemini(videoUrl: string, metadata: any) {
+export interface GeminiAnalysisResult {
+  events: Array<{
+    timestamp: number;
+    event: string;
+    player: string;
+    description: string;
+    confidence: number;
+    category: 'skill' | 'tactical' | 'physical' | 'mental';
+  }>;
+  playerActions: string[];
+  matchEvents: string[];
+  contextualMetrics: Record<string, any>;
+  technicalAnalysis: Record<string, any>;
+  overallAssessment: string;
+  keyMoments: Array<{
+    time: number;
+    description: string;
+  }>;
+}
+
+export async function analyzeVideoWithGemini(videoUrl: string, metadata: any): Promise<GeminiAnalysisResult> {
   // Simulate AI analysis
   return new Promise((resolve) => {
     setTimeout(() => {

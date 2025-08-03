@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,7 @@ import {
   ArrowLeft, Download, Share, Zap,
   Clock, User, MapPin, Trophy
 } from 'lucide-react';
-import { analyzeVideoWithGemini } from '@/services/videoAnalysisService';
+import { analyzeVideoWithGemini, GeminiAnalysisResult } from '@/services/videoAnalysisService';
 
 interface VideoAnalysis {
   timestamp: number;
@@ -117,7 +116,7 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
         });
       }, 1000);
 
-      const analysis = await analyzeVideoWithGemini(videoUrl, {
+      const analysis: GeminiAnalysisResult = await analyzeVideoWithGemini(videoUrl, {
         duration: videoMetadata.duration,
         playerTags: videoMetadata.playerTags,
         matchContext: videoMetadata.matchDetails
