@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { analyzeVideo, VideoAnalysis } from '@/services/geminiService';
-import { VideoAnalysisService } from '@/services/videoAnalysisService';
+import { VideoAnalysisService, AIAnalysisEvent } from '@/services/videoAnalysisService';
 
 interface EnhancedVideoAnalysisProps {
   videoId: string;
@@ -39,10 +38,10 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
-  const [analysisData, setAnalysisData] = useState<VideoAnalysis[]>([]);
+  const [analysisData, setAnalysisData] = useState<(VideoAnalysis | AIAnalysisEvent)[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [selectedAnalysis, setSelectedAnalysis] = useState<VideoAnalysis | null>(null);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<VideoAnalysis | AIAnalysisEvent | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [analysisService, setAnalysisService] = useState<VideoAnalysisService | null>(null);
 
@@ -163,11 +162,33 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
   const getPerformanceStats = () => {
     if (!analysisData.length) return null;
 
-    const avgRating = analysisData.reduce((sum, item) => sum + item.performanceRating, 0) / analysisData.length;
-    const totalEvents = analysisData.reduce((sum, item) => 
-      sum + item.playerActions.length + item.matchEvents.length, 0
-    );
-    const keyMoments = analysisData.filter(item => item.performanceRating > 8).length;
+    // Handle both VideoAnalysis and AIAnalysisEvent types
+    const ratings = analysisData.map(item => {
+      if ('performanceRating' in item) {
+        return item.performanceRating;
+      } else if ('confidenceScore' in item) {
+        return item.confidenceScore * 10; // Convert confidence to rating scale
+      }
+      return 7; // Default rating
+    });
+
+    const avgRating = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+    
+    const totalEvents = analysisData.reduce((sum, item) => {
+      if ('playerActions' in item && 'matchEvents' in item) {
+        return sum + item.playerActions.length + item.matchEvents.length;
+      }
+      return sum + 1; // Count each AIAnalysisEvent as one event
+    }, 0);
+    
+    const keyMoments = analysisData.filter(item => {
+      if ('performanceRating' in item) {
+        return item.performanceRating > 8;
+      } else if ('confidenceScore' in item) {
+        return item.confidenceScore > 0.9;
+      }
+      return false;
+    }).length;
 
     return { avgRating, totalEvents, keyMoments };
   };
@@ -180,7 +201,7 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-white font-polysans">Video Analysis</h2>
+          <h2 className="text-3xl font-bold text-white font-polysans">Enhanced Video Analysis</h2>
           <p className="text-gray-400 mt-1">{videoTitle}</p>
         </div>
         
@@ -191,8 +212,8 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
         )}
       </div>
 
+      {/* Video Player and Controls - keep existing code */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Video Player */}
         <div className="lg:col-span-2 space-y-4">
           <Card className="bg-gray-900 border-gray-700">
             <CardContent className="p-0">
@@ -205,7 +226,7 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
                   onPause={() => setIsPlaying(false)}
                 />
                 
-                {/* Video Controls */}
+                {/* Video Controls - keep existing implementation */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
                   <div className="space-y-2">
                     {/* Progress Bar */}
@@ -304,7 +325,7 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
                     {isAnalyzing ? (
                       <>
                         <Brain className="w-4 h-4 mr-2 animate-pulse" />
-                        Analyzing...
+                        Analyzing with Gemini...
                       </>
                     ) : (
                       <>
@@ -343,7 +364,7 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
               {isAnalyzing && (
                 <div className="mt-4">
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-400">Analyzing video content...</span>
+                    <span className="text-gray-400">Analyzing with Gemini 2.0 Pro...</span>
                     <span className="text-gray-400">{analysisProgress}%</span>
                   </div>
                   <Progress value={analysisProgress} className="h-2" />
@@ -353,7 +374,7 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
           </Card>
         </div>
 
-        {/* Analysis Panel */}
+        {/* Analysis Panel - keep existing structure but handle mixed types */}
         <div className="space-y-4">
           {currentAnalysis && (
             <Card className="bg-gray-800 border-rosegold/20">
@@ -369,26 +390,24 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
                   <div className="flex items-center gap-2">
                     <Star className="w-4 h-4 text-yellow-500" />
                     <span className="text-white font-bold">
-                      {currentAnalysis.performanceRating.toFixed(1)}/10
+                      {'performanceRating' in currentAnalysis 
+                        ? currentAnalysis.performanceRating.toFixed(1)
+                        : (currentAnalysis.confidenceScore * 10).toFixed(1)
+                      }/10
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="text-white font-semibold mb-2">Player Actions</h4>
+                  <h4 className="text-white font-semibold mb-2">Analysis</h4>
                   <div className="space-y-1">
-                    {currentAnalysis.playerActions.map((action, index) => (
-                      <p key={index} className="text-gray-300 text-sm">• {action}</p>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-white font-semibold mb-2">Tactical Insights</h4>
-                  <div className="space-y-1">
-                    {currentAnalysis.tacticalInsights.map((insight, index) => (
-                      <p key={index} className="text-gray-300 text-sm">• {insight}</p>
-                    ))}
+                    {'playerActions' in currentAnalysis ? (
+                      currentAnalysis.playerActions.map((action, index) => (
+                        <p key={index} className="text-gray-300 text-sm">• {action}</p>
+                      ))
+                    ) : (
+                      <p className="text-gray-300 text-sm">• {currentAnalysis.description}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -426,13 +445,21 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
                         <div className="flex items-center gap-1">
                           <Star className="w-3 h-3 text-yellow-500" />
                           <span className="text-white text-sm">
-                            {analysis.performanceRating.toFixed(1)}
+                            {'performanceRating' in analysis 
+                              ? analysis.performanceRating.toFixed(1)
+                              : (analysis.confidenceScore * 10).toFixed(1)
+                            }
                           </span>
                         </div>
                       </div>
                       
                       <p className="text-gray-300 text-sm line-clamp-2">
-                        {analysis.playerActions[0] || analysis.matchEvents[0] || 'Analysis point'}
+                        {'playerActions' in analysis && analysis.playerActions[0]
+                          ? analysis.playerActions[0]
+                          : 'description' in analysis 
+                          ? analysis.description
+                          : 'Analysis point'
+                        }
                       </p>
                     </div>
                   ))}

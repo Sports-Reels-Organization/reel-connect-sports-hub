@@ -21,7 +21,7 @@ interface ShortlistItem {
   id: string;
   notes: string;
   created_at: string;
-  priority_level: 'high' | 'medium' | 'low';
+  priority_level?: 'high' | 'medium' | 'low';
   player: {
     id: string;
     full_name: string;
@@ -42,7 +42,7 @@ interface ShortlistItem {
       country: string;
       logo_url?: string;
     };
-    tagged_videos?: string[];
+    tagged_videos?: any[];
   };
 }
 
@@ -116,7 +116,7 @@ const AgentShortlistEnhanced = () => {
 
       if (error) throw error;
 
-      // Process data to calculate age
+      // Process data to calculate age and handle tagged_videos
       const processedData = (data || []).map(item => ({
         ...item,
         player: {
@@ -125,7 +125,13 @@ const AgentShortlistEnhanced = () => {
             ? new Date().getFullYear() - new Date(item.player.date_of_birth).getFullYear()
             : 0
         },
-        priority_level: item.priority_level || 'medium'
+        priority_level: item.priority_level || 'medium',
+        pitch: {
+          ...item.pitch,
+          tagged_videos: Array.isArray(item.pitch.tagged_videos) 
+            ? item.pitch.tagged_videos 
+            : []
+        }
       }));
 
       setShortlistItems(processedData);
