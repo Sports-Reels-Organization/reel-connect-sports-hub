@@ -42,7 +42,7 @@ interface ShortlistItem {
       country: string;
       logo_url?: string;
     };
-    tagged_videos?: any[];
+    tagged_videos?: string[];
   };
 }
 
@@ -129,7 +129,7 @@ const AgentShortlistEnhanced = () => {
         pitch: {
           ...item.pitch,
           tagged_videos: Array.isArray(item.pitch.tagged_videos) 
-            ? item.pitch.tagged_videos 
+            ? item.pitch.tagged_videos.map(video => String(video))
             : []
         }
       }));
@@ -491,9 +491,9 @@ const AgentShortlistEnhanced = () => {
                       onValueChange={(value) => updatePriority(item.id, value as any)}
                     >
                       <SelectTrigger className="w-auto h-auto p-1 border-0 bg-transparent">
-                        <Badge className={`${getPriorityColor(item.priority_level)} text-white text-xs`}>
+                        <Badge className={`${getPriorityColor(item.priority_level || 'medium')} text-white text-xs`}>
                           <Star className="w-3 h-3 mr-1" />
-                          {item.priority_level.toUpperCase()}
+                          {(item.priority_level || 'medium').toUpperCase()}
                         </Badge>
                       </SelectTrigger>
                       <SelectContent>

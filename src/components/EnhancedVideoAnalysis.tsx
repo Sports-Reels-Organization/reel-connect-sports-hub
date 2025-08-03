@@ -1,29 +1,55 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 import { 
-  Play, Pause, SkipBack, SkipForward, Volume2, 
-  BarChart3, Brain, Target, Users, Clock, Star,
-  TrendingUp, Eye, Zap, CheckCircle
+  Play, Pause, RotateCcw, FastForward, 
+  Brain, TrendingUp, Target, Activity,
+  ArrowLeft, Download, Share, Zap,
+  Clock, User, MapPin, Trophy
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { analyzeVideo, VideoAnalysis } from '@/services/geminiService';
-import { VideoAnalysisService, AIAnalysisEvent } from '@/services/videoAnalysisService';
+import { analyzeVideoWithGemini } from '@/services/videoAnalysisService';
+
+interface VideoAnalysis {
+  timestamp: number;
+  event: string;
+  player: string;
+  description: string;
+  confidence: number;
+  category: 'skill' | 'tactical' | 'physical' | 'mental';
+  playerActions?: string[];
+  matchEvents?: string[];
+  contextualMetrics?: Record<string, any>;
+  technicalAnalysis?: Record<string, any>;
+  overallAssessment?: string;
+  keyMoments?: Array<{ time: number; description: string; }>;
+}
+
+interface VideoMetadata {
+  playerTags: string[];
+  matchDetails: {
+    homeTeam?: string;
+    awayTeam?: string;
+    opposingTeam?: string;
+    matchDate?: string;
+    league?: string;
+    finalScore?: string;
+  };
+  duration: number;
+  videoDescription?: string;
+}
 
 interface EnhancedVideoAnalysisProps {
   videoId: string;
   videoUrl: string;
   videoTitle: string;
-  videoMetadata?: {
-    playerTags: string[];
-    matchDetails: any;
-    duration: number;
-    videoDescription?: string;
-  };
-  onClose?: () => void;
+  videoMetadata: VideoMetadata;
+  onClose: () => void;
 }
 
 const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
@@ -34,561 +60,482 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
   onClose
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { toast } = useToast();
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [analysisData, setAnalysisData] = useState<(VideoAnalysis | AIAnalysisEvent)[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [selectedAnalysis, setSelectedAnalysis] = useState<VideoAnalysis | AIAnalysisEvent | null>(null);
+  const [videoAnalysis, setVideoAnalysis] = useState<VideoAnalysis[]>([]);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<VideoAnalysis | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
-  const [analysisService, setAnalysisService] = useState<VideoAnalysisService | null>(null);
 
-  useEffect(() => {
-    if (videoId) {
-      const service = new VideoAnalysisService(videoId);
-      setAnalysisService(service);
-      loadExistingAnalysis();
+  const togglePlay = useCallback(() => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
     }
-  }, [videoId]);
+  }, [isPlaying]);
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const updateTime = () => setCurrentTime(video.currentTime);
-    const updateDuration = () => setDuration(video.duration);
-
-    video.addEventListener('timeupdate', updateTime);
-    video.addEventListener('loadedmetadata', updateDuration);
-    video.addEventListener('ended', () => setIsPlaying(false));
-
-    return () => {
-      video.removeEventListener('timeupdate', updateTime);
-      video.removeEventListener('loadedmetadata', updateDuration);
-    };
+  const handleTimeUpdate = useCallback(() => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
   }, []);
 
-  const loadExistingAnalysis = async () => {
-    if (!analysisService) return;
-
-    try {
-      const existingAnalysis = await analysisService.getAnalysisForVideo();
-      if (existingAnalysis.length > 0) {
-        setAnalysisData(existingAnalysis);
-      }
-    } catch (error) {
-      console.error('Error loading existing analysis:', error);
+  const handleLoadedMetadata = useCallback(() => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
     }
-  };
+  }, []);
+
+  const seekTo = useCallback((time: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  }, []);
 
   const startAIAnalysis = async () => {
-    if (!videoMetadata || !analysisService) return;
-
     setIsAnalyzing(true);
     setAnalysisProgress(0);
-
+    
     try {
-      // Start real-time analysis service
-      if (videoRef.current) {
-        analysisService.startRealTimeAnalysis(videoRef.current, videoMetadata);
-      }
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setAnalysisProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + Math.random() * 10;
+        });
+      }, 1000);
 
-      // Use Gemini for comprehensive analysis
-      const geminiAnalysis = await analyzeVideo(videoMetadata);
-      
-      // Update progress
-      setAnalysisProgress(50);
+      const analysis = await analyzeVideoWithGemini(videoUrl, {
+        duration: videoMetadata.duration,
+        playerTags: videoMetadata.playerTags,
+        matchContext: videoMetadata.matchDetails
+      });
 
-      // Combine with real-time analysis
-      const existingAnalysis = await analysisService.getAnalysisForVideo();
-      const combinedAnalysis = [...geminiAnalysis, ...existingAnalysis]
-        .sort((a, b) => a.timestamp - b.timestamp);
-
-      setAnalysisData(combinedAnalysis);
+      clearInterval(progressInterval);
       setAnalysisProgress(100);
 
-      // Update video status
-      await supabase
-        .from('videos')
-        .update({ ai_analysis_status: 'completed' })
-        .eq('id', videoId);
+      // Transform the analysis result to match our VideoAnalysis interface
+      const processedAnalysis: VideoAnalysis[] = analysis.events?.map(event => ({
+        timestamp: event.timestamp,
+        event: event.event,
+        player: event.player || 'Unknown',
+        description: event.description,
+        confidence: event.confidence,
+        category: event.category as 'skill' | 'tactical' | 'physical' | 'mental',
+        playerActions: analysis.playerActions || [],
+        matchEvents: analysis.matchEvents || [],
+        contextualMetrics: analysis.contextualMetrics || {},
+        technicalAnalysis: analysis.technicalAnalysis || {},
+        overallAssessment: analysis.overallAssessment,
+        keyMoments: analysis.keyMoments || []
+      })) || [];
+
+      setVideoAnalysis(processedAnalysis);
+
+      toast({
+        title: "Analysis Complete",
+        description: `Found ${processedAnalysis.length} key moments in the video`,
+      });
 
     } catch (error) {
-      console.error('Analysis error:', error);
+      console.error('Analysis failed:', error);
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to analyze video. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsAnalyzing(false);
-      setAnalysisProgress(0);
+      setTimeout(() => setAnalysisProgress(0), 2000);
     }
-  };
-
-  const togglePlayPause = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (isPlaying) {
-      video.pause();
-    } else {
-      video.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
-
-  const seekTo = (time: number) => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    video.currentTime = time;
-    setCurrentTime(time);
   };
 
   const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getAnalysisAtTime = (time: number) => {
-    return analysisData.find(analysis => 
-      Math.abs(analysis.timestamp - time) < 10
-    );
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'skill': return <Target className="w-4 h-4" />;
+      case 'tactical': return <Brain className="w-4 h-4" />;
+      case 'physical': return <Activity className="w-4 h-4" />;
+      case 'mental': return <Zap className="w-4 h-4" />;
+      default: return <Activity className="w-4 h-4" />;
+    }
   };
 
-  const getCurrentAnalysis = () => {
-    return getAnalysisAtTime(currentTime);
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'skill': return 'bg-blue-500';
+      case 'tactical': return 'bg-purple-500';
+      case 'physical': return 'bg-green-500';
+      case 'mental': return 'bg-orange-500';
+      default: return 'bg-gray-500';
+    }
   };
-
-  const getPerformanceStats = () => {
-    if (!analysisData.length) return null;
-
-    // Handle both VideoAnalysis and AIAnalysisEvent types
-    const ratings = analysisData.map(item => {
-      if ('performanceRating' in item) {
-        return item.performanceRating;
-      } else if ('confidenceScore' in item) {
-        return item.confidenceScore * 10; // Convert confidence to rating scale
-      }
-      return 7; // Default rating
-    });
-
-    const avgRating = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
-    
-    const totalEvents = analysisData.reduce((sum, item) => {
-      if ('playerActions' in item && 'matchEvents' in item) {
-        return sum + item.playerActions.length + item.matchEvents.length;
-      }
-      return sum + 1; // Count each AIAnalysisEvent as one event
-    }, 0);
-    
-    const keyMoments = analysisData.filter(item => {
-      if ('performanceRating' in item) {
-        return item.performanceRating > 8;
-      } else if ('confidenceScore' in item) {
-        return item.confidenceScore > 0.9;
-      }
-      return false;
-    }).length;
-
-    return { avgRating, totalEvents, keyMoments };
-  };
-
-  const stats = getPerformanceStats();
-  const currentAnalysis = getCurrentAnalysis();
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-white font-polysans">Enhanced Video Analysis</h2>
-          <p className="text-gray-400 mt-1">{videoTitle}</p>
-        </div>
-        
-        {onClose && (
-          <Button variant="outline" onClick={onClose}>
-            Close Analysis
-          </Button>
-        )}
-      </div>
-
-      {/* Video Player and Controls - keep existing code */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          <Card className="bg-gray-900 border-gray-700">
-            <CardContent className="p-0">
-              <div className="relative">
-                <video
-                  ref={videoRef}
-                  src={videoUrl}
-                  className="w-full h-auto max-h-96 bg-black"
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                />
-                
-                {/* Video Controls - keep existing implementation */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                  <div className="space-y-2">
-                    {/* Progress Bar */}
-                    <div className="relative">
-                      <Progress 
-                        value={duration ? (currentTime / duration) * 100 : 0} 
-                        className="h-1 cursor-pointer"
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const clickX = e.clientX - rect.left;
-                          const clickPercentage = clickX / rect.width;
-                          seekTo(duration * clickPercentage);
-                        }}
-                      />
-                      
-                      {/* Analysis Markers */}
-                      {analysisData.map((analysis, index) => (
-                        <div
-                          key={index}
-                          className="absolute top-0 w-1 h-1 bg-rosegold transform -translate-x-1/2 cursor-pointer"
-                          style={{ left: `${(analysis.timestamp / duration) * 100}%` }}
-                          onClick={() => seekTo(analysis.timestamp)}
-                        />
-                      ))}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => seekTo(Math.max(0, currentTime - 10))}
-                          className="text-white hover:bg-white/20"
-                        >
-                          <SkipBack className="w-4 h-4" />
-                        </Button>
-                        
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={togglePlayPause}
-                          className="text-white hover:bg-white/20"
-                        >
-                          {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                        </Button>
-                        
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => seekTo(Math.min(duration, currentTime + 10))}
-                          className="text-white hover:bg-white/20"
-                        >
-                          <SkipForward className="w-4 h-4" />
-                        </Button>
-                        
-                        <div className="flex items-center gap-2">
-                          <Volume2 className="w-4 h-4 text-white" />
-                          <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.1"
-                            value={volume}
-                            onChange={(e) => {
-                              const newVolume = parseFloat(e.target.value);
-                              setVolume(newVolume);
-                              if (videoRef.current) {
-                                videoRef.current.volume = newVolume;
-                              }
-                            }}
-                            className="w-16"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="text-white text-sm">
-                        {formatTime(currentTime)} / {formatTime(duration)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Analysis Controls */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Button
-                    onClick={startAIAnalysis}
-                    disabled={isAnalyzing}
-                    className="bg-rosegold hover:bg-rosegold/90 text-black"
-                  >
-                    {isAnalyzing ? (
-                      <>
-                        <Brain className="w-4 h-4 mr-2 animate-pulse" />
-                        Analyzing with Gemini...
-                      </>
-                    ) : (
-                      <>
-                        <Brain className="w-4 h-4 mr-2" />
-                        Start AI Analysis
-                      </>
-                    )}
-                  </Button>
-
-                  {stats && (
-                    <div className="flex items-center gap-4 text-sm text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 text-yellow-500" />
-                        {stats.avgRating.toFixed(1)}/10
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Eye className="w-4 h-4 text-blue-500" />
-                        {stats.totalEvents} events
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Target className="w-4 h-4 text-green-500" />
-                        {stats.keyMoments} key moments
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {analysisData.length > 0 && (
-                  <Badge variant="secondary" className="bg-green-900 text-green-300">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Analysis Complete
-                  </Badge>
+      <div className="border-b border-gray-700 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-gray-400 hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold font-polysans">{videoTitle}</h1>
+              <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {formatTime(videoMetadata.duration)}
+                </span>
+                {videoMetadata.matchDetails.opposingTeam && (
+                  <span className="flex items-center gap-1">
+                    <Trophy className="w-3 h-3" />
+                    vs {videoMetadata.matchDetails.opposingTeam}
+                  </span>
+                )}
+                {videoMetadata.playerTags.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    {videoMetadata.playerTags.length} player{videoMetadata.playerTags.length !== 1 ? 's' : ''}
+                  </span>
                 )}
               </div>
+            </div>
+          </div>
 
-              {isAnalyzing && (
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-400">Analyzing with Gemini 2.0 Pro...</span>
-                    <span className="text-gray-400">{analysisProgress}%</span>
-                  </div>
-                  <Progress value={analysisProgress} className="h-2" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Analysis Panel - keep existing structure but handle mixed types */}
-        <div className="space-y-4">
-          {currentAnalysis && (
-            <Card className="bg-gray-800 border-rosegold/20">
-              <CardHeader>
-                <CardTitle className="text-rosegold flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Current Analysis ({formatTime(currentAnalysis.timestamp)})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Performance Rating</span>
-                  <div className="flex items-center gap-2">
-                    <Star className="w-4 h-4 text-yellow-500" />
-                    <span className="text-white font-bold">
-                      {'performanceRating' in currentAnalysis 
-                        ? currentAnalysis.performanceRating.toFixed(1)
-                        : (currentAnalysis.confidenceScore * 10).toFixed(1)
-                      }/10
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-white font-semibold mb-2">Analysis</h4>
-                  <div className="space-y-1">
-                    {'playerActions' in currentAnalysis ? (
-                      currentAnalysis.playerActions.map((action, index) => (
-                        <p key={index} className="text-gray-300 text-sm">• {action}</p>
-                      ))
-                    ) : (
-                      <p className="text-gray-300 text-sm">• {currentAnalysis.description}</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Analysis Timeline */}
-          {analysisData.length > 0 && (
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
-                  Analysis Timeline
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="max-h-96 overflow-y-auto">
-                <div className="space-y-3">
-                  {analysisData.map((analysis, index) => (
-                    <div
-                      key={index}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedAnalysis === analysis
-                          ? 'border-rosegold bg-rosegold/10'
-                          : 'border-gray-600 hover:border-gray-500'
-                      }`}
-                      onClick={() => {
-                        setSelectedAnalysis(analysis);
-                        seekTo(analysis.timestamp);
-                      }}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-rosegold font-medium">
-                          {formatTime(analysis.timestamp)}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-yellow-500" />
-                          <span className="text-white text-sm">
-                            {'performanceRating' in analysis 
-                              ? analysis.performanceRating.toFixed(1)
-                              : (analysis.confidenceScore * 10).toFixed(1)
-                            }
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <p className="text-gray-300 text-sm line-clamp-2">
-                        {'playerActions' in analysis && analysis.playerActions[0]
-                          ? analysis.playerActions[0]
-                          : 'description' in analysis 
-                          ? analysis.description
-                          : 'Analysis point'
-                        }
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Button variant="outline" size="sm">
+              <Share className="w-4 h-4 mr-2" />
+              Share
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Detailed Analysis Tabs */}
-      {analysisData.length > 0 && (
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4 bg-gray-700">
+      {/* Main Content */}
+      <div className="flex h-[calc(100vh-120px)]">
+        {/* Video Player */}
+        <div className="flex-1 p-6">
+          <div className="relative bg-black rounded-lg overflow-hidden mb-4">
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              className="w-full h-[400px] object-contain"
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+            />
+            
+            {/* Video Controls Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+              <div className="mb-2">
+                <Progress
+                  value={(currentTime / duration) * 100}
+                  className="w-full cursor-pointer"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    seekTo(duration * percent);
+                  }}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={togglePlay}
+                    className="text-white hover:bg-white/20"
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => seekTo(Math.max(0, currentTime - 10))}
+                    className="text-white hover:bg-white/20"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => seekTo(Math.min(duration, currentTime + 10))}
+                    className="text-white hover:bg-white/20"
+                  >
+                    <FastForward className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                <span className="text-sm text-white">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Analysis Button */}
+          <div className="text-center mb-6">
+            {!isAnalyzing && videoAnalysis.length === 0 && (
+              <Button
+                onClick={startAIAnalysis}
+                className="bg-bright-pink hover:bg-bright-pink/90 text-white px-8 py-3"
+                size="lg"
+              >
+                <Brain className="w-5 h-5 mr-2" />
+                Start AI Analysis
+              </Button>
+            )}
+
+            {isAnalyzing && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 text-bright-pink">
+                  <Brain className="w-5 h-5 animate-pulse" />
+                  <span>Analyzing video...</span>
+                </div>
+                <Progress value={analysisProgress} className="w-full max-w-md mx-auto" />
+                <p className="text-sm text-gray-400">
+                  Processing video content and identifying key moments
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Analysis Panel */}
+        <div className="w-96 border-l border-gray-700 bg-gray-800">
+          {videoAnalysis.length > 0 ? (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+              <TabsList className="grid w-full grid-cols-3 bg-gray-700 m-4 mb-0">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="performance">Performance</TabsTrigger>
-                <TabsTrigger value="tactical">Tactical</TabsTrigger>
-                <TabsTrigger value="events">Match Events</TabsTrigger>
+                <TabsTrigger value="moments">Moments</TabsTrigger>
+                <TabsTrigger value="insights">Insights</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="mt-6 space-y-4">
-                {stats && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-gray-900 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-gray-400 text-sm">Average Rating</p>
-                          <p className="text-2xl font-bold text-white">
-                            {stats.avgRating.toFixed(1)}/10
+              <TabsContent value="overview" className="flex-1 p-4 m-0">
+                <div className="space-y-4">
+                  <Card className="bg-gray-700 border-gray-600">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        Analysis Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="text-center p-3 bg-gray-600 rounded">
+                          <div className="text-2xl font-bold text-bright-pink">
+                            {videoAnalysis.length}
+                          </div>
+                          <div className="text-xs text-gray-300">Key Moments</div>
+                        </div>
+                        <div className="text-center p-3 bg-gray-600 rounded">
+                          <div className="text-2xl font-bold text-green-400">
+                            {Math.round(videoAnalysis.reduce((acc, item) => acc + item.confidence, 0) / videoAnalysis.length)}%
+                          </div>
+                          <div className="text-xs text-gray-300">Avg Confidence</div>
+                        </div>
+                      </div>
+
+                      {/* Category Distribution */}
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Categories</h4>
+                        {['skill', 'tactical', 'physical', 'mental'].map(category => {
+                          const count = videoAnalysis.filter(item => item.category === category).length;
+                          const percentage = (count / videoAnalysis.length) * 100;
+                          
+                          return (
+                            <div key={category} className="flex items-center gap-2">
+                              <div className={`w-3 h-3 rounded-full ${getCategoryColor(category)}`}></div>
+                              <span className="text-xs capitalize flex-1">{category}</span>
+                              <span className="text-xs text-gray-400">{count}</span>
+                              <div className="w-16 bg-gray-600 rounded-full h-1.5">
+                                <div 
+                                  className={`h-full rounded-full ${getCategoryColor(category)}`}
+                                  style={{ width: `${percentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Overall Assessment */}
+                  {videoAnalysis[0]?.overallAssessment && (
+                    <Card className="bg-gray-700 border-gray-600">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm">Overall Assessment</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-gray-300 leading-relaxed">
+                          {videoAnalysis[0].overallAssessment}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="moments" className="flex-1 p-4 m-0">
+                <ScrollArea className="h-full">
+                  <div className="space-y-3">
+                    {videoAnalysis.map((analysis, index) => (
+                      <Card 
+                        key={index}
+                        className={`cursor-pointer transition-colors ${
+                          selectedAnalysis === analysis 
+                            ? 'bg-bright-pink/20 border-bright-pink' 
+                            : 'bg-gray-700 border-gray-600 hover:border-gray-500'
+                        }`}
+                        onClick={() => {
+                          setSelectedAnalysis(analysis);
+                          seekTo(analysis.timestamp);
+                        }}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <Badge className={`${getCategoryColor(analysis.category)} text-white text-xs`}>
+                              {getCategoryIcon(analysis.category)}
+                              <span className="ml-1 capitalize">{analysis.category}</span>
+                            </Badge>
+                            <span className="text-xs text-gray-400">
+                              {formatTime(analysis.timestamp)}
+                            </span>
+                          </div>
+                          
+                          <h4 className="text-sm font-medium text-white mb-1">
+                            {analysis.event}
+                          </h4>
+                          
+                          <p className="text-xs text-gray-300 line-clamp-2 mb-2">
+                            {analysis.description}
                           </p>
-                        </div>
-                        <Star className="w-8 h-8 text-yellow-500" />
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gray-900 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-gray-400 text-sm">Total Events</p>
-                          <p className="text-2xl font-bold text-white">{stats.totalEvents}</p>
-                        </div>
-                        <Eye className="w-8 h-8 text-blue-500" />
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gray-900 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-gray-400 text-sm">Key Moments</p>
-                          <p className="text-2xl font-bold text-white">{stats.keyMoments}</p>
-                        </div>
-                        <Target className="w-8 h-8 text-green-500" />
-                      </div>
-                    </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400">
+                              {analysis.player}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <div className="w-12 bg-gray-600 rounded-full h-1">
+                                <div 
+                                  className="h-full bg-green-400 rounded-full"
+                                  style={{ width: `${analysis.confidence}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-xs text-gray-400">
+                                {analysis.confidence}%
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                )}
+                </ScrollArea>
               </TabsContent>
 
-              <TabsContent value="performance" className="mt-6">
-                <div className="space-y-4">
-                  {analysisData.map((analysis, index) => (
-                    <div key={index} className="bg-gray-900 p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-rosegold font-medium">
-                          {formatTime(analysis.timestamp)}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-yellow-500" />
-                          <span className="text-white">{analysis.performanceRating.toFixed(1)}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {analysis.technicalAnalysis.map((tech, i) => (
-                          <p key={i} className="text-gray-300 text-sm">• {tech}</p>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
+              <TabsContent value="insights" className="flex-1 p-4 m-0">
+                <ScrollArea className="h-full">
+                  <div className="space-y-4">
+                    {/* Key Moments */}
+                    {videoAnalysis[0]?.keyMoments && videoAnalysis[0].keyMoments.length > 0 && (
+                      <Card className="bg-gray-700 border-gray-600">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm">Key Moments</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {videoAnalysis[0].keyMoments.map((moment, index) => (
+                            <div 
+                              key={index}
+                              className="flex items-center gap-3 p-2 bg-gray-600 rounded cursor-pointer hover:bg-gray-500"
+                              onClick={() => seekTo(moment.time)}
+                            >
+                              <span className="text-xs text-bright-pink font-mono">
+                                {formatTime(moment.time)}
+                              </span>
+                              <span className="text-xs text-gray-300 flex-1">
+                                {moment.description}
+                              </span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
 
-              <TabsContent value="tactical" className="mt-6">
-                <div className="space-y-4">
-                  {analysisData.map((analysis, index) => (
-                    <div key={index} className="bg-gray-900 p-4 rounded-lg">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Users className="w-4 h-4 text-blue-500" />
-                        <span className="text-blue-400 font-medium">
-                          {formatTime(analysis.timestamp)}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {analysis.tacticalInsights.map((insight, i) => (
-                          <p key={i} className="text-gray-300 text-sm">• {insight}</p>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="events" className="mt-6">
-                <div className="space-y-4">
-                  {analysisData.map((analysis, index) => (
-                    <div key={index} className="bg-gray-900 p-4 rounded-lg">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Zap className="w-4 h-4 text-green-500" />
-                        <span className="text-green-400 font-medium">
-                          {formatTime(analysis.timestamp)}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {analysis.matchEvents.map((event, i) => (
-                          <p key={i} className="text-gray-300 text-sm">• {event}</p>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    {/* Technical Analysis */}
+                    {videoAnalysis[0]?.technicalAnalysis && (
+                      <Card className="bg-gray-700 border-gray-600">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm">Technical Analysis</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {Object.entries(videoAnalysis[0].technicalAnalysis).map(([key, value]) => (
+                              <div key={key} className="flex justify-between">
+                                <span className="text-xs text-gray-400 capitalize">
+                                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                                </span>
+                                <span className="text-xs text-white">
+                                  {typeof value === 'number' ? value.toFixed(1) : String(value)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </ScrollArea>
               </TabsContent>
             </Tabs>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="h-full flex items-center justify-center p-6">
+              <div className="text-center">
+                <Brain className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  AI Analysis Ready
+                </h3>
+                <p className="text-sm text-gray-400">
+                  Click "Start AI Analysis" to analyze this video and identify key moments, player actions, and tactical insights.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

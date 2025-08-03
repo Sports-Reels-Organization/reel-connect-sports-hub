@@ -1489,6 +1489,7 @@ export type Database = {
           notes: string | null
           pitch_id: string
           player_id: string
+          priority_level: string | null
         }
         Insert: {
           agent_id: string
@@ -1497,6 +1498,7 @@ export type Database = {
           notes?: string | null
           pitch_id: string
           player_id: string
+          priority_level?: string | null
         }
         Update: {
           agent_id?: string
@@ -1505,6 +1507,7 @@ export type Database = {
           notes?: string | null
           pitch_id?: string
           player_id?: string
+          priority_level?: string | null
         }
         Relationships: [
           {

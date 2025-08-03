@@ -26,7 +26,7 @@ interface VideoData {
   duration?: number;
   match_date?: string;
   created_at: string;
-  tagged_players: any[];
+  tagged_players: string[];
   ai_analysis_status: string;
   upload_status: string;
   tags: string[];
@@ -101,9 +101,9 @@ const VideoManagement = () => {
       const processedVideos = (data || []).map(video => ({
         ...video,
         tagged_players: Array.isArray(video.tagged_players) 
-          ? video.tagged_players 
-          : video.tagged_players 
-          ? [video.tagged_players] 
+          ? video.tagged_players.map(player => String(player))
+          : typeof video.tagged_players === 'string'
+          ? [video.tagged_players]
           : [],
         tags: Array.isArray(video.tags) ? video.tags : [],
         players: [] // Will be populated when needed
