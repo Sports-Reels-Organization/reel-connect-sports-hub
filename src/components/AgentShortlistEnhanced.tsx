@@ -116,8 +116,8 @@ const AgentShortlistEnhanced = () => {
 
       if (error) throw error;
 
-      // Process data to calculate age and handle tagged_videos
-      const processedData = (data || []).map(item => ({
+      // Process data to calculate age and handle tagged_videos with proper type casting
+      const processedData: ShortlistItem[] = (data || []).map(item => ({
         ...item,
         player: {
           ...item.player,
@@ -125,7 +125,7 @@ const AgentShortlistEnhanced = () => {
             ? new Date().getFullYear() - new Date(item.player.date_of_birth).getFullYear()
             : 0
         },
-        priority_level: item.priority_level || 'medium',
+        priority_level: (item.priority_level as 'high' | 'medium' | 'low') || 'medium',
         pitch: {
           ...item.pitch,
           tagged_videos: Array.isArray(item.pitch.tagged_videos) 

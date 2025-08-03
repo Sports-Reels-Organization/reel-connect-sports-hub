@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface AIAnalysisEvent {
@@ -8,6 +7,43 @@ export interface AIAnalysisEvent {
   confidenceScore: number;
   taggedPlayers?: string[];
   metadata?: any;
+}
+
+export async function analyzeVideoWithGemini(videoUrl: string, metadata: any) {
+  // Simulate AI analysis
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        events: [
+          {
+            timestamp: 30,
+            event: 'Skill Display',
+            player: 'Player 1',
+            description: 'Excellent ball control and first touch',
+            confidence: 0.95,
+            category: 'skill'
+          },
+          {
+            timestamp: 120,
+            event: 'Tactical Movement',
+            player: 'Player 2',
+            description: 'Smart positioning and space creation',
+            confidence: 0.88,
+            category: 'tactical'
+          }
+        ],
+        playerActions: ['dribbling', 'passing', 'shooting'],
+        matchEvents: ['goal', 'assist', 'key_pass'],
+        contextualMetrics: { intensity: 'high', performance_rating: 8.5 },
+        technicalAnalysis: { ball_touches: 45, pass_accuracy: 0.92 },
+        overallAssessment: 'Strong performance with excellent technical skills',
+        keyMoments: [
+          { time: 30, description: 'Outstanding skill display' },
+          { time: 120, description: 'Tactical intelligence shown' }
+        ]
+      });
+    }, 2000);
+  });
 }
 
 export class VideoAnalysisService {

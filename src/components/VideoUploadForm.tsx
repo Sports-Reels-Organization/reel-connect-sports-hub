@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -95,17 +94,16 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
         throw new Error('Team not found');
       }
 
-      // Upload file to storage
+      // Upload file to storage without onUploadProgress (not supported in current version)
       const fileName = `${Date.now()}-${selectedFile.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('match-videos')
-        .upload(fileName, selectedFile, {
-          onUploadProgress: (progress) => {
-            setUploadProgress((progress.loaded / progress.total) * 50); // First 50%
-          }
-        });
+        .upload(fileName, selectedFile);
 
       if (uploadError) throw uploadError;
+
+      // Simulate progress updates
+      setUploadProgress(50);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
