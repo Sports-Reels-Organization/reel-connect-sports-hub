@@ -2043,6 +2043,10 @@ export type Database = {
         Args: { birth_date: string }
         Returns: number
       }
+      delete_user_completely: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
       send_message_notification: {
         Args: { receiver_id: string; sender_name: string; player_name?: string }
         Returns: boolean
