@@ -4,8 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Trash2, AlertTriangle, CheckCircle, Shield, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { AdminGuard } from '@/components/AdminGuard';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,12 +29,14 @@ interface Profile {
   created_at: string;
   profile_completed: boolean;
   is_verified: boolean;
+  role: 'admin' | 'user';
 }
 
 const UserManagement = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingUsers, setDeletingUsers] = useState<Set<string>>(new Set());
+  const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchProfiles();
@@ -52,6 +56,39 @@ const UserManagement = () => {
       toast.error('Failed to load user profiles');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateUserRole = async (userId: string, newRole: 'admin' | 'user') => {
+    setUpdatingRoles(prev => new Set(prev).add(userId));
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      // Update local state
+      setProfiles(prev => 
+        prev.map(profile => 
+          profile.user_id === userId 
+            ? { ...profile, role: newRole }
+            : profile
+        )
+      );
+
+      toast.success(`User role updated to ${newRole}`);
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      toast.error('Failed to update user role');
+    } finally {
+      setUpdatingRoles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
     }
   };
 
@@ -94,117 +131,154 @@ const UserManagement = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">User Management</h1>
-        <Button onClick={fetchProfiles} variant="outline">
-          Refresh
-        </Button>
-      </div>
+    <AdminGuard>
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">User Management</h1>
+          <Button onClick={fetchProfiles} variant="outline">
+            Refresh
+          </Button>
+        </div>
 
-      <div className="grid gap-4">
-        {profiles.map((profile) => (
-          <Card key={profile.id} className="w-full">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{profile.full_name}</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant={profile.user_type === 'team' ? 'default' : 'secondary'}>
-                    {profile.user_type}
-                  </Badge>
-                  {profile.is_verified && (
-                    <Badge variant="outline" className="text-green-600">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Verified
+        <div className="grid gap-4">
+          {profiles.map((profile) => (
+            <Card key={profile.id} className="w-full">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    {profile.role === 'admin' ? (
+                      <Shield className="w-4 h-4 text-yellow-600" />
+                    ) : (
+                      <User className="w-4 h-4 text-gray-600" />
+                    )}
+                    {profile.full_name}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={profile.user_type === 'team' ? 'default' : 'secondary'}>
+                      {profile.user_type}
                     </Badge>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-sm text-muted-foreground">Email: {profile.email}</p>
-              <p className="text-sm text-muted-foreground">
-                User ID: {profile.user_id}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Created: {new Date(profile.created_at).toLocaleDateString()}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Profile Status: {profile.profile_completed ? 'Complete' : 'Incomplete'}
-              </p>
-
-              <div className="flex justify-end pt-2">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={deletingUsers.has(profile.user_id)}
+                    <Badge 
+                      variant={profile.role === 'admin' ? 'destructive' : 'outline'}
+                      className={profile.role === 'admin' ? 'text-yellow-600 border-yellow-600' : ''}
                     >
-                      {deletingUsers.has(profile.user_id) ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Deleting...
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete User
-                        </>
-                      )}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-red-500" />
-                        Delete User Completely
-                      </AlertDialogTitle>
-                      <AlertDialogDescription className="space-y-2">
-                        <p>
-                          Are you sure you want to permanently delete <strong>{profile.full_name}</strong>?
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          This action will remove:
-                        </p>
-                        <ul className="text-sm text-muted-foreground ml-4 space-y-1">
-                          <li>• User authentication account</li>
-                          <li>• Profile and all personal data</li>
-                          <li>• All teams, players, and videos</li>
-                          <li>• All messages and conversations</li>
-                          <li>• All transfer pitches and contracts</li>
-                          <li>• All related records and files</li>
-                        </ul>
-                        <p className="text-red-600 font-medium">
-                          This action cannot be undone!
-                        </p>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteUserCompletely(profile.user_id, profile.full_name)}
-                        className="bg-red-600 hover:bg-red-700"
+                      {profile.role}
+                    </Badge>
+                    {profile.is_verified && (
+                      <Badge variant="outline" className="text-green-600">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Verified
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Email: {profile.email}</p>
+                  <p className="text-sm text-muted-foreground">
+                    User ID: {profile.user_id}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Created: {new Date(profile.created_at).toLocaleDateString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Profile Status: {profile.profile_completed ? 'Complete' : 'Incomplete'}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Role:</span>
+                    <Select
+                      value={profile.role}
+                      onValueChange={(value: 'admin' | 'user') => updateUserRole(profile.user_id, value)}
+                      disabled={updatingRoles.has(profile.user_id)}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {updatingRoles.has(profile.user_id) && (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    )}
+                  </div>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={deletingUsers.has(profile.user_id)}
                       >
-                        Yes, Delete Permanently
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+                        {deletingUsers.has(profile.user_id) ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete User
+                          </>
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-red-500" />
+                          Delete User Completely
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-2">
+                          <p>
+                            Are you sure you want to permanently delete <strong>{profile.full_name}</strong>?
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            This action will remove:
+                          </p>
+                          <ul className="text-sm text-muted-foreground ml-4 space-y-1">
+                            <li>• User authentication account</li>
+                            <li>• Profile and all personal data</li>
+                            <li>• All teams, players, and videos</li>
+                            <li>• All messages and conversations</li>
+                            <li>• All transfer pitches and contracts</li>
+                            <li>• All related records and files</li>
+                          </ul>
+                          <p className="text-red-600 font-medium">
+                            This action cannot be undone!
+                          </p>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteUserCompletely(profile.user_id, profile.full_name)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Yes, Delete Permanently
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {profiles.length === 0 && (
+          <Card className="text-center py-12">
+            <CardContent>
+              <p className="text-muted-foreground">No user profiles found.</p>
             </CardContent>
           </Card>
-        ))}
+        )}
       </div>
-
-      {profiles.length === 0 && (
-        <Card className="text-center py-12">
-          <CardContent>
-            <p className="text-muted-foreground">No user profiles found.</p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+    </AdminGuard>
   );
 };
 

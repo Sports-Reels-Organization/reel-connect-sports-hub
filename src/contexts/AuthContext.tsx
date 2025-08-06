@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,17 +14,20 @@ interface Profile {
   phone?: string;
   country_code?: string;
   is_verified?: boolean;
+  role?: 'admin' | 'user';
 }
 
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  isAdmin: boolean;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
+  checkAdminRole: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +36,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -54,6 +57,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } else {
           console.log('No session, clearing profile and setting loading to false');
           setProfile(null);
+          setIsAdmin(false);
           setLoading(false);
         }
       }
@@ -96,15 +100,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.log('Profile not found, user may need to complete onboarding');
         }
         setProfile(null);
+        setIsAdmin(false);
       } else {
         console.log('Profile fetched successfully:', data);
         setProfile(data);
+        setIsAdmin(data.role === 'admin');
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       setProfile(null);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkAdminRole = async (): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.rpc('is_admin');
+      if (error) {
+        console.error('Error checking admin role:', error);
+        return false;
+      }
+      setIsAdmin(data || false);
+      return data || false;
+    } catch (error) {
+      console.error('Error in checkAdminRole:', error);
+      return false;
     }
   };
 
@@ -225,6 +247,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       setProfile(data);
+      // Update admin status if role was changed
+      if (updates.role !== undefined) {
+        setIsAdmin(data.role === 'admin');
+      }
+      
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully.",
@@ -241,11 +268,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     user,
     profile,
     loading,
+    isAdmin,
     signUp,
     signIn,
     signInWithGoogle,
     signOut,
-    updateProfile
+    updateProfile,
+    checkAdminRole
   };
 
   return (

@@ -1368,6 +1368,7 @@ export type Database = {
           phone: string | null
           phone_verified: boolean | null
           profile_completed: boolean | null
+          role: Database["public"]["Enums"]["app_role"] | null
           terms_accepted: boolean | null
           updated_at: string | null
           user_id: string
@@ -1392,6 +1393,7 @@ export type Database = {
           phone?: string | null
           phone_verified?: boolean | null
           profile_completed?: boolean | null
+          role?: Database["public"]["Enums"]["app_role"] | null
           terms_accepted?: boolean | null
           updated_at?: string | null
           user_id: string
@@ -1416,6 +1418,7 @@ export type Database = {
           phone?: string | null
           phone_verified?: boolean | null
           profile_completed?: boolean | null
+          role?: Database["public"]["Enums"]["app_role"] | null
           terms_accepted?: boolean | null
           updated_at?: string | null
           user_id?: string
@@ -2047,6 +2050,17 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       send_message_notification: {
         Args: { receiver_id: string; sender_name: string; player_name?: string }
         Returns: boolean
@@ -2073,6 +2087,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "admin" | "user"
       gender: "male" | "female" | "other"
       gender_type: "male" | "female" | "other"
       message_status: "sent" | "delivered" | "read"
@@ -2207,6 +2222,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "user"],
       gender: ["male", "female", "other"],
       gender_type: ["male", "female", "other"],
       message_status: ["sent", "delivered", "read"],
