@@ -279,6 +279,50 @@ export type Database = {
           },
         ]
       }
+      enhanced_video_analysis: {
+        Row: {
+          analysis_status: string | null
+          created_at: string | null
+          game_context: Json | null
+          id: string
+          overall_assessment: string | null
+          recommendations: string[] | null
+          tagged_player_present: boolean | null
+          updated_at: string | null
+          video_id: string | null
+        }
+        Insert: {
+          analysis_status?: string | null
+          created_at?: string | null
+          game_context?: Json | null
+          id?: string
+          overall_assessment?: string | null
+          recommendations?: string[] | null
+          tagged_player_present?: boolean | null
+          updated_at?: string | null
+          video_id?: string | null
+        }
+        Update: {
+          analysis_status?: string | null
+          created_at?: string | null
+          game_context?: Json | null
+          id?: string
+          overall_assessment?: string | null
+          recommendations?: string[] | null
+          tagged_player_present?: boolean | null
+          updated_at?: string | null
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enhanced_video_analysis_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       international_transfer_restrictions: {
         Row: {
           created_at: string | null
@@ -772,6 +816,47 @@ export type Database = {
         }
         Relationships: []
       }
+      performance_metrics: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_tagged_player: boolean | null
+          key_moments: Json | null
+          metrics_data: Json | null
+          player_id: string | null
+          player_name: string | null
+          video_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_tagged_player?: boolean | null
+          key_moments?: Json | null
+          metrics_data?: Json | null
+          player_id?: string | null
+          player_name?: string | null
+          video_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_tagged_player?: boolean | null
+          key_moments?: Json | null
+          metrics_data?: Json | null
+          player_id?: string | null
+          player_name?: string | null
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_metrics_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pitch_requirements: {
         Row: {
           checked_at: string | null
@@ -817,6 +902,100 @@ export type Database = {
             columns: ["pitch_id"]
             isOneToOne: false
             referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_actions: {
+        Row: {
+          action: string | null
+          category: string | null
+          confidence: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          metrics: Json | null
+          player_id: string | null
+          position: Json | null
+          timestamp: number | null
+          video_id: string | null
+        }
+        Insert: {
+          action?: string | null
+          category?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metrics?: Json | null
+          player_id?: string | null
+          position?: Json | null
+          timestamp?: number | null
+          video_id?: string | null
+        }
+        Update: {
+          action?: string | null
+          category?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metrics?: Json | null
+          player_id?: string | null
+          position?: Json | null
+          timestamp?: number | null
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_actions_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_detections: {
+        Row: {
+          bounding_box: Json | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          is_tagged_player: boolean | null
+          player_id: string | null
+          player_name: string | null
+          timestamp: number | null
+          video_id: string | null
+        }
+        Insert: {
+          bounding_box?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          is_tagged_player?: boolean | null
+          player_id?: string | null
+          player_name?: string | null
+          timestamp?: number | null
+          video_id?: string | null
+        }
+        Update: {
+          bounding_box?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          is_tagged_player?: boolean | null
+          player_id?: string | null
+          player_name?: string | null
+          timestamp?: number | null
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_detections_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
             referencedColumns: ["id"]
           },
         ]
