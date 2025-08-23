@@ -33,7 +33,6 @@ interface TeamInfo {
   team_name: string;
   league: string;
   country: string;
-  team_type: 'club' | 'national';
   founded_year?: string;
 }
 
@@ -68,7 +67,6 @@ const OnboardingFlow = () => {
     team_name: '',
     league: '',
     country: '',
-    team_type: 'club',
     founded_year: ''
   });
 
@@ -169,13 +167,13 @@ const OnboardingFlow = () => {
 
     setLoading(true);
     try {
-      // Create agent profile
+      // Create agent profile - using correct column names based on schema
       const { error: agentError } = await supabase
         .from('agents')
         .insert({
-          profile_id: user.id,
+          profile_id: user.id, // This should match the actual column name in agents table
           agency_name: agentInfo.agency_name,
-          specialization: agentInfo.specialization,
+          specialization: agentInfo.specialization as ("football" | "basketball" | "volleyball" | "tennis" | "rugby")[],
           fifa_id: agentInfo.fifa_id || null,
           license_number: agentInfo.license_number || null
         });
@@ -207,16 +205,15 @@ const OnboardingFlow = () => {
 
     setLoading(true);
     try {
-      // Create team profile
+      // Create team profile - using correct column names based on schema
       const { error: teamError } = await supabase
         .from('teams')
         .insert({
-          profile_id: user.id,
+          profile_id: user.id, // This should match the actual column name in teams table
           team_name: teamInfo.team_name,
           league: teamInfo.league,
           country: teamInfo.country,
-          team_type: teamInfo.team_type,
-          founded_year: teamInfo.founded_year ? parseInt(teamInfo.founded_year) : null
+          year_founded: teamInfo.founded_year ? parseInt(teamInfo.founded_year) : null
         });
 
       if (teamError) throw teamError;
@@ -328,8 +325,8 @@ const OnboardingFlow = () => {
             </SelectTrigger>
             <SelectContent className="bg-gray-800 border-gray-600">
               {countries.map((country) => (
-                <SelectItem key={country.code} value={country.code} className="text-white">
-                  {country.flag} {country.name}
+                <SelectItem key={country.cca2} value={country.cca2} className="text-white">
+                  {country.flag} {country.name.common}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -348,8 +345,8 @@ const OnboardingFlow = () => {
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-600">
                 {countryCodes.map((code) => (
-                  <SelectItem key={code.code} value={code.dial_code} className="text-white">
-                    {code.flag} {code.dial_code}
+                  <SelectItem key={code.code} value={code.code} className="text-white">
+                    {code.flag} {code.code}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -515,26 +512,10 @@ const OnboardingFlow = () => {
             </SelectTrigger>
             <SelectContent className="bg-gray-800 border-gray-600">
               {countries.map((country) => (
-                <SelectItem key={country.code} value={country.code} className="text-white">
-                  {country.flag} {country.name}
+                <SelectItem key={country.cca2} value={country.cca2} className="text-white">
+                  {country.flag} {country.name.common}
                 </SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">Team Type *</Label>
-          <Select
-            value={teamInfo.team_type}
-            onValueChange={(value: 'club' | 'national') => setTeamInfo({ ...teamInfo, team_type: value })}
-          >
-            <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-              <SelectValue placeholder="Select team type" />
-            </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-gray-600">
-              <SelectItem value="club" className="text-white">Club Team</SelectItem>
-              <SelectItem value="national" className="text-white">National Team</SelectItem>
             </SelectContent>
           </Select>
         </div>
