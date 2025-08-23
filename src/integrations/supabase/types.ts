@@ -483,6 +483,8 @@ export type Database = {
       }
       match_videos: {
         Row: {
+          ai_analysis: Json | null
+          ai_analysis_status: string | null
           compressed_video_url: string | null
           created_at: string | null
           duration: number | null
@@ -503,6 +505,8 @@ export type Database = {
           video_url: string
         }
         Insert: {
+          ai_analysis?: Json | null
+          ai_analysis_status?: string | null
           compressed_video_url?: string | null
           created_at?: string | null
           duration?: number | null
@@ -523,6 +527,8 @@ export type Database = {
           video_url: string
         }
         Update: {
+          ai_analysis?: Json | null
+          ai_analysis_status?: string | null
           compressed_video_url?: string | null
           created_at?: string | null
           duration?: number | null
@@ -2008,6 +2014,7 @@ export type Database = {
       }
       videos: {
         Row: {
+          ai_analysis: Json | null
           ai_analysis_status: string | null
           compressed_url: string | null
           created_at: string | null
@@ -2035,6 +2042,7 @@ export type Database = {
           video_url: string
         }
         Insert: {
+          ai_analysis?: Json | null
           ai_analysis_status?: string | null
           compressed_url?: string | null
           created_at?: string | null
@@ -2062,6 +2070,7 @@ export type Database = {
           video_url: string
         }
         Update: {
+          ai_analysis?: Json | null
           ai_analysis_status?: string | null
           compressed_url?: string | null
           created_at?: string | null

@@ -13,6 +13,7 @@ import {
   RefreshCw,
   FileText
 } from 'lucide-react';
+import { analyzeVideoWithGemini } from '@/services/geminiAnalysisService';
 
 interface VideoAnalysisInterfaceProps {
   videoId: string;
@@ -20,14 +21,23 @@ interface VideoAnalysisInterfaceProps {
   onRetryAnalysis?: () => void;
 }
 
+interface AnalysisData {
+  analysis: string;
+  analysis_status: string;
+  video_type: string;
+  analyzed_at?: string;
+  model_used: string;
+}
+
 export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
   videoId,
   videoTitle,
   onRetryAnalysis
 }) => {
-  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     fetchAnalysisData();
@@ -41,41 +51,50 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
       // Try to fetch from videos table first
       const { data: videoData, error: videoError } = await supabase
         .from('videos')
-        .select('ai_analysis, ai_analysis_status')
+        .select('ai_analysis, ai_analysis_status, title, description, video_url')
         .eq('id', videoId)
         .maybeSingle();
 
       if (videoError && videoError.code !== 'PGRST116') {
-        // If not found in videos table, try match_videos table
-        const { data: matchVideoData, error: matchVideoError } = await supabase
-          .from('match_videos')
-          .select('ai_analysis, ai_analysis_status')
-          .eq('id', videoId)
-          .maybeSingle();
+        console.error('Error fetching from videos table:', videoError);
+      }
 
-        if (matchVideoError && matchVideoError.code !== 'PGRST116') {
-          throw matchVideoError;
-        }
-
-        if (matchVideoData?.ai_analysis) {
-          setAnalysisData({
-            analysis: matchVideoData.ai_analysis.analysis || 'Analysis completed.',
-            analysis_status: matchVideoData.ai_analysis_status || 'completed',
-            video_type: matchVideoData.ai_analysis.video_type || 'match',
-            analyzed_at: matchVideoData.ai_analysis.analyzed_at,
-            model_used: matchVideoData.ai_analysis.model_used || 'gemini-2.0-flash-exp'
-          });
-        } else {
-          setAnalysisData(null);
-        }
-      } else if (videoData?.ai_analysis) {
+      if (videoData && videoData.ai_analysis) {
         setAnalysisData({
           analysis: videoData.ai_analysis.analysis || 'Analysis completed.',
           analysis_status: videoData.ai_analysis_status || 'completed',
-          video_type: videoData.ai_analysis.video_type || 'unknown',
+          video_type: videoData.ai_analysis.video_type || 'video',
           analyzed_at: videoData.ai_analysis.analyzed_at,
           model_used: videoData.ai_analysis.model_used || 'gemini-2.0-flash-exp'
         });
+        return;
+      }
+
+      // If not found in videos table, try match_videos table
+      const { data: matchVideoData, error: matchVideoError } = await supabase
+        .from('match_videos')
+        .select('ai_analysis, ai_analysis_status, title, video_url, opposing_team, tagged_players')
+        .eq('id', videoId)
+        .maybeSingle();
+
+      if (matchVideoError && matchVideoError.code !== 'PGRST116') {
+        console.error('Error fetching from match_videos table:', matchVideoError);
+      }
+
+      if (matchVideoData && matchVideoData.ai_analysis) {
+        setAnalysisData({
+          analysis: matchVideoData.ai_analysis.analysis || 'Analysis completed.',
+          analysis_status: matchVideoData.ai_analysis_status || 'completed',
+          video_type: matchVideoData.ai_analysis.video_type || 'match',
+          analyzed_at: matchVideoData.ai_analysis.analyzed_at,
+          model_used: matchVideoData.ai_analysis.model_used || 'gemini-2.0-flash-exp'
+        });
+        return;
+      }
+
+      // If no analysis exists, trigger analysis
+      if (videoData || matchVideoData) {
+        await triggerAnalysis(videoData || matchVideoData);
       } else {
         setAnalysisData(null);
       }
@@ -87,9 +106,78 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
     }
   };
 
-  const handleRetry = () => {
+  const triggerAnalysis = async (videoRecord: any) => {
+    try {
+      setAnalyzing(true);
+      setError(null);
+
+      // Determine video type and prepare data
+      const isMatchVideo = videoRecord.opposing_team !== undefined;
+      const videoType = isMatchVideo ? 'match' : 'video';
+      
+      const analysisData = {
+        videoUrl: videoRecord.video_url,
+        videoType: videoType,
+        videoTitle: videoRecord.title || videoTitle,
+        videoDescription: videoRecord.description || '',
+        opposingTeam: videoRecord.opposing_team || '',
+        taggedPlayers: videoRecord.tagged_players || [],
+        playerStats: {}
+      };
+
+      // Call Gemini analysis service
+      const analysis = await analyzeVideoWithGemini(analysisData);
+
+      // Save analysis to appropriate table
+      const tableName = isMatchVideo ? 'match_videos' : 'videos';
+      const { error: updateError } = await supabase
+        .from(tableName)
+        .update({
+          ai_analysis: {
+            analysis: analysis,
+            video_type: videoType,
+            analyzed_at: new Date().toISOString(),
+            model_used: 'gemini-2.0-flash-exp'
+          },
+          ai_analysis_status: 'completed'
+        })
+        .eq('id', videoId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Update local state
+      setAnalysisData({
+        analysis: analysis,
+        analysis_status: 'completed',
+        video_type: videoType,
+        analyzed_at: new Date().toISOString(),
+        model_used: 'gemini-2.0-flash-exp'
+      });
+
+    } catch (err: any) {
+      console.error('Error analyzing video:', err);
+      setError(err.message || 'Failed to analyze video');
+      
+      // Update status to failed in database
+      const isMatchVideo = videoRecord.opposing_team !== undefined;
+      const tableName = isMatchVideo ? 'match_videos' : 'videos';
+      await supabase
+        .from(tableName)
+        .update({ ai_analysis_status: 'failed' })
+        .eq('id', videoId);
+        
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleRetry = async () => {
     if (onRetryAnalysis) {
       onRetryAnalysis();
+    } else {
+      await fetchAnalysisData();
     }
   };
 
@@ -117,13 +205,13 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
               if (line.startsWith('- ')) {
                 return (
                   <div key={lineIndex} className="flex items-start gap-2 text-gray-300">
-                    <span className="text-bright-pink mt-1">•</span>
-                    <span className="flex-1">{line.substring(2)}</span>
+                    <span className="text-bright-pink mt-1 flex-shrink-0">•</span>
+                    <span className="flex-1 break-words">{line.substring(2)}</span>
                   </div>
                 );
               } else if (line.trim()) {
                 return (
-                  <p key={lineIndex} className="text-gray-300 leading-relaxed">
+                  <p key={lineIndex} className="text-gray-300 leading-relaxed break-words">
                     {line}
                   </p>
                 );
@@ -139,26 +227,26 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
   };
 
   return (
-    <Card className="bg-gray-800 border-gray-700 text-white w-full">
+    <Card className="bg-gray-800 border-gray-700 text-white w-full max-w-full">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold flex items-center gap-2 break-words">
           <FileText className="w-5 h-5 text-bright-pink flex-shrink-0" />
-          <span className="break-words">AI Analysis: {videoTitle}</span>
+          <span className="break-words min-w-0">AI Analysis: {videoTitle}</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {loading ? (
+      <CardContent className="space-y-4 max-w-full overflow-hidden">
+        {loading || analyzing ? (
           <div className="flex items-center justify-center py-8">
             <Clock className="mr-2 w-4 h-4 animate-spin" />
-            <span>Loading analysis...</span>
+            <span>{analyzing ? 'Analyzing video...' : 'Loading analysis...'}</span>
           </div>
         ) : error ? (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription className="break-words">{error}</AlertDescription>
           </Alert>
         ) : analysisData ? (
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-full">
             {/* Status Badge */}
             <div className="flex items-center justify-between flex-wrap gap-2">
               <Badge
@@ -186,14 +274,14 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
 
             {/* Analysis Content */}
             <div className="bg-gray-900/50 rounded-lg p-4 max-w-full overflow-hidden">
-              <div className="prose prose-invert max-w-none break-words">
+              <div className="prose prose-invert max-w-none break-words overflow-wrap-anywhere">
                 {formatAnalysisText(analysisData.analysis)}
               </div>
             </div>
 
             {/* Analysis Metadata */}
             {analysisData.analyzed_at && (
-              <div className="text-xs text-gray-400 border-t border-gray-700 pt-3">
+              <div className="text-xs text-gray-400 border-t border-gray-700 pt-3 break-words">
                 <span>Analyzed on: {new Date(analysisData.analyzed_at).toLocaleString()}</span>
                 {analysisData.video_type && (
                   <span className="ml-4">Type: {analysisData.video_type}</span>
@@ -204,18 +292,19 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         ) : (
           <Alert variant="default">
             <AlertDescription>
-              No AI analysis available for this video yet.
+              No AI analysis available for this video yet. Click retry to analyze.
             </AlertDescription>
           </Alert>
         )}
         
-        {analysisData?.analysis_status === 'failed' && onRetryAnalysis && (
+        {(analysisData?.analysis_status === 'failed' || !analysisData) && (
           <Button 
             onClick={handleRetry} 
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto"
+            disabled={analyzing}
           >
             <RefreshCw className="w-4 h-4 mr-2" />
-            Retry Analysis
+            {analyzing ? 'Analyzing...' : 'Analyze Video'}
           </Button>
         )}
       </CardContent>
