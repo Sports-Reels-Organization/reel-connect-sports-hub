@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -2231,8 +2231,8 @@ export type Database = {
       }
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
       }
@@ -2241,15 +2241,15 @@ export type Database = {
         Returns: boolean
       }
       send_message_notification: {
-        Args: { receiver_id: string; sender_name: string; player_name?: string }
+        Args: { player_name?: string; receiver_id: string; sender_name: string }
         Returns: boolean
       }
       send_profile_change_notification: {
-        Args: { user_uuid: string; change_type: string }
+        Args: { change_type: string; user_uuid: string }
         Returns: boolean
       }
       send_transfer_interest_notification: {
-        Args: { team_owner_id: string; player_name: string; agent_name: string }
+        Args: { agent_name: string; player_name: string; team_owner_id: string }
         Returns: boolean
       }
       send_welcome_notification: {
@@ -2261,7 +2261,7 @@ export type Database = {
         Returns: boolean
       }
       validate_transfer_pitch_requirements: {
-        Args: { p_team_id: string; p_player_id: string }
+        Args: { p_player_id: string; p_team_id: string }
         Returns: boolean
       }
     }
