@@ -179,28 +179,66 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
         .from('match-videos')
         .getPublicUrl(filePath);
 
-      // Step 3: Save video metadata to database
-      const { data: videoData, error: dbError } = await supabase
-        .from('videos')
-        .insert({
-          title,
-          description,
-          video_type: videoType,
-          video_url: urlData.publicUrl,
-          file_size: compressedFile.size,
-          duration: videoDuration,
-          profile_id: profile.id,
-          tagged_players: selectedPlayers.map(p => p.playerId),
-          home_team: videoType === 'match' ? homeTeam : null,
-          away_team: videoType === 'match' ? awayTeam : null,
-          final_score: videoType === 'match' ? finalScore : null
-        })
-        .select()
+      // Step 3: Get the user's team ID
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('profile_id', profile.id)
         .single();
 
-      if (dbError) throw dbError;
+      if (teamError) throw new Error('Could not find team for user');
 
-      // Step 4: Start AI Analysis
+      // Step 4: Save video metadata to the correct table based on video type
+      let videoData;
+      
+      if (videoType === 'match') {
+        // Insert into match_videos table for match videos
+        const { data, error: dbError } = await supabase
+          .from('match_videos')
+          .insert({
+            title,
+            video_url: urlData.publicUrl,
+            file_size: compressedFile.size,
+            duration: Math.floor(videoDuration),
+            team_id: teamData.id,
+            tagged_players: selectedPlayers.map(p => ({
+              playerId: p.playerId,
+              playerName: p.playerName,
+              jerseyNumber: p.jerseyNumber
+            })),
+            opposing_team: awayTeam,
+            league: 'Unknown', // Default value as required by schema
+            final_score: finalScore,
+            match_date: new Date().toISOString().split('T')[0] // Today's date as default
+          })
+          .select()
+          .single();
+
+        if (dbError) throw dbError;
+        videoData = data;
+      } else {
+        // Insert into videos table for non-match videos
+        const { data, error: dbError } = await supabase
+          .from('videos')
+          .insert({
+            title,
+            description,
+            video_type: videoType,
+            video_url: urlData.publicUrl,
+            file_size: compressedFile.size,
+            duration: videoDuration,
+            team_id: teamData.id,
+            tagged_players: selectedPlayers.map(p => p.playerId),
+            is_public: false
+          })
+          .select()
+          .single();
+
+        if (dbError) throw dbError;
+        videoData = data;
+      }
+
+      // Step 5: Start AI Analysis
       setCurrentStep('analyzing');
       
       const analysisResult = await analyzeVideoWithGemini({
@@ -212,7 +250,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
         matchDetails: videoType === 'match' ? {
           homeTeam,
           awayTeam,
-          league: '',
+          league: 'Unknown',
           finalScore
         } : undefined
       });
