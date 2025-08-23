@@ -50,14 +50,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile with proper loading handling
+          // Fetch user profile
           setTimeout(async () => {
-            try {
-              await fetchUserProfile(session.user.id);
-            } catch (error) {
-              console.error('Error fetching profile in auth state change:', error);
-              setLoading(false);
-            }
+            await fetchUserProfile(session.user.id);
           }, 0);
         } else {
           console.log('No session, clearing profile and setting loading to false');
@@ -69,29 +64,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     );
 
     // Check for existing session
-    const initializeAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('Session found:', !!session);
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          setLoading(false);
-          return;
-        }
-        
-        if (!session) {
-          console.log('No session, setting loading to false');
-          setLoading(false);
-        }
-        // If there is a session, the auth state change handler will handle it
-      } catch (error) {
-        console.error('Error initializing auth:', error);
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('Session found:', !!session);
+      if (error) {
+        console.error('Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+      
+      if (!session) {
+        console.log('No session, setting loading to false');
         setLoading(false);
       }
-    };
-
-    initializeAuth();
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -126,7 +111,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setProfile(null);
       setIsAdmin(false);
     } finally {
-      // Always set loading to false after profile fetch attempt
       setLoading(false);
     }
   };

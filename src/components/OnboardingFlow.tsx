@@ -14,7 +14,7 @@ import { AllowedSportType, requiresFifaId, isAllowedSportType } from '@/services
 import { ArrowLeft, User, Building, Users } from 'lucide-react';
 
 const OnboardingFlow = () => {
-  const { user, profile, updateProfile } = useAuth();
+  const { profile, updateProfile } = useAuth();
   const { toast } = useToast();
   const { sports, loading: sportsLoading } = useSports();
   const { countries, loading: countriesLoading, error: countriesError } = useCountries();
@@ -49,18 +49,6 @@ const OnboardingFlow = () => {
   });
 
   const totalSteps = profile?.user_type === 'team' ? 2 : 2;
-
-  // Update basic info state when profile changes
-  useEffect(() => {
-    if (profile) {
-      setBasicInfo({
-        full_name: profile.full_name || '',
-        phone: profile.phone || '',
-        country: profile.country || '',
-        country_code: profile.country_code || '+91'
-      });
-    }
-  }, [profile]);
 
   // Get country code based on selected country
   const getCountryCode = (countryName: string) => {
@@ -115,26 +103,7 @@ const OnboardingFlow = () => {
   };
 
   const handleFinalSubmit = async () => {
-    // Check if user and profile are available
-    if (!user) {
-      toast({
-        title: "Authentication Error",
-        description: "User not authenticated. Please sign in again.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!profile) {
-      toast({
-        title: "Profile Error",
-        description: "Profile not loaded. Please refresh the page and try again.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (profile.user_type === 'team') {
+    if (profile?.user_type === 'team') {
       if (!teamInfo.team_name || !basicInfo.country || !teamInfo.sport_type) {
         toast({
           title: "Missing Information",
@@ -164,7 +133,7 @@ const OnboardingFlow = () => {
 
     setLoading(true);
     try {
-      if (profile.user_type === 'team') {
+      if (profile?.user_type === 'team') {
         const { error } = await supabase
           .from('teams')
           .upsert({
@@ -213,22 +182,6 @@ const OnboardingFlow = () => {
     }
   };
 
-  // Show loading state if user or profile is not available
-  if (!user || !profile) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <img
-            src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
-            alt="Sports Reels"
-            className="w-[100px] h-[100px] mx-auto mb-4 animate-pulse"
-          />
-          <p className="text-white">Loading your profile...</p>
-        </div>
-      </div>
-    );
-  }
-
   const steps = [
     {
       id: 1,
@@ -239,9 +192,9 @@ const OnboardingFlow = () => {
     },
     {
       id: 2,
-      title: profile.user_type === 'team' ? "Your team details" : "Your agency details",
-      subtitle: profile.user_type === 'team' ? "Team's basic information" : "Agency's basic information",
-      icon: profile.user_type === 'team' ? Users : Building,
+      title: profile?.user_type === 'team' ? "Your team details" : "Your agency details",
+      subtitle: profile?.user_type === 'team' ? "Team's basic information" : "Agency's basic information",
+      icon: profile?.user_type === 'team' ? Users : Building,
       completed: false
     }
   ];
@@ -252,7 +205,7 @@ const OnboardingFlow = () => {
       <div className="w-96 onboarding-sidebar bg-sidebar-border text-white p-8 flex flex-col relative">
         {/* Logo */}
         <div className="flex items-center mb-12">
-          <img src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png" alt="Sports Reels" className="w-8 h-8 mr-3" />
+          <img src="/public/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png" alt="Sports Reels" className="w-8 h-8 mr-3" />
           <span className="text-xl font-bold text-white">Sports Reels</span>
         </div>
 
@@ -308,12 +261,12 @@ const OnboardingFlow = () => {
               <p className="text-sm">Step {step}/{totalSteps}</p>
             </div>
             <h1 className="text-3xl font-bold text-rosegold mb-2">
-              {step === 1 ? 'Basic Info' : profile.user_type === 'team' ? 'Team Details' : 'Agency Details'}
+              {step === 1 ? 'Basic Info' : profile?.user_type === 'team' ? 'Team Details' : 'Agency Details'}
             </h1>
             <p className=" text-gray-400">
               {step === 1
                 ? 'Tell us a bit about yourself to get started with your new Sports Reels account.'
-                : `Provide your ${profile.user_type === 'team' ? 'team' : 'agency'} information to complete your profile.`
+                : `Provide your ${profile?.user_type === 'team' ? 'team' : 'agency'} information to complete your profile.`
               }
             </p>
           </div>
@@ -337,7 +290,7 @@ const OnboardingFlow = () => {
                   <Label htmlFor="email" className="text-gray-500 font-medium">Email</Label>
                   <Input
                     id="email"
-                    value={profile.email || ''}
+                    value={profile?.email || ''}
                     disabled
                     className="border-0 outline-none"
                   />
@@ -401,7 +354,7 @@ const OnboardingFlow = () => {
                   </div>
                 </div>
               </>
-            ) : profile.user_type === 'team' ? (
+            ) : profile?.user_type === 'team' ? (
               <>
                 <div className="space-y-2 text-start">
                   <Label htmlFor="team_name" className="text-gray-500 font-medium">Team Name *</Label>
