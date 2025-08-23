@@ -343,7 +343,7 @@ const VideoManagement = () => {
                     <SelectValue placeholder="Filter by Player" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Players</SelectItem>
+                    <SelectItem value="all">All Players</SelectItem>
                     {players.map((player) => (
                       <SelectItem key={player.id} value={player.id}>
                         {player.full_name}
@@ -357,7 +357,7 @@ const VideoManagement = () => {
                     <SelectValue placeholder="Analysis Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Status</SelectItem>
+                    <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="completed">Analyzed</SelectItem>
                     <SelectItem value="analyzing">Analyzing</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
@@ -370,7 +370,7 @@ const VideoManagement = () => {
                     <SelectValue placeholder="Filter by Tag" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Tags</SelectItem>
+                    <SelectItem value="all">All Tags</SelectItem>
                     <SelectItem value="highlight">Highlights</SelectItem>
                     <SelectItem value="training">Training</SelectItem>
                     <SelectItem value="match">Match</SelectItem>
