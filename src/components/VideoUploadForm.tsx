@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,9 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Upload, X, Play, FileVideo, Loader2 } from 'lucide-react';
+import { Upload, X, Play, FileVideo, Loader2, User } from 'lucide-react';
+import { PlayerTagging } from './PlayerTagging';
+import { smartCompress } from '@/services/fastVideoCompressionService';
 
 interface VideoUploadFormProps {
   onSuccess?: () => void;
@@ -24,6 +27,8 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [compressedFile, setCompressedFile] = useState<File | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoDescription, setVideoDescription] = useState('');
   const [opposingTeam, setOpposingTeam] = useState('');
@@ -32,11 +37,12 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
   const [homeOrAway, setHomeOrAway] = useState<'home' | 'away'>('home');
   const [videoType, setVideoType] = useState('match');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [taggedPlayers, setTaggedPlayers] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string>('');
 
   const availableTags = ['highlights', 'goals', 'saves', 'skills', 'training', 'match', 'analysis'];
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       // Validate file type
@@ -49,7 +55,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
         return;
       }
 
-      // Validate file size (max 500MB)
+      // Validate file size (max 500MB for original file)
       if (file.size > 500 * 1024 * 1024) {
         toast({
           title: "File Too Large",
@@ -65,6 +71,34 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
       // Create preview URL
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
+
+      // Compress video if needed
+      try {
+        setIsCompressing(true);
+        toast({
+          title: "Processing Video",
+          description: "Compressing video for optimal upload...",
+        });
+
+        const compressed = await smartCompress(file);
+        setCompressedFile(compressed);
+        
+        toast({
+          title: "Video Processed",
+          description: "Video has been optimized for upload",
+        });
+      } catch (error) {
+        console.error('Compression error:', error);
+        // If compression fails, use original file
+        setCompressedFile(file);
+        toast({
+          title: "Compression Skipped",
+          description: "Using original file for upload",
+          variant: "destructive"
+        });
+      } finally {
+        setIsCompressing(false);
+      }
     }
   };
 
@@ -77,7 +111,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !profile?.id) return;
+    if (!selectedFile || !compressedFile || !profile?.id) return;
 
     try {
       setIsUploading(true);
@@ -94,25 +128,26 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
         throw new Error('Team not found');
       }
 
-      // Upload file to storage without onUploadProgress (not supported in current version)
+      setUploadProgress(20);
+
+      // Upload compressed file to storage
       const fileName = `${Date.now()}-${selectedFile.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('match-videos')
-        .upload(fileName, selectedFile);
+        .upload(fileName, compressedFile);
 
       if (uploadError) throw uploadError;
 
-      // Simulate progress updates
-      setUploadProgress(50);
+      setUploadProgress(60);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('match-videos')
         .getPublicUrl(fileName);
 
-      setUploadProgress(60);
+      setUploadProgress(80);
 
-      // Create video record
+      // Create video record with tagged players
       const { data: videoData, error: videoError } = await supabase
         .from('videos')
         .insert({
@@ -126,9 +161,11 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
           home_or_away: homeOrAway,
           video_type: videoType,
           tags: selectedTags,
-          file_size: selectedFile.size,
+          tagged_players: taggedPlayers,
+          file_size: compressedFile.size,
           upload_status: 'completed',
-          ai_analysis_status: 'pending'
+          ai_analysis_status: 'pending',
+          is_public: true
         })
         .select()
         .single();
@@ -139,17 +176,19 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
 
       toast({
         title: "Upload Successful",
-        description: "Video has been uploaded and is ready for analysis",
+        description: `Video uploaded successfully${taggedPlayers.length > 0 ? ` with ${taggedPlayers.length} players tagged` : ''}`,
       });
 
       // Reset form
       setSelectedFile(null);
+      setCompressedFile(null);
       setVideoTitle('');
       setVideoDescription('');
       setOpposingTeam('');
       setMatchDate('');
       setScore('');
       setSelectedTags([]);
+      setTaggedPlayers([]);
       setPreviewUrl('');
       
       if (fileInputRef.current) {
@@ -173,6 +212,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
 
   const handleCancel = () => {
     setSelectedFile(null);
+    setCompressedFile(null);
     setPreviewUrl('');
     onCancel?.();
   };
@@ -231,6 +271,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
                 className="absolute top-2 right-2 text-white hover:bg-black/50"
                 onClick={() => {
                   setSelectedFile(null);
+                  setCompressedFile(null);
                   setPreviewUrl('');
                   if (fileInputRef.current) {
                     fileInputRef.current.value = '';
@@ -240,6 +281,17 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
                 <X className="w-4 h-4" />
               </Button>
             </div>
+
+            {/* Compression Progress */}
+            {isCompressing && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-bright-pink">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Compressing video for optimal upload...</span>
+                </div>
+                <Progress value={50} className="w-full" />
+              </div>
+            )}
 
             {/* Upload Progress */}
             {isUploading && (
@@ -255,7 +307,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
         )}
 
         {/* Video Details Form */}
-        {selectedFile && !isUploading && (
+        {selectedFile && !isUploading && !isCompressing && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Basic Info */}
             <div className="space-y-4">
@@ -359,8 +411,20 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
           </div>
         )}
 
+        {/* Player Tagging */}
+        {selectedFile && !isUploading && !isCompressing && (
+          <div className="space-y-4">
+            <div className="border-t border-gray-600 pt-4">
+              <PlayerTagging
+                selectedPlayers={taggedPlayers}
+                onPlayersChange={setTaggedPlayers}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Tags */}
-        {selectedFile && !isUploading && (
+        {selectedFile && !isUploading && !isCompressing && (
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-3">
               Tags
@@ -384,16 +448,43 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }
           </div>
         )}
 
+        {/* File Size Info */}
+        {selectedFile && compressedFile && !isUploading && !isCompressing && (
+          <div className="bg-gray-700 rounded-lg p-4">
+            <h4 className="text-white font-medium mb-2">File Information</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-400">Original Size:</span>
+                <span className="text-white ml-2">{(selectedFile.size / (1024 * 1024)).toFixed(1)} MB</span>
+              </div>
+              <div>
+                <span className="text-gray-400">Compressed Size:</span>
+                <span className="text-white ml-2">{(compressedFile.size / (1024 * 1024)).toFixed(1)} MB</span>
+              </div>
+            </div>
+            {compressedFile.size < selectedFile.size && (
+              <div className="mt-2 text-green-400 text-sm">
+                Compression saved {((selectedFile.size - compressedFile.size) / (1024 * 1024)).toFixed(1)} MB
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
-        {selectedFile && !isUploading && (
+        {selectedFile && !isUploading && !isCompressing && (
           <div className="flex gap-3 pt-4">
             <Button
               onClick={handleUpload}
-              disabled={!videoTitle.trim()}
+              disabled={!videoTitle.trim() || !compressedFile}
               className="flex-1 bg-bright-pink hover:bg-bright-pink/90"
             >
               <Upload className="w-4 h-4 mr-2" />
               Upload Video
+              {taggedPlayers.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {taggedPlayers.length} players
+                </Badge>
+              )}
             </Button>
             
             <Button

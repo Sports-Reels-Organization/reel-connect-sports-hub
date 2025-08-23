@@ -6,14 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, X, User, Tag } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Player {
   id: string;
   full_name: string;
   position: string;
   team_name: string;
-  asking_price: number;
-  currency: string;
 }
 
 interface PlayerTaggingProps {
@@ -25,16 +24,17 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
   selectedPlayers,
   onPlayersChange
 }) => {
+  const { profile } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Player[]>([]);
   const [selectedPlayerDetails, setSelectedPlayerDetails] = useState<Player[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Search for players
+  // Search for players from the team
   useEffect(() => {
     const searchPlayers = async () => {
-      if (!searchTerm.trim() || searchTerm.length < 2) {
+      if (!searchTerm.trim() || searchTerm.length < 2 || !profile?.id) {
         setSearchResults([]);
         setShowDropdown(false);
         return;
@@ -42,33 +42,40 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
 
       setLoading(true);
       try {
+        // First get the team ID
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('profile_id', profile.id)
+          .single();
+
+        if (!teamData) {
+          setSearchResults([]);
+          return;
+        }
+
+        // Then search for players in that team
         const { data, error } = await supabase
-          .from('transfer_pitches')
+          .from('players')
           .select(`
-            player_id,
-            asking_price,
-            currency,
-            players!inner(
-              full_name,
-              position
-            ),
+            id,
+            full_name,
+            position,
             teams!inner(
               team_name
             )
           `)
-          .eq('status', 'active')
-          .ilike('players.full_name', `%${searchTerm}%`)
+          .eq('team_id', teamData.id)
+          .ilike('full_name', `%${searchTerm}%`)
           .limit(5);
 
         if (error) throw error;
 
-        const players: Player[] = (data || []).map((pitch: any) => ({
-          id: pitch.player_id,
-          full_name: pitch.players?.full_name || '',
-          position: pitch.players?.position || '',
-          team_name: pitch.teams?.team_name || '',
-          asking_price: pitch.asking_price || 0,
-          currency: pitch.currency || 'USD'
+        const players: Player[] = (data || []).map((player: any) => ({
+          id: player.id,
+          full_name: player.full_name,
+          position: player.position,
+          team_name: player.teams?.team_name || ''
         }));
 
         setSearchResults(players);
@@ -83,43 +90,36 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
 
     const timeoutId = setTimeout(searchPlayers, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, profile?.id]);
 
   // Fetch details for selected players
   useEffect(() => {
     const fetchSelectedPlayerDetails = async () => {
-      if (selectedPlayers.length === 0) {
+      if (selectedPlayers.length === 0 || !profile?.id) {
         setSelectedPlayerDetails([]);
         return;
       }
 
       try {
         const { data, error } = await supabase
-          .from('transfer_pitches')
+          .from('players')
           .select(`
-            player_id,
-            asking_price,
-            currency,
-            players!inner(
-              full_name,
-              position
-            ),
+            id,
+            full_name,
+            position,
             teams!inner(
               team_name
             )
           `)
-          .in('player_id', selectedPlayers)
-          .eq('status', 'active');
+          .in('id', selectedPlayers);
 
         if (error) throw error;
 
-        const players: Player[] = (data || []).map((pitch: any) => ({
-          id: pitch.player_id,
-          full_name: pitch.players?.full_name || '',
-          position: pitch.players?.position || '',
-          team_name: pitch.teams?.team_name || '',
-          asking_price: pitch.asking_price || 0,
-          currency: pitch.currency || 'USD'
+        const players: Player[] = (data || []).map((player: any) => ({
+          id: player.id,
+          full_name: player.full_name,
+          position: player.position,
+          team_name: player.teams?.team_name || ''
         }));
 
         setSelectedPlayerDetails(players);
@@ -129,7 +129,7 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
     };
 
     fetchSelectedPlayerDetails();
-  }, [selectedPlayers]);
+  }, [selectedPlayers, profile?.id]);
 
   const handleSelectPlayer = (player: Player) => {
     if (!selectedPlayers.includes(player.id)) {
@@ -149,12 +149,12 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
       <div className="relative">
         <div className="flex items-center gap-2 mb-2">
           <Tag className="w-4 h-4 text-rosegold" />
-          <span className="text-sm font-medium text-gray-300">Tag Players</span>
+          <span className="text-sm font-medium text-gray-300">Tag Players in Video</span>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
-            placeholder="Search for players to tag..."
+            placeholder="Search for players in your team..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-gray-800 border-gray-600 text-white"
@@ -173,7 +173,7 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
                 </div>
               ) : searchResults.length === 0 ? (
                 <div className="p-4 text-center text-gray-400">
-                  No players found
+                  No players found in your team
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -183,6 +183,7 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
                       variant="ghost"
                       className="w-full justify-start p-3 h-auto hover:bg-gray-700"
                       onClick={() => handleSelectPlayer(player)}
+                      disabled={selectedPlayers.includes(player.id)}
                     >
                       <div className="flex items-center justify-between w-full">
                         <div className="text-left">
@@ -191,12 +192,14 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
                             <span className="font-medium text-white">{player.full_name}</span>
                           </div>
                           <div className="text-sm text-gray-400">
-                            {player.position} • {player.team_name}
+                            {player.position}
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-xs">
-                          {player.asking_price.toLocaleString()} {player.currency}
-                        </Badge>
+                        {selectedPlayers.includes(player.id) && (
+                          <Badge variant="outline" className="text-xs bg-rosegold/20 border-rosegold">
+                            Tagged
+                          </Badge>
+                        )}
                       </div>
                     </Button>
                   ))}
@@ -210,7 +213,7 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
       {/* Selected Players */}
       {selectedPlayerDetails.length > 0 && (
         <div className="space-y-2">
-          <span className="text-sm font-medium text-gray-300">Tagged Players:</span>
+          <span className="text-sm font-medium text-gray-300">Tagged Players ({selectedPlayerDetails.length}):</span>
           <div className="flex flex-wrap gap-2">
             {selectedPlayerDetails.map((player) => (
               <Badge
@@ -228,6 +231,9 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
               </Badge>
             ))}
           </div>
+          <p className="text-xs text-gray-400">
+            These players will be able to see this video in their profiles
+          </p>
         </div>
       )}
     </div>
