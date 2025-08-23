@@ -210,7 +210,6 @@ const OnboardingFlow = () => {
       const { error: teamError } = await supabase
         .from('teams')
         .insert({
-          name: teamInfo.team_name,
           league: teamInfo.league,
           country: teamInfo.country,
           sport_type: teamInfo.sport_type as "football" | "basketball" | "volleyball" | "tennis" | "rugby",
