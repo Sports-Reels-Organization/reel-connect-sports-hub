@@ -155,19 +155,19 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
     setCurrentStep('compressing');
 
     try {
-      // Step 1: Compress video - smartCompress only takes one argument
+      // Step 1: Compress video
       const compressedFile = await smartCompress(file);
       setCompressionProgress(100);
 
       setCurrentStep('uploading');
 
-      // Step 2: Upload to Supabase Storage
+      // Step 2: Upload to Supabase Storage (using match-videos bucket)
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `videos/${profile.id}/${fileName}`;
+      const filePath = `${profile.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('videos')
+        .from('match-videos')
         .upload(filePath, compressedFile);
 
       if (uploadError) throw uploadError;
@@ -176,7 +176,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
       // Get the public URL for the uploaded video
       const { data: urlData } = supabase.storage
-        .from('videos')
+        .from('match-videos')
         .getPublicUrl(filePath);
 
       // Step 3: Save video metadata to database
@@ -222,13 +222,15 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
         .from('enhanced_video_analysis')
         .insert({
           video_id: videoData.id,
-          analysis_summary: analysisResult.summary,
-          key_highlights: analysisResult.keyHighlights,
-          recommendations: analysisResult.recommendations,
-          performance_metrics: analysisResult.performanceMetrics,
-          timeline_analysis: analysisResult.analysis,
           analysis_status: analysisResult.analysisStatus,
-          error_message: analysisResult.errorMessage
+          overall_assessment: analysisResult.summary,
+          recommendations: analysisResult.recommendations,
+          game_context: {
+            key_highlights: analysisResult.keyHighlights,
+            performance_metrics: analysisResult.performanceMetrics,
+            timeline_analysis: analysisResult.analysis,
+            error_message: analysisResult.errorMessage
+          }
         });
 
       if (analysisError) {
