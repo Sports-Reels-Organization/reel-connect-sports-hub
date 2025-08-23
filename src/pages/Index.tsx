@@ -5,6 +5,7 @@ import AuthForm from '@/components/AuthForm';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import Layout from '@/components/Layout';
 import Dashboard from '@/components/Dashboard';
+import Homepage from '@/components/Homepage';
 
 const Index = () => {
   const { user, profile, loading } = useAuth();
@@ -20,15 +21,14 @@ const Index = () => {
             alt="Sports Reels"
             className="w-[100px] h-[100px] mx-auto mb-4 animate-pulse"
           />
-
         </div>
       </div>
     );
   }
 
   if (!user) {
-    console.log('No user found, showing auth form');
-    return <AuthForm />;
+    console.log('No user found, showing homepage');
+    return <Homepage />;
   }
 
   if (!profile?.profile_completed) {
