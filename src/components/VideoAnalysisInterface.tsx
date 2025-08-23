@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,7 +67,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
       }
 
       if (data) {
-        // Ensure the data matches our AnalysisData interface
+        // Map the database fields to our AnalysisData interface
         const analysisData: AnalysisData = {
           id: data.id,
           analysis_summary: data.analysis_summary || 'Analysis completed.',
@@ -76,7 +75,9 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
           recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
           performance_metrics: data.performance_metrics || {},
           timeline_analysis: Array.isArray(data.timeline_analysis) ? data.timeline_analysis : [],
-          analysis_status: data.analysis_status || 'completed',
+          analysis_status: (data.analysis_status === 'completed' || data.analysis_status === 'failed' || data.analysis_status === 'pending') 
+            ? data.analysis_status 
+            : 'completed',
           error_message: data.error_message,
           created_at: data.created_at
         };

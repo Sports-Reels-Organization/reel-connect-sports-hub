@@ -155,13 +155,11 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
     setCurrentStep('compressing');
 
     try {
-      // Step 1: Compress video
-      const compressedFile = await smartCompress(file, {
-        onProgress: (progress) => setCompressionProgress(progress)
-      });
+      // Step 1: Compress video - smartCompress only takes one argument
+      const compressedFile = await smartCompress(file);
+      setCompressionProgress(100);
 
       setCurrentStep('uploading');
-      setCompressionProgress(100);
 
       // Step 2: Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
