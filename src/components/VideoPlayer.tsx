@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -100,17 +99,36 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const video = videoRef.current;
     if (!video) return;
 
-    if (isPlaying) {
-      video.pause();
-      if (analysisServiceRef.current) {
-        analysisServiceRef.current.stopAnalysis();
+    try {
+      if (isPlaying) {
+        video.pause();
+        if (analysisServiceRef.current) {
+          analysisServiceRef.current.stopAnalysis();
+        }
+        setIsAnalyzing(false);
+      } else {
+        // Add better error handling for video play
+        await video.play();
+        startAnalysis();
       }
-      setIsAnalyzing(false);
-    } else {
-      await video.play();
-      startAnalysis();
+      setIsPlaying(!isPlaying);
+    } catch (error) {
+      console.log('Video play error:', error);
+      // Try to handle the background media pause issue
+      if (error instanceof Error && error.name === 'AbortError') {
+        // Retry play after a short delay
+        setTimeout(async () => {
+          try {
+            if (video && !video.paused) {
+              await video.play();
+              setIsPlaying(true);
+            }
+          } catch (retryError) {
+            console.log('Video retry play error:', retryError);
+          }
+        }, 100);
+      }
     }
-    setIsPlaying(!isPlaying);
   };
 
   const startAnalysis = async () => {
@@ -211,6 +229,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   className="w-full h-full object-contain"
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
+                  preload="metadata"
+                  playsInline
+                  controls={false}
+                  muted={false}
                 />
               </div>
 

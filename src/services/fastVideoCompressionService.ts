@@ -33,19 +33,34 @@ export const compressVideoFast = async (
         canvas.width = canvas.height * aspectRatio;
       }
       
-      // Use faster codec settings
-      const mimeType = 'video/webm;codecs=vp8'; // VP8 is faster than VP9
-      const videoBitsPerSecond = options.fastMode ? 500000 : 1000000; // Lower bitrate for speed
+      // Use H.264 codec for better compatibility
+      const mimeType = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+      const videoBitsPerSecond = options.fastMode ? 800000 : 1500000; // Higher bitrate for video quality
+      const audioBitsPerSecond = 128000; // Ensure audio quality
       
-      const stream = canvas.captureStream(options.fastMode ? 15 : 30); // Lower framerate for speed
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType,
-        videoBitsPerSecond
+      const stream = canvas.captureStream(options.fastMode ? 24 : 30);
+      
+      // Create audio context to ensure audio is captured
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaElementSource(video);
+      const destination = audioContext.createMediaStreamDestination();
+      source.connect(destination);
+      
+      // Combine video and audio streams
+      const combinedStream = new MediaStream([
+        ...stream.getVideoTracks(),
+        ...destination.stream.getAudioTracks()
+      ]);
+      
+      const mediaRecorder = new MediaRecorder(combinedStream, {
+        mimeType: 'video/webm;codecs=vp8,opus', // Use VP8 + Opus for better compatibility
+        videoBitsPerSecond,
+        audioBitsPerSecond
       });
       
       const chunks: Blob[] = [];
       let frameCount = 0;
-      const maxFrames = options.fastMode ? 150 : 300; // Limit frames for speed
+      const maxFrames = options.fastMode ? 200 : 400; // Reasonable frame limit
       
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -69,22 +84,21 @@ export const compressVideoFast = async (
       
       mediaRecorder.start();
       
-      // Optimized frame drawing with skip frames for speed
+      // Optimized frame drawing with consistent timing
       const drawFrame = () => {
         if (!video.ended && !video.paused && frameCount < maxFrames) {
-          // Skip every other frame in fast mode
-          if (!options.fastMode || frameCount % 2 === 0) {
-            ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-          }
+          ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
           frameCount++;
           requestAnimationFrame(drawFrame);
         } else {
           mediaRecorder.stop();
+          audioContext.close();
         }
       };
       
-      // Set video playback rate for faster processing
-      video.playbackRate = options.fastMode ? 2.0 : 1.0;
+      // Set reasonable playback rate
+      video.playbackRate = options.fastMode ? 1.0 : 1.0; // Keep normal speed for quality
+      video.muted = false; // Ensure audio is not muted
       video.play();
       drawFrame();
     };
@@ -93,6 +107,8 @@ export const compressVideoFast = async (
       reject(new Error('Failed to load video'));
     };
     
+    // Enable CORS for video element
+    video.crossOrigin = 'anonymous';
     video.src = URL.createObjectURL(file);
   });
 };
@@ -107,19 +123,19 @@ export const getVideoDuration = (file: File): Promise<number> => {
   });
 };
 
-// Quick compression check - only compress if file is too large
+// Enhanced smart compression with better audio/video handling
 export const smartCompress = async (file: File): Promise<VideoFile> => {
-  const maxSize = 10 * 1024 * 1024; // 10MB
+  const maxSize = 15 * 1024 * 1024; // Increase to 15MB for better quality
   
   if (file.size <= maxSize) {
     // File is already small enough, return as is
     return file as VideoFile;
   }
   
-  // File is too large, compress with fast mode
+  // File is too large, compress with enhanced mode
   return compressVideoFast(file, {
-    maxSizeMB: 10,
-    quality: 0.6,
-    fastMode: true
+    maxSizeMB: 15,
+    quality: 0.75, // Higher quality
+    fastMode: false // Better quality mode
   });
 };
