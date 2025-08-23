@@ -12,7 +12,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Upload, X, Play, FileVideo, Loader2, User, ArrowLeft } from 'lucide-react';
 import { EnhancedPlayerTagging } from './EnhancedPlayerTagging';
 import { smartCompress } from '@/services/fastVideoCompressionService';
-import { analyzeVideoWithGemini } from '@/services/geminiService';
 
 interface PlayerWithJersey {
   playerId: string;
@@ -161,7 +160,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
       setCurrentStep('uploading');
 
-      // Step 2: Upload to Supabase Storage (using match-videos bucket)
+      // Step 2: Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${profile.id}/${fileName}`;
@@ -188,7 +187,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
       if (teamError) throw new Error('Could not find team for user');
 
-      // Step 4: Save video metadata to the correct table based on video type
+      // Step 4: Save video metadata to the correct table
       let videoData;
       
       if (videoType === 'match') {
@@ -207,9 +206,9 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
               jerseyNumber: p.jerseyNumber
             })),
             opposing_team: awayTeam,
-            league: 'Unknown', // Default value as required by schema
+            league: 'Unknown',
             final_score: finalScore,
-            match_date: new Date().toISOString().split('T')[0] // Today's date as default
+            match_date: new Date().toISOString().split('T')[0]
           })
           .select()
           .single();
@@ -238,41 +237,31 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
         videoData = data;
       }
 
-      // Step 5: Start AI Analysis
+      // Step 5: Start AI Analysis using Supabase Edge Function
       setCurrentStep('analyzing');
       
-      const analysisResult = await analyzeVideoWithGemini({
-        playerTags: selectedPlayers.map(p => p.playerName),
-        videoType,
-        videoTitle: title,
-        videoDescription: description,
-        duration: videoDuration,
-        matchDetails: videoType === 'match' ? {
-          homeTeam,
-          awayTeam,
-          league: 'Unknown',
-          finalScore
-        } : undefined
-      });
-
-      // Save analysis results
-      const { error: analysisError } = await supabase
-        .from('enhanced_video_analysis')
-        .insert({
-          video_id: videoData.id,
-          analysis_status: analysisResult.analysisStatus,
-          overall_assessment: analysisResult.summary,
-          recommendations: analysisResult.recommendations,
-          game_context: {
-            key_highlights: analysisResult.keyHighlights,
-            performance_metrics: analysisResult.performanceMetrics,
-            timeline_analysis: analysisResult.analysis,
-            error_message: analysisResult.errorMessage
+      try {
+        const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-video', {
+          body: {
+            videoId: videoData.id,
+            videoUrl: urlData.publicUrl,
+            videoType,
+            videoTitle: title,
+            videoDescription: description,
+            opposingTeam: videoType === 'match' ? awayTeam : undefined,
+            playerStats: {},
+            taggedPlayers: selectedPlayers
           }
         });
 
-      if (analysisError) {
-        console.error('Error saving analysis:', analysisError);
+        if (analysisError) {
+          console.error('Analysis error:', analysisError);
+          // Don't throw here - video upload was successful
+        } else {
+          console.log('Analysis completed:', analysisData);
+        }
+      } catch (analysisError) {
+        console.error('Error calling analysis function:', analysisError);
         // Don't throw here - video upload was successful
       }
 
@@ -280,7 +269,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
       toast({
         title: "Upload Successful",
-        description: "Your video has been uploaded and analyzed successfully!",
+        description: "Your video has been uploaded and analysis is in progress!",
       });
 
       if (onSuccess) onSuccess();
@@ -503,7 +492,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
               </div>
             )}
 
-            {/* Player Tagging - Available for all video types */}
+            {/* Player Tagging */}
             <EnhancedPlayerTagging
               selectedPlayers={selectedPlayers}
               onPlayersChange={setSelectedPlayers}

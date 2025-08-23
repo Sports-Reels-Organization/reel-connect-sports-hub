@@ -9,6 +9,7 @@ import { MapPin, Calendar, Trophy, User, Play, MessageCircle, Star } from 'lucid
 import VideoPlayer from './VideoPlayer';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Player {
   id: string;
@@ -53,18 +54,40 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
   player,
   onMessagePlayer
 }) => {
+  const { profile } = useAuth();
   const [videos, setVideos] = useState<Video[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState(false);
   const [isShortlisted, setIsShortlisted] = useState(false);
+  const [teamOwnerProfile, setTeamOwnerProfile] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     if (player && isOpen) {
       fetchPlayerVideos();
       checkIfShortlisted();
+      fetchTeamOwnerProfile();
     }
   }, [player, isOpen]);
+
+  const fetchTeamOwnerProfile = async () => {
+    if (!player) return;
+
+    try {
+      // Get the team that owns this player
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('profile_id, profiles!inner(*)')
+        .eq('id', player.team)
+        .single();
+
+      if (teamData) {
+        setTeamOwnerProfile(teamData.profiles);
+      }
+    } catch (error) {
+      console.error('Error fetching team owner profile:', error);
+    }
+  };
 
   const fetchPlayerVideos = async () => {
     if (!player) return;
@@ -93,7 +116,7 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
   };
 
   const checkIfShortlisted = async () => {
-    if (!player) return;
+    if (!player || !profile?.id) return;
 
     try {
       const { data, error } = await supabase
@@ -109,25 +132,10 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
   };
 
   const handleAddToShortlist = async () => {
-    if (!player) return;
+    if (!player || !profile?.id) return;
 
     try {
-      // First, get the current user's agent ID
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (!profile) {
-        toast({
-          title: "Error",
-          description: "Unable to find your profile.",
-          variant: "destructive"
-        });
-        return;
-      }
-
+      // Get the current user's agent ID
       const { data: agent } = await supabase
         .from('agents')
         .select('id')
@@ -211,6 +219,14 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
     }
   };
 
+  const handleMessageTeam = () => {
+    if (!player || !teamOwnerProfile) return;
+    
+    if (onMessagePlayer) {
+      onMessagePlayer(teamOwnerProfile.id, `Team Owner - ${player.full_name}`);
+    }
+  };
+
   if (!player) return null;
 
   const getInitials = (name: string) => {
@@ -289,14 +305,14 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
                 <Star className={`w-4 h-4 mr-2 ${isShortlisted ? 'fill-current' : ''}`} />
                 {isShortlisted ? 'Remove from Shortlist' : 'Add to Shortlist'}
               </Button>
-              {onMessagePlayer && (
+              {teamOwnerProfile && (
                 <Button
-                  onClick={() => onMessagePlayer(player.id, player.full_name)}
+                  onClick={handleMessageTeam}
                   variant="outline"
                   className="border-rosegold text-rosegold hover:bg-rosegold hover:text-black"
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
-                  Message
+                  Message Team
                 </Button>
               )}
             </div>
