@@ -199,7 +199,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
             title,
             video_url: urlData.publicUrl,
             file_size: compressedFile.size,
-            duration: Math.floor(videoDuration),
+            duration: Math.floor(videoDuration), // Convert to integer
             team_id: teamData.id,
             tagged_players: selectedPlayers.map(p => ({
               playerId: p.playerId,
@@ -226,7 +226,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
             video_type: videoType,
             video_url: urlData.publicUrl,
             file_size: compressedFile.size,
-            duration: videoDuration,
+            duration: Math.floor(videoDuration), // Convert to integer
             team_id: teamData.id,
             tagged_players: selectedPlayers.map(p => p.playerId),
             is_public: false
