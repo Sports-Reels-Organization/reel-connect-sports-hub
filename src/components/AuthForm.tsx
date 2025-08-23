@@ -176,7 +176,18 @@ const AuthForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
+    <div className="min-h-screen flex items-center justify-center bg-black relative">
+      {/* Back to Home Button */}
+      <div className="absolute top-4 left-4 z-50">
+        <Button
+          onClick={() => window.location.href = '/'}
+          variant="outline"
+          className="border-gray-600 text-gray-300 hover:bg-gray-800"
+        >
+          ← Back to Home
+        </Button>
+      </div>
+
       <div className="w-full max-w-6xl flex flex-col lg:flex-row items-stretch">
         {/* Left Panel - Form Section */}
         <div
@@ -188,7 +199,7 @@ const AuthForm = () => {
             <div className="text-center space-y-4 mb-8">
               <div className="flex justify-center">
                 <img
-                  src="public/lovable-Uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
+                  src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
                   alt="Sports Reels Logo"
                   className="w-16 h-16 transition-transform hover:scale-105"
                 />
@@ -203,7 +214,7 @@ const AuthForm = () => {
               </div>
             </div>
 
-            {/* Language Selector - Added without changing layout */}
+            {/* Language Selector */}
             <div className="flex justify-center mb-6">
               <LanguageSelector variant="select" showFlag={true} showNativeName={false} />
             </div>
@@ -298,9 +309,6 @@ const AuthForm = () => {
                   </span>
                 </div>
               </div>
-
-              {/* Create Account */}
-              
             </div>
           </div>
         </div>
@@ -310,7 +318,7 @@ const AuthForm = () => {
           className="hidden rounded-r-[1rem] lg:flex lg:w-1/2 relative bg-cover bg-center bg-no-repeat overflow-hidden"
           style={{
             backgroundImage: "url('/lovable-uploads/Untitled design (49).png')",
-            height: formHeight
+            height: '100vh'
           }}
         >
           <video

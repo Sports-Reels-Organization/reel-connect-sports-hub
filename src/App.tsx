@@ -8,6 +8,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 
 // Pages
+import LandingPage from "./pages/LandingPage";
+import AuthPage from "./pages/AuthPage";
 import Index from "./pages/Index";
 import Players from "./pages/Players";
 import Videos from "./pages/Videos";
@@ -16,9 +18,6 @@ import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import Timeline from "./pages/Timeline";
 import Explore from "./pages/Explore";
-// import Notifications from "./pages/Notifications";
-// import Contracts from "./pages/Contracts";
-// import Shortlist from "./pages/Shortlist";
 
 // New pages
 import History from "./components/History";
@@ -35,7 +34,9 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/dashboard" element={<Index />} />
               <Route path="/players" element={<Players />} />
               <Route path="/videos" element={<Videos />} />
               <Route path="/video-showcase" element={<VideoShowcase />} />
