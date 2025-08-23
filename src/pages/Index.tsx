@@ -5,15 +5,11 @@ import AuthForm from '@/components/AuthForm';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import Layout from '@/components/Layout';
 import Dashboard from '@/components/Dashboard';
-import Homepage from '@/components/Homepage';
-import { useLocation } from 'react-router-dom';
 
 const Index = () => {
   const { user, profile, loading } = useAuth();
-  const location = useLocation();
-  const showAuth = location.pathname === '/auth' || location.search.includes('auth=true');
 
-  console.log('Index render - loading:', loading, 'user:', !!user, 'profile:', !!profile, 'showAuth:', showAuth);
+  console.log('Index render - loading:', loading, 'user:', !!user, 'profile:', !!profile);
 
   if (loading) {
     return (
@@ -24,14 +20,15 @@ const Index = () => {
             alt="Sports Reels"
             className="w-[100px] h-[100px] mx-auto mb-4 animate-pulse"
           />
+
         </div>
       </div>
     );
   }
 
   if (!user) {
-    console.log('No user found, showing auth or homepage');
-    return showAuth ? <AuthForm /> : <Homepage />;
+    console.log('No user found, showing auth form');
+    return <AuthForm />;
   }
 
   if (!profile?.profile_completed) {
