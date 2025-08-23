@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import EnhancedVideoAnalysis from './EnhancedVideoAnalysis';
+import VideoUploadForm from './VideoUploadForm';
 
 interface VideoData {
   id: string;
@@ -59,6 +59,7 @@ const VideoManagement = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+  const [showUploadForm, setShowUploadForm] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -266,6 +267,30 @@ const VideoManagement = () => {
     return MB > 1 ? `${MB.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
   };
 
+  const handleUploadSuccess = () => {
+    setShowUploadForm(false);
+    fetchVideos(); // Refresh the video list
+    toast({
+      title: "Upload Complete",
+      description: "Video has been uploaded successfully",
+    });
+  };
+
+  const handleUploadCancel = () => {
+    setShowUploadForm(false);
+  };
+
+  if (showUploadForm) {
+    return (
+      <div className="space-y-6">
+        <VideoUploadForm
+          onSuccess={handleUploadSuccess}
+          onCancel={handleUploadCancel}
+        />
+      </div>
+    );
+  }
+
   if (showAnalysis && selectedVideo) {
     return (
       <EnhancedVideoAnalysis
@@ -305,7 +330,10 @@ const VideoManagement = () => {
           </p>
         </div>
 
-        <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
+        <Button 
+          onClick={() => setShowUploadForm(true)}
+          className="bg-bright-pink hover:bg-bright-pink/90 text-white"
+        >
           <Upload className="w-4 h-4 mr-2" />
           Upload New Video
         </Button>
