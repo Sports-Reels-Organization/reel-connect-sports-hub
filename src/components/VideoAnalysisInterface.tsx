@@ -1,17 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Play, 
   CheckCircle, 
   XCircle, 
   Clock, 
-  TrendingUp, 
-  Target,
   AlertTriangle,
   RefreshCw
 } from 'lucide-react';
@@ -69,45 +66,26 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
       }
 
       if (data) {
-        // Safely handle the game_context JSON field
+        // Parse the game_context JSON field safely
         let gameContext: Record<string, any> = {};
         
-        if (data.game_context) {
-          if (typeof data.game_context === 'object' && !Array.isArray(data.game_context)) {
-            gameContext = data.game_context as Record<string, any>;
-          }
+        if (data.game_context && typeof data.game_context === 'object') {
+          gameContext = data.game_context as Record<string, any>;
         }
         
         const analysisData: AnalysisData = {
           id: data.id,
-          analysis_summary: data.overall_assessment || 'Analysis completed.',
-          key_highlights: Array.isArray(gameContext.key_highlights) ? gameContext.key_highlights : [
-            'Video analysis completed',
-            'Player performance evaluated',
-            'Technical skills assessed'
-          ],
-          recommendations: Array.isArray(data.recommendations) ? data.recommendations : [
-            'Continue training focus',
-            'Maintain current performance level',
-            'Work on identified areas'
-          ],
-          performance_metrics: gameContext.performance_metrics && typeof gameContext.performance_metrics === 'object' 
-            ? gameContext.performance_metrics 
-            : {
-                'Overall Rating': '8.0/10',
-                'Technical Skills': '7.5/10',
-                'Performance': 'Good'
-              },
+          analysis_summary: data.overall_assessment || '',
+          key_highlights: Array.isArray(gameContext.key_highlights) ? gameContext.key_highlights : [],
+          recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+          performance_metrics: gameContext.performance_metrics || {},
           timeline_analysis: Array.isArray(gameContext.timeline_analysis) ? gameContext.timeline_analysis : [],
-          analysis_status: (data.analysis_status === 'completed' || data.analysis_status === 'failed' || data.analysis_status === 'pending') 
-            ? data.analysis_status 
-            : 'completed',
-          error_message: typeof gameContext.error_message === 'string' ? gameContext.error_message : undefined,
+          analysis_status: data.analysis_status || 'pending',
+          error_message: gameContext.error_message,
           created_at: data.created_at
         };
         setAnalysisData(analysisData);
       } else {
-        // No analysis data found
         setAnalysisData(null);
       }
     } catch (err: any) {
@@ -125,126 +103,160 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
   };
 
   return (
-    <Card className="bg-gray-800 border-gray-700 text-white">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">
-          Video Analysis: {videoTitle}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loading ? (
-          <div className="flex items-center justify-center">
-            <Clock className="mr-2 w-4 h-4 animate-spin" />
-            Loading analysis...
-          </div>
-        ) : error ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              {error}
-            </AlertDescription>
-          </Alert>
-        ) : analysisData ? (
-          <div className="space-y-4">
-            {/* Status Badge */}
-            <Badge
-              variant="secondary"
-              className={`gap-2 ${
-                analysisData.analysis_status === 'completed'
-                  ? 'bg-green-600 text-white'
-                  : analysisData.analysis_status === 'failed'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-yellow-600 text-white'
-              }`}
-            >
-              {analysisData.analysis_status === 'completed' && <CheckCircle className="w-4 h-4" />}
-              {analysisData.analysis_status === 'failed' && <XCircle className="w-4 h-4" />}
-              {analysisData.analysis_status === 'pending' && <Clock className="w-4 h-4" />}
-              {analysisData.analysis_status.toUpperCase()}
-            </Badge>
-
-            {/* Analysis Summary */}
-            <div className="space-y-2">
-              <h3 className="text-md font-semibold">Analysis Summary</h3>
-              <p className="text-gray-400">{analysisData.analysis_summary}</p>
+    <div className="w-full max-w-none">
+      <Card className="bg-gray-800 border-gray-700 text-white">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold break-words">
+            Video Analysis: {videoTitle}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Clock className="mr-2 w-5 h-5 animate-spin" />
+              <span>Loading analysis...</span>
             </div>
+          ) : error ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="break-words">
+                {error}
+              </AlertDescription>
+            </Alert>
+          ) : analysisData ? (
+            <div className="space-y-6">
+              {/* Status Badge */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant="secondary"
+                  className={`gap-2 ${
+                    analysisData.analysis_status === 'completed'
+                      ? 'bg-green-600 text-white'
+                      : analysisData.analysis_status === 'failed'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-yellow-600 text-white'
+                  }`}
+                >
+                  {analysisData.analysis_status === 'completed' && <CheckCircle className="w-4 h-4" />}
+                  {analysisData.analysis_status === 'failed' && <XCircle className="w-4 h-4" />}
+                  {analysisData.analysis_status === 'pending' && <Clock className="w-4 h-4" />}
+                  {analysisData.analysis_status.toUpperCase()}
+                </Badge>
+              </div>
 
-            {/* Key Highlights */}
-            <div className="space-y-2">
-              <h3 className="text-md font-semibold">Key Highlights</h3>
-              <ul className="list-disc pl-5 text-gray-400">
-                {analysisData.key_highlights.map((highlight, index) => (
-                  <li key={index}>{highlight}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Recommendations */}
-            <div className="space-y-2">
-              <h3 className="text-md font-semibold">Recommendations</h3>
-              <ul className="list-disc pl-5 text-gray-400">
-                {analysisData.recommendations.map((recommendation, index) => (
-                  <li key={index}>{recommendation}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Performance Metrics */}
-            <div className="space-y-2">
-              <h3 className="text-md font-semibold">Performance Metrics</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(analysisData.performance_metrics).map(([metric, value]) => (
-                  <div key={metric} className="bg-gray-700 p-3 rounded-md">
-                    <p className="text-sm font-medium">{metric}</p>
-                    <p className="text-lg font-semibold">{value}</p>
+              {/* Analysis Summary */}
+              {analysisData.analysis_summary && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-white">Analysis Summary</h3>
+                  <div className="bg-gray-700 p-4 rounded-lg">
+                    <p className="text-gray-300 leading-relaxed break-words whitespace-pre-wrap">
+                      {analysisData.analysis_summary}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Timeline Analysis */}
-            {analysisData.timeline_analysis && analysisData.timeline_analysis.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-md font-semibold">Timeline Analysis</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-700">
-                    <thead>
-                      <tr>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-300">Timestamp</th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-300">Event</th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-300">Description</th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-300">Category</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-700">
-                      {analysisData.timeline_analysis.map((event, index) => (
-                        <tr key={index}>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-400">{event.timestamp}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-400">{event.event}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-400">{event.description}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-400">{event.category}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <Alert variant="default">
-            <AlertDescription>
-              No analysis data found for this video.
-            </AlertDescription>
-          </Alert>
-        )}
-        {analysisData?.analysis_status === 'failed' && onRetryAnalysis && (
-          <Button onClick={handleRetry} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Retry Analysis
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+              )}
+
+              {/* Key Highlights */}
+              {analysisData.key_highlights.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-white">Key Highlights</h3>
+                  <div className="space-y-2">
+                    {analysisData.key_highlights.map((highlight, index) => (
+                      <div key={index} className="bg-blue-900/30 border-l-4 border-blue-500 p-3 rounded-r-lg">
+                        <p className="text-gray-300 break-words">{highlight}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {analysisData.recommendations.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-white">Recommendations</h3>
+                  <div className="space-y-2">
+                    {analysisData.recommendations.map((recommendation, index) => (
+                      <div key={index} className="bg-green-900/30 border-l-4 border-green-500 p-3 rounded-r-lg">
+                        <p className="text-gray-300 break-words">{recommendation}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Performance Metrics */}
+              {Object.keys(analysisData.performance_metrics).length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-white">Performance Metrics</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(analysisData.performance_metrics).map(([metric, value]) => (
+                      <div key={metric} className="bg-gray-700 p-4 rounded-lg">
+                        <p className="text-sm font-medium text-gray-400 break-words">{metric}</p>
+                        <p className="text-lg font-semibold text-white break-words">
+                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline Analysis */}
+              {analysisData.timeline_analysis && analysisData.timeline_analysis.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-white">Timeline Analysis</h3>
+                  <div className="overflow-x-auto">
+                    <div className="min-w-full">
+                      <div className="space-y-3">
+                        {analysisData.timeline_analysis.map((event, index) => (
+                          <div key={index} className="bg-gray-700 p-4 rounded-lg">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                              <Badge variant="outline" className="border-rosegold text-rosegold w-fit">
+                                {Math.floor(event.timestamp / 60)}:{(event.timestamp % 60).toString().padStart(2, '0')}
+                              </Badge>
+                              <Badge variant="secondary" className="w-fit">
+                                {event.category}
+                              </Badge>
+                            </div>
+                            <h4 className="font-medium text-white mb-1 break-words">{event.event}</h4>
+                            <p className="text-sm text-gray-300 break-words">{event.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {analysisData.error_message && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="break-words">
+                    {analysisData.error_message}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          ) : (
+            <Alert variant="default">
+              <AlertDescription>
+                No analysis data found for this video.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {analysisData?.analysis_status === 'failed' && onRetryAnalysis && (
+            <Button 
+              onClick={handleRetry} 
+              className="w-full sm:w-auto bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry Analysis
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
