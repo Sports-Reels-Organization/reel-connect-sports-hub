@@ -168,19 +168,19 @@ const VideoManagement = () => {
     }
 
     // Player filter
-    if (filterPlayer && filterPlayer !== 'all') {
+    if (filterPlayer) {
       filtered = filtered.filter(video =>
         video.tagged_players.includes(filterPlayer)
       );
     }
 
     // Status filter
-    if (filterStatus && filterStatus !== 'all') {
+    if (filterStatus) {
       filtered = filtered.filter(video => video.ai_analysis_status === filterStatus);
     }
 
     // Tag filter
-    if (filterTag && filterTag !== 'all') {
+    if (filterTag) {
       filtered = filtered.filter(video =>
         video.tags.includes(filterTag)
       );
@@ -342,8 +342,8 @@ const VideoManagement = () => {
                   <SelectTrigger className="bg-gray-700 border-gray-600">
                     <SelectValue placeholder="Filter by Player" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
-                    <SelectItem value="all">All Players</SelectItem>
+                  <SelectContent>
+                    <SelectItem value="">All Players</SelectItem>
                     {players.map((player) => (
                       <SelectItem key={player.id} value={player.id}>
                         {player.full_name}
@@ -356,8 +356,8 @@ const VideoManagement = () => {
                   <SelectTrigger className="bg-gray-700 border-gray-600">
                     <SelectValue placeholder="Analysis Status" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
-                    <SelectItem value="all">All Status</SelectItem>
+                  <SelectContent>
+                    <SelectItem value="">All Status</SelectItem>
                     <SelectItem value="completed">Analyzed</SelectItem>
                     <SelectItem value="analyzing">Analyzing</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
@@ -369,8 +369,8 @@ const VideoManagement = () => {
                   <SelectTrigger className="bg-gray-700 border-gray-600">
                     <SelectValue placeholder="Filter by Tag" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
-                    <SelectItem value="all">All Tags</SelectItem>
+                  <SelectContent>
+                    <SelectItem value="">All Tags</SelectItem>
                     <SelectItem value="highlight">Highlights</SelectItem>
                     <SelectItem value="training">Training</SelectItem>
                     <SelectItem value="match">Match</SelectItem>
@@ -382,9 +382,9 @@ const VideoManagement = () => {
                   variant="outline"
                   onClick={() => {
                     setSearchTerm('');
-                    setFilterPlayer('all');
-                    setFilterStatus('all');
-                    setFilterTag('all');
+                    setFilterPlayer('');
+                    setFilterStatus('');
+                    setFilterTag('');
                   }}
                   className="border-gray-600"
                 >
