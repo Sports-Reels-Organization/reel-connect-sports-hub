@@ -58,7 +58,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('video_analysis')
+        .from('enhanced_video_analysis')
         .select('*')
         .eq('video_id', videoId)
         .single();
@@ -67,7 +67,9 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         throw error;
       }
 
-      setAnalysisData(data);
+      if (data) {
+        setAnalysisData(data as AnalysisData);
+      }
     } catch (error) {
       console.error('Error fetching analysis data:', error);
       toast({
