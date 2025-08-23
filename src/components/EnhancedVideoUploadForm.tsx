@@ -245,7 +245,6 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
       
       try {
         const analysisResult = await analyzeVideoWithGemini({
-          videoId: videoData.id,
           videoUrl: urlData.publicUrl,
           videoType,
           videoTitle: title,
