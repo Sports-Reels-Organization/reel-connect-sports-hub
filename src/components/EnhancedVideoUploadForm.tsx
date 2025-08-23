@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -171,15 +170,16 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
       const { error: uploadError } = await supabase.storage
         .from('videos')
-        .upload(filePath, compressedFile, {
-          onUploadProgress: (progress) => {
-            setUploadProgress((progress.loaded / progress.total) * 100);
-          }
-        });
+        .upload(filePath, compressedFile);
 
       if (uploadError) throw uploadError;
 
       setUploadProgress(100);
+
+      // Get the public URL for the uploaded video
+      const { data: urlData } = supabase.storage
+        .from('videos')
+        .getPublicUrl(filePath);
 
       // Step 3: Save video metadata to database
       const { data: videoData, error: dbError } = await supabase
@@ -188,16 +188,14 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
           title,
           description,
           video_type: videoType,
-          file_path: filePath,
+          video_url: urlData.publicUrl,
           file_size: compressedFile.size,
           duration: videoDuration,
           profile_id: profile.id,
           tagged_players: selectedPlayers.map(p => p.playerId),
-          match_details: videoType === 'match' ? {
-            homeTeam,
-            awayTeam,
-            finalScore
-          } : null
+          home_team: videoType === 'match' ? homeTeam : null,
+          away_team: videoType === 'match' ? awayTeam : null,
+          final_score: videoType === 'match' ? finalScore : null
         })
         .select()
         .single();

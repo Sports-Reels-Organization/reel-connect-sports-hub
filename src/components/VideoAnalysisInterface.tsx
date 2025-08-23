@@ -68,7 +68,19 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
       }
 
       if (data) {
-        setAnalysisData(data as AnalysisData);
+        // Ensure the data matches our AnalysisData interface
+        const analysisData: AnalysisData = {
+          id: data.id,
+          analysis_summary: data.analysis_summary || 'Analysis completed.',
+          key_highlights: Array.isArray(data.key_highlights) ? data.key_highlights : [],
+          recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+          performance_metrics: data.performance_metrics || {},
+          timeline_analysis: Array.isArray(data.timeline_analysis) ? data.timeline_analysis : [],
+          analysis_status: data.analysis_status || 'completed',
+          error_message: data.error_message,
+          created_at: data.created_at
+        };
+        setAnalysisData(analysisData);
       }
     } catch (error) {
       console.error('Error fetching analysis data:', error);
