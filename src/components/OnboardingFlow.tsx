@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -210,6 +211,7 @@ const OnboardingFlow = () => {
       const { error: teamError } = await supabase
         .from('teams')
         .insert({
+          team_name: teamInfo.team_name,
           league: teamInfo.league,
           country: teamInfo.country,
           sport_type: teamInfo.sport_type as "football" | "basketball" | "volleyball" | "tennis" | "rugby",
