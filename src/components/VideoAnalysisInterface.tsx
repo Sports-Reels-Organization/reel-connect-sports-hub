@@ -1,37 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Play, 
   CheckCircle, 
   XCircle, 
   Clock, 
-  TrendingUp, 
-  Target,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  FileText
 } from 'lucide-react';
-
-interface AnalysisData {
-  id: string;
-  analysis_summary: string;
-  key_highlights: string[];
-  recommendations: string[];
-  performance_metrics: Record<string, any>;
-  timeline_analysis: Array<{
-    timestamp: number;
-    event: string;
-    description: string;
-    category: string;
-  }>;
-  analysis_status: 'completed' | 'failed' | 'pending';
-  error_message?: string;
-  created_at: string;
-}
 
 interface VideoAnalysisInterfaceProps {
   videoId: string;
@@ -44,7 +25,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
   videoTitle,
   onRetryAnalysis
 }) => {
-  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
+  const [analysisData, setAnalysisData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,57 +38,45 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
       setLoading(true);
       setError(null);
 
-      // Fetch analysis data from enhanced_video_analysis table
-      const { data, error } = await supabase
-        .from('enhanced_video_analysis')
-        .select('*')
-        .eq('video_id', videoId)
+      // Try to fetch from videos table first
+      const { data: videoData, error: videoError } = await supabase
+        .from('videos')
+        .select('ai_analysis, ai_analysis_status')
+        .eq('id', videoId)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
+      if (videoError && videoError.code !== 'PGRST116') {
+        // If not found in videos table, try match_videos table
+        const { data: matchVideoData, error: matchVideoError } = await supabase
+          .from('match_videos')
+          .select('ai_analysis, ai_analysis_status')
+          .eq('id', videoId)
+          .maybeSingle();
 
-      if (data) {
-        // Safely handle the game_context JSON field
-        let gameContext: Record<string, any> = {};
-        
-        if (data.game_context) {
-          if (typeof data.game_context === 'object' && !Array.isArray(data.game_context)) {
-            gameContext = data.game_context as Record<string, any>;
-          }
+        if (matchVideoError && matchVideoError.code !== 'PGRST116') {
+          throw matchVideoError;
         }
-        
-        const analysisData: AnalysisData = {
-          id: data.id,
-          analysis_summary: data.overall_assessment || 'Analysis completed.',
-          key_highlights: Array.isArray(gameContext.key_highlights) ? gameContext.key_highlights : [
-            'Video analysis completed',
-            'Player performance evaluated',
-            'Technical skills assessed'
-          ],
-          recommendations: Array.isArray(data.recommendations) ? data.recommendations : [
-            'Continue training focus',
-            'Maintain current performance level',
-            'Work on identified areas'
-          ],
-          performance_metrics: gameContext.performance_metrics && typeof gameContext.performance_metrics === 'object' 
-            ? gameContext.performance_metrics 
-            : {
-                'Overall Rating': '8.0/10',
-                'Technical Skills': '7.5/10',
-                'Performance': 'Good'
-              },
-          timeline_analysis: Array.isArray(gameContext.timeline_analysis) ? gameContext.timeline_analysis : [],
-          analysis_status: (data.analysis_status === 'completed' || data.analysis_status === 'failed' || data.analysis_status === 'pending') 
-            ? data.analysis_status 
-            : 'completed',
-          error_message: typeof gameContext.error_message === 'string' ? gameContext.error_message : undefined,
-          created_at: data.created_at
-        };
-        setAnalysisData(analysisData);
+
+        if (matchVideoData?.ai_analysis) {
+          setAnalysisData({
+            analysis: matchVideoData.ai_analysis.analysis || 'Analysis completed.',
+            analysis_status: matchVideoData.ai_analysis_status || 'completed',
+            video_type: matchVideoData.ai_analysis.video_type || 'match',
+            analyzed_at: matchVideoData.ai_analysis.analyzed_at,
+            model_used: matchVideoData.ai_analysis.model_used || 'gemini-2.0-flash-exp'
+          });
+        } else {
+          setAnalysisData(null);
+        }
+      } else if (videoData?.ai_analysis) {
+        setAnalysisData({
+          analysis: videoData.ai_analysis.analysis || 'Analysis completed.',
+          analysis_status: videoData.ai_analysis_status || 'completed',
+          video_type: videoData.ai_analysis.video_type || 'unknown',
+          analyzed_at: videoData.ai_analysis.analyzed_at,
+          model_used: videoData.ai_analysis.model_used || 'gemini-2.0-flash-exp'
+        });
       } else {
-        // No analysis data found
         setAnalysisData(null);
       }
     } catch (err: any) {
@@ -124,122 +93,127 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
     }
   };
 
+  const formatAnalysisText = (text: string) => {
+    // Split by sections and format with proper styling
+    const sections = text.split(/\*\*([^*]+)\*\*/g);
+    const formattedSections = [];
+    
+    for (let i = 0; i < sections.length; i++) {
+      if (i % 2 === 1) {
+        // This is a header
+        formattedSections.push(
+          <h3 key={i} className="text-lg font-semibold text-white mt-6 mb-3 border-b border-gray-600 pb-2">
+            {sections[i]}
+          </h3>
+        );
+      } else if (sections[i].trim()) {
+        // This is content
+        const content = sections[i].trim();
+        const lines = content.split('\n').filter(line => line.trim());
+        
+        formattedSections.push(
+          <div key={i} className="space-y-2 mb-4">
+            {lines.map((line, lineIndex) => {
+              if (line.startsWith('- ')) {
+                return (
+                  <div key={lineIndex} className="flex items-start gap-2 text-gray-300">
+                    <span className="text-bright-pink mt-1">•</span>
+                    <span className="flex-1">{line.substring(2)}</span>
+                  </div>
+                );
+              } else if (line.trim()) {
+                return (
+                  <p key={lineIndex} className="text-gray-300 leading-relaxed">
+                    {line}
+                  </p>
+                );
+              }
+              return null;
+            })}
+          </div>
+        );
+      }
+    }
+    
+    return formattedSections;
+  };
+
   return (
-    <Card className="bg-gray-800 border-gray-700 text-white">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">
-          Video Analysis: {videoTitle}
+    <Card className="bg-gray-800 border-gray-700 text-white w-full">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2 break-words">
+          <FileText className="w-5 h-5 text-bright-pink flex-shrink-0" />
+          <span className="break-words">AI Analysis: {videoTitle}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center py-8">
             <Clock className="mr-2 w-4 h-4 animate-spin" />
-            Loading analysis...
+            <span>Loading analysis...</span>
           </div>
         ) : error ? (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              {error}
-            </AlertDescription>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : analysisData ? (
           <div className="space-y-4">
             {/* Status Badge */}
-            <Badge
-              variant="secondary"
-              className={`gap-2 ${
-                analysisData.analysis_status === 'completed'
-                  ? 'bg-green-600 text-white'
-                  : analysisData.analysis_status === 'failed'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-yellow-600 text-white'
-              }`}
-            >
-              {analysisData.analysis_status === 'completed' && <CheckCircle className="w-4 h-4" />}
-              {analysisData.analysis_status === 'failed' && <XCircle className="w-4 h-4" />}
-              {analysisData.analysis_status === 'pending' && <Clock className="w-4 h-4" />}
-              {analysisData.analysis_status.toUpperCase()}
-            </Badge>
-
-            {/* Analysis Summary */}
-            <div className="space-y-2">
-              <h3 className="text-md font-semibold">Analysis Summary</h3>
-              <p className="text-gray-400">{analysisData.analysis_summary}</p>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <Badge
+                variant="secondary"
+                className={`gap-2 ${
+                  analysisData.analysis_status === 'completed'
+                    ? 'bg-green-600 text-white'
+                    : analysisData.analysis_status === 'failed'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-yellow-600 text-white'
+                }`}
+              >
+                {analysisData.analysis_status === 'completed' && <CheckCircle className="w-4 h-4" />}
+                {analysisData.analysis_status === 'failed' && <XCircle className="w-4 h-4" />}
+                {analysisData.analysis_status === 'pending' && <Clock className="w-4 h-4" />}
+                {analysisData.analysis_status.toUpperCase()}
+              </Badge>
+              
+              {analysisData.model_used && (
+                <Badge variant="outline" className="text-xs">
+                  {analysisData.model_used}
+                </Badge>
+              )}
             </div>
 
-            {/* Key Highlights */}
-            <div className="space-y-2">
-              <h3 className="text-md font-semibold">Key Highlights</h3>
-              <ul className="list-disc pl-5 text-gray-400">
-                {analysisData.key_highlights.map((highlight, index) => (
-                  <li key={index}>{highlight}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Recommendations */}
-            <div className="space-y-2">
-              <h3 className="text-md font-semibold">Recommendations</h3>
-              <ul className="list-disc pl-5 text-gray-400">
-                {analysisData.recommendations.map((recommendation, index) => (
-                  <li key={index}>{recommendation}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Performance Metrics */}
-            <div className="space-y-2">
-              <h3 className="text-md font-semibold">Performance Metrics</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(analysisData.performance_metrics).map(([metric, value]) => (
-                  <div key={metric} className="bg-gray-700 p-3 rounded-md">
-                    <p className="text-sm font-medium">{metric}</p>
-                    <p className="text-lg font-semibold">{value}</p>
-                  </div>
-                ))}
+            {/* Analysis Content */}
+            <div className="bg-gray-900/50 rounded-lg p-4 max-w-full overflow-hidden">
+              <div className="prose prose-invert max-w-none break-words">
+                {formatAnalysisText(analysisData.analysis)}
               </div>
             </div>
 
-            {/* Timeline Analysis */}
-            {analysisData.timeline_analysis && analysisData.timeline_analysis.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-md font-semibold">Timeline Analysis</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-700">
-                    <thead>
-                      <tr>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-300">Timestamp</th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-300">Event</th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-300">Description</th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-300">Category</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-700">
-                      {analysisData.timeline_analysis.map((event, index) => (
-                        <tr key={index}>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-400">{event.timestamp}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-400">{event.event}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-400">{event.description}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-400">{event.category}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            {/* Analysis Metadata */}
+            {analysisData.analyzed_at && (
+              <div className="text-xs text-gray-400 border-t border-gray-700 pt-3">
+                <span>Analyzed on: {new Date(analysisData.analyzed_at).toLocaleString()}</span>
+                {analysisData.video_type && (
+                  <span className="ml-4">Type: {analysisData.video_type}</span>
+                )}
               </div>
             )}
           </div>
         ) : (
           <Alert variant="default">
             <AlertDescription>
-              No analysis data found for this video.
+              No AI analysis available for this video yet.
             </AlertDescription>
           </Alert>
         )}
+        
         {analysisData?.analysis_status === 'failed' && onRetryAnalysis && (
-          <Button onClick={handleRetry} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+          <Button 
+            onClick={handleRetry} 
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto"
+          >
             <RefreshCw className="w-4 h-4 mr-2" />
             Retry Analysis
           </Button>

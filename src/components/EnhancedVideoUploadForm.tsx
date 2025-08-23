@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Upload, X, Play, FileVideo, Loader2, User, ArrowLeft } from 'lucide-react';
 import { EnhancedPlayerTagging } from './EnhancedPlayerTagging';
 import { smartCompress } from '@/services/fastVideoCompressionService';
+import { analyzeVideoWithGemini } from '@/services/geminiAnalysisService';
 
 interface PlayerWithJersey {
   playerId: string;
@@ -198,7 +199,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
             title,
             video_url: urlData.publicUrl,
             file_size: compressedFile.size,
-            duration: Math.floor(videoDuration), // Convert to integer
+            duration: Math.floor(videoDuration),
             team_id: teamData.id,
             tagged_players: selectedPlayers.map(p => ({
               playerId: p.playerId,
@@ -208,7 +209,8 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
             opposing_team: awayTeam,
             league: 'Unknown',
             final_score: finalScore,
-            match_date: new Date().toISOString().split('T')[0]
+            match_date: new Date().toISOString().split('T')[0],
+            ai_analysis_status: 'pending'
           })
           .select()
           .single();
@@ -225,10 +227,11 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
             video_type: videoType,
             video_url: urlData.publicUrl,
             file_size: compressedFile.size,
-            duration: Math.floor(videoDuration), // Convert to integer
+            duration: Math.floor(videoDuration),
             team_id: teamData.id,
             tagged_players: selectedPlayers.map(p => p.playerId),
-            is_public: false
+            is_public: false,
+            ai_analysis_status: 'pending'
           })
           .select()
           .single();
@@ -237,39 +240,65 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
         videoData = data;
       }
 
-      // Step 5: Start AI Analysis using Supabase Edge Function
+      // Step 5: Start AI Analysis using Gemini service
       setCurrentStep('analyzing');
       
       try {
-        const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-video', {
-          body: {
-            videoId: videoData.id,
-            videoUrl: urlData.publicUrl,
-            videoType,
-            videoTitle: title,
-            videoDescription: description,
-            opposingTeam: videoType === 'match' ? awayTeam : undefined,
-            playerStats: {},
-            taggedPlayers: selectedPlayers
-          }
+        const analysisResult = await analyzeVideoWithGemini({
+          videoId: videoData.id,
+          videoUrl: urlData.publicUrl,
+          videoType,
+          videoTitle: title,
+          videoDescription: description,
+          opposingTeam: videoType === 'match' ? awayTeam : undefined,
+          taggedPlayers: selectedPlayers,
+          finalScore: videoType === 'match' ? finalScore : undefined
         });
 
-        if (analysisError) {
-          console.error('Analysis error:', analysisError);
-          // Don't throw here - video upload was successful
-        } else {
-          console.log('Analysis completed:', analysisData);
+        // Update the video record with analysis results
+        const tableName = videoType === 'match' ? 'match_videos' : 'videos';
+        
+        const { error: updateError } = await supabase
+          .from(tableName)
+          .update({
+            ai_analysis: analysisResult,
+            ai_analysis_status: 'completed'
+          })
+          .eq('id', videoData.id);
+
+        if (updateError) {
+          console.error('Error saving analysis to database:', updateError);
+          // Update status to failed if we can't save
+          await supabase
+            .from(tableName)
+            .update({ ai_analysis_status: 'failed' })
+            .eq('id', videoData.id);
         }
-      } catch (analysisError) {
-        console.error('Error calling analysis function:', analysisError);
-        // Don't throw here - video upload was successful
+
+        console.log('Analysis completed and saved:', analysisResult);
+      } catch (analysisError: any) {
+        console.error('AI analysis failed:', analysisError);
+        
+        // Update status to failed
+        const tableName = videoType === 'match' ? 'match_videos' : 'videos';
+        await supabase
+          .from(tableName)
+          .update({ 
+            ai_analysis_status: 'failed',
+            ai_analysis: {
+              error_message: analysisError.message,
+              analyzed_at: new Date().toISOString(),
+              model_used: 'gemini-2.0-flash-exp'
+            }
+          })
+          .eq('id', videoData.id);
       }
 
       setAnalysisProgress(100);
 
       toast({
         title: "Upload Successful",
-        description: "Your video has been uploaded and analysis is in progress!",
+        description: "Your video has been uploaded and AI analysis is complete!",
       });
 
       if (onSuccess) onSuccess();
