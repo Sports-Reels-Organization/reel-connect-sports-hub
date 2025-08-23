@@ -6,11 +6,14 @@ import OnboardingFlow from '@/components/OnboardingFlow';
 import Layout from '@/components/Layout';
 import Dashboard from '@/components/Dashboard';
 import Homepage from '@/components/Homepage';
+import { useLocation } from 'react-router-dom';
 
 const Index = () => {
   const { user, profile, loading } = useAuth();
+  const location = useLocation();
+  const showAuth = location.pathname === '/auth' || location.search.includes('auth=true');
 
-  console.log('Index render - loading:', loading, 'user:', !!user, 'profile:', !!profile);
+  console.log('Index render - loading:', loading, 'user:', !!user, 'profile:', !!profile, 'showAuth:', showAuth);
 
   if (loading) {
     return (
@@ -27,8 +30,8 @@ const Index = () => {
   }
 
   if (!user) {
-    console.log('No user found, showing homepage');
-    return <Homepage />;
+    console.log('No user found, showing auth or homepage');
+    return showAuth ? <AuthForm /> : <Homepage />;
   }
 
   if (!profile?.profile_completed) {
