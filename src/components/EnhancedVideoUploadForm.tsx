@@ -250,8 +250,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
           videoTitle: title,
           videoDescription: description,
           opposingTeam: videoType === 'match' ? awayTeam : undefined,
-          taggedPlayers: selectedPlayers,
-          finalScore: videoType === 'match' ? finalScore : undefined
+          taggedPlayers: selectedPlayers
         });
 
         // Update the video record with analysis results
