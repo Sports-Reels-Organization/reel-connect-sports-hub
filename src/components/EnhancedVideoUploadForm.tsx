@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Calendar } from "@/components/ui/calendar"
@@ -20,20 +19,23 @@ import { CalendarIcon } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Listbox } from '@headlessui/react'
 import { supabase } from '@/integrations/supabase/client';
+import { analyzeVideoWithGemini } from '@/services/geminiAnalysisService';
 
 interface EnhancedVideoUploadFormProps {
   onVideoUploaded?: (videoData: any) => void;
   teamId: string | null;
   defaultVideoType?: string;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   onVideoUploaded,
   teamId,
-  defaultVideoType = 'match'
+  defaultVideoType = 'match',
+  onSuccess,
+  onCancel
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
@@ -57,35 +59,71 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
     try {
       console.log('Starting AI analysis for video:', videoData.id);
       
-      // Get player names from taggedPlayers (they should be names, not IDs)
       const playerNames = taggedPlayers.map(player => player.trim()).filter(Boolean);
       
-      const analysisPayload = {
-        videoId: videoData.id,
-        videoUrl: videoData.video_url,
-        videoType: videoType,
+      const analysisParams = {
+        playerTags: playerNames,
+        videoType: videoType as 'match' | 'interview' | 'training' | 'highlight',
         videoTitle: title,
         videoDescription: description,
-        opposingTeam: opposingTeam || 'Unknown',
-        playerStats: playerStats || {},
-        taggedPlayers: playerNames // Use actual player names
+        duration: Math.floor(await getVideoDuration(selectedFile!)),
+        opposingTeam: opposingTeam || undefined,
+        playerStats: playerStats || undefined,
+        matchDetails: videoType === 'match' && opposingTeam ? {
+          homeTeam: homeOrAway === 'home' ? 'Your Team' : opposingTeam,
+          awayTeam: homeOrAway === 'away' ? 'Your Team' : opposingTeam,
+          league: league || 'Unknown League',
+          finalScore: finalScore || 'N/A'
+        } : undefined
       };
 
-      console.log('Analysis payload:', analysisPayload);
+      const analysisResult = await analyzeVideoWithGemini(analysisParams);
+      
+      // Save analysis to database
+      const { error: analysisError } = await supabase
+        .from('enhanced_video_analysis')
+        .upsert({
+          video_id: videoData.id,
+          analysis_status: analysisResult.analysisStatus,
+          overall_assessment: analysisResult.summary,
+          recommendations: analysisResult.recommendations,
+          game_context: {
+            key_highlights: analysisResult.keyHighlights,
+            performance_metrics: analysisResult.performanceMetrics,
+            video_type: videoType,
+            analyzed_players: playerNames.join(', '),
+            analysis_model: 'gemini-2.5-pro',
+            analysis_timestamp: new Date().toISOString(),
+            error_message: analysisResult.errorMessage
+          }
+        }, {
+          onConflict: 'video_id'
+        });
 
-      const { data, error } = await supabase.functions.invoke('analyze-video', {
-        body: analysisPayload
-      });
-
-      if (error) {
-        console.error('Analysis function error:', error);
-        throw error;
+      if (analysisError) {
+        console.error('Error saving analysis to database:', analysisError);
+      } else {
+        console.log('AI analysis completed and saved successfully');
       }
 
-      console.log('AI analysis completed:', data);
     } catch (error) {
       console.error('Error analyzing video with Gemini:', error);
-      // Don't throw error - video upload should continue even if analysis fails
+      
+      // Save failed analysis to database
+      await supabase
+        .from('enhanced_video_analysis')
+        .upsert({
+          video_id: videoData.id,
+          analysis_status: 'failed',
+          overall_assessment: null,
+          recommendations: [],
+          game_context: {
+            error_message: error instanceof Error ? error.message : 'Unknown error occurred',
+            failed_at: new Date().toISOString()
+          }
+        }, {
+          onConflict: 'video_id'
+        });
     }
   };
 
@@ -235,16 +273,14 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
       setProgressMessage('Saving video information...');
 
-      // Prepare tagged players as names (not IDs)
       const playerTagsData = taggedPlayers
         .map(player => player.trim())
         .filter(Boolean);
 
-      // Prepare match statistics with player names
       const matchStatsData = playerStats ? 
         Object.fromEntries(
           Object.entries(playerStats).map(([playerName, stats]) => [
-            playerName, // Use player name as key
+            playerName,
             stats
           ])
         ) : {};
@@ -261,7 +297,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
           duration: durationInSeconds,
           tagged_players: playerTagsData,
           match_stats: matchStatsData,
-          match_date: matchDate || null,
+          match_date: matchDate?.toISOString().split('T')[0] || null,
           home_or_away: homeOrAway || null,
           opposing_team: opposingTeam || '',
           league: league || '',
@@ -307,7 +343,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
       setTaggedPlayers([]);
       setPlayerStats({});
       setVideoType('match');
-      setMatchDate('');
+      setMatchDate(undefined);
       setHomeOrAway('');
       setOpposingTeam('');
       setLeague('');
@@ -315,6 +351,10 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
       if (onVideoUploaded) {
         onVideoUploaded(videoData);
+      }
+
+      if (onSuccess) {
+        onSuccess();
       }
 
     } catch (error: any) {
@@ -503,9 +543,16 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
         )}
       </CardContent>
       <CardFooter>
-        <Button disabled={isUploading} onClick={handleSubmit}>
-          {isUploading ? 'Uploading...' : 'Upload Video'}
-        </Button>
+        <div className="flex gap-2 w-full">
+          <Button disabled={isUploading} onClick={handleSubmit} className="flex-1">
+            {isUploading ? 'Uploading...' : 'Upload Video'}
+          </Button>
+          {onCancel && (
+            <Button variant="outline" onClick={onCancel} disabled={isUploading}>
+              Cancel
+            </Button>
+          )}
+        </div>
       </CardFooter>
     </Card>
   );
