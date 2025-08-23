@@ -172,7 +172,7 @@ const OnboardingFlow = () => {
       const { error: agentError } = await supabase
         .from('agents')
         .insert({
-          profile_id: user.id, // This should match the actual column name in agents table
+          profile_id: user.id,
           agency_name: agentInfo.agency_name,
           specialization: agentInfo.specialization as ("football" | "basketball" | "volleyball" | "tennis" | "rugby")[],
           fifa_id: agentInfo.fifa_id || null,
@@ -210,10 +210,10 @@ const OnboardingFlow = () => {
       const { error: teamError } = await supabase
         .from('teams')
         .insert({
-          team_name: teamInfo.team_name,
+          name: teamInfo.team_name,
           league: teamInfo.league,
           country: teamInfo.country,
-          sport_type: teamInfo.sport_type,
+          sport_type: teamInfo.sport_type as "football" | "basketball" | "volleyball" | "tennis" | "rugby",
           year_founded: teamInfo.founded_year ? parseInt(teamInfo.founded_year) : null,
           profile_id: user.id
         });
