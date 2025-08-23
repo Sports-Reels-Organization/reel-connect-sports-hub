@@ -1,100 +1,88 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useSports } from '@/hooks/useSports';
 import { useCountries } from '@/hooks/useCountries';
 import { useCountryCodes } from '@/hooks/useCountryCodes';
-import { useSports } from '@/hooks/useSports';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, User, Building, Globe, Trophy, CheckCircle } from 'lucide-react';
-
-interface BasicInfo {
-  full_name: string;
-  email: string;
-  country: string;
-  phone: string;
-  country_code: string;
-}
-
-interface AgentInfo {
-  agency_name: string;
-  specialization: string[];
-  fifa_id?: string;
-  license_number?: string;
-}
-
-interface TeamInfo {
-  team_name: string;
-  league: string;
-  country: string;
-  sport_type: string;
-  founded_year?: string;
-}
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AllowedSportType, requiresFifaId, isAllowedSportType } from '@/services/sportsService';
+import { ArrowLeft, User, Building, Users } from 'lucide-react';
 
 const OnboardingFlow = () => {
   const { user, profile, updateProfile } = useAuth();
-  const { t } = useLanguage();
   const { toast } = useToast();
-  const { countries } = useCountries();
-  const { countryCodes } = useCountryCodes();
-  const { sports } = useSports();
-
-  const [currentStep, setCurrentStep] = useState(1);
+  const { sports, loading: sportsLoading } = useSports();
+  const { countries, loading: countriesLoading, error: countriesError } = useCountries();
+  const { countryCodes, loading: countryCodesLoading } = useCountryCodes();
   const [loading, setLoading] = useState(false);
-  const [userType, setUserType] = useState<'agent' | 'team'>('team');
+  const [step, setStep] = useState(1);
 
-  const [basicInfo, setBasicInfo] = useState<BasicInfo>({
-    full_name: '',
-    email: '',
-    country: '',
-    phone: '',
-    country_code: ''
+  // Form data
+  const [basicInfo, setBasicInfo] = useState({
+    full_name: profile?.full_name || '',
+    phone: profile?.phone || '',
+    country: profile?.country || '',
+    country_code: profile?.country_code || '+91'
   });
 
-  const [agentInfo, setAgentInfo] = useState<AgentInfo>({
-    agency_name: '',
-    specialization: [],
-    fifa_id: '',
-    license_number: ''
-  });
-
-  const [teamInfo, setTeamInfo] = useState<TeamInfo>({
+  const [teamInfo, setTeamInfo] = useState({
     team_name: '',
+    sport_type: 'football' as AllowedSportType,
+    year_founded: '',
     league: '',
-    country: '',
-    sport_type: '',
-    founded_year: ''
+    member_association: '',
+    description: ''
   });
 
-  // Initialize user type and basic info from localStorage and user data
-  useEffect(() => {
-    // Get user type from localStorage (set during auth)
-    const pendingUserType = localStorage.getItem('pending_user_type') as 'agent' | 'team' | null;
-    if (pendingUserType) {
-      console.log('Setting user type from localStorage:', pendingUserType);
-      setUserType(pendingUserType);
-    }
+  const [agentInfo, setAgentInfo] = useState({
+    agency_name: '',
+    fifa_id: '',
+    license_number: '',
+    specialization: 'football' as AllowedSportType,
+    bio: '',
+    website: ''
+  });
 
-    // Initialize basic info from user data and profile
-    if (user) {
-      setBasicInfo(prev => ({
-        ...prev,
-        full_name: user.user_metadata?.full_name || profile?.full_name || '',
-        email: user.email || profile?.email || ''
-      }));
+  const totalSteps = profile?.user_type === 'team' ? 2 : 2;
+
+  // Update basic info state when profile changes
+  useEffect(() => {
+    if (profile) {
+      setBasicInfo({
+        full_name: profile.full_name || '',
+        phone: profile.phone || '',
+        country: profile.country || '',
+        country_code: profile.country_code || '+91'
+      });
     }
-  }, [user, profile]);
+  }, [profile]);
+
+  // Get country code based on selected country
+  const getCountryCode = (countryName: string) => {
+    const countryData = countryCodes.find(c => c.country === countryName);
+    return countryData ? countryData.code : '+91';
+  };
+
+  // Update country code when country changes
+  const handleCountryChange = (value: string) => {
+    const newCountryCode = getCountryCode(value);
+    setBasicInfo({
+      ...basicInfo,
+      country: value,
+      country_code: newCountryCode
+    });
+  };
 
   const handleBasicInfoSubmit = async () => {
-    if (!user || !basicInfo.full_name || !basicInfo.country) {
+    if (!basicInfo.full_name || !basicInfo.country) {
       toast({
-        title: "Validation Error",
+        title: "Missing Information",
         description: "Please fill in all required fields",
         variant: "destructive"
       });
@@ -103,130 +91,23 @@ const OnboardingFlow = () => {
 
     setLoading(true);
     try {
-      // Create or update profile with basic info and user type
-      const profileData = {
-        user_id: user.id,
+      await updateProfile({
         full_name: basicInfo.full_name,
-        email: basicInfo.email,
+        phone: basicInfo.phone,
         country: basicInfo.country,
-        phone: basicInfo.phone || null,
-        country_code: basicInfo.country_code || null,
-        user_type: userType,
+        country_code: basicInfo.country_code,
         profile_completed: false
-      };
-
-      const { error } = await supabase
-        .from('profiles')
-        .upsert(profileData);
-
-      if (error) throw error;
-
-      // Clear the pending user type from localStorage
-      localStorage.removeItem('pending_user_type');
-
-      // Move to the appropriate next step based on user type
-      if (userType === 'agent') {
-        setCurrentStep(2); // Agent info step
-      } else {
-        setCurrentStep(3); // Team info step
-      }
-
+      });
+      setStep(2);
       toast({
         title: "Success",
         description: "Basic information saved successfully",
       });
     } catch (error) {
-      console.error('Error saving basic info:', error);
+      console.error('Error updating basic info:', error);
       toast({
         title: "Error",
-        description: "Failed to save basic information",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAgentInfoSubmit = async () => {
-    if (!user || !agentInfo.agency_name || agentInfo.specialization.length === 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Validate football specialization requires FIFA ID
-    if (agentInfo.specialization.includes('football') && !agentInfo.fifa_id) {
-      toast({
-        title: "Validation Error",
-        description: "As a football agent, you must provide a FIFA ID",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Create agent profile - using correct column names based on schema
-      const { error: agentError } = await supabase
-        .from('agents')
-        .insert({
-          profile_id: user.id,
-          agency_name: agentInfo.agency_name,
-          specialization: agentInfo.specialization as ("football" | "basketball" | "volleyball" | "tennis" | "rugby")[],
-          fifa_id: agentInfo.fifa_id || null,
-          license_number: agentInfo.license_number || null
-        });
-
-      if (agentError) throw agentError;
-
-      setCurrentStep(4); // Final step
-    } catch (error) {
-      console.error('Error saving agent info:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save agent information",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTeamInfoSubmit = async () => {
-    if (!user || !teamInfo.team_name || !teamInfo.league || !teamInfo.country || !teamInfo.sport_type) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Create team profile - using correct column names based on schema
-      const { error: teamError } = await supabase
-        .from('teams')
-        .insert({
-          team_name: teamInfo.team_name,
-          league: teamInfo.league,
-          country: teamInfo.country,
-          sport_type: teamInfo.sport_type as "football" | "basketball" | "volleyball" | "tennis" | "rugby",
-          year_founded: teamInfo.founded_year ? parseInt(teamInfo.founded_year) : null,
-          profile_id: user.id
-        });
-
-      if (teamError) throw teamError;
-
-      setCurrentStep(4); // Final step
-    } catch (error) {
-      console.error('Error saving team info:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save team information",
+        description: error instanceof Error ? error.message : "Failed to update basic information",
         variant: "destructive"
       });
     } finally {
@@ -235,33 +116,97 @@ const OnboardingFlow = () => {
   };
 
   const handleFinalSubmit = async () => {
+    // Check if user and profile are available
     if (!user) {
       toast({
-        title: "Error",
-        description: "User session not found",
+        title: "Authentication Error",
+        description: "User not authenticated. Please sign in again.",
         variant: "destructive"
       });
       return;
     }
 
+    if (!profile) {
+      toast({
+        title: "Profile Error",
+        description: "Profile not loaded. Please refresh the page and try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (profile.user_type === 'team') {
+      if (!teamInfo.team_name || !basicInfo.country || !teamInfo.sport_type) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill in all required team fields",
+          variant: "destructive"
+        });
+        return;
+      }
+    } else {
+      if (!agentInfo.agency_name || !agentInfo.specialization) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill in all required agency fields",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (requiresFifaId(agentInfo.specialization) && !agentInfo.fifa_id) {
+        toast({
+          title: "Validation Error",
+          description: "As a football agent, you must provide a FIFA ID",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      // Mark profile as completed
-      const { error } = await updateProfile({
-        profile_completed: true
-      });
+      if (profile.user_type === 'team') {
+        const { error } = await supabase
+          .from('teams')
+          .upsert({
+            profile_id: profile.id,
+            team_name: teamInfo.team_name,
+            sport_type: teamInfo.sport_type,
+            year_founded: teamInfo.year_founded ? parseInt(teamInfo.year_founded) : null,
+            country: basicInfo.country,
+            league: teamInfo.league || null,
+            member_association: teamInfo.member_association || null,
+            description: teamInfo.description || null
+          }, { onConflict: 'profile_id' });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('agents')
+          .upsert({
+            profile_id: profile.id,
+            agency_name: agentInfo.agency_name,
+            fifa_id: requiresFifaId(agentInfo.specialization) ? agentInfo.fifa_id : null,
+            license_number: agentInfo.license_number || null,
+            specialization: Array.isArray(agentInfo.specialization)
+              ? agentInfo.specialization
+              : [agentInfo.specialization],
+            bio: agentInfo.bio || null,
+            website: agentInfo.website || null
+          }, { onConflict: 'profile_id' });
+        if (error) throw error;
+      }
 
-      if (error) throw error;
+      await updateProfile({ profile_completed: true });
 
       toast({
-        title: "Welcome!",
-        description: "Your profile has been completed successfully",
+        title: "Profile Setup Complete!",
+        description: "Your profile has been successfully created",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error completing onboarding:', error);
       toast({
         title: "Error",
-        description: "Failed to complete onboarding",
+        description: error.message || "Failed to complete profile setup",
         variant: "destructive"
       });
     } finally {
@@ -269,393 +214,392 @@ const OnboardingFlow = () => {
     }
   };
 
-  const renderBasicInfoStep = () => (
-    <Card className="border-0 bg-background">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <User className="w-5 h-5" />
-          Basic Information
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* User Type Display */}
-        <div className="p-4 bg-card rounded-lg border">
-          <Label className="text-sm text-gray-400">Selected Role</Label>
-          <div className="flex items-center gap-2 mt-1">
-            {userType === 'agent' ? (
-              <>
-                <Building className="w-4 h-4 text-rosegold" />
-                <span className="text-white font-medium">Agent/Scout</span>
-              </>
-            ) : (
-              <>
-                <Trophy className="w-4 h-4 text-rosegold" />
-                <span className="text-white font-medium">Team Manager</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">Full Name *</Label>
-          <Input
-            value={basicInfo.full_name}
-            onChange={(e) => setBasicInfo({ ...basicInfo, full_name: e.target.value })}
-            className="bg-gray-800 border-gray-600 text-white"
-            placeholder="Enter your full name"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">Email</Label>
-          <Input
-            value={basicInfo.email}
-            onChange={(e) => setBasicInfo({ ...basicInfo, email: e.target.value })}
-            className="bg-gray-800 border-gray-600 text-white"
-            placeholder="Enter your email"
-            type="email"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">Country *</Label>
-          <Select
-            value={basicInfo.country}
-            onValueChange={(value) => setBasicInfo({ ...basicInfo, country: value })}
-          >
-            <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-              <SelectValue placeholder="Select your country" />
-            </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-gray-600">
-              {countries.map((country) => (
-                <SelectItem key={country.cca2} value={country.cca2} className="text-white">
-                  {country.flag} {country.name.common}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <div className="space-y-2">
-            <Label className="text-gray-300">Code</Label>
-            <Select
-              value={basicInfo.country_code}
-              onValueChange={(value) => setBasicInfo({ ...basicInfo, country_code: value })}
-            >
-              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                <SelectValue placeholder="+1" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                {countryCodes.map((code) => (
-                  <SelectItem key={code.code} value={code.code} className="text-white">
-                    {code.flag} {code.code}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="col-span-2 space-y-2">
-            <Label className="text-gray-300">Phone Number</Label>
-            <Input
-              value={basicInfo.phone}
-              onChange={(e) => setBasicInfo({ ...basicInfo, phone: e.target.value })}
-              className="bg-gray-800 border-gray-600 text-white"
-              placeholder="Enter phone number"
-            />
-          </div>
-        </div>
-
-        <Button
-          onClick={handleBasicInfoSubmit}
-          disabled={loading || !basicInfo.full_name || !basicInfo.country}
-          className="w-full bg-rosegold hover:bg-rosegold/90 text-white"
-        >
-          {loading ? 'Saving...' : 'Continue'}
-          <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
-      </CardContent>
-    </Card>
-  );
-
-  const renderAgentInfoStep = () => (
-    <Card className="border-0 bg-background">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Building className="w-5 h-5" />
-            Agent Information
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentStep(1)}
-            className="text-gray-400 hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label className="text-gray-300">Agency Name *</Label>
-          <Input
-            value={agentInfo.agency_name}
-            onChange={(e) => setAgentInfo({ ...agentInfo, agency_name: e.target.value })}
-            className="bg-gray-800 border-gray-600 text-white"
-            placeholder="Enter your agency name"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">Sports Specialization *</Label>
-          <Select
-            value={agentInfo.specialization[0] || ''}
-            onValueChange={(value) => setAgentInfo({ ...agentInfo, specialization: [value] })}
-          >
-            <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-              <SelectValue placeholder="Select sports you specialize in" />
-            </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-gray-600">
-              {sports.map((sport) => (
-                <SelectItem key={sport.value} value={sport.value} className="text-white">
-                  {sport.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {agentInfo.specialization.includes('football') && (
-          <div className="space-y-2">
-            <Label className="text-gray-300">FIFA ID *</Label>
-            <Input
-              value={agentInfo.fifa_id}
-              onChange={(e) => setAgentInfo({ ...agentInfo, fifa_id: e.target.value })}
-              className="bg-gray-800 border-gray-600 text-white"
-              placeholder="Enter your FIFA ID"
-            />
-            <p className="text-sm text-orange-400">
-              Required for football agents to transfer players
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">License Number</Label>
-          <Input
-            value={agentInfo.license_number}
-            onChange={(e) => setAgentInfo({ ...agentInfo, license_number: e.target.value })}
-            className="bg-gray-800 border-gray-600 text-white"
-            placeholder="Enter your license number"
-          />
-        </div>
-
-        <Button
-          onClick={handleAgentInfoSubmit}
-          disabled={loading || !agentInfo.agency_name || agentInfo.specialization.length === 0}
-          className="w-full bg-rosegold hover:bg-rosegold/90 text-white"
-        >
-          {loading ? 'Saving...' : 'Continue'}
-          <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
-      </CardContent>
-    </Card>
-  );
-
-  const renderTeamInfoStep = () => (
-    <Card className="border-0 bg-background">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Trophy className="w-5 h-5" />
-            Team Information
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentStep(1)}
-            className="text-gray-400 hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label className="text-gray-300">Team Name *</Label>
-          <Input
-            value={teamInfo.team_name}
-            onChange={(e) => setTeamInfo({ ...teamInfo, team_name: e.target.value })}
-            className="bg-gray-800 border-gray-600 text-white"
-            placeholder="Enter your team name"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">Sport Type *</Label>
-          <Select
-            value={teamInfo.sport_type}
-            onValueChange={(value) => setTeamInfo({ ...teamInfo, sport_type: value })}
-          >
-            <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-              <SelectValue placeholder="Select sport type" />
-            </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-gray-600">
-              {sports.map((sport) => (
-                <SelectItem key={sport.value} value={sport.value} className="text-white">
-                  {sport.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">League/Competition *</Label>
-          <Input
-            value={teamInfo.league}
-            onChange={(e) => setTeamInfo({ ...teamInfo, league: e.target.value })}
-            className="bg-gray-800 border-gray-600 text-white"
-            placeholder="e.g., Premier League, Serie A, etc."
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">Country *</Label>
-          <Select
-            value={teamInfo.country}
-            onValueChange={(value) => setTeamInfo({ ...teamInfo, country: value })}
-          >
-            <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-              <SelectValue placeholder="Select team's country" />
-            </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-gray-600">
-              {countries.map((country) => (
-                <SelectItem key={country.cca2} value={country.cca2} className="text-white">
-                  {country.flag} {country.name.common}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-300">Founded Year</Label>
-          <Input
-            value={teamInfo.founded_year}
-            onChange={(e) => setTeamInfo({ ...teamInfo, founded_year: e.target.value })}
-            className="bg-gray-800 border-gray-600 text-white"
-            placeholder="e.g., 1999"
-            type="number"
-          />
-        </div>
-
-        <Button
-          onClick={handleTeamInfoSubmit}
-          disabled={loading || !teamInfo.team_name || !teamInfo.league || !teamInfo.country || !teamInfo.sport_type}
-          className="w-full bg-rosegold hover:bg-rosegold/90 text-white"
-        >
-          {loading ? 'Saving...' : 'Continue'}
-          <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
-      </CardContent>
-    </Card>
-  );
-
-  const renderFinalStep = () => (
-    <Card className="border-0 bg-background">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <CheckCircle className="w-5 h-5 text-green-500" />
-          Complete Setup
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="text-center py-8">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">
-            Profile Setup Complete!
-          </h3>
-          <p className="text-gray-400 mb-6">
-            Your {userType === 'agent' ? 'agent' : 'team'} profile has been successfully created.
-            You're now ready to access all platform features.
-          </p>
-          
-          <div className="bg-card p-4 rounded-lg mb-6">
-            <h4 className="text-white font-medium mb-2">What's Next?</h4>
-            <ul className="text-sm text-gray-400 text-left space-y-1">
-              {userType === 'agent' ? (
-                <>
-                  <li>• Browse and scout players</li>
-                  <li>• Create your shortlist</li>
-                  <li>• Message players (if licensed)</li>
-                  <li>• Generate contracts</li>
-                </>
-              ) : (
-                <>
-                  <li>• Add your players to the platform</li>
-                  <li>• Upload player videos and stats</li>
-                  <li>• Receive messages from scouts</li>
-                  <li>• Manage transfer requests</li>
-                </>
-              )}
-            </ul>
-          </div>
-
-          <Button
-            onClick={handleFinalSubmit}
-            disabled={loading}
-            className="w-full bg-rosegold hover:bg-rosegold/90 text-white"
-            size="lg"
-          >
-            {loading ? 'Setting up...' : 'Enter Platform'}
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  if (!user) {
+  // Show loading state if user or profile is not available
+  if (!user || !profile) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto"></div>
-          <p className="text-gray-400 mt-2">Loading...</p>
+          <img
+            src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
+            alt="Sports Reels"
+            className="w-[100px] h-[100px] mx-auto mb-4 animate-pulse"
+          />
+          <p className="text-white">Loading your profile...</p>
         </div>
       </div>
     );
   }
 
+  const steps = [
+    {
+      id: 1,
+      title: "Your personal details",
+      subtitle: "Personal details of user",
+      icon: User,
+      completed: step > 1
+    },
+    {
+      id: 2,
+      title: profile.user_type === 'team' ? "Your team details" : "Your agency details",
+      subtitle: profile.user_type === 'team' ? "Team's basic information" : "Agency's basic information",
+      icon: profile.user_type === 'team' ? Users : Building,
+      completed: false
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-400">
-              Step {currentStep} of 4
-            </span>
-            <span className="text-sm text-gray-400">
-              {Math.round((currentStep / 4) * 100)}% Complete
-            </span>
-          </div>
-          <div className="w-full bg-gray-800 rounded-full h-2">
-            <div
-              className="bg-rosegold h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(currentStep / 4) * 100}%` }}
-            />
-          </div>
+    <div className="min-h-screen flex">
+      {/* Sidebar */}
+      <div className="w-96 onboarding-sidebar bg-sidebar-border text-white p-8 flex flex-col relative">
+        {/* Logo */}
+        <div className="flex items-center mb-12">
+          <img src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png" alt="Sports Reels" className="w-8 h-8 mr-3" />
+          <span className="text-xl font-bold text-white">Sports Reels</span>
         </div>
 
-        {/* Step Content */}
-        {currentStep === 1 && renderBasicInfoStep()}
-        {currentStep === 2 && userType === 'agent' && renderAgentInfoStep()}
-        {currentStep === 3 && userType === 'team' && renderTeamInfoStep()}
-        {currentStep === 4 && renderFinalStep()}
+        {/* Steps */}
+        <div className="space-y-8 flex-1">
+          {steps.map((stepItem, index) => (
+            <div key={stepItem.id} className="flex items-start">
+              <div className="flex-shrink-0 mr-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${stepItem.completed
+                  ? 'bg-white text-white'
+                  : step === stepItem.id
+                    ? 'bg-rosegold text-white'
+                    : 'bg-rosegold text-white'
+                  }`}>
+                  {stepItem.completed ? (
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <stepItem.icon className="w-5 h-5" />
+                  )}
+                </div>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className={`text-lg font-medium ${step === stepItem.id ? 'text-white' : 'text-white'
+                  }`}>
+                  {stepItem.title}
+                </h3>
+                <p className={`text-sm mt-1 ${step === stepItem.id ? 'text-gray-500' : 'text-gray-500'
+                  }`}>
+                  {stepItem.subtitle}
+                </p>
+              </div>
+              {index < steps.length - 1 && (
+                <div className="absolute left-12 mt-12 w-px h-8 bg-red-500"></div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-auto">
+          <p className="text-white text-sm">All rights reserved @Sports Reels</p>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 text-white onboarding-content p-8 flex items-center justify-center">
+        <div className="w-full max-w-2xl">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm">Step {step}/{totalSteps}</p>
+            </div>
+            <h1 className="text-3xl font-bold text-rosegold mb-2">
+              {step === 1 ? 'Basic Info' : profile.user_type === 'team' ? 'Team Details' : 'Agency Details'}
+            </h1>
+            <p className=" text-gray-400">
+              {step === 1
+                ? 'Tell us a bit about yourself to get started with your new Sports Reels account.'
+                : `Provide your ${profile.user_type === 'team' ? 'team' : 'agency'} information to complete your profile.`
+              }
+            </p>
+          </div>
+
+          {/* Form Content */}
+          <div className="space-y-6">
+            {step === 1 ? (
+              <>
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="full_name" className="text-gray-500  font-medium">Full name</Label>
+                  <Input
+                    id="full_name"
+                    value={basicInfo.full_name}
+                    onChange={(e) => setBasicInfo({ ...basicInfo, full_name: e.target.value })}
+                    placeholder="enter fullname...."
+                    className=" border-0 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="email" className="text-gray-500 font-medium">Email</Label>
+                  <Input
+                    id="email"
+                    value={profile.email || ''}
+                    disabled
+                    className="border-0 outline-none"
+                  />
+                </div>
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="country" className="text-gray-500 font-medium">Country</Label>
+                  <Select
+                    value={basicInfo.country}
+                    onValueChange={handleCountryChange}
+                  >
+                    <SelectTrigger className="bg-white border-0 outline-none">
+                      <SelectValue placeholder="Select your country" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60  z-50">
+                      {countries.map((country) => (
+                        <SelectItem key={country.cca2} value={country.name.common}>
+                          <div className="flex border-0 outline-none items-center gap-2">
+                            {country.flag && (
+                              <span className="text-sm">{country.flag}</span>
+                            )}
+                            <span>{country.name.common}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {countriesError && (
+                    <p className="text-sm text-red-600">{countriesError}</p>
+                  )}
+                </div>
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="phone" className="text-gray-500 font-medium">Mobile number</Label>
+                  <div className="flex">
+                    <Select
+                      value={basicInfo.country_code}
+                      onValueChange={(value) => setBasicInfo({ ...basicInfo, country_code: value })}
+                    >
+                      <SelectTrigger className="w-32 border-0 outline-none rounded-r-none border-r-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white max-h-60 z-50">
+                        {countryCodes.map((item, index) => (
+                          <SelectItem key={`${item.code}-${index}-${item.country}`} value={item.code}>
+                            <div className="flex items-center gap-2">
+                              {item.flag && (
+                                <span className="text-sm">{item.flag}</span>
+                              )}
+                              <span>{item.code}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="phone"
+                      value={basicInfo.phone}
+                      onChange={(e) => setBasicInfo({ ...basicInfo, phone: e.target.value })}
+                      placeholder="8976765451"
+                      className="border-0 outline-none"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : profile.user_type === 'team' ? (
+              <>
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="team_name" className="text-gray-500 font-medium">Team Name *</Label>
+                  <Input
+                    id="team_name"
+                    value={teamInfo.team_name}
+                    onChange={(e) => setTeamInfo({ ...teamInfo, team_name: e.target.value })}
+                    placeholder="Enter your team name"
+                    className="outline-none border-0"
+                  />
+                </div>
+
+                <div className="space-y-2 text-start">
+                  <Label className="text-gray-500 font-medium">Sport *</Label>
+                  <Select
+                    value={teamInfo.sport_type}
+                    onValueChange={(value) => {
+                      if (isAllowedSportType(value)) {
+                        setTeamInfo({ ...teamInfo, sport_type: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="bg-white border-0">
+                      <SelectValue placeholder="Select sport" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {sports
+                        .filter(sport => isAllowedSportType(sport.value))
+                        .map((sport) => (
+                          <SelectItem
+                            key={sport.id}
+                            value={sport.value as AllowedSportType}
+                          >
+                            {sport.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="year_founded" className="text-gray-700 font-medium">Year Founded</Label>
+                    <Input
+                      id="year_founded"
+                      type="number"
+                      value={teamInfo.year_founded}
+                      onChange={(e) => setTeamInfo({ ...teamInfo, year_founded: e.target.value })}
+                      placeholder="e.g. 1990"
+                      className="bg-white border-gray-300"
+                    />
+                  </div>
+                  <div className="space-y-2 text-start">
+                    <Label htmlFor="league" className="text-gray-700 font-medium">League</Label>
+                    <Input
+                      id="league"
+                      value={teamInfo.league}
+                      onChange={(e) => setTeamInfo({ ...teamInfo, league: e.target.value })}
+                      placeholder="e.g. NPFL, Premier League"
+                      className="outline-none border-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="description" className="text-gray-700 font-medium">Team Description</Label>
+                  <Textarea
+                    id="description"
+                    value={teamInfo.description}
+                    onChange={(e) => setTeamInfo({ ...teamInfo, description: e.target.value })}
+                    placeholder="Tell us about your team..."
+                    rows={3}
+                    className="outline-none border-0"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="agency_name" className="text-gray-500 font-medium">Agency Name *</Label>
+                  <Input
+                    id="agency_name"
+                    value={agentInfo.agency_name}
+                    onChange={(e) => setAgentInfo({ ...agentInfo, agency_name: e.target.value })}
+                    placeholder="Enter your agency name"
+                    className="outline-none border-0"
+                  />
+                </div>
+
+                <div className="space-y-2 text-start">
+                  <Label className="text-gray-500 font-medium">Sports Specialization *</Label>
+                  <Select
+                    value={agentInfo.specialization}
+                    onValueChange={(value) => {
+                      if (isAllowedSportType(value)) {
+                        setAgentInfo({ ...agentInfo, specialization: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="bg-white outline-none border-0">
+                      <SelectValue placeholder="Select your specialization" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {sports
+                        .filter(sport => isAllowedSportType(sport.value))
+                        .map((sport) => (
+                          <SelectItem
+                            key={sport.id}
+                            value={sport.value as AllowedSportType}
+                          >
+                            {sport.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {requiresFifaId(agentInfo.specialization) && (
+                    <p className="text-sm text-red-600 mt-1">
+                      FIFA ID required for football agents
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 text-start">
+                    <Label htmlFor="fifa_id" className="text-gray-500 font-medium">
+                      FIFA ID {requiresFifaId(agentInfo.specialization) && '*'}
+                    </Label>
+                    <Input
+                      id="fifa_id"
+                      value={agentInfo.fifa_id}
+                      onChange={(e) => setAgentInfo({ ...agentInfo, fifa_id: e.target.value })}
+                      placeholder="FIFA ID"
+                      className="outline-none border-0"
+                    />
+                  </div>
+                  <div className="space-y-2 text-start">
+                    <Label htmlFor="license_number" className="text-gray-500 font-medium">License Number</Label>
+                    <Input
+                      id="license_number"
+                      value={agentInfo.license_number}
+                      onChange={(e) => setAgentInfo({ ...agentInfo, license_number: e.target.value })}
+                      placeholder="License number"
+                      className="outline-none border-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="bio" className="text-gray-500 font-medium">Professional Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={agentInfo.bio}
+                    onChange={(e) => setAgentInfo({ ...agentInfo, bio: e.target.value })}
+                    placeholder="Tell us about your professional experience..."
+                    rows={3}
+                    className="outline-none border-0"
+                  />
+                </div>
+
+                <div className="space-y-2 text-start">
+                  <Label htmlFor="website" className="text-gray-500 font-medium">Website</Label>
+                  <Input
+                    id="website"
+                    value={agentInfo.website}
+                    onChange={(e) => setAgentInfo({ ...agentInfo, website: e.target.value })}
+                    placeholder="https://your-website.com"
+                    className="outline-none border-0"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-between mt-8">
+            {step > 1 ? (
+              <Button
+                variant="outline"
+                onClick={() => setStep(step - 1)}
+                className="flex items-center gap-2 outline-none border-0 "
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
+            ) : (
+              <div></div>
+            )}
+
+            <Button
+              onClick={step === 1 ? handleBasicInfoSubmit : handleFinalSubmit}
+              disabled={loading || (step === 1 && (!basicInfo.full_name || !basicInfo.country))}
+              className=" px-8"
+            >
+              {step === totalSteps ? 'Complete Setup' : 'Next'}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
