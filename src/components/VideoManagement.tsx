@@ -168,19 +168,19 @@ const VideoManagement = () => {
     }
 
     // Player filter
-    if (filterPlayer) {
+    if (filterPlayer && filterPlayer !== 'all') {
       filtered = filtered.filter(video =>
         video.tagged_players.includes(filterPlayer)
       );
     }
 
     // Status filter
-    if (filterStatus) {
+    if (filterStatus && filterStatus !== 'all') {
       filtered = filtered.filter(video => video.ai_analysis_status === filterStatus);
     }
 
     // Tag filter
-    if (filterTag) {
+    if (filterTag && filterTag !== 'all') {
       filtered = filtered.filter(video =>
         video.tags.includes(filterTag)
       );
@@ -382,9 +382,9 @@ const VideoManagement = () => {
                   variant="outline"
                   onClick={() => {
                     setSearchTerm('');
-                    setFilterPlayer('');
-                    setFilterStatus('');
-                    setFilterTag('');
+                    setFilterPlayer('all');
+                    setFilterStatus('all');
+                    setFilterTag('all');
                   }}
                   className="border-gray-600"
                 >
