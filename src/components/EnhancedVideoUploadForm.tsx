@@ -10,10 +10,11 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Upload, X, FileVideo, Loader2, Save, Camera, RefreshCw, Trash2 } from 'lucide-react';
+import { Upload, X, FileVideo, Loader2, Save, Camera, ArrowLeft } from 'lucide-react';
 import { EnhancedPlayerTagging } from './EnhancedPlayerTagging';
 import { MatchStatistics } from './MatchStatistics';
 import { compressVideoToTarget } from '@/services/enhancedVideoCompressionService';
+import { analyzeVideoWithGemini } from '@/services/geminiService';
 
 interface PlayerWithJersey {
   playerId: string;
@@ -129,7 +130,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
       // Seek to 10% of video duration for thumbnail
       videoElement.currentTime = videoElement.duration * 0.1;
       
-      videoElement.addEventListener('seeked', () => {
+      const onSeeked = () => {
         try {
           ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
           canvas.toBlob((blob) => {
@@ -141,8 +142,12 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
           }, 'image/jpeg', 0.8);
         } catch (error) {
           reject(error);
+        } finally {
+          videoElement.removeEventListener('seeked', onSeeked);
         }
-      }, { once: true });
+      };
+      
+      videoElement.addEventListener('seeked', onSeeked, { once: true });
     });
   };
 
@@ -179,15 +184,23 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
     // Generate thumbnail when video loads
     if (videoRef.current) {
-      videoRef.current.addEventListener('loadedmetadata', async () => {
+      const video = videoRef.current;
+      const handleLoadedMetadata = async () => {
         try {
-          const thumbnail = await generateThumbnail(videoRef.current!);
+          const thumbnail = await generateThumbnail(video);
           setThumbnailBlob(thumbnail);
           setThumbnailUrl(URL.createObjectURL(thumbnail));
         } catch (error) {
           console.error('Error generating thumbnail:', error);
+          toast({
+            title: "Thumbnail Generation Failed",
+            description: "Could not generate video thumbnail",
+            variant: "destructive"
+          });
         }
-      }, { once: true });
+      };
+
+      video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
     }
 
     // Compress video
@@ -231,6 +244,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
     if (videoType === 'match') {
       if (!opposingTeam.trim()) errors.push('Opposing team is required for match videos');
       if (!homeScore || !awayScore) errors.push('Final scores are required for match videos');
+      if (!leagueCompetition) errors.push('League/Competition is required for match videos');
       if (taggedPlayers.length === 0) errors.push('At least one player must be tagged for match videos');
       
       // Check if all tagged players have jersey numbers
@@ -239,8 +253,6 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
         errors.push('All tagged players must have jersey numbers for match videos');
       }
     }
-    
-    if (!leagueCompetition) errors.push('League/Competition is required');
 
     if (errors.length > 0) {
       toast({
@@ -254,29 +266,41 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
     return true;
   };
 
-  const analyzeVideoWithAI = async (videoId: string, videoUrl: string, videoType: string) => {
+  const analyzeVideoWithAI = async (videoData: any) => {
     try {
-      const response = await supabase.functions.invoke('analyze-video', {
-        body: {
-          videoId,
-          videoUrl,
-          videoType,
-          videoTitle,
-          videoDescription,
-          opposingTeam: videoType === 'match' ? opposingTeam : null,
-          playerStats: videoType === 'match' ? playerStats : [],
-          taggedPlayers: videoType === 'match' ? taggedPlayers : []
-        }
+      const analysisResult = await analyzeVideoWithGemini({
+        playerTags: taggedPlayers.map(p => p.playerName),
+        videoType: videoType,
+        videoTitle: videoTitle,
+        videoDescription: videoDescription,
+        duration: videoData.duration || 300,
+        matchDetails: videoType === 'match' ? {
+          homeTeam: homeOrAway === 'home' ? userTeam?.name || 'Home Team' : opposingTeam,
+          awayTeam: homeOrAway === 'away' ? userTeam?.name || 'Away Team' : opposingTeam,
+          league: leagueCompetition,
+          finalScore: `${homeScore}-${awayScore}`
+        } : undefined
       });
 
-      if (response.error) {
-        console.error('AI Analysis error:', response.error);
-        throw response.error;
-      }
+      // Store AI analysis results
+      const { error: analysisError } = await supabase
+        .from('video_analysis')
+        .insert({
+          video_id: videoData.id,
+          analysis_summary: analysisResult.summary,
+          key_highlights: analysisResult.keyHighlights,
+          recommendations: analysisResult.recommendations,
+          performance_metrics: analysisResult.performanceMetrics,
+          timeline_analysis: analysisResult.analysis,
+          analysis_status: analysisResult.analysisStatus,
+          error_message: analysisResult.errorMessage
+        });
 
-      return response.data;
+      if (analysisError) throw analysisError;
+
+      return analysisResult;
     } catch (error) {
-      console.error('Error analyzing video:', error);
+      console.error('AI Analysis failed:', error);
       throw error;
     }
   };
@@ -369,7 +393,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
           home_or_away: videoType === 'match' ? homeOrAway : null,
           tagged_players: videoType === 'match' ? taggedPlayers.map(p => p.playerId) : [],
           jersey_numbers: videoType === 'match' ? jerseyNumbers : {},
-          league_competition: leagueCompetition,
+          league_competition: videoType === 'match' ? leagueCompetition : null,
           region: region,
           sport_type: sportType,
           total_match_stats: totalMatchStats,
@@ -408,15 +432,20 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
       setUploadProgress(90);
 
-      // Start AI analysis in background
+      // Start AI analysis
       try {
-        await analyzeVideoWithAI(videoData.id, publicUrl, videoType);
+        await analyzeVideoWithAI(videoData);
         
         // Update video status to analyzed
         await supabase
           .from('videos')
           .update({ ai_analysis_status: 'completed' })
           .eq('id', videoData.id);
+          
+        toast({
+          title: "Analysis Complete",
+          description: "Video uploaded and AI analysis completed successfully",
+        });
       } catch (analysisError) {
         console.error('AI Analysis failed:', analysisError);
         
@@ -425,13 +454,19 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
           .from('videos')
           .update({ ai_analysis_status: 'failed' })
           .eq('id', videoData.id);
+          
+        toast({
+          title: "Upload Successful, Analysis Failed",
+          description: "Video uploaded but AI analysis failed. You can retry later.",
+          variant: "destructive"
+        });
       }
 
       setUploadProgress(100);
 
       toast({
         title: "Upload Successful",
-        description: `${videoType.charAt(0).toUpperCase() + videoType.slice(1)} video uploaded successfully. AI analysis ${videoType === 'match' ? 'with match statistics' : 'in progress'}.`,
+        description: `${videoType.charAt(0).toUpperCase() + videoType.slice(1)} video uploaded successfully.`,
       });
 
       // Reset form
@@ -481,6 +516,21 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
   return (
     <div className="space-y-6">
+      {onCancel && (
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCancel}
+            className="flex items-center gap-2 text-gray-400 hover:text-white"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+          <h1 className="text-2xl font-bold text-white">Upload Video</h1>
+        </div>
+      )}
+
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
@@ -688,68 +738,69 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
 
               {/* Match-specific fields */}
               {videoType === 'match' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Home Score *
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={homeScore}
-                      onChange={(e) => setHomeScore(e.target.value)}
-                      placeholder="0"
-                      className="bg-gray-700 border-gray-600 text-white"
-                    />
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Home Score *
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={homeScore}
+                        onChange={(e) => setHomeScore(e.target.value)}
+                        placeholder="0"
+                        className="bg-gray-700 border-gray-600 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Away Score *
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={awayScore}
+                        onChange={(e) => setAwayScore(e.target.value)}
+                        placeholder="0"
+                        className="bg-gray-700 border-gray-600 text-white"
+                      />
+                    </div>
                   </div>
 
+                  {/* League/Competition - Only for match videos */}
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Away Score *
+                      League/Competition *
                     </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={awayScore}
-                      onChange={(e) => setAwayScore(e.target.value)}
-                      placeholder="0"
-                      className="bg-gray-700 border-gray-600 text-white"
-                    />
+                    <Select value={leagueCompetition} onValueChange={setLeagueCompetition}>
+                      <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                        <SelectValue placeholder="Select league" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableLeagues.map((league) => (
+                          <SelectItem key={league.id} value={league.name}>
+                            {league.name} ({league.country})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
+                </>
               )}
 
-              {/* League/Competition */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    League/Competition *
-                  </label>
-                  <Select value={leagueCompetition} onValueChange={setLeagueCompetition}>
-                    <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                      <SelectValue placeholder="Select league" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableLeagues.map((league) => (
-                        <SelectItem key={league.id} value={league.name}>
-                          {league.name} ({league.country})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Region
-                  </label>
-                  <Input
-                    value={region}
-                    onChange={(e) => setRegion(e.target.value)}
-                    placeholder="e.g., Europe, Asia"
-                    className="bg-gray-700 border-gray-600 text-white"
-                  />
-                </div>
+              {/* Region field for all video types */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Region
+                </label>
+                <Input
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  placeholder="e.g., Europe, Asia"
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
               </div>
 
               {/* File Size Info */}
@@ -824,7 +875,7 @@ export const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = (
         <div className="flex gap-3">
           <Button
             onClick={handleUpload}
-            disabled={!videoTitle.trim() || !compressedFile || !leagueCompetition || (videoType === 'match' && (!opposingTeam.trim() || taggedPlayers.length === 0))}
+            disabled={!videoTitle.trim() || !compressedFile || (videoType === 'match' && (!opposingTeam.trim() || taggedPlayers.length === 0 || !leagueCompetition))}
             className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white"
           >
             <Save className="w-4 h-4 mr-2" />
