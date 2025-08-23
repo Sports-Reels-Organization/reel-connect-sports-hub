@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -33,6 +32,7 @@ interface TeamInfo {
   team_name: string;
   league: string;
   country: string;
+  sport_type: string;
   founded_year?: string;
 }
 
@@ -67,6 +67,7 @@ const OnboardingFlow = () => {
     team_name: '',
     league: '',
     country: '',
+    sport_type: '',
     founded_year: ''
   });
 
@@ -194,7 +195,7 @@ const OnboardingFlow = () => {
   };
 
   const handleTeamInfoSubmit = async () => {
-    if (!user || !teamInfo.team_name || !teamInfo.league || !teamInfo.country) {
+    if (!user || !teamInfo.team_name || !teamInfo.league || !teamInfo.country || !teamInfo.sport_type) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
@@ -209,11 +210,12 @@ const OnboardingFlow = () => {
       const { error: teamError } = await supabase
         .from('teams')
         .insert({
-          profile_id: user.id, // This should match the actual column name in teams table
           team_name: teamInfo.team_name,
           league: teamInfo.league,
           country: teamInfo.country,
-          year_founded: teamInfo.founded_year ? parseInt(teamInfo.founded_year) : null
+          sport_type: teamInfo.sport_type,
+          year_founded: teamInfo.founded_year ? parseInt(teamInfo.founded_year) : null,
+          profile_id: user.id
         });
 
       if (teamError) throw teamError;
@@ -492,6 +494,25 @@ const OnboardingFlow = () => {
         </div>
 
         <div className="space-y-2">
+          <Label className="text-gray-300">Sport Type *</Label>
+          <Select
+            value={teamInfo.sport_type}
+            onValueChange={(value) => setTeamInfo({ ...teamInfo, sport_type: value })}
+          >
+            <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+              <SelectValue placeholder="Select sport type" />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-800 border-gray-600">
+              {sports.map((sport) => (
+                <SelectItem key={sport.value} value={sport.value} className="text-white">
+                  {sport.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
           <Label className="text-gray-300">League/Competition *</Label>
           <Input
             value={teamInfo.league}
@@ -533,7 +554,7 @@ const OnboardingFlow = () => {
 
         <Button
           onClick={handleTeamInfoSubmit}
-          disabled={loading || !teamInfo.team_name || !teamInfo.league || !teamInfo.country}
+          disabled={loading || !teamInfo.team_name || !teamInfo.league || !teamInfo.country || !teamInfo.sport_type}
           className="w-full bg-rosegold hover:bg-rosegold/90 text-white"
         >
           {loading ? 'Saving...' : 'Continue'}
