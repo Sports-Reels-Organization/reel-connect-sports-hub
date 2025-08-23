@@ -29,6 +29,11 @@ interface AnalysisData {
   model_used: string;
 }
 
+// Type guard to check if the data is a valid analysis object
+const isValidAnalysisData = (data: any): boolean => {
+  return data && typeof data === 'object' && typeof data.analysis === 'string';
+};
+
 export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
   videoId,
   videoTitle,
@@ -59,13 +64,14 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         console.error('Error fetching from videos table:', videoError);
       }
 
-      if (videoData && videoData.ai_analysis) {
+      if (videoData && videoData.ai_analysis && isValidAnalysisData(videoData.ai_analysis)) {
+        const analysis = videoData.ai_analysis as any;
         setAnalysisData({
-          analysis: videoData.ai_analysis.analysis || 'Analysis completed.',
+          analysis: analysis.analysis || 'Analysis completed.',
           analysis_status: videoData.ai_analysis_status || 'completed',
-          video_type: videoData.ai_analysis.video_type || 'video',
-          analyzed_at: videoData.ai_analysis.analyzed_at,
-          model_used: videoData.ai_analysis.model_used || 'gemini-2.0-flash-exp'
+          video_type: analysis.video_type || 'video',
+          analyzed_at: analysis.analyzed_at,
+          model_used: analysis.model_used || 'gemini-2.0-flash-exp'
         });
         return;
       }
@@ -81,13 +87,14 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         console.error('Error fetching from match_videos table:', matchVideoError);
       }
 
-      if (matchVideoData && matchVideoData.ai_analysis) {
+      if (matchVideoData && matchVideoData.ai_analysis && isValidAnalysisData(matchVideoData.ai_analysis)) {
+        const analysis = matchVideoData.ai_analysis as any;
         setAnalysisData({
-          analysis: matchVideoData.ai_analysis.analysis || 'Analysis completed.',
+          analysis: analysis.analysis || 'Analysis completed.',
           analysis_status: matchVideoData.ai_analysis_status || 'completed',
-          video_type: matchVideoData.ai_analysis.video_type || 'match',
-          analyzed_at: matchVideoData.ai_analysis.analyzed_at,
-          model_used: matchVideoData.ai_analysis.model_used || 'gemini-2.0-flash-exp'
+          video_type: analysis.video_type || 'match',
+          analyzed_at: analysis.analyzed_at,
+          model_used: analysis.model_used || 'gemini-2.0-flash-exp'
         });
         return;
       }
@@ -117,7 +124,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
       
       const analysisData = {
         videoUrl: videoRecord.video_url,
-        videoType: videoType,
+        videoType: videoType as 'match' | 'interview' | 'training' | 'highlight',
         videoTitle: videoRecord.title || videoTitle,
         videoDescription: videoRecord.description || '',
         opposingTeam: videoRecord.opposing_team || '',
@@ -130,15 +137,17 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
 
       // Save analysis to appropriate table
       const tableName = isMatchVideo ? 'match_videos' : 'videos';
+      const analysisObject = {
+        analysis: analysis,
+        video_type: videoType,
+        analyzed_at: new Date().toISOString(),
+        model_used: 'gemini-2.0-flash-exp'
+      };
+
       const { error: updateError } = await supabase
         .from(tableName)
         .update({
-          ai_analysis: {
-            analysis: analysis,
-            video_type: videoType,
-            analyzed_at: new Date().toISOString(),
-            model_used: 'gemini-2.0-flash-exp'
-          },
+          ai_analysis: analysisObject,
           ai_analysis_status: 'completed'
         })
         .eq('id', videoId);

@@ -9,25 +9,18 @@ interface PlayerWithJersey {
   jerseyNumber: number;
 }
 
-interface AnalysisParams {
-  videoId: string;
+export interface AnalysisParams {
   videoUrl: string;
   videoType: 'match' | 'interview' | 'training' | 'highlight';
   videoTitle: string;
   videoDescription?: string;
   opposingTeam?: string;
   taggedPlayers: PlayerWithJersey[];
-  finalScore?: string;
+  playerStats?: Record<string, any>;
 }
 
-interface AnalysisResult {
-  analysis: string;
-  video_type: string;
-  analyzed_at: string;
-  model_used: string;
-}
-
-export const analyzeVideoWithGemini = async (params: AnalysisParams): Promise<AnalysisResult> => {
+// Use a simple string return type that matches what we store in the database
+export const analyzeVideoWithGemini = async (params: AnalysisParams): Promise<string> => {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
@@ -39,7 +32,6 @@ export const analyzeVideoWithGemini = async (params: AnalysisParams): Promise<An
         analysisPrompt = `Analyze this football match video titled "${params.videoTitle}". ${params.videoDescription ? `Description: ${params.videoDescription}` : ''}
         
 This is a match against ${params.opposingTeam}. The following players were tagged in this video: ${params.taggedPlayers.map((p: any) => `${p.playerName} (#${p.jerseyNumber})`).join(', ')}.
-${params.finalScore ? `Final Score: ${params.finalScore}` : ''}
 
 Please provide a comprehensive match analysis including:
 
@@ -282,13 +274,7 @@ Please provide a comprehensive analysis of the video content, focusing on player
     }
 
     console.log('AI analysis completed successfully');
-
-    return {
-      analysis: analysisText,
-      video_type: params.videoType,
-      analyzed_at: new Date().toISOString(),
-      model_used: 'gemini-2.0-flash-exp'
-    };
+    return analysisText;
 
   } catch (error) {
     console.error('Error analyzing video with Gemini:', error);
