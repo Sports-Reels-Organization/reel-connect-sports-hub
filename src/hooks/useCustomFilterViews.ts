@@ -9,7 +9,7 @@ interface FilterConfig {
   transferType?: string;
   budgetRange?: [number, number];
   region?: string;
-  sortBy?: string;
+  sortBy: string; // Made required to match FilterState
 }
 
 interface CustomFilterView {
@@ -50,7 +50,14 @@ export const useCustomFilterViews = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setViews(data || []);
+      
+      // Type cast the filter_config from Json to FilterConfig
+      const typedViews = (data || []).map(view => ({
+        ...view,
+        filter_config: view.filter_config as FilterConfig
+      }));
+      
+      setViews(typedViews);
     } catch (error) {
       console.error('Error fetching custom views:', error);
     } finally {
@@ -75,7 +82,7 @@ export const useCustomFilterViews = () => {
         .insert({
           team_id: teamData.id,
           view_name: viewName,
-          filter_config: filterConfig
+          filter_config: filterConfig as any // Cast to Json type for database
         });
 
       if (error) throw error;

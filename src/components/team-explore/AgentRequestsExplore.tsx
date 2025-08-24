@@ -17,7 +17,7 @@ interface AgentRequest {
   title: string;
   description: string;
   position?: string;
-  transfer_type: string;
+  transfer_type: 'loan' | 'permanent';
   budget_min?: number;
   budget_max?: number;
   currency: string;
@@ -80,7 +80,7 @@ const AgentRequestsExplore = () => {
       }
 
       if (filters.transferType) {
-        query = query.eq('transfer_type', filters.transferType);
+        query = query.eq('transfer_type', filters.transferType as 'loan' | 'permanent');
       }
 
       if (filters.budgetMin) {
@@ -111,9 +111,15 @@ const AgentRequestsExplore = () => {
 
       if (error) throw error;
 
-      // Get tagged players count for each request
+      // Filter out any requests with invalid agent data and get tagged players count
+      const validRequests = (data || []).filter(request => 
+        request.agents && 
+        typeof request.agents === 'object' && 
+        'agency_name' in request.agents
+      );
+
       const requestsWithCounts = await Promise.all(
-        (data || []).map(async (request) => {
+        validRequests.map(async (request) => {
           const { count } = await supabase
             .from('agent_request_player_tags')
             .select('*', { count: 'exact', head: true })
@@ -122,7 +128,7 @@ const AgentRequestsExplore = () => {
           return {
             ...request,
             tagged_players_count: count || 0
-          };
+          } as AgentRequest;
         })
       );
 
@@ -189,10 +195,23 @@ const AgentRequestsExplore = () => {
   const handleSaveFilter = async () => {
     if (!filterName.trim()) return;
 
-    const success = await saveView(filterName, filters);
+    const success = await saveView(filterName, {
+      ...filters,
+      sortBy: filters.sortBy // Ensure sortBy is included
+    });
     if (success) {
       setShowSaveFilter(false);
       setFilterName('');
+    }
+  };
+
+  const handleLoadView = (viewId: string) => {
+    const view = views.find(v => v.id === viewId);
+    if (view) {
+      setFilters({
+        ...view.filter_config,
+        sortBy: view.filter_config.sortBy || 'newest' // Provide default
+      });
     }
   };
 
@@ -232,10 +251,7 @@ const AgentRequestsExplore = () => {
             </div>
             <div className="flex gap-2">
               {views.length > 0 && (
-                <Select onValueChange={(viewId) => {
-                  const view = views.find(v => v.id === viewId);
-                  if (view) setFilters(view.filter_config);
-                }}>
+                <Select onValueChange={handleLoadView}>
                   <SelectTrigger className="w-48 bg-gray-800 border-gray-600 text-white">
                     <SelectValue placeholder="Load saved filter" />
                   </SelectTrigger>
@@ -434,7 +450,7 @@ const AgentRequestsExplore = () => {
                           Expiring Soon
                         </Badge>
                       )}
-                      {request.tagged_players_count > 0 && (
+                      {request.tagged_players_count && request.tagged_players_count > 0 && (
                         <Badge variant="outline" className="text-purple-400 border-purple-400">
                           <Tag className="w-3 h-3 mr-1" />
                           {request.tagged_players_count} players tagged
