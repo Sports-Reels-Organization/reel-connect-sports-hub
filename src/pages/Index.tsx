@@ -9,7 +9,7 @@ import Dashboard from '@/components/Dashboard';
 const Index = () => {
   const { user, profile, loading } = useAuth();
 
-  console.log('Index render - loading:', loading, 'user:', !!user, 'profile:', !!profile);
+  console.log('Index render - loading:', loading, 'user:', !!user, 'profile:', !!profile, 'profile_completed:', profile?.profile_completed);
 
   if (loading) {
     return (
@@ -30,8 +30,9 @@ const Index = () => {
     return <AuthForm />;
   }
 
-  if (!profile?.profile_completed) {
-    console.log('Profile not completed, showing onboarding');
+  // If user exists but profile is null or profile is not completed, show onboarding
+  if (!profile || !profile.profile_completed) {
+    console.log('Profile not found or not completed, showing onboarding. Profile:', profile);
     return <OnboardingFlow />;
   }
 

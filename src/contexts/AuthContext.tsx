@@ -50,10 +50,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile
+          // Fetch user profile with a small delay to ensure database consistency
           setTimeout(async () => {
             await fetchUserProfile(session.user.id);
-          }, 0);
+          }, 100);
         } else {
           console.log('No session, clearing profile and setting loading to false');
           setProfile(null);
@@ -97,9 +97,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('Error fetching profile:', error);
         if (error.code === 'PGRST116') {
           // Profile doesn't exist, this is normal for new users
-          console.log('Profile not found, user may need to complete onboarding');
+          console.log('Profile not found, user needs to complete onboarding');
+          setProfile(null);
         }
-        setProfile(null);
         setIsAdmin(false);
       } else {
         console.log('Profile fetched successfully:', data);
@@ -111,6 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setProfile(null);
       setIsAdmin(false);
     } finally {
+      console.log('Setting loading to false after profile fetch');
       setLoading(false);
     }
   };
