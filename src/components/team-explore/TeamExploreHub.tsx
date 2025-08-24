@@ -2,28 +2,34 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, Users, Search, BarChart3 } from 'lucide-react';
+import { TrendingUp, Users, Search, BarChart3, Settings } from 'lucide-react';
 import TransferTimeline from './TransferTimeline';
 import CreatePitchFlow from './CreatePitchFlow';
 import AgentRequestsExplore from './AgentRequestsExplore';
 import MarketSnapshotWidget from './MarketSnapshotWidget';
+import SquadAvailabilityManager from './SquadAvailabilityManager';
+import MessageStageTracker from './MessageStageTracker';
+import ExpiringSoonWidget from './ExpiringSoonWidget';
 
 export const TeamExploreHub = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6">
+    <div className="min-h-screen bg-gradient-to-br from-black via-black to-black p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold text-white">Team Explore Hub</h1>
-          <p className="text-gray-400">Manage your transfer timeline, explore opportunities, and track market trends</p>
+          <p className="text-black">Manage your transfer timeline, explore opportunities, and track market trends</p>
         </div>
 
-        {/* Market Snapshot Widget */}
-        <MarketSnapshotWidget />
+        {/* Top Widgets Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <MarketSnapshotWidget />
+          <ExpiringSoonWidget />
+        </div>
 
         {/* Main Navigation Tabs */}
         <Tabs defaultValue="timeline" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-gray-800 border-gray-600">
+          <TabsList className="grid w-full grid-cols-5 bg-black border-gray-600">
             <TabsTrigger 
               value="timeline" 
               className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
@@ -46,6 +52,13 @@ export const TeamExploreHub = () => {
               Explore Requests
             </TabsTrigger>
             <TabsTrigger 
+              value="squad" 
+              className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
+            >
+              <Settings className="w-4 h-4" />
+              Squad Management
+            </TabsTrigger>
+            <TabsTrigger 
               value="analytics" 
               className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
@@ -66,6 +79,13 @@ export const TeamExploreHub = () => {
             <AgentRequestsExplore />
           </TabsContent>
 
+          <TabsContent value="squad" className="mt-6">
+            <div className="space-y-6">
+              <SquadAvailabilityManager />
+              <MessageStageTracker />
+            </div>
+          </TabsContent>
+
           <TabsContent value="analytics" className="mt-6">
             <Card className="border-gray-600">
               <CardHeader>
@@ -77,7 +97,7 @@ export const TeamExploreHub = () => {
                   <h3 className="text-xl font-semibold text-white mb-2">
                     Analytics Coming Soon
                   </h3>
-                  <p className="text-gray-400">
+                  <p className="text-black">
                     Detailed analytics and insights will be available here.
                   </p>
                 </div>

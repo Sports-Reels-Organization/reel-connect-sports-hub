@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Filter, Tag, Clock, DollarSign, MapPin } from 'lucide-react';
+import { Search, Filter, Tag, Clock, DollarSign, MapPin, Target, AlertTriangle } from 'lucide-react';
 import { useCustomFilterViews } from '@/hooks/useCustomFilterViews';
 import { useSquadAvailability } from '@/hooks/useSquadAvailability';
 
@@ -97,7 +98,6 @@ const AgentRequestsExplore = () => {
           query = query.order('budget_max', { ascending: false });
           break;
         case 'most_tagged':
-          // Would need to join with tags table
           query = query.order('created_at', { ascending: false });
           break;
         default:
@@ -210,7 +210,7 @@ const AgentRequestsExplore = () => {
 
     const success = await saveView(filterName, {
       ...filters,
-      sortBy: filters.sortBy // Ensure sortBy is included
+      sortBy: filters.sortBy
     });
     if (success) {
       setShowSaveFilter(false);
@@ -223,7 +223,7 @@ const AgentRequestsExplore = () => {
     if (view) {
       setFilters({
         ...view.filter_config,
-        sortBy: view.filter_config.sortBy || 'newest' // Provide default
+        sortBy: view.filter_config.sortBy || 'newest'
       });
     }
   };
@@ -260,7 +260,7 @@ const AgentRequestsExplore = () => {
           <CardTitle className="flex items-center justify-between text-white">
             <div className="flex items-center gap-2">
               <Filter className="w-5 h-5" />
-              Explore Agent Requests
+              Explore Agent Requests ({requests.length})
             </div>
             <div className="flex gap-2">
               {views.length > 0 && (
@@ -404,7 +404,7 @@ const AgentRequestsExplore = () => {
               <h3 className="text-xl font-semibold text-white mb-2">
                 No Requests Found
               </h3>
-              <p className="text-gray-400">
+              <p className="text-black">
                 No agent requests match your current filters.
               </p>
             </CardContent>
@@ -447,7 +447,7 @@ const AgentRequestsExplore = () => {
                             {formatCurrency(request.budget_min, request.currency)} - {formatCurrency(request.budget_max, request.currency)}
                           </div>
                         )}
-                        <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
+                        <div className="flex items-center gap-1 text-xs text-black mt-1">
                           <Clock className="w-3 h-3" />
                           Expires {new Date(request.expires_at).toLocaleDateString()}
                         </div>
@@ -483,7 +483,7 @@ const AgentRequestsExplore = () => {
                     {matchingPlayers.length > 0 && (
                       <div className="bg-green-900/20 border border-green-500/30 rounded p-3">
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                          <Target className="w-4 h-4 text-green-400" />
                           <p className="text-green-400 text-sm font-medium">
                             {matchingPlayers.length} matching player(s) from your squad
                           </p>
