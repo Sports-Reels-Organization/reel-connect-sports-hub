@@ -1,3 +1,4 @@
+
 import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -47,7 +48,7 @@ const App = () => (
                 <Route path="/news" element={<News />} />
                 <Route path="/history" element={<History />} />
                 <Route path="/contracts" element={<Contracts />} />
-                <Route path="/notification" element={<Notification />} />
+                <Route path="/notifications" element={<Notification />} />
                 <Route path="/admin/user-management" element={<UserManagement />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

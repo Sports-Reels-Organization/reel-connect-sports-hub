@@ -1,27 +1,30 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
 import AgentExplore from '@/components/AgentExplore';
-import { TeamExploreHub } from '@/components/team-explore/TeamExploreHub';
+import TeamExploreHub from '@/components/team-explore/TeamExploreHub';
+import { useSearchParams } from 'react-router-dom';
 
 const Explore = () => {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get('search');
+
+  // Pass search query to child components
+  const exploreProps = searchQuery ? { initialSearch: searchQuery } : {};
+
+  if (profile?.user_type === 'agent') {
+    return (
+      <Layout>
+        <AgentExplore {...exploreProps} />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      {profile?.user_type === 'agent' ? (
-        <AgentExplore />
-      ) : profile?.user_type === 'team' ? (
-        <TeamExploreHub />
-      ) : (
-        <div className="min-h-screen bg-background p-6">
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-white mb-4">Explore</h2>
-            <p className="text-gray-400">Please complete your profile setup to access explore features.</p>
-          </div>
-        </div>
-      )}
+      <TeamExploreHub {...exploreProps} />
     </Layout>
   );
 };
