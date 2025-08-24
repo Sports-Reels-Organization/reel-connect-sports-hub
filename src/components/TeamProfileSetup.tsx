@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useSportData, getSportDisplayName, getSportIcon, getAvailableSports } from '@/hooks/useSportData';
-import { Upload, Users, Trophy, Video, Plus, X } from 'lucide-react';
+import { Upload, Users, Trophy, Video, Plus, X, Camera, FileImage } from 'lucide-react';
 import InfoTooltip from './InfoTooltip';
+import imageCompression from 'browser-image-compression';
 
 const leagues = [
   'NLO', 'NNL', 'NPFL', 'N-YOUTH LEAGUE', 'TCC', 'FEDERATION CUP', 'FA CUP'
@@ -38,6 +39,8 @@ const TeamProfileSetup: React.FC = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [teamData, setTeamData] = useState<TeamData>({
     team_name: '',
     sport_type: '',
@@ -141,6 +144,94 @@ const TeamProfileSetup: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching video count:', error);
+    }
+  };
+
+  const compressAndConvertToBase64 = async (file: File): Promise<string> => {
+    try {
+      // Compression options
+      const options = {
+        maxSizeMB: 0.5, // Maximum size 0.5MB
+        maxWidthOrHeight: 400, // Maximum dimension 400px
+        useWebWorker: true,
+        fileType: 'image/jpeg'
+      };
+
+      // Compress the image
+      const compressedFile = await imageCompression(file, options);
+      
+      // Convert to base64
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(compressedFile);
+      });
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      throw error;
+    }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select an image file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (5MB limit before compression)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLogoUploading(true);
+    try {
+      // Compress and convert to base64
+      const base64Logo = await compressAndConvertToBase64(file);
+      
+      // Update team data with base64 logo
+      setTeamData(prev => ({ ...prev, logo_url: base64Logo }));
+
+      toast({
+        title: "Success",
+        description: "Team logo uploaded and compressed successfully",
+      });
+    } catch (error) {
+      console.error('Logo upload error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload logo. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLogoUploading(false);
+      // Clear the input
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removeLogo = () => {
+    setTeamData(prev => ({ ...prev, logo_url: '' }));
+    if (logoInputRef.current) {
+      logoInputRef.current.value = '';
     }
   };
 
@@ -306,6 +397,75 @@ const TeamProfileSetup: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Team Logo Upload Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <FileImage className="w-5 h-5 text-rosegold" />
+              <Label className="text-white text-lg font-semibold">Team Logo</Label>
+              <Badge variant="outline" className="text-gray-400 border-gray-600 text-xs">
+                Recommended
+              </Badge>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              {/* Logo Preview */}
+              <div className="flex-shrink-0">
+                {teamData.logo_url ? (
+                  <div className="relative group">
+                    <img
+                      src={teamData.logo_url}
+                      alt="Team Logo"
+                      className="w-24 h-24 object-cover rounded-lg border-2 border-gray-600"
+                    />
+                    <button
+                      onClick={removeLogo}
+                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 bg-gray-800 border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center">
+                    <Camera className="w-8 h-8 text-gray-500" />
+                  </div>
+                )}
+              </div>
+
+              {/* Upload Controls */}
+              <div className="flex-1">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={logoUploading}
+                  className="mb-2"
+                >
+                  {logoUploading ? (
+                    <>
+                      <Upload className="w-4 h-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      {teamData.logo_url ? 'Change Logo' : 'Upload Logo'}
+                    </>
+                  )}
+                </Button>
+                <p className="text-sm text-gray-400">
+                  Recommended: Square image, max 5MB. Will be compressed to 400x400px.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="team_name" className="text-white">Team Name *</Label>
