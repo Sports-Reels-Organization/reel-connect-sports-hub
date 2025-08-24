@@ -56,19 +56,54 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // First get agent requests
+      const { data: agentRequestsData, error: requestsError } = await supabase
         .from('agent_requests')
-        .select(`
-          *,
-          agent:profiles!agent_requests_agent_id_fkey(full_name)
-        `)
+        .select('*')
         .eq('status', 'active')
         .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (requestsError) throw requestsError;
 
-      const requestsWithAgentName = data?.map(request => ({
+      if (!agentRequestsData || agentRequestsData.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Get unique agent IDs
+      const agentIds = [...new Set(agentRequestsData.map(req => req.agent_id))];
+      
+      // Fetch agent profiles separately
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('agents')
+        .select('id, profile_id')
+        .in('id', agentIds);
+
+      if (agentsError) throw agentsError;
+
+      // Get profile IDs from agents
+      const profileIds = agentsData?.map(agent => agent.profile_id) || [];
+      
+      // Fetch profiles for agent names
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', profileIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a mapping of agent_id to agent_name
+      const agentNameMap: Record<string, string> = {};
+      agentsData?.forEach(agent => {
+        const profile = profilesData?.find(p => p.id === agent.profile_id);
+        if (profile) {
+          agentNameMap[agent.id] = profile.full_name || 'Unknown Agent';
+        }
+      });
+
+      const requestsWithAgentName: AgentRequest[] = agentRequestsData.map(request => ({
         id: request.id,
         title: request.title,
         description: request.description,
@@ -80,8 +115,8 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
         created_at: request.created_at || new Date().toISOString(),
         expires_at: request.expires_at || new Date().toISOString(),
         agent_id: request.agent_id,
-        agent_name: Array.isArray(request.agent) ? request.agent[0]?.full_name : request.agent?.full_name || 'Unknown Agent'
-      })) || [];
+        agent_name: agentNameMap[request.agent_id] || 'Unknown Agent'
+      }));
 
       setRequests(requestsWithAgentName);
     } catch (error) {
