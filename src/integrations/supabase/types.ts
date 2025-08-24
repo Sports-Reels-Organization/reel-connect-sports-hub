@@ -261,45 +261,304 @@ export type Database = {
           },
         ]
       }
+      contract_audit_log: {
+        Row: {
+          action: string
+          contract_id: string | null
+          created_at: string | null
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          contract_id?: string | null
+          created_at?: string | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          contract_id?: string | null
+          created_at?: string | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_audit_log_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_comments: {
+        Row: {
+          comment: string
+          contract_id: string | null
+          created_at: string | null
+          id: string
+          is_internal: boolean | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          comment: string
+          contract_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_internal?: boolean | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string
+          contract_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_internal?: boolean | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_comments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_metrics: {
+        Row: {
+          contract_id: string | null
+          id: string
+          metric_type: string
+          metric_value: number | null
+          recorded_at: string | null
+        }
+        Insert: {
+          contract_id?: string | null
+          id?: string
+          metric_type: string
+          metric_value?: number | null
+          recorded_at?: string | null
+        }
+        Update: {
+          contract_id?: string | null
+          id?: string
+          metric_type?: string
+          metric_value?: number | null
+          recorded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_metrics_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_reminders: {
+        Row: {
+          contract_id: string | null
+          created_at: string | null
+          id: string
+          is_sent: boolean | null
+          reminder_date: string
+          reminder_type: string
+        }
+        Insert: {
+          contract_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_sent?: boolean | null
+          reminder_date: string
+          reminder_type: string
+        }
+        Update: {
+          contract_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_sent?: boolean | null
+          reminder_date?: string
+          reminder_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_reminders_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_templates: {
+        Row: {
+          content: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          language_code: string
+          name: string
+          template_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          language_code?: string
+          name: string
+          template_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          language_code?: string
+          name?: string
+          template_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      contract_versions: {
+        Row: {
+          changes_summary: string | null
+          content: string
+          contract_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          version_number: number
+        }
+        Insert: {
+          changes_summary?: string | null
+          content: string
+          contract_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          version_number: number
+        }
+        Update: {
+          changes_summary?: string | null
+          content?: string
+          contract_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_versions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           agent_id: string | null
+          auto_expire_date: string | null
+          compliance_status: Json | null
           contract_type: string
+          contract_value: number | null
           created_at: string | null
+          currency: string | null
+          deal_stage: string | null
+          digital_signature_status: Json | null
+          financial_summary: Json | null
           id: string
+          language_code: string | null
+          last_activity: string | null
+          negotiation_rounds: number | null
+          pitch_id: string | null
           player_id: string
+          priority_level: string | null
+          response_deadline: string | null
           signed_contract_url: string | null
           status: string | null
           team_id: string | null
           template_url: string | null
           terms: Json | null
           updated_at: string | null
+          version: number | null
         }
         Insert: {
           agent_id?: string | null
+          auto_expire_date?: string | null
+          compliance_status?: Json | null
           contract_type: string
+          contract_value?: number | null
           created_at?: string | null
+          currency?: string | null
+          deal_stage?: string | null
+          digital_signature_status?: Json | null
+          financial_summary?: Json | null
           id?: string
+          language_code?: string | null
+          last_activity?: string | null
+          negotiation_rounds?: number | null
+          pitch_id?: string | null
           player_id: string
+          priority_level?: string | null
+          response_deadline?: string | null
           signed_contract_url?: string | null
           status?: string | null
           team_id?: string | null
           template_url?: string | null
           terms?: Json | null
           updated_at?: string | null
+          version?: number | null
         }
         Update: {
           agent_id?: string | null
+          auto_expire_date?: string | null
+          compliance_status?: Json | null
           contract_type?: string
+          contract_value?: number | null
           created_at?: string | null
+          currency?: string | null
+          deal_stage?: string | null
+          digital_signature_status?: Json | null
+          financial_summary?: Json | null
           id?: string
+          language_code?: string | null
+          last_activity?: string | null
+          negotiation_rounds?: number | null
+          pitch_id?: string | null
           player_id?: string
+          priority_level?: string | null
+          response_deadline?: string | null
           signed_contract_url?: string | null
           status?: string | null
           team_id?: string | null
           template_url?: string | null
           terms?: Json | null
           updated_at?: string | null
+          version?: number | null
         }
         Relationships: [
           {
@@ -307,6 +566,27 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
+          {
+            foreignKeyName: "contracts_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
             referencedColumns: ["id"]
           },
           {
