@@ -93,10 +93,16 @@ export const enhancedContractService = {
     return data || [];
   },
 
-  async createContractTemplate(template: Partial<ContractTemplate>): Promise<string> {
+  async createContractTemplate(template: Omit<ContractTemplate, 'id' | 'is_active'>): Promise<string> {
     const { data, error } = await supabase
       .from('contract_templates')
-      .insert(template)
+      .insert({
+        name: template.name,
+        template_type: template.template_type,
+        language_code: template.language_code,
+        content: template.content,
+        is_active: true
+      })
       .select()
       .single();
 
@@ -217,17 +223,24 @@ export const enhancedContractService = {
     if (error) throw error;
     
     return (data || []).map(comment => ({
-      ...comment,
-      user: comment.profiles
+      id: comment.id,
+      contract_id: comment.contract_id || '',
+      user_id: comment.user_id || '',
+      comment: comment.comment,
+      is_internal: comment.is_internal || false,
+      created_at: comment.created_at || '',
+      user: comment.profiles ? { full_name: comment.profiles.full_name || 'Unknown User' } : undefined
     }));
   },
 
   async addContractComment(contractId: string, comment: string, isInternal: boolean = false): Promise<void> {
+    const { data: user } = await supabase.auth.getUser();
+    
     const { error } = await supabase
       .from('contract_comments')
       .insert({
         contract_id: contractId,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: user.user?.id,
         comment,
         is_internal: isInternal
       });
@@ -249,8 +262,14 @@ export const enhancedContractService = {
     if (error) throw error;
     
     return (data || []).map(version => ({
-      ...version,
-      user: version.profiles
+      id: version.id,
+      contract_id: version.contract_id || '',
+      version_number: version.version_number,
+      content: version.content,
+      changes_summary: version.changes_summary || undefined,
+      created_by: version.created_by || '',
+      created_at: version.created_at || '',
+      user: version.profiles ? { full_name: version.profiles.full_name || 'Unknown User' } : undefined
     }));
   },
 
