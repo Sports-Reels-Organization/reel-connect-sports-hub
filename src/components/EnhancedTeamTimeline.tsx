@@ -11,28 +11,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Calendar, 
   Trophy, 
-  ArrowUpDown, 
-  Users, 
-  Megaphone,
-  Zap,
-  Heart, 
-  MessageCircle, 
-  Pin, 
   Plus,
-  Filter,
-  Download,
-  Share2,
-  ExternalLink,
   Target,
-  Award,
-  Activity,
-  Clock,
-  User,
-  Building2
+  MessageCircle,
+  Download,
+  Share2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import TimelineEventCard from './timeline/TimelineEventCard';
+import SeasonSeparator from './timeline/SeasonSeparator';
+import { exportTimelineToPDF } from '@/utils/pdfExport';
 
 export type EventType = 'match' | 'transfer' | 'player' | 'team' | 'achievement';
 
@@ -70,36 +59,6 @@ interface TimelineComment {
   };
 }
 
-const EventIcon = ({ type }: { type: EventType }) => {
-  const iconMap = {
-    match: <Zap className="w-5 h-5 text-green-500" />,
-    transfer: <ArrowUpDown className="w-5 h-5 text-blue-500" />,
-    player: <Users className="w-5 h-5 text-purple-500" />,
-    team: <Megaphone className="w-5 h-5 text-orange-500" />,
-    achievement: <Trophy className="w-5 h-5 text-yellow-500" />
-  };
-  
-  return iconMap[type] || <Activity className="w-5 h-5 text-gray-500" />;
-};
-
-const EventBadge = ({ type }: { type: EventType }) => {
-  const badgeMap = {
-    match: { label: 'Match', className: 'bg-green-500/10 text-green-400 border-green-500/20' },
-    transfer: { label: 'Transfer', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-    player: { label: 'Player', className: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-    team: { label: 'Team', className: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-    achievement: { label: 'Achievement', className: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' }
-  };
-  
-  const badge = badgeMap[type] || { label: 'Event', className: 'bg-gray-500/10 text-gray-400' };
-  
-  return (
-    <Badge variant="outline" className={badge.className}>
-      {badge.label}
-    </Badge>
-  );
-};
-
 const EnhancedTeamTimeline = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -129,6 +88,7 @@ const EnhancedTeamTimeline = () => {
   
   // Players for filtering/selection
   const [teamPlayers, setTeamPlayers] = useState<any[]>([]);
+  const [teamName, setTeamName] = useState('');
 
   useEffect(() => {
     if (profile?.user_type === 'team') {
@@ -145,14 +105,15 @@ const EnhancedTeamTimeline = () => {
     try {
       setLoading(true);
       
-      // Get team ID first
       const { data: teamData } = await supabase
         .from('teams')
-        .select('id')
+        .select('id, team_name')
         .eq('profile_id', profile?.id)
         .single();
 
       if (!teamData) return;
+      
+      setTeamName(teamData.team_name || 'Your Team');
 
       const { data, error } = await supabase
         .from('timeline_events')
@@ -170,7 +131,6 @@ const EnhancedTeamTimeline = () => {
 
       if (error) throw error;
 
-      // Transform the data to match our interface
       const transformedData: TimelineEvent[] = (data || []).map(item => ({
         ...item,
         event_type: item.event_type as EventType,
@@ -329,6 +289,50 @@ const EnhancedTeamTimeline = () => {
     }
   };
 
+  const groupEventsBySeason = (events: TimelineEvent[]) => {
+    return events.reduce((acc, event) => {
+      const eventDate = new Date(event.event_date);
+      const year = eventDate.getFullYear();
+      const month = eventDate.getMonth();
+      
+      // Football seasons typically run from August to May
+      // So 2023/2024 season would be Aug 2023 to May 2024
+      const seasonYear = month >= 7 ? year : year - 1;
+      const seasonKey = `${seasonYear}/${seasonYear + 1}`;
+      
+      if (!acc[seasonKey]) {
+        acc[seasonKey] = [];
+      }
+      acc[seasonKey].push(event);
+      return acc;
+    }, {} as Record<string, TimelineEvent[]>);
+  };
+
+  const handleExportPDF = () => {
+    const currentSeason = dateFilter === 'season' ? 
+      Object.keys(groupEventsBySeason(events))[0] : undefined;
+    
+    exportTimelineToPDF(
+      filteredEvents.map(event => ({
+        id: event.id,
+        event_type: event.event_type,
+        title: event.title,
+        description: event.description,
+        event_date: event.event_date,
+        created_at: event.created_at,
+        is_pinned: event.is_pinned,
+        players: event.players
+      })),
+      teamName,
+      currentSeason
+    );
+    
+    toast({
+      title: "Success",
+      description: "Timeline exported as PDF"
+    });
+  };
+
   const togglePin = async (eventId: string, currentPinned: boolean) => {
     try {
       const { error } = await supabase
@@ -436,6 +440,9 @@ const EnhancedTeamTimeline = () => {
     );
   }
 
+  const eventsBySeason = groupEventsBySeason(filteredEvents);
+  const seasons = Object.keys(eventsBySeason).sort().reverse();
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -445,6 +452,14 @@ const EnhancedTeamTimeline = () => {
           <p className="text-gray-400 font-poppins">Complete history of your team's journey</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={handleExportPDF}
+            variant="outline"
+            className="border-gray-600 text-gray-300 hover:bg-gray-700"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export PDF
+          </Button>
           <Dialog open={showCreateEvent} onOpenChange={setShowCreateEvent}>
             <DialogTrigger asChild>
               <Button className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans">
@@ -619,93 +634,32 @@ const EnhancedTeamTimeline = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {filteredEvents.map((event) => (
-                <Card key={event.id} className="border-gray-700 hover:border-rosegold/30 transition-colors">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      {/* Icon and Pin */}
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="p-2 bg-gray-800 rounded-full">
-                          <EventIcon type={event.event_type} />
-                        </div>
-                        {event.is_pinned && (
-                          <Pin className="w-4 h-4 text-yellow-500" />
-                        )}
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-semibold text-white">{event.title}</h3>
-                            <EventBadge type={event.event_type} />
-                            {event.is_pinned && (
-                              <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
-                                Pinned
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => togglePin(event.id, event.is_pinned)}
-                              className="text-gray-400 hover:text-yellow-500"
-                            >
-                              <Pin className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <p className="text-gray-300 mb-3">{event.description}</p>
-
-                        {event.players && (
-                          <div className="flex items-center gap-2 mb-3">
-                            <User className="w-4 h-4 text-gray-400" />
-                            <span className="text-sm text-gray-400">
-                              Related to: {event.players.full_name}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {new Date(event.event_date).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              {formatDistanceToNow(new Date(event.created_at))} ago
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => openComments(event.id)}
-                              className="text-gray-400 hover:text-blue-400"
-                            >
-                              <MessageCircle className="w-4 h-4 mr-1" />
-                              {event.comments_count || 0}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-gray-400 hover:text-red-400"
-                            >
-                              <Heart className="w-4 h-4 mr-1" />
-                              {event.reactions_count || 0}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+            <div className="space-y-6">
+              {seasons.map((season) => {
+                const seasonEvents = eventsBySeason[season];
+                const achievementCount = seasonEvents.filter(e => e.event_type === 'achievement').length;
+                
+                return (
+                  <div key={season}>
+                    <SeasonSeparator 
+                      season={season} 
+                      eventCount={seasonEvents.length}
+                      achievements={achievementCount}
+                    />
+                    
+                    <div className="space-y-4 ml-6">
+                      {seasonEvents.map((event) => (
+                        <TimelineEventCard
+                          key={event.id}
+                          event={event}
+                          onTogglePin={togglePin}
+                          onOpenComments={openComments}
+                        />
+                      ))}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </TabsContent>
