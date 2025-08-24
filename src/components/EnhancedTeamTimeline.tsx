@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,8 +15,8 @@ import {
   Trophy, 
   ArrowUpDown, 
   Users, 
-  Megaphone, 
-  Football, 
+  Megaphone,
+  Zap,
   Heart, 
   MessageCircle, 
   Pin, 
@@ -73,7 +72,7 @@ interface TimelineComment {
 
 const EventIcon = ({ type }: { type: EventType }) => {
   const iconMap = {
-    match: <Football className="w-5 h-5 text-green-500" />,
+    match: <Zap className="w-5 h-5 text-green-500" />,
     transfer: <ArrowUpDown className="w-5 h-5 text-blue-500" />,
     player: <Users className="w-5 h-5 text-purple-500" />,
     team: <Megaphone className="w-5 h-5 text-orange-500" />,
