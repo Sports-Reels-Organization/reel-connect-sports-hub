@@ -4,26 +4,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Search, 
   User, 
-  Play, 
+  Video, 
   DollarSign, 
-  FileText, 
-  Eye, 
-  ArrowRight, 
-  ArrowLeft,
+  Calendar,
+  AlertTriangle,
   CheckCircle,
-  Upload
+  ArrowRight,
+  ArrowLeft,
+  X
 } from 'lucide-react';
 
 interface Player {
@@ -31,9 +29,9 @@ interface Player {
   full_name: string;
   position: string;
   age: number;
-  citizenship: string;
   market_value: number;
   photo_url?: string;
+  citizenship: string;
 }
 
 interface Video {
@@ -59,25 +57,24 @@ const CreatePitchModal: React.FC<CreatePitchModalProps> = ({
   const { profile } = useAuth();
   const { toast } = useToast();
   
-  const [currentStep, setCurrentStep] = useState(1);
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // Form data
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
-  const [transferType, setTransferType] = useState<'permanent' | 'loan'>('permanent');
-  const [transferData, setTransferData] = useState({
-    asking_price: '',
-    sign_on_bonus: '',
-    performance_bonus: '',
-    player_salary: '',
-    relocation_support: '',
-    loan_fee: '',
-    loan_with_option: false,
-    loan_with_obligation: false,
-    description: ''
+  const [transferDetails, setTransferDetails] = useState({
+    transferType: 'permanent' as 'permanent' | 'loan',
+    askingPrice: 0,
+    signOnBonus: 0,
+    performanceBonus: 0,
+    playerSalary: 0,
+    relocationSupport: 0,
+    loanFee: 0,
+    loanWithOption: false,
+    loanWithObligation: false,
+    description: '',
+    currency: 'USD'
   });
 
   useEffect(() => {
@@ -99,6 +96,7 @@ const CreatePitchModal: React.FC<CreatePitchModalProps> = ({
 
       if (!teamData) return;
 
+      // Only fetch players with complete profiles
       const { data: playersData } = await supabase
         .from('players')
         .select('*')
@@ -135,7 +133,7 @@ const CreatePitchModal: React.FC<CreatePitchModalProps> = ({
         .select('*')
         .eq('team_id', teamData.id);
 
-      // Transform the data to match our interface
+      // Transform the data to handle tagged_players JSON field
       const transformedVideos = (videosData || []).map(video => ({
         ...video,
         tagged_players: Array.isArray(video.tagged_players) 
@@ -151,19 +149,70 @@ const CreatePitchModal: React.FC<CreatePitchModalProps> = ({
     }
   };
 
-  const handleVideoToggle = (videoId: string) => {
-    setSelectedVideos(prev => {
-      if (prev.includes(videoId)) {
-        return prev.filter(id => id !== videoId);
-      } else if (prev.length < 6) {
-        return [...prev, videoId];
-      }
-      return prev;
-    });
+  const validateStep = (currentStep: number): boolean => {
+    switch (currentStep) {
+      case 1:
+        if (!selectedPlayer) {
+          toast({
+            title: "Player Required",
+            description: "Please select a player for this pitch.",
+            variant: "destructive"
+          });
+          return false;
+        }
+        break;
+      case 2:
+        if (selectedVideos.length === 0) {
+          toast({
+            title: "Videos Required",
+            description: "Please select at least one video for this pitch.",
+            variant: "destructive"
+          });
+          return false;
+        }
+        if (selectedVideos.length > 6) {
+          toast({
+            title: "Too Many Videos",
+            description: "Please select no more than 6 videos.",
+            variant: "destructive"
+          });
+          return false;
+        }
+        break;
+      case 3:
+        if (transferDetails.transferType === 'permanent' && transferDetails.askingPrice <= 0) {
+          toast({
+            title: "Asking Price Required",
+            description: "Please enter a valid asking price for permanent transfers.",
+            variant: "destructive"
+          });
+          return false;
+        }
+        if (transferDetails.transferType === 'loan' && transferDetails.loanFee <= 0) {
+          toast({
+            title: "Loan Fee Required",
+            description: "Please enter a valid loan fee for loan transfers.",
+            variant: "destructive"
+          });
+          return false;
+        }
+        break;
+    }
+    return true;
+  };
+
+  const handleNext = () => {
+    if (validateStep(step)) {
+      setStep(step + 1);
+    }
+  };
+
+  const handleBack = () => {
+    setStep(step - 1);
   };
 
   const handleSubmit = async () => {
-    if (!selectedPlayer) return;
+    if (!selectedPlayer || !profile?.id) return;
 
     try {
       setLoading(true);
@@ -171,27 +220,33 @@ const CreatePitchModal: React.FC<CreatePitchModalProps> = ({
       const { data: teamData } = await supabase
         .from('teams')
         .select('id')
-        .eq('profile_id', profile?.id)
+        .eq('profile_id', profile.id)
         .single();
 
-      if (!teamData) throw new Error('Team not found');
+      if (!teamData) {
+        throw new Error('Team not found');
+      }
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
 
       const pitchData = {
         team_id: teamData.id,
         player_id: selectedPlayer.id,
-        transfer_type: transferType,
-        asking_price: transferData.asking_price ? parseFloat(transferData.asking_price) : null,
-        sign_on_bonus: transferData.sign_on_bonus ? parseFloat(transferData.sign_on_bonus) : null,
-        performance_bonus: transferData.performance_bonus ? parseFloat(transferData.performance_bonus) : null,
-        player_salary: transferData.player_salary ? parseFloat(transferData.player_salary) : null,
-        relocation_support: transferData.relocation_support ? parseFloat(transferData.relocation_support) : null,
-        loan_fee: transferData.loan_fee ? parseFloat(transferData.loan_fee) : null,
-        loan_with_option: transferData.loan_with_option,
-        loan_with_obligation: transferData.loan_with_obligation,
-        description: transferData.description,
+        transfer_type: transferDetails.transferType,
+        asking_price: transferDetails.transferType === 'permanent' ? transferDetails.askingPrice : null,
+        sign_on_bonus: transferDetails.signOnBonus,
+        performance_bonus: transferDetails.performanceBonus,
+        player_salary: transferDetails.playerSalary,
+        relocation_support: transferDetails.relocationSupport,
+        loan_fee: transferDetails.transferType === 'loan' ? transferDetails.loanFee : null,
+        loan_with_option: transferDetails.loanWithOption,
+        loan_with_obligation: transferDetails.loanWithObligation,
         tagged_videos: selectedVideos,
-        status: 'active',
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        description: transferDetails.description,
+        currency: transferDetails.currency,
+        status: 'active' as const,
+        expires_at: expiresAt.toISOString()
       };
 
       const { error } = await supabase
@@ -201,8 +256,8 @@ const CreatePitchModal: React.FC<CreatePitchModalProps> = ({
       if (error) throw error;
 
       toast({
-        title: "Pitch Created Successfully",
-        description: `${selectedPlayer.full_name} has been added to the transfer timeline.`
+        title: "Pitch Created",
+        description: `Transfer pitch for ${selectedPlayer.full_name} has been created successfully.`
       });
 
       onSuccess();
@@ -221,60 +276,413 @@ const CreatePitchModal: React.FC<CreatePitchModalProps> = ({
   };
 
   const resetForm = () => {
-    setCurrentStep(1);
+    setStep(1);
     setSelectedPlayer(null);
     setSelectedVideos([]);
-    setTransferType('permanent');
-    setTransferData({
-      asking_price: '',
-      sign_on_bonus: '',
-      performance_bonus: '',
-      player_salary: '',
-      relocation_support: '',
-      loan_fee: '',
-      loan_with_option: false,
-      loan_with_obligation: false,
-      description: ''
+    setTransferDetails({
+      transferType: 'permanent',
+      askingPrice: 0,
+      signOnBonus: 0,
+      performanceBonus: 0,
+      playerSalary: 0,
+      relocationSupport: 0,
+      loanFee: 0,
+      loanWithOption: false,
+      loanWithObligation: false,
+      description: '',
+      currency: 'USD'
     });
   };
 
-  const getPlayerVideos = (playerId: string) => {
+  const getPlayerVideos = () => {
+    if (!selectedPlayer) return [];
     return videos.filter(video => 
-      video.tagged_players?.includes(playerId)
+      video.tagged_players && 
+      video.tagged_players.some((tag: any) => tag.playerId === selectedPlayer.id)
     );
   };
 
-  const canProceedToStep2 = selectedPlayer !== null;
-  const canProceedToStep3 = selectedVideos.length > 0;
-  const canSubmit = transferType === 'permanent' 
-    ? transferData.asking_price && transferData.player_salary
-    : transferData.loan_fee;
+  const renderStepContent = () => {
+    switch (step) {
+      case 1:
+        return (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium text-white mb-4">Select Player</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Choose a player with a complete profile to create a pitch.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+              {players.map((player) => (
+                <Card 
+                  key={player.id} 
+                  className={`border cursor-pointer transition-colors ${
+                    selectedPlayer?.id === player.id 
+                      ? 'border-rosegold bg-rosegold/5' 
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                  onClick={() => setSelectedPlayer(player)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={player.photo_url} alt={player.full_name} />
+                        <AvatarFallback className="bg-gray-700 text-white">
+                          <User className="w-6 h-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-white">{player.full_name}</h4>
+                        <p className="text-sm text-gray-400">{player.position} • Age {player.age}</p>
+                        <p className="text-sm text-gray-500">{player.citizenship}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-rosegold">${player.market_value?.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
-  if (!isOpen) return null;
+            {players.length === 0 && (
+              <div className="text-center py-8">
+                <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                <h4 className="text-lg font-medium text-white mb-2">No Eligible Players</h4>
+                <p className="text-gray-400">
+                  All players must have complete profiles before they can be pitched.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 2:
+        const playerVideos = getPlayerVideos();
+        return (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Select Videos</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Choose up to 6 videos featuring {selectedPlayer?.full_name}. At least 1 video is required.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+              {playerVideos.map((video) => (
+                <Card 
+                  key={video.id} 
+                  className={`border cursor-pointer transition-colors ${
+                    selectedVideos.includes(video.id) 
+                      ? 'border-rosegold bg-rosegold/5' 
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                  onClick={() => {
+                    if (selectedVideos.includes(video.id)) {
+                      setSelectedVideos(selectedVideos.filter(id => id !== video.id));
+                    } else if (selectedVideos.length < 6) {
+                      setSelectedVideos([...selectedVideos, video.id]);
+                    }
+                  }}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gray-700 rounded flex items-center justify-center">
+                        <Video className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-white text-sm">{video.title}</h4>
+                        <p className="text-xs text-gray-400">{video.duration}s</p>
+                      </div>
+                      {selectedVideos.includes(video.id) && (
+                        <CheckCircle className="w-5 h-5 text-rosegold" />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {playerVideos.length === 0 && (
+              <div className="text-center py-8">
+                <Video className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                <h4 className="text-lg font-medium text-white mb-2">No Videos Available</h4>
+                <p className="text-gray-400">
+                  No videos found featuring {selectedPlayer?.full_name}. Upload and tag videos first.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Selected: {selectedVideos.length}/6</span>
+              <Badge variant="outline" className="border-rosegold text-rosegold">
+                {selectedVideos.length} videos selected
+              </Badge>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Transfer Details</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Set the transfer terms and financial details for {selectedPlayer?.full_name}.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-white">Transfer Type</Label>
+                <Select 
+                  value={transferDetails.transferType} 
+                  onValueChange={(value: 'permanent' | 'loan') => 
+                    setTransferDetails({ ...transferDetails, transferType: value })
+                  }
+                >
+                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="permanent">Permanent Transfer</SelectItem>
+                    <SelectItem value="loan">Loan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-white">Currency</Label>
+                <Select 
+                  value={transferDetails.currency} 
+                  onValueChange={(value) => 
+                    setTransferDetails({ ...transferDetails, currency: value })
+                  }
+                >
+                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {transferDetails.transferType === 'permanent' ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-white">Asking Price *</Label>
+                  <Input
+                    type="number"
+                    value={transferDetails.askingPrice}
+                    onChange={(e) => setTransferDetails({ 
+                      ...transferDetails, 
+                      askingPrice: parseInt(e.target.value) || 0 
+                    })}
+                    className="bg-gray-800 border-gray-600 text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label className="text-white">Sign-on Bonus</Label>
+                  <Input
+                    type="number"
+                    value={transferDetails.signOnBonus}
+                    onChange={(e) => setTransferDetails({ 
+                      ...transferDetails, 
+                      signOnBonus: parseInt(e.target.value) || 0 
+                    })}
+                    className="bg-gray-800 border-gray-600 text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label className="text-white">Performance Bonus</Label>
+                  <Input
+                    type="number"
+                    value={transferDetails.performanceBonus}
+                    onChange={(e) => setTransferDetails({ 
+                      ...transferDetails, 
+                      performanceBonus: parseInt(e.target.value) || 0 
+                    })}
+                    className="bg-gray-800 border-gray-600 text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label className="text-white">Player Salary (Monthly)</Label>
+                  <Input
+                    type="number"
+                    value={transferDetails.playerSalary}
+                    onChange={(e) => setTransferDetails({ 
+                      ...transferDetails, 
+                      playerSalary: parseInt(e.target.value) || 0 
+                    })}
+                    className="bg-gray-800 border-gray-600 text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label className="text-white">Relocation Support</Label>
+                  <Input
+                    type="number"
+                    value={transferDetails.relocationSupport}
+                    onChange={(e) => setTransferDetails({ 
+                      ...transferDetails, 
+                      relocationSupport: parseInt(e.target.value) || 0 
+                    })}
+                    className="bg-gray-800 border-gray-600 text-white"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-white">Loan Fee *</Label>
+                    <Input
+                      type="number"
+                      value={transferDetails.loanFee}
+                      onChange={(e) => setTransferDetails({ 
+                        ...transferDetails, 
+                        loanFee: parseInt(e.target.value) || 0 
+                      })}
+                      className="bg-gray-800 border-gray-600 text-white"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-white">Player Salary (Monthly)</Label>
+                    <Input
+                      type="number"
+                      value={transferDetails.playerSalary}
+                      onChange={(e) => setTransferDetails({ 
+                        ...transferDetails, 
+                        playerSalary: parseInt(e.target.value) || 0 
+                      })}
+                      className="bg-gray-800 border-gray-600 text-white"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                
+                {/* Loan options would go here */}
+              </div>
+            )}
+
+            <div>
+              <Label className="text-white">Description</Label>
+              <Textarea
+                value={transferDetails.description}
+                onChange={(e) => setTransferDetails({ 
+                  ...transferDetails, 
+                  description: e.target.value 
+                })}
+                className="bg-gray-800 border-gray-600 text-white"
+                placeholder="Additional details about this transfer pitch..."
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Review & Publish</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Review all details before publishing your transfer pitch.
+              </p>
+            </div>
+
+            {/* Preview content would go here */}
+            <Card className="border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white">Pitch Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <Avatar className="w-16 h-16">
+                    <AvatarImage src={selectedPlayer?.photo_url} alt={selectedPlayer?.full_name} />
+                    <AvatarFallback className="bg-gray-700 text-white">
+                      <User className="w-8 h-8" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h4 className="text-lg font-medium text-white">{selectedPlayer?.full_name}</h4>
+                    <p className="text-gray-400">{selectedPlayer?.position} • Age {selectedPlayer?.age}</p>
+                    <p className="text-rosegold">Market Value: ${selectedPlayer?.market_value?.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-700">
+                  <div>
+                    <p className="text-gray-400 text-sm">Transfer Type</p>
+                    <p className="text-white capitalize">{transferDetails.transferType}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">
+                      {transferDetails.transferType === 'permanent' ? 'Asking Price' : 'Loan Fee'}
+                    </p>
+                    <p className="text-white">
+                      {transferDetails.currency} {
+                        (transferDetails.transferType === 'permanent' 
+                          ? transferDetails.askingPrice 
+                          : transferDetails.loanFee
+                        ).toLocaleString()
+                      }
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Videos Attached</p>
+                    <p className="text-white">{selectedVideos.length} videos</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Expires</p>
+                    <p className="text-white">30 days</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gray-900 border-gray-700">
         <DialogHeader>
-          <DialogTitle className="text-white text-xl">
-            Create Transfer Pitch - Step {currentStep} of 4
+          <DialogTitle className="text-white flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-rosegold" />
+            Create Transfer Pitch
           </DialogTitle>
         </DialogHeader>
 
-        {/* Progress Steps */}
-        <div className="flex items-center justify-between mb-6">
-          {[1, 2, 3, 4].map((step) => (
-            <div key={step} className="flex items-center">
+        {/* Step Indicator */}
+        <div className="flex items-center gap-2 mb-6">
+          {[1, 2, 3, 4].map((stepNumber) => (
+            <div key={stepNumber} className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step <= currentStep 
+                stepNumber <= step 
                   ? 'bg-rosegold text-black' 
                   : 'bg-gray-700 text-gray-400'
               }`}>
-                {step < currentStep ? <CheckCircle className="w-4 h-4" /> : step}
+                {stepNumber}
               </div>
-              {step < 4 && (
-                <div className={`w-16 h-1 mx-2 ${
-                  step < currentStep ? 'bg-rosegold' : 'bg-gray-700'
+              {stepNumber < 4 && (
+                <ArrowRight className={`w-4 h-4 ${
+                  stepNumber < step ? 'text-rosegold' : 'text-gray-600'
                 }`} />
               )}
             </div>
@@ -282,441 +690,49 @@ const CreatePitchModal: React.FC<CreatePitchModalProps> = ({
         </div>
 
         {/* Step Content */}
-        <div className="space-y-6">
-          {/* Step 1: Select Player */}
-          {currentStep === 1 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-white">
-                <User className="w-5 h-5" />
-                <h3 className="text-lg font-medium">Select Player to Pitch</h3>
-              </div>
-              
-              {players.length === 0 ? (
-                <Card className="border-gray-700">
-                  <CardContent className="p-6 text-center">
-                    <User className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                    <h4 className="text-white mb-2">No Eligible Players</h4>
-                    <p className="text-gray-400 text-sm">
-                      All players must have complete profiles (name, position, citizenship, DOB, height, weight, bio, market value) to be pitched.
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                  {players.map((player) => {
-                    const playerVideos = getPlayerVideos(player.id);
-                    const isSelected = selectedPlayer?.id === player.id;
-                    
-                    return (
-                      <Card 
-                        key={player.id} 
-                        className={`border cursor-pointer transition-colors ${
-                          isSelected 
-                            ? 'border-rosegold bg-rosegold/10' 
-                            : 'border-gray-700 hover:border-gray-600'
-                        }`}
-                        onClick={() => setSelectedPlayer(player)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="w-12 h-12">
-                              <AvatarImage src={player.photo_url} alt={player.full_name} />
-                              <AvatarFallback className="bg-gray-700 text-white">
-                                {player.full_name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <h4 className="text-white font-medium">{player.full_name}</h4>
-                              <p className="text-gray-400 text-sm">
-                                {player.position} • Age {player.age} • {player.citizenship}
-                              </p>
-                              <div className="flex items-center gap-4 mt-1 text-sm">
-                                <span className="text-green-400">
-                                  ${player.market_value?.toLocaleString()}
-                                </span>
-                                <span className="text-blue-400">
-                                  {playerVideos.length} videos
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 2: Attach Videos */}
-          {currentStep === 2 && selectedPlayer && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-white">
-                <Play className="w-5 h-5" />
-                <h3 className="text-lg font-medium">Attach Videos ({selectedVideos.length}/6)</h3>
-              </div>
-              
-              {(() => {
-                const playerVideos = getPlayerVideos(selectedPlayer.id);
-                
-                if (playerVideos.length === 0) {
-                  return (
-                    <Card className="border-gray-700">
-                      <CardContent className="p-6 text-center">
-                        <Upload className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                        <h4 className="text-white mb-2">No Tagged Videos</h4>
-                        <p className="text-gray-400 text-sm">
-                          This player has no tagged videos. Upload and tag videos before creating a pitch.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                }
-
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                    {playerVideos.map((video) => {
-                      const isSelected = selectedVideos.includes(video.id);
-                      
-                      return (
-                        <Card 
-                          key={video.id}
-                          className={`border cursor-pointer transition-colors ${
-                            isSelected 
-                              ? 'border-rosegold bg-rosegold/10' 
-                              : 'border-gray-700 hover:border-gray-600'
-                          }`}
-                          onClick={() => handleVideoToggle(video.id)}
-                        >
-                          <CardContent className="p-3">
-                            <div className="relative mb-2">
-                              {video.thumbnail_url && (
-                                <img 
-                                  src={video.thumbnail_url} 
-                                  alt={video.title}
-                                  className="w-full h-24 object-cover rounded"
-                                />
-                              )}
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded">
-                                <Play className="w-6 h-6 text-white" />
-                              </div>
-                            </div>
-                            <h4 className="text-white text-sm font-medium truncate">
-                              {video.title}
-                            </h4>
-                            <p className="text-gray-400 text-xs">
-                              {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* Step 3: Transfer Information */}
-          {currentStep === 3 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-white">
-                <DollarSign className="w-5 h-5" />
-                <h3 className="text-lg font-medium">Transfer Information</h3>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <Button
-                  variant={transferType === 'permanent' ? 'default' : 'outline'}
-                  onClick={() => setTransferType('permanent')}
-                  className={transferType === 'permanent' ? 'bg-rosegold text-black' : 'border-gray-600 text-gray-300'}
-                >
-                  Permanent Transfer
-                </Button>
-                <Button
-                  variant={transferType === 'loan' ? 'default' : 'outline'}
-                  onClick={() => setTransferType('loan')}
-                  className={transferType === 'loan' ? 'bg-rosegold text-black' : 'border-gray-600 text-gray-300'}
-                >
-                  Loan Transfer
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {transferType === 'permanent' ? (
-                  <>
-                    <div>
-                      <Label className="text-white">Asking Price * (USD)</Label>
-                      <Input
-                        type="number"
-                        value={transferData.asking_price}
-                        onChange={(e) => setTransferData(prev => ({ ...prev, asking_price: e.target.value }))}
-                        className="bg-gray-800 border-gray-600 text-white"
-                        placeholder="e.g., 500000"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-white">Player Salary * (USD/year)</Label>
-                      <Input
-                        type="number"
-                        value={transferData.player_salary}
-                        onChange={(e) => setTransferData(prev => ({ ...prev, player_salary: e.target.value }))}
-                        className="bg-gray-800 border-gray-600 text-white"
-                        placeholder="e.g., 120000"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-white">Sign-on Bonus (USD)</Label>
-                      <Input
-                        type="number"
-                        value={transferData.sign_on_bonus}
-                        onChange={(e) => setTransferData(prev => ({ ...prev, sign_on_bonus: e.target.value }))}
-                        className="bg-gray-800 border-gray-600 text-white"
-                        placeholder="e.g., 50000"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-white">Performance Bonus (USD)</Label>
-                      <Input
-                        type="number"
-                        value={transferData.performance_bonus}
-                        onChange={(e) => setTransferData(prev => ({ ...prev, performance_bonus: e.target.value }))}
-                        className="bg-gray-800 border-gray-600 text-white"
-                        placeholder="e.g., 25000"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-white">Relocation Support (USD)</Label>
-                      <Input
-                        type="number"
-                        value={transferData.relocation_support}
-                        onChange={(e) => setTransferData(prev => ({ ...prev, relocation_support: e.target.value }))}
-                        className="bg-gray-800 border-gray-600 text-white"
-                        placeholder="e.g., 10000"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <Label className="text-white">Loan Fee * (USD)</Label>
-                      <Input
-                        type="number"
-                        value={transferData.loan_fee}
-                        onChange={(e) => setTransferData(prev => ({ ...prev, loan_fee: e.target.value }))}
-                        className="bg-gray-800 border-gray-600 text-white"
-                        placeholder="e.g., 100000"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-4 pt-6">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="loan_option"
-                          checked={transferData.loan_with_option}
-                          onCheckedChange={(checked) => 
-                            setTransferData(prev => ({ ...prev, loan_with_option: checked as boolean }))
-                          }
-                        />
-                        <Label htmlFor="loan_option" className="text-white text-sm">
-                          Option to buy
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="loan_obligation"
-                          checked={transferData.loan_with_obligation}
-                          onCheckedChange={(checked) => 
-                            setTransferData(prev => ({ ...prev, loan_with_obligation: checked as boolean }))
-                          }
-                        />
-                        <Label htmlFor="loan_obligation" className="text-white text-sm">
-                          Obligation to buy
-                        </Label>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div>
-                <Label className="text-white">Additional Information</Label>
-                <Textarea
-                  value={transferData.description}
-                  onChange={(e) => setTransferData(prev => ({ ...prev, description: e.target.value }))}
-                  className="bg-gray-800 border-gray-600 text-white"
-                  placeholder="Any additional details about the transfer..."
-                  rows={3}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Preview */}
-          {currentStep === 4 && selectedPlayer && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-white">
-                <Eye className="w-5 h-5" />
-                <h3 className="text-lg font-medium">Preview Pitch</h3>
-              </div>
-
-              <Card className="border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-white">Transfer Pitch Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Player Info */}
-                  <div className="flex items-center gap-4">
-                    <Avatar className="w-16 h-16">
-                      <AvatarImage src={selectedPlayer.photo_url} alt={selectedPlayer.full_name} />
-                      <AvatarFallback className="bg-gray-700 text-white">
-                        {selectedPlayer.full_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h4 className="text-white font-medium text-lg">{selectedPlayer.full_name}</h4>
-                      <p className="text-gray-400">
-                        {selectedPlayer.position} • Age {selectedPlayer.age} • {selectedPlayer.citizenship}
-                      </p>
-                      <Badge className="bg-green-500/10 text-green-400 border-green-500/20 mt-1">
-                        Market Value: ${selectedPlayer.market_value?.toLocaleString()}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Transfer Details */}
-                  <div className="bg-gray-800 rounded-lg p-4">
-                    <h5 className="text-white font-medium mb-2">Transfer Terms</h5>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-400">Type:</span>
-                        <span className="text-white ml-2 capitalize">{transferType}</span>
-                      </div>
-                      {transferType === 'permanent' ? (
-                        <>
-                          <div>
-                            <span className="text-gray-400">Asking Price:</span>
-                            <span className="text-white ml-2">
-                              ${parseFloat(transferData.asking_price || '0').toLocaleString()}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400">Annual Salary:</span>
-                            <span className="text-white ml-2">
-                              ${parseFloat(transferData.player_salary || '0').toLocaleString()}
-                            </span>
-                          </div>
-                          {transferData.sign_on_bonus && (
-                            <div>
-                              <span className="text-gray-400">Sign-on Bonus:</span>
-                              <span className="text-white ml-2">
-                                ${parseFloat(transferData.sign_on_bonus).toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <div>
-                            <span className="text-gray-400">Loan Fee:</span>
-                            <span className="text-white ml-2">
-                              ${parseFloat(transferData.loan_fee || '0').toLocaleString()}
-                            </span>
-                          </div>
-                          {transferData.loan_with_option && (
-                            <div className="col-span-2">
-                              <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">
-                                Option to Buy
-                              </Badge>
-                            </div>
-                          )}
-                          {transferData.loan_with_obligation && (
-                            <div className="col-span-2">
-                              <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/20">
-                                Obligation to Buy
-                              </Badge>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Videos */}
-                  <div>
-                    <h5 className="text-white font-medium mb-2">
-                      Attached Videos ({selectedVideos.length})
-                    </h5>
-                    <div className="grid grid-cols-3 gap-2">
-                      {selectedVideos.slice(0, 3).map((videoId) => {
-                        const video = videos.find(v => v.id === videoId);
-                        return video ? (
-                          <div key={video.id} className="text-center">
-                            <div className="bg-gray-700 rounded p-2 mb-1">
-                              <Play className="w-6 h-6 mx-auto text-white" />
-                            </div>
-                            <p className="text-xs text-gray-400 truncate">{video.title}</p>
-                          </div>
-                        ) : null;
-                      })}
-                      {selectedVideos.length > 3 && (
-                        <div className="text-center">
-                          <div className="bg-gray-700 rounded p-2 mb-1">
-                            <span className="text-white text-sm">+{selectedVideos.length - 3}</span>
-                          </div>
-                          <p className="text-xs text-gray-400">more videos</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {transferData.description && (
-                    <div>
-                      <h5 className="text-white font-medium mb-2">Additional Information</h5>
-                      <p className="text-gray-300 text-sm bg-gray-800 rounded p-3">
-                        {transferData.description}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
+        <div className="min-h-[400px]">
+          {renderStepContent()}
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between pt-6 border-t border-gray-700">
+        <div className="flex items-center justify-between pt-6 border-t border-gray-700">
           <Button
             variant="outline"
-            onClick={currentStep === 1 ? onClose : () => setCurrentStep(prev => prev - 1)}
+            onClick={step === 1 ? onClose : handleBack}
             className="border-gray-600 text-gray-300"
+            disabled={loading}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {currentStep === 1 ? 'Cancel' : 'Back'}
+            {step === 1 ? (
+              <>
+                <X className="w-4 h-4 mr-2" />
+                Cancel
+              </>
+            ) : (
+              <>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </>
+            )}
           </Button>
 
-          {currentStep < 4 ? (
-            <Button
-              onClick={() => setCurrentStep(prev => prev + 1)}
-              disabled={
-                (currentStep === 1 && !canProceedToStep2) ||
-                (currentStep === 2 && !canProceedToStep3) ||
-                (currentStep === 3 && !canSubmit)
-              }
-              className="bg-rosegold text-black hover:bg-rosegold/90 disabled:opacity-50"
-            >
-              Next
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="bg-rosegold text-black hover:bg-rosegold/90 disabled:opacity-50"
-            >
-              {loading ? 'Creating...' : 'Create Pitch'}
-            </Button>
-          )}
+          <div className="text-sm text-gray-400">
+            Step {step} of 4
+          </div>
+
+          <Button
+            onClick={step === 4 ? handleSubmit : handleNext}
+            className="bg-rosegold text-black hover:bg-rosegold/90"
+            disabled={loading}
+          >
+            {step === 4 ? (
+              loading ? 'Creating...' : 'Publish Pitch'
+            ) : (
+              <>
+                Next
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

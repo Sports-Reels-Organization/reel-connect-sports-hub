@@ -83,7 +83,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({
     try {
       setLoading(true);
       
-      const { data: requestsData } = await supabase
+      const { data: requestsData, error } = await supabase
         .from('agent_requests')
         .select(`
           *,
@@ -97,6 +97,11 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
+      if (error) {
+        console.error('Error fetching agent requests:', error);
+        return;
+      }
+
       // Transform the data to match our interface
       const transformedRequests = (requestsData || []).map(request => ({
         ...request,
@@ -105,7 +110,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({
           : typeof request.tagged_players === 'string' 
             ? JSON.parse(request.tagged_players) 
             : []
-      }));
+      })) as AgentRequest[];
 
       setRequests(transformedRequests);
     } catch (error) {
