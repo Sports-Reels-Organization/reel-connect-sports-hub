@@ -36,6 +36,14 @@ const PlayerComparison: React.FC<PlayerComparisonProps> = ({
     setSelectedPlayers(selectedPlayers.filter(p => p.id !== playerId));
   };
 
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
+
   const getComparisonData = () => [
     { label: 'Full Name', key: 'full_name' },
     { label: 'Position', key: 'position' },
@@ -145,7 +153,7 @@ const PlayerComparison: React.FC<PlayerComparisonProps> = ({
                       </td>
                       {selectedPlayers.map((player, playerIndex) => {
                         const value = player[row.key as keyof DatabasePlayer];
-                        const displayValue = row.format ? row.format(value) : (value || '-');
+                        const displayValue = row.format ? row.format(value) : formatValue(value);
                         
                         return (
                           <td key={playerIndex} className="text-center text-gray-300 p-3 border-b border-gray-700">

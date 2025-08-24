@@ -174,8 +174,17 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
     applyFilters(savedFilter.filters);
   };
 
-  const getUniqueValues = (field: keyof DatabasePlayer) => {
-    return [...new Set(players.map(p => p[field]).filter(Boolean))];
+  const getUniqueValues = (field: keyof DatabasePlayer): string[] => {
+    const values = players.map(p => {
+      const value = p[field];
+      if (value === null || value === undefined) return null;
+      if (typeof value === 'string') return value;
+      if (typeof value === 'number') return value.toString();
+      if (Array.isArray(value)) return value.join(', ');
+      return String(value);
+    }).filter(Boolean);
+    
+    return [...new Set(values)] as string[];
   };
 
   return (
@@ -333,8 +342,8 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All countries</SelectItem>
-                  {getUniqueValues('citizenship').map(country => (
-                    <SelectItem key={country} value={country as string}>{country}</SelectItem>
+                  {getUniqueValues('citizenship').map((country, index) => (
+                    <SelectItem key={`country-${index}`} value={country}>{country}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -364,7 +373,7 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
             <div className="flex gap-2 flex-wrap">
               {savedFilters.map((saved, index) => (
                 <Badge
-                  key={index}
+                  key={`saved-filter-${index}`}
                   variant="outline"
                   className="cursor-pointer hover:bg-rosegold text-white border-gray-600"
                   onClick={() => loadSavedFilter(saved)}
