@@ -29,30 +29,31 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+
       <LanguageProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
-
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/explore" element={<Explore />} />
-              <Route path="/timeline" element={<Timeline />} />
-              <Route path="/videos" element={<Videos />} />
-              <Route path="/video-showcase" element={<VideoShowcase />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/players" element={<Players />} />
-              <Route path="/players/:playerId" element={<PlayerProfile />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/news" element={<News />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/contracts" element={<Contracts />} />
-              <Route path="/notifications" element={<Notification />} />
-              <Route path="/admin/user-management" element={<UserManagement />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-
+            <Suspense>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/explore" element={<Explore />} />
+                <Route path="/timeline" element={<Timeline />} />
+                <Route path="/videos" element={<Videos />} />
+                <Route path="/video-showcase" element={<VideoShowcase />} />
+                <Route path="/messages" element={<Messages />} />
+                <Route path="/players" element={<Players />} />
+                <Route path="/players/:playerId" element={<PlayerProfile />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/news" element={<News />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/contracts" element={<Contracts />} />
+                <Route path="/notifications" element={<Notification />} />
+                <Route path="/admin/user-management" element={<UserManagement />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </LanguageProvider>

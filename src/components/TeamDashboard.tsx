@@ -328,18 +328,18 @@ const TeamDashboard = () => {
         {/* Statistics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Players */}
-          <Card className="bg-card border-0">
+          <Card className='bg-gradient-to-tr  from-purple-700/60 to-purple-600 border-0'>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-400">Total Players</p>
                   <p className="text-2xl font-bold text-white">{stats.totalPlayers}</p>
                 </div>
-                <Users className="w-8 h-8 text-rosegold" />
+                <Users className="w-8 h-8 text-purple-900" />
               </div>
               <div className="mt-4">
                 <Link to="/players">
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-purple-800/60 to-purple-900 border-0">
                     Manage Players
                   </Button>
                 </Link>
@@ -348,7 +348,7 @@ const TeamDashboard = () => {
           </Card>
 
           {/* Videos */}
-          <Card className="bg-card border-0">
+          <Card className="bg-gradient-to-tr  from-blue-700/60 to-blue-600 border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -365,11 +365,11 @@ const TeamDashboard = () => {
                     )}
                   </div>
                 </div>
-                <Video className="w-8 h-8 text-bright-pink" />
+                <Video className="w-8 h-8 text-blue-900" />
               </div>
               <div className="mt-4">
                 <Link to="/videos">
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-blue-800/60 to-blue-900 border-0">
                     Manage Videos
                   </Button>
                 </Link>
@@ -378,7 +378,7 @@ const TeamDashboard = () => {
           </Card>
 
           {/* Active Pitches */}
-          <Card className="bg-card border-0">
+          <Card className="bg-gradient-to-tr  from-orange-700/60 to-orange-600 border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -389,11 +389,11 @@ const TeamDashboard = () => {
                     <span className="text-xs text-gray-400">{stats.pitchViews} views</span>
                   </div>
                 </div>
-                <Target className="w-8 h-8 text-purple-400" />
+                <Target className="w-8 h-8 text-orange-900" />
               </div>
               <div className="mt-4">
-                <Link to="/team-explore">
-                  <Button variant="outline" size="sm" className="w-full">
+                <Link to="/explore">
+                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-orange-800/60 to-orange-900 border-0">
                     Explore Hub
                   </Button>
                 </Link>
@@ -402,18 +402,18 @@ const TeamDashboard = () => {
           </Card>
 
           {/* Messages */}
-          <Card className="bg-card border-0">
+          <Card className="bg-gradient-to-tr  from-green-700/60 to-green-600 border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-400">Total Messages</p>
                   <p className="text-2xl font-bold text-white">{stats.totalMessages}</p>
                 </div>
-                <MessageSquare className="w-8 h-8 text-yellow-400" />
+                <MessageSquare className="w-8 h-8 text-green-900" />
               </div>
               <div className="mt-4">
                 <Link to="/messages">
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-green-800/60 to-green-900 border-0">
                     View Messages
                   </Button>
                 </Link>
