@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Fetch user profile with a small delay to ensure database consistency
           setTimeout(() => {
             fetchUserProfile(session.user.id);
-          }, 100);
+          }, 200); // Increased delay slightly for better consistency
         } else {
           console.log('No session, clearing profile and setting loading to false');
           setProfile(null);
@@ -90,37 +90,79 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('Starting profile fetch for user:', userId);
       setLoading(true); // Ensure loading is true while fetching
       
+      // Use maybeSingle() instead of single() to handle cases where no profile exists
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // This won't throw an error if no profile exists
 
       console.log('Profile fetch result - Data:', data, 'Error:', error);
 
       if (error) {
-        console.error('Error fetching profile:', error);
-        if (error.code === 'PGRST116') {
-          // Profile doesn't exist, this is normal for new users
-          console.log('Profile not found (PGRST116) - user needs to complete onboarding');
-          setProfile(null);
-          setIsAdmin(false);
-        } else {
-          console.error('Unexpected error fetching profile:', error);
-          setProfile(null);
-          setIsAdmin(false);
-        }
+        console.error('Unexpected error fetching profile:', error);
+        setProfile(null);
+        setIsAdmin(false);
+      } else if (!data) {
+        // No profile found - this is normal for new users, trigger will create one
+        console.log('No profile found yet, will retry in a moment...');
+        // Retry after a short delay to allow the trigger to create the profile
+        setTimeout(() => {
+          retryProfileFetch(userId, 0);
+        }, 500);
+        return; // Don't set loading to false yet
       } else {
         console.log('Profile fetched successfully:', data);
         setProfile(data);
         setIsAdmin(data.role === 'admin');
+        setLoading(false);
       }
     } catch (error) {
       console.error('Exception in fetchUserProfile:', error);
       setProfile(null);
       setIsAdmin(false);
-    } finally {
-      console.log('Setting loading to false after profile fetch attempt');
+      setLoading(false);
+    }
+  };
+
+  const retryProfileFetch = async (userId: string, attempt: number) => {
+    const maxAttempts = 5;
+    
+    if (attempt >= maxAttempts) {
+      console.log('Max retry attempts reached, setting loading to false');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log(`Retry attempt ${attempt + 1} for profile fetch`);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error on retry:', error);
+        setProfile(null);
+        setIsAdmin(false);
+        setLoading(false);
+      } else if (!data) {
+        // Still no profile, retry again
+        setTimeout(() => {
+          retryProfileFetch(userId, attempt + 1);
+        }, 1000 * (attempt + 1)); // Exponential backoff
+      } else {
+        console.log('Profile fetched successfully on retry:', data);
+        setProfile(data);
+        setIsAdmin(data.role === 'admin');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Exception in retryProfileFetch:', error);
+      setProfile(null);
+      setIsAdmin(false);
       setLoading(false);
     }
   };
