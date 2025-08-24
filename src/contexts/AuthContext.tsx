@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,10 +86,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const createProfileForUser = async (userId: string, userData: any) => {
+  const createOrFetchProfile = async (userId: string, userData: any = {}) => {
     try {
-      console.log('Creating profile for user:', userId, 'with data:', userData);
+      console.log('Creating or fetching profile for user:', userId, 'with data:', userData);
       
+      // First, try to fetch existing profile
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('Error fetching existing profile:', fetchError);
+        return null;
+      }
+
+      if (existingProfile) {
+        console.log('Profile already exists:', existingProfile);
+        return existingProfile;
+      }
+
+      // If no existing profile, create a new one
       const profileData = {
         user_id: userId,
         full_name: userData?.full_name || userData?.name || 'New User',
@@ -105,13 +124,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (error) {
         console.error('Error creating profile:', error);
+        // If error is due to duplicate key (profile already exists), try fetching it
+        if (error.code === '23505') {
+          console.log('Profile already exists (duplicate key), fetching existing profile...');
+          const { data: retryFetch } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+          return retryFetch;
+        }
         return null;
       }
 
       console.log('Profile created successfully:', data);
       return data;
     } catch (error) {
-      console.error('Exception creating profile:', error);
+      console.error('Exception in createOrFetchProfile:', error);
       return null;
     }
   };
@@ -139,18 +168,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Get user data to create profile
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const newProfile = await createProfileForUser(userId, {
+          const newProfile = await createOrFetchProfile(userId, {
             email: user.email,
             full_name: user.user_metadata?.full_name || user.user_metadata?.name,
             user_type: 'team' // Default to team, user can change in onboarding
           });
           
           if (newProfile) {
-            console.log('Profile created successfully, setting profile data');
+            console.log('Profile created/fetched successfully, setting profile data');
             setProfile(newProfile);
             setIsAdmin(newProfile.role === 'admin');
           } else {
-            console.log('Failed to create profile');
+            console.log('Failed to create/fetch profile');
             setProfile(null);
             setIsAdmin(false);
           }
