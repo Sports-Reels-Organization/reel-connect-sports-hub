@@ -26,7 +26,7 @@ const SeasonSeparator: React.FC<SeasonSeparatorProps> = ({
               <h3 className="text-lg font-bold text-white font-polysans">
                 {season} Season
               </h3>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-black">
                 {eventCount} events recorded
               </p>
             </div>

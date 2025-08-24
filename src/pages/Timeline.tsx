@@ -18,7 +18,7 @@ const Timeline = () => {
         ) : (
           <div className="text-center py-12">
             <h2 className="text-2xl font-bold text-white mb-4">Timeline Access</h2>
-            <p className="text-gray-400">Please complete your profile setup to access the timeline.</p>
+            <p className="text-black">Please complete your profile setup to access the timeline.</p>
           </div>
         )}
       </div>

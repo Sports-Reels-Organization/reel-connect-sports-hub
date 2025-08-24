@@ -17,7 +17,7 @@ const TeamExplore = () => {
             <CardContent className="p-6 text-center">
               <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-500" />
               <h2 className="text-xl font-bold text-white mb-2">Access Restricted</h2>
-              <p className="text-gray-400">
+              <p className="text-black">
                 This page is only available for team accounts. Please complete your team profile setup.
               </p>
             </CardContent>
