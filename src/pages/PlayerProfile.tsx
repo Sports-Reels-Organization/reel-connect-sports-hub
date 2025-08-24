@@ -132,7 +132,9 @@ const PlayerProfile = () => {
         profile_image: data.headshot_url || data.photo_url,
         preferred_foot: data.foot,
         achievements: data.titles_seasons || [],
-        stats: data.match_stats || {}
+        stats: data.match_stats || {},
+        height: data.height ? data.height.toString() : undefined,
+        weight: data.weight ? data.weight.toString() : undefined
       };
 
       setPlayer(transformedPlayer);
