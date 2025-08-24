@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,7 +67,7 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
       video.onloadedmetadata = () => {
         canvas.width = 320;
         canvas.height = 180;
-        video.currentTime = Math.min(5, video.duration * 0.1); // Get frame at 5s or 10% of video
+        video.currentTime = Math.min(5, video.duration * 0.1);
       };
       
       video.onseeked = () => {
@@ -94,30 +93,28 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
     });
   };
 
-  // Compress video to target size (10MB)
+  // Compress video to exactly 10MB
   const compressVideo = async (file: File): Promise<File> => {
+    const targetSizeMB = 10;
+    const targetSizeBytes = targetSizeMB * 1024 * 1024;
+    
+    if (file.size <= targetSizeBytes) {
+      return file;
+    }
+
     setIsCompressing(true);
     setCompressionProgress(0);
     
     try {
-      // Target size: 10MB
-      const targetSizeMB = 10;
-      const targetSizeBytes = targetSizeMB * 1024 * 1024;
-      
-      if (file.size <= targetSizeBytes) {
-        setIsCompressing(false);
-        return file;
-      }
-
       const compressionRatio = targetSizeBytes / file.size;
-      const quality = Math.max(0.3, Math.min(0.9, compressionRatio * 1.2));
+      const quality = Math.max(0.1, Math.min(0.9, compressionRatio * 0.8));
 
       setCompressionProgress(25);
       
       const compressedFile = await smartCompress(file, {
         quality,
         maxSizeMB: targetSizeMB,
-        maxWidthOrHeight: 1920,
+        maxWidthOrHeight: 1280,
         useWebWorker: true,
         onProgress: (progress: number) => {
           setCompressionProgress(25 + (progress * 0.75));
@@ -125,19 +122,15 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
       });
 
       setCompressionProgress(100);
-      setIsCompressing(false);
       
       console.log(`Compressed video from ${(file.size / 1024 / 1024).toFixed(2)}MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
       
       return compressedFile;
     } catch (error) {
       console.error('Compression failed:', error);
+      throw new Error('Video compression failed. Please try a smaller file.');
+    } finally {
       setIsCompressing(false);
-      // If compression fails, return original file if under 50MB
-      if (file.size <= 50 * 1024 * 1024) {
-        return file;
-      }
-      throw new Error('Video file is too large and compression failed');
     }
   };
 
@@ -253,7 +246,7 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
       .from('video-thumbnails')
       .getPublicUrl(thumbnailPath);
 
-    // Prepare video metadata for better AI analysis
+    // Prepare video metadata for AI analysis
     const videoData = {
       team_id: teamId,
       title: videoFiles.length > 1 ? `${formData.title} - Part ${videoFiles.indexOf(videoFile) + 1}` : formData.title,
@@ -297,7 +290,7 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
 
     if (insertError) throw insertError;
 
-    // Trigger AI analysis with proper video context
+    // Trigger enhanced AI analysis
     try {
       const { error: analysisError } = await supabase.functions
         .invoke('analyze-video', {
@@ -308,15 +301,10 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
             videoTitle: videoData.title,
             videoDescription: formData.description,
             opposingTeam: formData.opposingTeam,
-            playerStats: {}, // Add any player stats if available
-            taggedPlayers: taggedPlayers.map(playerId => {
-              // Get player details for better analysis
-              return {
-                playerId,
-                playerName: `Player ${playerId}`, // This should be enhanced with actual player names
-                jerseyNumber: Math.floor(Math.random() * 99) + 1 // This should come from actual data
-              };
-            })
+            matchDate: formData.matchDate,
+            score: formData.score,
+            taggedPlayers: taggedPlayers,
+            teamId: teamId
           }
         });
 
