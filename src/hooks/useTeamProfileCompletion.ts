@@ -151,7 +151,9 @@ export const useTeamProfileCompletion = () => {
       const hasMinimumVideos = videoCount >= 5;
       
       // For basic functionality, we only require essential fields
-      const canAccessFeatures = missingTeamFields.length === 0 && playerCount > 0;
+      const canAccessFeatures = missingTeamFields.length === 0 && 
+                                playerCount > 0 && 
+                                Boolean(profile.is_verified);
 
       setCompletionStatus({
         isTeamProfileComplete,
