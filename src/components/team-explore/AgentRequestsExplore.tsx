@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,7 +97,17 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
-      setRequests(requestsData || []);
+      // Transform the data to match our interface
+      const transformedRequests = (requestsData || []).map(request => ({
+        ...request,
+        tagged_players: Array.isArray(request.tagged_players) 
+          ? request.tagged_players 
+          : typeof request.tagged_players === 'string' 
+            ? JSON.parse(request.tagged_players) 
+            : []
+      }));
+
+      setRequests(transformedRequests);
     } catch (error) {
       console.error('Error fetching agent requests:', error);
     } finally {
@@ -128,15 +137,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({
           market_value,
           photo_url
         `)
-        .eq('team_id', teamData.id)
-        .in('id', 
-          await supabase
-            .from('transfer_pitches')
-            .select('player_id')
-            .eq('team_id', teamData.id)
-            .eq('status', 'active')
-            .then(({ data }) => data?.map(p => p.player_id) || [])
-        );
+        .eq('team_id', teamData.id);
 
       setTeamPlayers(playersData || []);
     } catch (error) {

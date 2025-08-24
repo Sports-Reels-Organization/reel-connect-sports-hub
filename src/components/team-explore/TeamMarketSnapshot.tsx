@@ -4,33 +4,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { 
   TrendingUp, 
   TrendingDown, 
   DollarSign, 
   Users, 
+  Clock, 
+  MapPin,
   Target,
-  AlertCircle,
-  BarChart3,
-  Clock,
-  Globe
+  Activity,
+  ArrowUpRight,
+  ArrowDownRight,
+  Crown
 } from 'lucide-react';
 
 interface MarketStats {
-  avgAskingPriceInAssociation: number;
-  topRequestedPositions: Array<{
-    position: string;
-    count: number;
-    trend: 'up' | 'down' | 'stable';
-  }>;
-  expiredPitchesRate: number;
-  trendingRequests: Array<{
-    title: string;
-    demand: 'high' | 'medium' | 'low';
-  }>;
+  averageAskingPrice: number;
+  averageMarketValue: number;
   totalActivePitches: number;
-  totalActiveRequests: number;
+  expiringSoonCount: number;
+  topPositions: Array<{ position: string; count: number }>;
+  recentActivity: Array<{
+    type: 'pitch_created' | 'request_posted' | 'pitch_expired';
+    description: string;
+    timestamp: string;
+  }>;
 }
 
 interface TeamMarketSnapshotProps {
@@ -42,325 +40,360 @@ const TeamMarketSnapshot: React.FC<TeamMarketSnapshotProps> = ({
   subscriptionTier, 
   memberAssociation 
 }) => {
-  const { profile } = useAuth();
-  const [marketStats, setMarketStats] = useState<MarketStats>({
-    avgAskingPriceInAssociation: 0,
-    topRequestedPositions: [],
-    expiredPitchesRate: 0,
-    trendingRequests: [],
+  const [stats, setStats] = useState<MarketStats>({
+    averageAskingPrice: 0,
+    averageMarketValue: 0,
     totalActivePitches: 0,
-    totalActiveRequests: 0
+    expiringSoonCount: 0,
+    topPositions: [],
+    recentActivity: []
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchMarketSnapshot();
-  }, [memberAssociation]);
+    fetchMarketStats();
+  }, [subscriptionTier, memberAssociation]);
 
-  const fetchMarketSnapshot = async () => {
+  const fetchMarketStats = async () => {
     try {
       setLoading(true);
 
-      // Get total active pitches
-      const { count: activePitchesCount } = await supabase
+      // Get active transfer pitches with player info
+      const { data: pitches } = await supabase
         .from('transfer_pitches')
-        .select('*', { count: 'exact', head: true })
+        .select(`
+          *,
+          players!inner(position, market_value),
+          teams!inner(member_association, subscription_tier)
+        `)
         .eq('status', 'active')
         .gt('expires_at', new Date().toISOString());
 
-      // Get total active requests
-      const { count: activeRequestsCount } = await supabase
-        .from('agent_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_public', true)
-        .gt('expires_at', new Date().toISOString());
-
-      // Get average asking price in association (for basic tier)
-      let avgAskingPrice = 0;
-      if (subscriptionTier === 'basic') {
-        const { data: associationPitches } = await supabase
-          .from('transfer_pitches')
-          .select(`
-            asking_price,
-            teams!inner(member_association)
-          `)
-          .eq('status', 'active')
-          .eq('teams.member_association', memberAssociation)
-          .not('asking_price', 'is', null);
-
-        if (associationPitches && associationPitches.length > 0) {
-          const totalPrice = associationPitches.reduce((sum, pitch) => sum + (pitch.asking_price || 0), 0);
-          avgAskingPrice = totalPrice / associationPitches.length;
-        }
-      } else {
-        // Premium/Enterprise can see global average
-        const { data: globalPitches } = await supabase
-          .from('transfer_pitches')
-          .select('asking_price')
-          .eq('status', 'active')
-          .not('asking_price', 'is', null);
-
-        if (globalPitches && globalPitches.length > 0) {
-          const totalPrice = globalPitches.reduce((sum, pitch) => sum + (pitch.asking_price || 0), 0);
-          avgAskingPrice = totalPrice / globalPitches.length;
-        }
+      if (!pitches) {
+        setLoading(false);
+        return;
       }
 
-      // Get top requested positions
-      const { data: requestsData } = await supabase
-        .from('agent_requests')
-        .select('position')
-        .eq('is_public', true)
-        .gt('expires_at', new Date().toISOString())
-        .not('position', 'is', null);
-
-      const positionCounts: Record<string, number> = {};
-      requestsData?.forEach(request => {
-        if (request.position) {
-          positionCounts[request.position] = (positionCounts[request.position] || 0) + 1;
+      // Filter pitches based on subscription tier
+      const accessiblePitches = pitches.filter(pitch => {
+        const pitchTeam = pitch.teams;
+        
+        // Basic tier: only domestic pitches
+        if (subscriptionTier === 'basic') {
+          return !pitch.is_international && pitchTeam.member_association === memberAssociation;
         }
+        
+        // Premium/Enterprise: all pitches
+        return true;
       });
 
-      const topPositions = Object.entries(positionCounts)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 5)
-        .map(([position, count]) => ({
-          position,
-          count,
-          trend: 'stable' as const // TODO: Calculate actual trend
-        }));
-
-      // Calculate expired pitches rate (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const { count: totalPitchesLast30Days } = await supabase
-        .from('transfer_pitches')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', thirtyDaysAgo.toISOString());
-
-      const { count: expiredPitchesLast30Days } = await supabase
-        .from('transfer_pitches')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'expired')
-        .gte('created_at', thirtyDaysAgo.toISOString());
-
-      const expiredRate = totalPitchesLast30Days && totalPitchesLast30Days > 0
-        ? (expiredPitchesLast30Days || 0) / totalPitchesLast30Days * 100
+      // Calculate stats
+      const totalPitches = accessiblePitches.length;
+      const avgAskingPrice = totalPitches > 0 
+        ? accessiblePitches.reduce((sum, p) => sum + (p.asking_price || 0), 0) / totalPitches 
+        : 0;
+      const avgMarketValue = totalPitches > 0
+        ? accessiblePitches.reduce((sum, p) => sum + (p.players.market_value || 0), 0) / totalPitches
         : 0;
 
-      // Get trending requests (high activity)
-      const { data: trendingData } = await supabase
+      // Count expiring soon (within 7 days)
+      const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const expiringSoon = accessiblePitches.filter(p => 
+        new Date(p.expires_at) <= sevenDaysFromNow
+      ).length;
+
+      // Get top positions
+      const positionCounts = accessiblePitches.reduce((acc, p) => {
+        const position = p.players.position;
+        acc[position] = (acc[position] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const topPositions = Object.entries(positionCounts)
+        .map(([position, count]) => ({ position, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      // Get recent agent requests for activity
+      const { data: recentRequests } = await supabase
         .from('agent_requests')
-        .select(`
-          title,
-          tagged_players
-        `)
+        .select('title, created_at')
         .eq('is_public', true)
-        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(3);
 
-      const trending = trendingData?.map(request => ({
-        title: request.title,
-        demand: (request.tagged_players?.length || 0) > 5 ? 'high' as const :
-                (request.tagged_players?.length || 0) > 2 ? 'medium' as const : 'low' as const
-      })) || [];
+      const recentActivity = [
+        ...(recentRequests || []).map(req => ({
+          type: 'request_posted' as const,
+          description: `New agent request: ${req.title}`,
+          timestamp: req.created_at
+        })),
+        // Add more activity types as needed
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+       .slice(0, 5);
 
-      setMarketStats({
-        avgAskingPriceInAssociation: avgAskingPrice,
-        topRequestedPositions: topPositions,
-        expiredPitchesRate: expiredRate,
-        trendingRequests: trending,
-        totalActivePitches: activePitchesCount || 0,
-        totalActiveRequests: activeRequestsCount || 0
+      setStats({
+        averageAskingPrice: avgAskingPrice,
+        averageMarketValue: avgMarketValue,
+        totalActivePitches: totalPitches,
+        expiringSoonCount: expiringSoon,
+        topPositions,
+        recentActivity
       });
 
     } catch (error) {
-      console.error('Error fetching market snapshot:', error);
+      console.error('Error fetching market stats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const priceChangePercentage = stats.averageMarketValue > 0 
+    ? ((stats.averageAskingPrice - stats.averageMarketValue) / stats.averageMarketValue) * 100
+    : 0;
 
-  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
-    switch (trend) {
-      case 'up': return <TrendingUp className="w-4 h-4 text-green-500" />;
-      case 'down': return <TrendingDown className="w-4 h-4 text-red-500" />;
-      default: return <span className="w-4 h-4 bg-gray-500 rounded-full" />;
-    }
-  };
-
-  const getDemandColor = (demand: 'high' | 'medium' | 'low') => {
-    switch (demand) {
-      case 'high': return 'text-red-400 bg-red-500/10 border-red-500/20';
-      case 'medium': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
-      case 'low': return 'text-green-400 bg-green-500/10 border-green-500/20';
-    }
-  };
+  const isPriceAboveMarket = priceChangePercentage > 0;
 
   if (loading) {
     return (
-      <Card className="border-gray-700 animate-pulse">
-        <CardHeader>
-          <div className="h-6 bg-gray-700 rounded w-1/3"></div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-20 bg-gray-700 rounded"></div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="border-gray-700 animate-pulse">
+            <CardContent className="p-6">
+              <div className="h-4 bg-gray-700 rounded w-1/2 mb-2"></div>
+              <div className="h-8 bg-gray-700 rounded w-3/4"></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     );
   }
 
   return (
-    <Card className="border-gray-700">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white font-polysans">
-          <BarChart3 className="w-5 h-5" />
-          Market Snapshot
-          {subscriptionTier === 'basic' && (
-            <Badge variant="outline" className="text-yellow-400 border-yellow-500/20">
-              {memberAssociation} Only
-            </Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent className="space-y-6">
-        {/* Key Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-5 h-5 text-green-500" />
-              <span className="text-sm text-gray-400">
-                Avg Price {subscriptionTier === 'basic' ? `(${memberAssociation})` : '(Global)'}
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-white">
-              {formatCurrency(marketStats.avgAskingPriceInAssociation)}
-            </p>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Target className="w-5 h-5 text-blue-500" />
-              <span className="text-sm text-gray-400">Active Pitches</span>
-            </div>
-            <p className="text-2xl font-bold text-white">
-              {marketStats.totalActivePitches.toLocaleString()}
-            </p>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-5 h-5 text-purple-500" />
-              <span className="text-sm text-gray-400">Agent Requests</span>
-            </div>
-            <p className="text-2xl font-bold text-white">
-              {marketStats.totalActiveRequests.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        {/* Top Requested Positions */}
-        <div>
-          <h4 className="text-white font-medium mb-3">Top 5 Most Requested Positions This Week</h4>
-          <div className="space-y-2">
-            {marketStats.topRequestedPositions.map((position, index) => (
-              <div 
-                key={position.position}
-                className="flex items-center justify-between p-3 bg-gray-800 rounded"
-              >
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-rosegold border-rosegold">
-                    #{index + 1}
-                  </Badge>
-                  <span className="text-white font-medium">{position.position}</span>
-                  {getTrendIcon(position.trend)}
-                </div>
-                <span className="text-gray-300">{position.count} requests</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Supply/Demand Gap */}
-        <div className="bg-gray-800 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="w-5 h-5 text-orange-500" />
-            <span className="text-white font-medium">Supply/Demand Analysis</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400">Pitches expiring without interest</span>
-            <div className="flex items-center gap-2">
-              <span className="text-white font-medium">{marketStats.expiredPitchesRate.toFixed(1)}%</span>
-              <Badge 
-                variant="outline" 
-                className={
-                  marketStats.expiredPitchesRate > 70 ? 'text-red-400 border-red-500/20' :
-                  marketStats.expiredPitchesRate > 40 ? 'text-yellow-400 border-yellow-500/20' :
-                  'text-green-400 border-green-500/20'
-                }
-              >
-                {marketStats.expiredPitchesRate > 70 ? 'High' :
-                 marketStats.expiredPitchesRate > 40 ? 'Medium' : 'Low'}
-              </Badge>
-            </div>
-          </div>
-          <p className="text-sm text-gray-500 mt-1">Last 30 days</p>
-        </div>
-
-        {/* Trending Requests */}
-        <div>
-          <h4 className="text-white font-medium mb-3">Trending Agent Requests</h4>
-          <div className="space-y-2">
-            {marketStats.trendingRequests.slice(0, 3).map((request, index) => (
-              <div 
-                key={index}
-                className="flex items-center justify-between p-3 bg-gray-800 rounded"
-              >
-                <span className="text-white text-sm truncate flex-1">{request.title}</span>
-                <Badge variant="outline" className={getDemandColor(request.demand)}>
-                  {request.demand} demand
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Upgrade Prompt for Basic Users */}
-        {subscriptionTier === 'basic' && (
-          <div className="bg-gradient-to-r from-rosegold/10 to-yellow-500/10 border border-rosegold/20 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <Globe className="w-6 h-6 text-rosegold" />
-              <div className="flex-1">
-                <h4 className="text-white font-medium">Unlock Global Market Insights</h4>
-                <p className="text-gray-400 text-sm">
-                  Upgrade to Premium to view international market data and access worldwide opportunities.
+    <div className="space-y-6">
+      {/* Subscription Tier Notice */}
+      {subscriptionTier === 'basic' && (
+        <Card className="border-yellow-500/20 bg-yellow-500/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Crown className="w-5 h-5 text-yellow-500 mt-0.5" />
+              <div>
+                <h4 className="text-yellow-500 font-medium">Basic Tier - Domestic Market Only</h4>
+                <p className="text-yellow-200 text-sm mt-1">
+                  Showing pitches from {memberAssociation} only. 
+                  <Button variant="link" className="text-yellow-400 p-0 ml-1 h-auto">
+                    Upgrade to Premium
+                  </Button> to access international transfers.
                 </p>
               </div>
-              <Button className="bg-rosegold text-black hover:bg-rosegold/90">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Upgrade
-              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Main Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Average Asking Price */}
+        <Card className="border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Average Asking Price</p>
+                <p className="text-2xl font-bold text-white">
+                  ${stats.averageAskingPrice.toLocaleString()}
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  {isPriceAboveMarket ? (
+                    <ArrowUpRight className="w-4 h-4 text-red-400" />
+                  ) : (
+                    <ArrowDownRight className="w-4 h-4 text-green-400" />
+                  )}
+                  <span className={`text-sm ${isPriceAboveMarket ? 'text-red-400' : 'text-green-400'}`}>
+                    {Math.abs(priceChangePercentage).toFixed(1)}% vs market value
+                  </span>
+                </div>
+              </div>
+              <DollarSign className="w-8 h-8 text-rosegold" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Active Pitches */}
+        <Card className="border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Active Pitches</p>
+                <p className="text-2xl font-bold text-white">{stats.totalActivePitches}</p>
+                <p className="text-green-400 text-sm mt-1">
+                  {subscriptionTier === 'basic' ? 'Domestic only' : 'Global market'}
+                </p>
+              </div>
+              <Users className="w-8 h-8 text-blue-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Expiring Soon */}
+        <Card className="border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Expiring Soon</p>
+                <p className="text-2xl font-bold text-white">{stats.expiringSoonCount}</p>
+                <p className="text-yellow-400 text-sm mt-1">Next 7 days</p>
+              </div>
+              <Clock className="w-8 h-8 text-yellow-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Market Trend */}
+        <Card className="border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Market Trend</p>
+                <p className="text-2xl font-bold text-white">
+                  {isPriceAboveMarket ? 'Seller' : 'Buyer'}
+                </p>
+                <p className="text-gray-400 text-sm mt-1">Market favors</p>
+              </div>
+              {isPriceAboveMarket ? (
+                <TrendingUp className="w-8 h-8 text-green-400" />
+              ) : (
+                <TrendingDown className="w-8 h-8 text-red-400" />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Positions */}
+        <Card className="border-gray-700">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Target className="w-5 h-5" />
+              Most Requested Positions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {stats.topPositions.length > 0 ? (
+                stats.topPositions.map((item, index) => (
+                  <div key={item.position} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                        index === 0 ? 'bg-rosegold text-black' : 
+                        index === 1 ? 'bg-gray-600 text-white' :
+                        'bg-gray-700 text-gray-300'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <span className="text-white">{item.position}</span>
+                    </div>
+                    <Badge variant="outline" className="border-gray-600 text-gray-300">
+                      {item.count} pitches
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-400 text-center py-4">No position data available</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card className="border-gray-700">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Activity className="w-5 h-5" />
+              Recent Market Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {stats.recentActivity.length > 0 ? (
+                stats.recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-2 ${
+                      activity.type === 'pitch_created' ? 'bg-green-400' :
+                      activity.type === 'request_posted' ? 'bg-blue-400' :
+                      'bg-red-400'
+                    }`} />
+                    <div className="flex-1">
+                      <p className="text-white text-sm">{activity.description}</p>
+                      <p className="text-gray-400 text-xs">
+                        {new Date(activity.timestamp).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-400 text-center py-4">No recent activity</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Market Insights */}
+      <Card className="border-gray-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <MapPin className="w-5 h-5" />
+            Market Insights
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="bg-blue-500/10 rounded-lg p-4 mb-2">
+                <DollarSign className="w-8 h-8 text-blue-400 mx-auto" />
+              </div>
+              <h4 className="text-white font-medium">Price vs Value</h4>
+              <p className="text-gray-400 text-sm mt-1">
+                {isPriceAboveMarket 
+                  ? 'Asking prices are above market value. Good time to sell.' 
+                  : 'Asking prices are below market value. Potential bargains available.'
+                }
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-yellow-500/10 rounded-lg p-4 mb-2">
+                <Clock className="w-8 h-8 text-yellow-400 mx-auto" />
+              </div>
+              <h4 className="text-white font-medium">Urgency Level</h4>
+              <p className="text-gray-400 text-sm mt-1">
+                {stats.expiringSoonCount > 5 
+                  ? 'High urgency - Many pitches expiring soon.'
+                  : 'Normal activity - Standard market pace.'
+                }
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-green-500/10 rounded-lg p-4 mb-2">
+                <Users className="w-8 h-8 text-green-400 mx-auto" />
+              </div>
+              <h4 className="text-white font-medium">Market Activity</h4>
+              <p className="text-gray-400 text-sm mt-1">
+                {stats.totalActivePitches > 20 
+                  ? 'High activity - Competitive market conditions.'
+                  : stats.totalActivePitches > 10
+                    ? 'Moderate activity - Balanced market.'
+                    : 'Low activity - Limited options available.'
+                }
+              </p>
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

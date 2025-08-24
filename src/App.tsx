@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
@@ -21,7 +22,7 @@ import PlayerProfile from '@/pages/PlayerProfile';
 import VideoShowcase from '@/pages/VideoShowcase';
 import UserManagement from '@/pages/UserManagement';
 import NotFound from '@/pages/NotFound';
-import AdminGuard from '@/components/AdminGuard';
+import { AdminGuard } from '@/components/AdminGuard';
 
 function App() {
   return (

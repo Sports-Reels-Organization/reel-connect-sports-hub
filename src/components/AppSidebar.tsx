@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Sheet,
@@ -28,9 +29,10 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const AppSidebar = () => {
-  const { profile, logout } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -40,7 +42,7 @@ const AppSidebar = () => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await supabase.auth.signOut();
       navigate("/");
       toast({
         title: "Logged out",

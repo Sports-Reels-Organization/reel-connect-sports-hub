@@ -88,7 +88,17 @@ const TeamPitchTimeline: React.FC<TeamPitchTimelineProps> = ({ onCreatePitch }) 
         .eq('team_id', teamData.id)
         .order('created_at', { ascending: false });
 
-      setPitches(pitchesData || []);
+      // Transform the data to match our interface
+      const transformedPitches = (pitchesData || []).map(pitch => ({
+        ...pitch,
+        tagged_videos: Array.isArray(pitch.tagged_videos) 
+          ? pitch.tagged_videos 
+          : typeof pitch.tagged_videos === 'string' 
+            ? JSON.parse(pitch.tagged_videos) 
+            : []
+      }));
+
+      setPitches(transformedPitches);
     } catch (error) {
       console.error('Error fetching team pitches:', error);
     } finally {
