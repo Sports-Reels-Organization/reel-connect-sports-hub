@@ -1,335 +1,332 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import InfoTooltip from '@/components/InfoTooltip';
+import { Checkbox } from '@/components/ui/checkbox';
+import LanguageSelector from '@/components/LanguageSelector';
 
 const AuthForm = () => {
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  // Authentication and form state
+  const { signInWithGoogle } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
+  const [userType, setUserType] = useState<'team' | 'agent'>('team');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  
-  // Login form state
-  const [loginData, setLoginData] = useState({
-    email: '',
-    password: '',
-  });
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
-  // Signup form state
-  const [signupData, setSignupData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: '',
-    userType: 'team' as 'team' | 'agent',
-  });
+  // Video player configuration
+  const videoUrls = [
+    "/sportsreelsvideos/101290-video-720.mp4",
+    "/sportsreelsvideos/mixkit-baseball-player-pitching-the-ball-856-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-basketball-player-dribbling-then-dunking-2285-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-man-swimming-in-a-pool-3168-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-portrait-of-a-confident-football-player-42566-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-tennis-players-at-an-outdoor-court-869-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-two-men-on-a-ring-fighting-in-a-boxing-match-40974-hd-ready.mp4",
+    "/sportsreelsvideos/mixkit-young-woman-getting-into-position-for-sprinting-32800-hd-ready.mp4",
+  ];
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [remainingVideos, setRemainingVideos] = useState<number[]>([]);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const transitionTimeout = useRef<NodeJS.Timeout>();
+  const fadeTimeout = useRef<NodeJS.Timeout>();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginData.email || !loginData.password) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all fields",
-        variant: "destructive"
-      });
-      return;
-    }
+  // Form height synchronization
+  const formContainerRef = useRef<HTMLDivElement>(null);
+  const [formHeight, setFormHeight] = useState('auto');
 
-    setLoading(true);
-    try {
-      const { error } = await signIn(loginData.email, loginData.password);
-      if (!error) {
-        toast({
-          title: "Welcome back!",
-          description: "Successfully signed in to your account.",
-        });
+  // Initialize video queue with all indices
+  useEffect(() => {
+    const initialIndices = Array.from({ length: videoUrls.length }, (_, i) => i);
+    setRemainingVideos(initialIndices.slice(1)); // Start with first video, keep rest in queue
+    setCurrentVideoIndex(0);
+  }, []);
+
+  // Handle form height changes
+  useEffect(() => {
+    const updateHeight = () => {
+      if (formContainerRef.current) {
+        setFormHeight(`${formContainerRef.current.offsetHeight}px`);
       }
-    } catch (error) {
-      console.error('Login error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!signupData.email || !signupData.password || !signupData.fullName || !signupData.userType) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all fields",
-        variant: "destructive"
-      });
-      return;
-    }
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
 
-    if (signupData.password !== signupData.confirmPassword) {
-      toast({
-        title: "Password Mismatch",
-        description: "Passwords do not match",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (signupData.password.length < 6) {
-      toast({
-        title: "Password Too Short",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await signUp(signupData.email, signupData.password, {
-        full_name: signupData.fullName,
-        user_type: signupData.userType,
-      });
-
-      if (!error) {
-        toast({
-          title: "Account Created!",
-          description: "Please check your email for verification instructions.",
-        });
+  // Video transition logic
+  useEffect(() => {
+    const startTransition = () => {
+      // Start fade out (0.5s duration)
+      if (videoRef.current) {
+        videoRef.current.style.transition = 'opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+        videoRef.current.style.opacity = '0';
       }
-    } catch (error) {
-      console.error('Signup error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      // After fade completes, change video and fade in
+      fadeTimeout.current = setTimeout(() => {
+        setRemainingVideos(prev => {
+          let nextIndex;
+          let newRemaining;
+
+          if (prev.length === 0) {
+            // If no videos left, reshuffle all except current one
+            const allIndices = Array.from({ length: videoUrls.length }, (_, i) => i);
+            newRemaining = allIndices.filter(i => i !== currentVideoIndex);
+
+            // Fisher-Yates shuffle
+            for (let i = newRemaining.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [newRemaining[i], newRemaining[j]] = [newRemaining[j], newRemaining[i]];
+            }
+
+            nextIndex = newRemaining.shift()!;
+          } else {
+            // Take next video from queue
+            nextIndex = prev[0];
+            newRemaining = prev.slice(1);
+          }
+
+          setCurrentVideoIndex(nextIndex);
+          return newRemaining;
+        });
+
+        if (videoRef.current) {
+          // Reset transition for instant opacity change
+          videoRef.current.style.transition = 'none';
+          videoRef.current.style.opacity = '0';
+
+          // Small delay before fade in to ensure video is ready
+          setTimeout(() => {
+            if (videoRef.current) {
+              videoRef.current.style.transition = 'opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+              videoRef.current.style.opacity = '1';
+            }
+          }, 50);
+        }
+
+        // Schedule next transition after 3.5 seconds display time
+        transitionTimeout.current = setTimeout(startTransition, 3500);
+      }, 500); // 0.5s fade out duration
+    };
+
+    // Initial transition after 3.5 seconds display + 0.5s fade = 4s total
+    transitionTimeout.current = setTimeout(startTransition, 4000);
+
+    return () => {
+      clearTimeout(transitionTimeout.current);
+      clearTimeout(fadeTimeout.current);
+    };
+  }, [currentVideoIndex]);
+
+  // Handle video playback
+  useEffect(() => {
+    const playVideo = () => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.loop = true;
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        videoRef.current.play().catch(e => console.log("Video play error:", e));
+      }
+    };
+
+    playVideo();
+  }, [currentVideoIndex]);
 
   const handleGoogleSignIn = async () => {
+    if (!termsAccepted) {
+      toast({
+        title: "Terms Not Accepted",
+        description: "Please accept the terms and conditions to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
+      // Clear any existing pending user type
+      localStorage.removeItem('pending_user_type');
+
+      // Store the selected user type
+      localStorage.setItem('pending_user_type', userType);
+      console.log('Setting user type in localStorage:', userType);
+
       await signInWithGoogle();
+      toast({
+        title: t('welcome'),
+        description: "Signing in with Google.",
+      });
     } catch (error) {
-      console.error('Google sign in error:', error);
+      console.error('Google sign-in error:', error);
+      toast({
+        title: "Authentication Error",
+        description: "Failed to sign in with Google. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <img
-            src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
-            alt="Sports Reels"
-            className="w-16 h-16 mx-auto mb-4"
-          />
-          <h1 className="text-2xl font-bold text-white mb-2">Sports Reels</h1>
-          <p className="text-gray-400">Welcome to the sports transfer hub</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-stretch">
+        {/* Left Panel - Form Section */}
+        <div
+          ref={formContainerRef}
+          className="w-full lg:w-1/2 flex rounded-l-[1rem] items-center justify-center p-6 lg:p-12 bg-[#1a1a1a]"
+        >
+          <div className="w-full max-w-md mx-auto">
+            {/* Logo and Header */}
+            <div className="text-center space-y-4 mb-8">
+              <div className="flex justify-center">
+                <img
+                  src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
+                  alt="Sports Reels Logo"
+                  className="w-16 h-16 transition-transform hover:scale-105"
+                />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white font-polysans">
+                  {t('welcome')}
+                </h1>
+                <p className="text-gray-400 text-sm sm:text-base">
+                  Sign in to access your personalized dashboard
+                </p>
+              </div>
+            </div>
 
-        <Card className="bg-white/5 border-white/10">
-          <CardHeader>
-            <CardTitle className="text-center text-white">Get Started</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
+            {/* Language Selector - Added without changing layout */}
+            <div className="flex justify-center mb-6">
+              <LanguageSelector variant="select" showFlag={true} showNativeName={false} />
+            </div>
 
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email" className="text-gray-300">Email</Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      value={loginData.email}
-                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                      placeholder="Enter your email"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password" className="text-gray-300">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="login-password"
-                        type={showPassword ? "text" : "password"}
-                        value={loginData.password}
-                        onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                        placeholder="Enter your password"
-                        className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 pr-10"
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 text-gray-400 hover:text-white"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-rosegold hover:bg-rosegold/80 text-white"
-                  >
-                    {loading ? 'Signing In...' : 'Sign In'}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup">
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name" className="text-gray-300">Full Name</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      value={signupData.fullName}
-                      onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
-                      placeholder="Enter your full name"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="text-gray-300">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      value={signupData.email}
-                      onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                      placeholder="Enter your email"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-gray-300">I am a...</Label>
-                    <Select
-                      value={signupData.userType}
-                      onValueChange={(value: 'team' | 'agent') => 
-                        setSignupData({ ...signupData, userType: value })
-                      }
+            {/* Form Container */}
+            <div className="space-y-6">
+              {/* User Type Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label className="text-gray-300 font-medium text-sm">
+                    Select your role:
+                  </Label>
+                  <InfoTooltip content="Teams get access to player analytics. Agents can manage player portfolios." />
+                </div>
+                <Select
+                  value={userType}
+                  onValueChange={(value: 'team' | 'agent') => {
+                    console.log('User type changed to:', value);
+                    setUserType(value);
+                  }}
+                  disabled={loading}
+                >
+                  <SelectTrigger className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-white focus:ring-2 focus:ring-rosegold focus:border-rosegold h-12 rounded-lg">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#2a2a2a] border-[#3a3a3a] rounded-lg shadow-lg">
+                    <SelectItem
+                      value="team"
+                      className="text-white hover:bg-[#3a3a3a] py-3"
                     >
-                      <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-white/20">
-                        <SelectItem value="team" className="text-white hover:bg-white/10">
-                          Team Manager
-                        </SelectItem>
-                        <SelectItem value="agent" className="text-white hover:bg-white/10">
-                          Sports Agent
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      <span className="flex items-center gap-2">
+                        <span>Team Manager/Administrator</span>
+                        <span>⚽</span>
+                      </span>
+                    </SelectItem>
+                    <SelectItem
+                      value="agent"
+                      className="text-white hover:bg-[#3a3a3a] py-3"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>Agent/Scout</span>
+                        <span>🔍</span>
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="text-gray-300">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-password"
-                        type={showPassword ? "text" : "password"}
-                        value={signupData.password}
-                        onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                        placeholder="Create a password"
-                        className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 pr-10"
-                        required
-                        minLength={6}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 text-gray-400 hover:text-white"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
+              {/* Terms and Conditions */}
+              <div className="flex items-start space-x-3 pt-2">
+                <Checkbox
+                  id="terms"
+                  checked={termsAccepted}
+                  onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+                  className="mt-0.5 border-gray-400 data-[state=checked]:bg-rosegold data-[state=checked]:border-rosegold"
+                />
+                <label htmlFor="terms" className="text-xs text-gray-400 leading-snug">
+                  {t('termsDescription')}
+                </label>
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-confirm-password" className="text-gray-300">Confirm Password</Label>
-                    <Input
-                      id="signup-confirm-password"
-                      type="password"
-                      value={signupData.confirmPassword}
-                      onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                      placeholder="Confirm your password"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                      required
-                    />
-                  </div>
+              {/* Google Button */}
+              <Button
+                variant="outline"
+                onClick={handleGoogleSignIn}
+                disabled={loading || !termsAccepted}
+                className={`w-full ${termsAccepted ? 'bg-rosegold/10 border-rosegold/30 hover:bg-rosegold/20 text-white' : 'bg-[#2a2a2a] border-[#3a3a3a] text-gray-500'} h-12 rounded-lg flex items-center justify-center gap-3 transition-colors`}
+              >
+                {loading ? (
+                  <span className="h-5 w-5 border-gray-300 border-t-rosegold rounded-full animate-spin"></span>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                    </svg>
+                    <span className="font-medium">{t('signInWithGoogle')}</span>
+                  </>
+                )}
+              </Button>
 
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-rosegold hover:bg-rosegold/80 text-white"
-                  >
-                    {loading ? 'Creating Account...' : 'Create Account'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-
-            <div className="mt-6">
+              {/* Divider */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-white/20" />
+                  <div className="w-full border-t border-[#3a3a3a]"></div>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-black px-2 text-gray-400">Or continue with</span>
+                <div className="relative flex justify-center">
+                  <span className="px-3 bg-[#1a1a1a] text-gray-500 text-xs">
+                    OR
+                  </span>
                 </div>
               </div>
 
-              <Button
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                variant="outline"
-                className="w-full mt-4 bg-white/5 border-white/20 text-white hover:bg-white/10"
-              >
-                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  />
-                </svg>
-                Continue with Google
-              </Button>
+              {/* Create Account */}
+              
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {/* Right Panel - Video Section */}
+        <div
+          className="hidden rounded-r-[1rem] lg:flex lg:w-1/2 relative bg-cover bg-center bg-no-repeat overflow-hidden"
+          style={{
+            backgroundImage: "url('/lovable-uploads/Untitled design (49).png')",
+            height: formHeight
+          }}
+        >
+          <video
+            ref={videoRef}
+            key={currentVideoIndex}
+            src={videoUrls[currentVideoIndex]}
+            className="absolute inset-0 w-full h-full object-cover opacity-100"
+            playsInline
+            muted
+            loop
+          />
+
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-black/20" />
+        </div>
       </div>
     </div>
   );
