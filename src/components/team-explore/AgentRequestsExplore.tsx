@@ -56,11 +56,10 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
     try {
       setLoading(true);
       
-      // First get agent requests with explicit column selection
+      // First get agent requests with explicit column selection (removing status filter)
       const { data: agentRequestsData, error: requestsError } = await supabase
         .from('agent_requests')
-        .select('id, title, description, sport_type, position, budget_max, budget_min, currency, created_at, expires_at, agent_id, status')
-        .eq('status', 'active')
+        .select('id, title, description, sport_type, position, budget_max, budget_min, currency, created_at, expires_at, agent_id')
         .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
