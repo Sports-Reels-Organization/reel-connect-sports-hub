@@ -1,15 +1,17 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Target, AlertCircle, Video } from 'lucide-react';
+import { Plus, Users, Target, AlertCircle, Video, BarChart3, Download } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import PlayerCard from './PlayerCard';
 import PlayerForm from './PlayerForm';
 import PlayerDetailModal from './PlayerDetailModal';
+import PlayerFilters from './PlayerFilters';
+import PlayerRosterView from './PlayerRosterView';
+import PlayerComparison from './PlayerComparison';
 
 type DatabasePlayer = Tables<'players'>;
 
@@ -18,12 +20,15 @@ const PlayerManagement: React.FC = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [players, setPlayers] = useState<DatabasePlayer[]>([]);
+  const [filteredPlayers, setFilteredPlayers] = useState<DatabasePlayer[]>([]);
   const [teamId, setTeamId] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<DatabasePlayer | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<DatabasePlayer | null>(null);
   const [videoRequirements, setVideoRequirements] = useState<{ video_count: number } | null>(null);
   const [eligiblePlayers, setEligiblePlayers] = useState<DatabasePlayer[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'roster'>('cards');
 
   useEffect(() => {
     fetchTeamId();
@@ -35,6 +40,10 @@ const PlayerManagement: React.FC = () => {
       fetchVideoRequirements();
     }
   }, [teamId]);
+
+  useEffect(() => {
+    setFilteredPlayers(players);
+  }, [players]);
 
   const fetchTeamId = async () => {
     if (!profile?.id) return;
@@ -134,6 +143,51 @@ const PlayerManagement: React.FC = () => {
     resetForm();
   };
 
+  const handleExportPlayers = async (playersToExport: DatabasePlayer[]) => {
+    try {
+      // Create CSV content
+      const headers = ['Name', 'Position', 'Age', 'Nationality', 'Height', 'Weight', 'Market Value', 'Contract Expiry'];
+      const csvContent = [
+        headers.join(','),
+        ...playersToExport.map(player => [
+          player.full_name || '',
+          player.position || '',
+          player.age || '',
+          player.citizenship || '',
+          player.height || '',
+          player.weight || '',
+          player.market_value || '',
+          player.contract_expires ? new Date(player.contract_expires).toLocaleDateString() : ''
+        ].join(','))
+      ].join('\n');
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `players_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      toast({
+        title: "Export Successful",
+        description: `Exported ${playersToExport.length} players to CSV`,
+      });
+    } catch (error) {
+      console.error('Error exporting players:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export players",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getPlayerCompletionStatus = (player: DatabasePlayer) => {
     const requiredFields = [
       'full_name', 'position', 'citizenship', 'date_of_birth',
@@ -169,19 +223,28 @@ const PlayerManagement: React.FC = () => {
             Player Management
           </h1>
           <p className="text-gray-400 font-poppins">
-            Manage your team's player roster with comprehensive profiles
+            Manage your team's player roster with comprehensive profiles and advanced tools
           </p>
         </div>
-        <Button
-          onClick={() => setShowAddForm(true)}
-          className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Player
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowComparison(true)}
+            variant="outline"
+            className="text-white border-gray-600"
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Compare Players
+          </Button>
+          <Button
+            onClick={() => setShowAddForm(true)}
+            className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Player
+          </Button>
+        </div>
       </div>
 
-      {/* Transfer Pitch Requirements Status */}
       <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-white font-polysans flex items-center gap-2">
@@ -298,6 +361,31 @@ const PlayerManagement: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Player Filters */}
+      <PlayerFilters
+        players={players}
+        onFilteredPlayersChange={setFilteredPlayers}
+        onExportPlayers={handleExportPlayers}
+      />
+
+      {/* View Mode Toggle */}
+      <div className="flex gap-2">
+        <Button
+          variant={viewMode === 'cards' ? 'default' : 'outline'}
+          onClick={() => setViewMode('cards')}
+          className={viewMode === 'cards' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
+        >
+          Card View
+        </Button>
+        <Button
+          variant={viewMode === 'roster' ? 'default' : 'outline'}
+          onClick={() => setViewMode('roster')}
+          className={viewMode === 'roster' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
+        >
+          Roster View
+        </Button>
+      </div>
+
       {showAddForm && (
         <PlayerForm
           teamId={teamId}
@@ -307,46 +395,67 @@ const PlayerManagement: React.FC = () => {
         />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {players.map((player) => {
-          const completionStatus = getPlayerCompletionStatus(player);
-          return (
-            <div key={player.id} className="relative">
-              <PlayerCard
-                player={player}
-                onEdit={handleEditPlayer}
-                onView={handleViewPlayer}
-              />
-              {/* Profile Completion Indicator */}
-              <div className="absolute top-2 right-2">
-                <div className={`w-3 h-3 rounded-full ${completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
-                  }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
+      {/* Player Display */}
+      {viewMode === 'roster' ? (
+        <PlayerRosterView
+          players={filteredPlayers}
+          onEditPlayer={handleEditPlayer}
+          onViewPlayer={handleViewPlayer}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredPlayers.map((player) => {
+            const completionStatus = getPlayerCompletionStatus(player);
+            return (
+              <div key={player.id} className="relative">
+                <PlayerCard
+                  player={player}
+                  onEdit={handleEditPlayer}
+                  onView={handleViewPlayer}
+                />
+                {/* Profile Completion Indicator */}
+                <div className="absolute top-2 right-2">
+                  <div className={`w-3 h-3 rounded-full ${completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
+                    }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
-      {players.length === 0 && !showAddForm && (
+      {filteredPlayers.length === 0 && !showAddForm && (
         <Card className="border-gray-700">
           <CardContent className="p-12 text-center">
             <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
             <h3 className="font-polysans text-xl font-semibold text-white mb-2">
-              No Players Added Yet
+              {players.length === 0 ? 'No Players Added Yet' : 'No Players Match Your Filters'}
             </h3>
             <p className="text-gray-400 mb-6 font-poppins">
-              Start building your team by adding comprehensive player profiles
+              {players.length === 0
+                ? 'Start building your team by adding comprehensive player profiles'
+                : 'Try adjusting your filters to see more players'
+              }
             </p>
-            <Button
-              onClick={() => setShowAddForm(true)}
-              className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Your First Player
-            </Button>
+            {players.length === 0 && (
+              <Button
+                onClick={() => setShowAddForm(true)}
+                className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Your First Player
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
+
+      {/* Player Comparison Modal */}
+      <PlayerComparison
+        players={players}
+        isOpen={showComparison}
+        onClose={() => setShowComparison(false)}
+      />
 
       {selectedPlayer && (
         <PlayerDetailModal

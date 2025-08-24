@@ -1,67 +1,35 @@
-import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/AppSidebar';
-import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
-import LanguageSelector from '@/components/LanguageSelector';
+
+import React, { useState, useEffect } from 'react';
+import AppSidebar from './AppSidebar';
+import LoadingPreloader from './LoadingPreloader';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, profile, signOut } = useAuth();
-  const { t } = useLanguage();
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!user) {
-    return <>{children}</>;
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <LoadingPreloader />;
   }
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <div className="flex-1 flex flex-col">
-          <header className="bg-white border-0 border-gray-200 px-6 py-2 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger />
-              <img
-                src="/lovable-uploads/91e56af4-3e68-49dc-831b-edf66e971f92.png"
-                alt="Sports Reels"
-                className="w-[60px] h-[60px]"
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Language Selector */}
-              <LanguageSelector variant="button" showFlag={true} />
-
-              <div className="flex items-center gap-2">
-                {/* <User className="w-8 h-8 text-rosegold" /> */}
-                <img className='w-[30px] h-[30px] rounded-[50%] object-cover' src={user.user_metadata.avatar_url} />
-                { }
-                <span className="text-xs bg-rosegold text-white px-2 py-1 rounded-full font-polysans">
-                  {profile?.user_type === 'team' ? 'Team' : 'Scout'}
-                </span>
-              </div>
-              <Button
-                onClick={signOut}
-                variant="outline"
-                size="sm"
-                className="text-rosegold border-rosegold hover:bg-rosegold hover:text-white"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </header>
-          <main className="flex-1 ">
-            {children}
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
+    <div className="min-h-screen bg-background">
+      <AppSidebar />
+      <main className="pl-64">
+        {children}
+      </main>
+    </div>
   );
 };
 
