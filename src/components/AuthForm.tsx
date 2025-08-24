@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -189,7 +188,7 @@ const AuthForm = () => {
             <div className="text-center space-y-4 mb-8">
               <div className="flex justify-center">
                 <img
-                  src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
+                  src="public/lovable-Uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
                   alt="Sports Reels Logo"
                   className="w-16 h-16 transition-transform hover:scale-105"
                 />
@@ -301,7 +300,7 @@ const AuthForm = () => {
               </div>
 
               {/* Create Account */}
-              
+
             </div>
           </div>
         </div>

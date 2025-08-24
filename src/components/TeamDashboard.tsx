@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useTeamProfileCompletion } from '@/hooks/useTeamProfileCompletion';
-import { 
-  Users, 
-  Video, 
-  Trophy, 
-  MessageSquare, 
-  TrendingUp, 
+import {
+  Users,
+  Video,
+  Trophy,
+  MessageSquare,
+  TrendingUp,
   AlertTriangle,
   CheckCircle,
   Clock,
@@ -49,7 +49,7 @@ const TeamDashboard = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const { completionStatus, loading: completionLoading } = useTeamProfileCompletion();
-  
+
   const [stats, setStats] = useState<DashboardStats>({
     totalPlayers: 0,
     totalVideos: 0,
@@ -60,7 +60,7 @@ const TeamDashboard = () => {
     completedAnalysis: 0,
     pitchViews: 0
   });
-  
+
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamInfo, setTeamInfo] = useState<any>(null);
@@ -110,13 +110,13 @@ const TeamDashboard = () => {
           .from('players')
           .select('*', { count: 'exact', head: true })
           .eq('team_id', team.id),
-        
+
         // Videos count and analysis status
         supabase
           .from('videos')
           .select('id, ai_analysis_status, created_at, title')
           .eq('team_id', team.id),
-        
+
         // Active pitches and their statistics
         supabase
           .from('transfer_pitches')
@@ -124,19 +124,19 @@ const TeamDashboard = () => {
           .eq('team_id', team.id)
           .eq('status', 'active')
           .gte('expires_at', new Date().toISOString()),
-        
+
         // Messages count
         supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('receiver_id', profile.id),
-        
+
         // Match videos count
         supabase
           .from('match_videos')
           .select('*', { count: 'exact', head: true })
           .eq('team_id', team.id),
-        
+
         // AI analysis status
         supabase
           .from('videos')
@@ -151,15 +151,15 @@ const TeamDashboard = () => {
       const activePitches = pitchesResult.data || [];
       const totalMessages = messagesResult.count || 0;
       const recentMatches = matchesResult.count || 0;
-      
+
       // Calculate pitch views
       const pitchViews = activePitches.reduce((sum, pitch) => sum + (pitch.view_count || 0), 0);
-      
+
       // AI Analysis statistics
-      const pendingAnalysis = videos.filter(v => 
+      const pendingAnalysis = videos.filter(v =>
         v.ai_analysis_status === 'pending' || !v.ai_analysis_status
       ).length;
-      const completedAnalysis = videos.filter(v => 
+      const completedAnalysis = videos.filter(v =>
         v.ai_analysis_status === 'completed'
       ).length;
 
@@ -313,7 +313,7 @@ const TeamDashboard = () => {
               </p>
             )}
           </div>
-          
+
           {teamInfo?.logo_url && (
             <div className="flex items-center gap-4">
               <img
@@ -328,7 +328,7 @@ const TeamDashboard = () => {
         {/* Statistics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Players */}
-          <Card className="bg-card border-border">
+          <Card className="bg-card border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -348,7 +348,7 @@ const TeamDashboard = () => {
           </Card>
 
           {/* Videos */}
-          <Card className="bg-card border-border">
+          <Card className="bg-card border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -378,7 +378,7 @@ const TeamDashboard = () => {
           </Card>
 
           {/* Active Pitches */}
-          <Card className="bg-card border-border">
+          <Card className="bg-card border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -402,7 +402,7 @@ const TeamDashboard = () => {
           </Card>
 
           {/* Messages */}
-          <Card className="bg-card border-border">
+          <Card className="bg-card border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -425,7 +425,7 @@ const TeamDashboard = () => {
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Activity */}
-          <Card className="lg:col-span-2 bg-card border-border">
+          <Card className="lg:col-span-2 bg-card border-0">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <TrendingUp className="w-5 h-5" />
@@ -449,8 +449,8 @@ const TeamDashboard = () => {
                         </p>
                       </div>
                       {activity.status && (
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className={`text-xs ${activity.status === 'completed' ? 'text-green-400' : 'text-orange-400'}`}
                         >
                           {activity.status}
@@ -472,7 +472,7 @@ const TeamDashboard = () => {
           </Card>
 
           {/* Quick Actions */}
-          <Card className="bg-card border-border">
+          <Card className="bg-card border-0">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <Star className="w-5 h-5" />
@@ -486,28 +486,28 @@ const TeamDashboard = () => {
                   Upload Videos
                 </Button>
               </Link>
-              
+
               <Link to="/players" className="block">
                 <Button variant="outline" className="w-full justify-start">
                   <Users className="w-4 h-4 mr-2" />
                   Add Players
                 </Button>
               </Link>
-              
+
               <Link to="/team-explore" className="block">
                 <Button variant="outline" className="w-full justify-start">
                   <Target className="w-4 h-4 mr-2" />
                   Create Pitch
                 </Button>
               </Link>
-              
+
               <Link to="/messages" className="block">
                 <Button variant="outline" className="w-full justify-start">
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Check Messages
                 </Button>
               </Link>
-              
+
               <Link to="/profile" className="block">
                 <Button variant="outline" className="w-full justify-start">
                   <Trophy className="w-4 h-4 mr-2" />

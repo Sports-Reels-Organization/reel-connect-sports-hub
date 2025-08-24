@@ -159,7 +159,7 @@ const TeamProfileSetup: React.FC = () => {
 
       // Compress the image
       const compressedFile = await imageCompression(file, options);
-      
+
       // Convert to base64
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -204,7 +204,7 @@ const TeamProfileSetup: React.FC = () => {
     try {
       // Compress and convert to base64
       const base64Logo = await compressAndConvertToBase64(file);
-      
+
       // Update team data with base64 logo
       setTeamData(prev => ({ ...prev, logo_url: base64Logo }));
 
@@ -406,7 +406,7 @@ const TeamProfileSetup: React.FC = () => {
                 Recommended
               </Badge>
             </div>
-            
+
             <div className="flex items-center gap-6">
               {/* Logo Preview */}
               <div className="flex-shrink-0">

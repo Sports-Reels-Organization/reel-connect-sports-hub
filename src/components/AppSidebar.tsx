@@ -68,18 +68,18 @@ export function AppSidebar() {
       title: t('profile'),
       url: "/profile",
       icon: User,
-    }, 
+    },
     {
       title: t('notifications'),
       url: "/notifications",
       icon: Bell,
       showBadge: true,
-    }, 
+    },
     {
       title: 'News',
       url: "/news",
       icon: Newspaper,
-    }, 
+    },
     {
       title: 'History',
       url: "/history",
@@ -172,7 +172,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar>
+    <Sidebar className='border-0'>
       <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
           <img

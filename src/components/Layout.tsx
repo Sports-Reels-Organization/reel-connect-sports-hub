@@ -27,7 +27,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (profile?.user_id) {
       fetchUnreadNotifications();
       fetchProfileImage();
-      
+
       // Set up real-time subscription for notifications
       const channel = supabase
         .channel('notifications-changes')
@@ -78,7 +78,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           .select('logo_url')
           .eq('profile_id', profile.id)
           .single();
-        
+
         if (!error && data?.logo_url) {
           setProfileImage(data.logo_url);
         }
@@ -133,7 +133,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="min-h-screen w-full flex bg-background">
         <AppSidebar />
         <SidebarInset className="flex-1">
-          <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-4">
+          <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-0 bg-[#141414] px-4">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />
             </div>
@@ -173,12 +173,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </Button>
 
               {/* Profile Avatar */}
-              <Avatar className="h-8 w-8">
+              {/* <Avatar className="h-8 w-8">
                 <AvatarImage src={profileImage || undefined} alt={profile?.full_name || ''} />
                 <AvatarFallback className="text-sm">
                   {profile?.full_name ? getInitials(profile.full_name) : 'U'}
                 </AvatarFallback>
-              </Avatar>
+              </Avatar> */}
 
               {/* Sign Out */}
               <Button
@@ -192,7 +192,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </Button>
             </div>
           </header>
-          
+
           <main className="flex-1 p-4">
             {children}
           </main>

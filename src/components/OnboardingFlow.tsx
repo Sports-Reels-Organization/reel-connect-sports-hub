@@ -82,9 +82,9 @@ const OnboardingFlow = () => {
   // Calculate total steps based on selected role
   const totalSteps = selectedRole === 'team' ? 2 : 2;
 
-  // Update basic info state when profile changes
+  // Update basic info state when profile changes - only on initial load
   useEffect(() => {
-    if (profile) {
+    if (profile && !basicInfo.full_name) {
       setBasicInfo({
         full_name: profile.full_name || '',
         phone: profile.phone || '',
@@ -92,7 +92,7 @@ const OnboardingFlow = () => {
         country_code: profile.country_code || '+91'
       });
     }
-  }, [profile]);
+  }, [profile, basicInfo.full_name]);
 
   // Get country code based on selected country
   const getCountryCode = (countryName: string) => {
