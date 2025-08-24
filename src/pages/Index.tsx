@@ -9,9 +9,17 @@ import Dashboard from '@/components/Dashboard';
 const Index = () => {
   const { user, profile, loading } = useAuth();
 
-  console.log('Index render - loading:', loading, 'user:', !!user, 'profile:', !!profile, 'profile_completed:', profile?.profile_completed);
+  console.log('=== Index Component Render ===');
+  console.log('Loading state:', loading);
+  console.log('User exists:', !!user);
+  console.log('User ID:', user?.id);
+  console.log('Profile exists:', !!profile);
+  console.log('Profile data:', profile);
+  console.log('Profile completed:', profile?.profile_completed);
+  console.log('================================');
 
   if (loading) {
+    console.log('Showing loading screen because loading =', loading);
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
@@ -20,6 +28,7 @@ const Index = () => {
             alt="Sports Reels"
             className="w-[100px] h-[100px] mx-auto mb-4 animate-pulse"
           />
+          <p className="text-white mt-4">Loading...</p>
         </div>
       </div>
     );

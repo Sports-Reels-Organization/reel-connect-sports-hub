@@ -50,9 +50,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          console.log('User session found, fetching profile for:', session.user.id);
           // Fetch user profile with a small delay to ensure database consistency
-          setTimeout(async () => {
-            await fetchUserProfile(session.user.id);
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
           }, 100);
         } else {
           console.log('No session, clearing profile and setting loading to false');
@@ -65,7 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.log('Session found:', !!session);
+      console.log('Initial session check - Session found:', !!session, 'Error:', error);
       if (error) {
         console.error('Error getting session:', error);
         setLoading(false);
@@ -73,9 +74,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       if (!session) {
-        console.log('No session, setting loading to false');
+        console.log('No initial session found, setting loading to false');
         setLoading(false);
       }
+      // If session exists, the onAuthStateChange will handle it
     });
 
     return () => {
@@ -85,7 +87,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      console.log('Fetching profile for user:', userId);
+      console.log('Starting profile fetch for user:', userId);
+      setLoading(true); // Ensure loading is true while fetching
       
       const { data, error } = await supabase
         .from('profiles')
@@ -93,25 +96,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .eq('user_id', userId)
         .single();
 
+      console.log('Profile fetch result - Data:', data, 'Error:', error);
+
       if (error) {
         console.error('Error fetching profile:', error);
         if (error.code === 'PGRST116') {
           // Profile doesn't exist, this is normal for new users
-          console.log('Profile not found, user needs to complete onboarding');
+          console.log('Profile not found (PGRST116) - user needs to complete onboarding');
           setProfile(null);
+          setIsAdmin(false);
+        } else {
+          console.error('Unexpected error fetching profile:', error);
+          setProfile(null);
+          setIsAdmin(false);
         }
-        setIsAdmin(false);
       } else {
         console.log('Profile fetched successfully:', data);
         setProfile(data);
         setIsAdmin(data.role === 'admin');
       }
     } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
+      console.error('Exception in fetchUserProfile:', error);
       setProfile(null);
       setIsAdmin(false);
     } finally {
-      console.log('Setting loading to false after profile fetch');
+      console.log('Setting loading to false after profile fetch attempt');
       setLoading(false);
     }
   };
