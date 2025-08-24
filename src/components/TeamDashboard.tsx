@@ -1,719 +1,560 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import {
-    Users,
-    Video,
-    Target,
-    Search,
-    BarChart3,
-    User,
-    MessageSquare,
-    Upload,
-    Plus,
-    Building,
-    FileText,
-    Download,
-    Eye,
-    Reply,
-    Clock,
-    Check
+import { useTeamProfileCompletion } from '@/hooks/useTeamProfileCompletion';
+import { 
+  Users, 
+  Video, 
+  Trophy, 
+  MessageSquare, 
+  TrendingUp, 
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Star,
+  PlayCircle,
+  Eye,
+  Calendar,
+  Target,
+  BarChart3
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import TeamProfileSetup from './TeamProfileSetup';
-import PlayerManagement from './PlayerManagement';
-import VideoManagement from './VideoManagement';
-import CreateTransferPitch from './CreateTransferPitch';
-import MessageModal from './MessageModal';
-import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
+import ProfileCompletionStatus from './ProfileCompletionStatus';
+
+interface DashboardStats {
+  totalPlayers: number;
+  totalVideos: number;
+  activePitches: number;
+  totalMessages: number;
+  recentMatches: number;
+  pendingAnalysis: number;
+  completedAnalysis: number;
+  pitchViews: number;
+}
+
+interface RecentActivity {
+  id: string;
+  type: 'video_upload' | 'player_added' | 'pitch_created' | 'message_received' | 'ai_analysis';
+  title: string;
+  description: string;
+  timestamp: string;
+  status?: string;
+}
 
 const TeamDashboard = () => {
-    const { profile } = useAuth();
-    const { toast } = useToast();
-    const [activeTab, setActiveTab] = useState('overview');
-    const [showCreatePitch, setShowCreatePitch] = useState(false);
-    const [messages, setMessages] = useState([]);
-    const [messagesLoading, setMessagesLoading] = useState(false);
-    const [showMessageModal, setShowMessageModal] = useState(false);
-    const [selectedMessage, setSelectedMessage] = useState(null);
-    const [stats, setStats] = useState({
-        totalPlayers: 0,
-        totalVideos: 0,
-        activePitches: 0,
-        newMessages: 0
-    });
-    const [loading, setLoading] = useState(true);
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const { completionStatus, loading: completionLoading } = useTeamProfileCompletion();
+  
+  const [stats, setStats] = useState<DashboardStats>({
+    totalPlayers: 0,
+    totalVideos: 0,
+    activePitches: 0,
+    totalMessages: 0,
+    recentMatches: 0,
+    pendingAnalysis: 0,
+    completedAnalysis: 0,
+    pitchViews: 0
+  });
+  
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [teamInfo, setTeamInfo] = useState<any>(null);
 
-    // Fetch dashboard statistics
-    useEffect(() => {
-        if (profile?.user_id) {
-            fetchDashboardStats();
-        }
-    }, [profile]);
+  useEffect(() => {
+    if (profile?.user_type === 'team') {
+      fetchDashboardData();
+    }
+  }, [profile]);
 
-    // Fetch messages when messages tab is active
-    useEffect(() => {
-        if (activeTab === 'messages' && profile?.id) {
-            fetchMessages();
-        }
-    }, [activeTab, profile]);
+  const fetchDashboardData = async () => {
+    if (!profile?.id) return;
 
-    const fetchDashboardStats = async () => {
-        try {
-            setLoading(true);
-            console.log('Fetching dashboard stats for profile:', profile);
+    try {
+      setLoading(true);
 
-            // Test basic profile access first
-            console.log('Testing basic profile access...');
-            const { data: profileTest, error: profileTestError } = await supabase
-                .from('profiles')
-                .select('id, user_id, user_type, profile_completed, is_verified')
-                .eq('user_id', profile?.user_id)
-                .single();
+      // Get team information
+      const { data: team, error: teamError } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('profile_id', profile.id)
+        .single();
 
-            console.log('Profile test result:', { profileTest, profileTestError });
+      if (teamError) {
+        console.error('Error fetching team:', teamError);
+        return;
+      }
 
-            if (profileTestError) {
-                console.error('Profile access failed:', profileTestError);
-                toast({
-                    title: "Profile Access Error",
-                    description: `Cannot access profile: ${profileTestError.message}`,
-                    variant: "destructive"
-                });
-                setLoading(false);
-                return;
-            }
+      setTeamInfo(team);
 
-            // Get team ID first
-            const { data: team, error: teamError } = await supabase
-                .from('teams')
-                .select('id, team_name')
-                .eq('profile_id', profile?.id)
-                .single();
+      if (!team) {
+        console.log('No team found, user needs to complete setup');
+        return;
+      }
 
-            console.log('Team data:', team, 'Team error:', teamError);
+      // Fetch all statistics in parallel
+      const [
+        playersResult,
+        videosResult,
+        pitchesResult,
+        messagesResult,
+        matchesResult,
+        analysisResult
+      ] = await Promise.all([
+        // Players count
+        supabase
+          .from('players')
+          .select('*', { count: 'exact', head: true })
+          .eq('team_id', team.id),
+        
+        // Videos count and analysis status
+        supabase
+          .from('videos')
+          .select('id, ai_analysis_status, created_at, title')
+          .eq('team_id', team.id),
+        
+        // Active pitches and their statistics
+        supabase
+          .from('transfer_pitches')
+          .select('id, view_count, message_count, status, expires_at, created_at, player_id')
+          .eq('team_id', team.id)
+          .eq('status', 'active')
+          .gte('expires_at', new Date().toISOString()),
+        
+        // Messages count
+        supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('receiver_id', profile.id),
+        
+        // Match videos count
+        supabase
+          .from('match_videos')
+          .select('*', { count: 'exact', head: true })
+          .eq('team_id', team.id),
+        
+        // AI analysis status
+        supabase
+          .from('videos')
+          .select('ai_analysis_status')
+          .eq('team_id', team.id)
+      ]);
 
-            if (teamError) {
-                console.error('Error fetching team:', teamError);
-                toast({
-                    title: "Team Access Error",
-                    description: `Cannot access team data: ${teamError.message}`,
-                    variant: "destructive"
-                });
-                setLoading(false);
-                return;
-            }
+      // Process results
+      const totalPlayers = playersResult.count || 0;
+      const videos = videosResult.data || [];
+      const totalVideos = videos.length;
+      const activePitches = pitchesResult.data || [];
+      const totalMessages = messagesResult.count || 0;
+      const recentMatches = matchesResult.count || 0;
+      
+      // Calculate pitch views
+      const pitchViews = activePitches.reduce((sum, pitch) => sum + (pitch.view_count || 0), 0);
+      
+      // AI Analysis statistics
+      const pendingAnalysis = videos.filter(v => 
+        v.ai_analysis_status === 'pending' || !v.ai_analysis_status
+      ).length;
+      const completedAnalysis = videos.filter(v => 
+        v.ai_analysis_status === 'completed'
+      ).length;
 
-            const teamId = team.id;
-            console.log('Using team ID:', teamId);
+      setStats({
+        totalPlayers,
+        totalVideos,
+        activePitches: activePitches.length,
+        totalMessages,
+        recentMatches,
+        pendingAnalysis,
+        completedAnalysis,
+        pitchViews
+      });
 
-            // Test basic table access
-            console.log('Testing basic table access...');
+      // Build recent activity from real data
+      const activities: RecentActivity[] = [];
 
-            // Test players table
-            const { data: playersTest, error: playersTestError } = await supabase
-                .from('players')
-                .select('count')
-                .limit(1);
-            console.log('Players table test:', { playersTest, playersTestError });
+      // Recent videos
+      const recentVideos = videos
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 3);
 
-            // Test videos table
-            const { data: videosTest, error: videosTestError } = await supabase
-                .from('videos')
-                .select('count')
-                .limit(1);
-            console.log('Videos table test:', { videosTest, videosTestError });
-
-            // Test transfer_pitches table
-            const { data: pitchesTest, error: pitchesTestError } = await supabase
-                .from('transfer_pitches')
-                .select('count')
-                .limit(1);
-            console.log('Transfer pitches table test:', { pitchesTest, pitchesTestError });
-
-            // Fetch players count - check all players first
-            const { data: allPlayers, error: allPlayersError } = await supabase
-                .from('players')
-                .select('id, full_name, team_id')
-                .eq('team_id', teamId);
-
-            console.log('All players for team:', allPlayers, 'Error:', allPlayersError);
-
-            const { count: playersCount, error: playersError } = await supabase
-                .from('players')
-                .select('*', { count: 'exact', head: true })
-                .eq('team_id', teamId);
-
-            console.log('Players count:', playersCount, 'Error:', playersError);
-
-            // Fetch videos count - check all videos first
-            const { data: allVideos, error: allVideosError } = await supabase
-                .from('videos')
-                .select('id, title, team_id')
-                .eq('team_id', teamId);
-
-            console.log('All videos for team:', allVideos, 'Error:', allVideosError);
-
-            const { count: videosCount, error: videosError } = await supabase
-                .from('videos')
-                .select('*', { count: 'exact', head: true })
-                .eq('team_id', teamId);
-
-            console.log('Videos count:', videosCount, 'Error:', videosError);
-
-            // Fetch active pitches count - check all pitches first
-            const { data: allPitches, error: allPitchesError } = await supabase
-                .from('transfer_pitches')
-                .select('id, status, team_id')
-                .eq('team_id', teamId);
-
-            console.log('All pitches for team:', allPitches, 'Error:', allPitchesError);
-
-            const { count: pitchesCount, error: pitchesError } = await supabase
-                .from('transfer_pitches')
-                .select('*', { count: 'exact', head: true })
-                .eq('team_id', teamId)
-                .eq('status', 'active');
-
-            console.log('Active pitches count:', pitchesCount, 'Error:', pitchesError);
-
-            // Fetch new messages count - check all messages first
-            const { data: allMessages, error: allMessagesError } = await supabase
-                .from('messages')
-                .select('id, receiver_id, status')
-                .eq('receiver_id', profile?.id);
-
-            console.log('All messages for profile:', allMessages, 'Error:', allMessagesError);
-
-            const { count: messagesCount, error: messagesError } = await supabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('receiver_id', profile?.id)
-                .eq('status', 'sent');
-
-            console.log('New messages count:', messagesCount, 'Error:', messagesError);
-
-            setStats({
-                totalPlayers: playersCount || 0,
-                totalVideos: videosCount || 0,
-                activePitches: pitchesCount || 0,
-                newMessages: messagesCount || 0
-            });
-
-            console.log('Final stats:', {
-                totalPlayers: playersCount || 0,
-                totalVideos: videosCount || 0,
-                activePitches: pitchesCount || 0,
-                newMessages: messagesCount || 0
-            });
-
-        } catch (error) {
-            console.error('Error fetching dashboard stats:', error);
-            toast({
-                title: "Error",
-                description: `Failed to load dashboard statistics: ${error.message}`,
-                variant: "destructive"
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchMessages = async () => {
-        try {
-            setMessagesLoading(true);
-
-            const { data, error } = await supabase
-                .from('messages')
-                .select(`
-                    *,
-                    sender_profile:profiles!messages_sender_id_fkey(
-                        full_name,
-                        user_type
-                    ),
-                    receiver_profile:profiles!messages_receiver_id_fkey(
-                        full_name,
-                        user_type
-                    )
-                `)
-                .eq('receiver_id', profile?.id)
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                console.error('Error fetching messages:', error);
-                toast({
-                    title: "Error",
-                    description: "Failed to load messages",
-                    variant: "destructive"
-                });
-            } else {
-                setMessages(data || []);
-            }
-        } catch (error) {
-            console.error('Error in fetchMessages:', error);
-        } finally {
-            setMessagesLoading(false);
-        }
-    };
-
-    const handlePitchCreated = () => {
-        setShowCreatePitch(false);
-        toast({
-            title: "Success",
-            description: "Transfer pitch created successfully!",
+      recentVideos.forEach(video => {
+        activities.push({
+          id: `video_${video.id}`,
+          type: video.ai_analysis_status === 'completed' ? 'ai_analysis' : 'video_upload',
+          title: video.ai_analysis_status === 'completed' ? 'AI Analysis Completed' : 'Video Uploaded',
+          description: video.title,
+          timestamp: video.created_at,
+          status: video.ai_analysis_status
         });
-        // Refresh stats after creating a pitch
-        fetchDashboardStats();
-    };
+      });
 
-    const handleReplyToMessage = (message) => {
-        setSelectedMessage(message);
-        setShowMessageModal(true);
-    };
+      // Recent pitches
+      const recentPitches = activePitches
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 2);
 
-    const markMessageAsRead = async (messageId) => {
-        try {
-            const { error } = await supabase
-                .from('messages')
-                .update({ status: 'read' })
-                .eq('id', messageId);
+      for (const pitch of recentPitches) {
+        const { data: player } = await supabase
+          .from('players')
+          .select('full_name')
+          .eq('id', pitch.player_id)
+          .single();
 
-            if (error) {
-                console.error('Error marking message as read:', error);
-            } else {
-                // Update local state
-                setMessages(prev =>
-                    prev.map(msg =>
-                        msg.id === messageId ? { ...msg, status: 'read' } : msg
-                    )
-                );
-            }
-        } catch (error) {
-            console.error('Error in markMessageAsRead:', error);
-        }
-    };
+        activities.push({
+          id: `pitch_${pitch.id}`,
+          type: 'pitch_created',
+          title: 'Transfer Pitch Created',
+          description: `Pitch for ${player?.full_name || 'Player'}`,
+          timestamp: pitch.created_at,
+          status: pitch.status
+        });
+      }
 
-    const handleDownloadContract = async (fileUrl, fileName) => {
-        try {
-            const response = await fetch(fileUrl);
-            if (!response.ok) {
-                throw new Error('Failed to fetch contract file');
-            }
+      // Sort activities by timestamp
+      activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setRecentActivity(activities.slice(0, 6));
 
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            toast({
-                title: "Download Started",
-                description: "Contract download has started",
-            });
-        } catch (error) {
-            console.error('Error downloading contract:', error);
-            toast({
-                title: "Download Failed",
-                description: "Failed to download contract",
-                variant: "destructive"
-            });
-        }
-    };
-
-    const formatMessageTime = (timestamp) => {
-        return format(new Date(timestamp), 'MMM dd, yyyy HH:mm');
-    };
-
-    if (profile?.user_type !== 'team') {
-        return null;
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
+  };
 
-
-
-    // Check if profile is completed
-    if (!profile?.profile_completed) {
-        return (
-            <div className="space-y-6 p-[3rem]">
-                <div className="text-center py-12">
-                    <User className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                    <h3 className="text-xl font-polysans font-semibold text-white mb-2">
-                        Complete Your Profile Setup
-                    </h3>
-                    <p className="text-gray-400 font-poppins mb-4">
-                        Please complete your team profile setup to access the dashboard.
-                    </p>
-                    <Button
-                        onClick={() => window.location.reload()}
-                        className="bg-rosegold hover:bg-rosegold/90"
-                    >
-                        Continue Setup
-                    </Button>
-                </div>
-            </div>
-        );
+  const getActivityIcon = (type: RecentActivity['type']) => {
+    switch (type) {
+      case 'video_upload':
+        return <Video className="w-4 h-4" />;
+      case 'player_added':
+        return <Users className="w-4 h-4" />;
+      case 'pitch_created':
+        return <Target className="w-4 h-4" />;
+      case 'message_received':
+        return <MessageSquare className="w-4 h-4" />;
+      case 'ai_analysis':
+        return <BarChart3 className="w-4 h-4" />;
+      default:
+        return <Clock className="w-4 h-4" />;
     }
+  };
 
+  const getActivityColor = (type: RecentActivity['type']) => {
+    switch (type) {
+      case 'video_upload':
+        return 'text-blue-400';
+      case 'player_added':
+        return 'text-green-400';
+      case 'pitch_created':
+        return 'text-purple-400';
+      case 'message_received':
+        return 'text-yellow-400';
+      case 'ai_analysis':
+        return 'text-rosegold';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  if (profile?.user_type !== 'team') {
     return (
-        <div className="space-y-6 p-[3rem]">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-polysans font-bold text-white mb-2">
-                        Team Dashboard
-                    </h1>
-                    <p className="text-gray-400 font-poppins">
-                        Welcome back, {profile?.full_name}
-                    </p>
-                </div>
-                <Button
-                    onClick={() => setShowCreatePitch(true)}
-                    className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
-                >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Transfer Pitch
-                </Button>
-            </div>
-
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-6 bg-card border-0">
-                    <TabsTrigger
-                        value="overview"
-                        className="data-[state=active]:bg-muted data-[state=active]:text-white"
-                    >
-                        <BarChart3 className="w-4 h-4 mr-2" />
-                        Overview
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="profile"
-                        className="data-[state=active]:bg-muted data-[state=active]:text-white"
-                    >
-                        <User className="w-4 h-4 mr-2" />
-                        Team Profile
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="players"
-                        className="data-[state=active]:bg-muted data-[state=active]:text-white"
-                    >
-                        <Users className="w-4 h-4 mr-2" />
-                        Players
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="videos"
-                        className="data-[state=active]:bg-muted data-[state=active]:text-white"
-                    >
-                        <Video className="w-4 h-4 mr-2" />
-                        Videos
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="timeline"
-                        className="data-[state=active]:bg-muted data-[state=active]:text-white"
-                    >
-                        <Target className="w-4 h-4 mr-2" />
-                        Timeline
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="explore"
-                        className="data-[state=active]:bg-muted data-[state=active]:text-white"
-                    >
-                        <Search className="w-4 h-4 mr-2" />
-                        Explore
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="messages"
-                        className="data-[state=active]:bg-muted data-[state=active]:text-white"
-                    >
-                        <MessageSquare className="w-4 h-4 mr-2" />
-                        Messages
-                        {stats.newMessages > 0 && (
-                            <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
-                                {stats.newMessages}
-                            </Badge>
-                        )}
-                    </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="overview" className="space-y-6">
-                    {/* Stats Cards */}
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <Card className='bg-gradient-to-tr  from-purple-700/60 to-purple-600 border-0'>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">
-                                    Total Players
-                                </CardTitle>
-                                <Users className="h-4 w-4 text-purple-900" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{loading ? '...' : stats.totalPlayers}</div>
-                                <p className="text-xs text-white">
-                                    Players in your team
-                                </p>
-                            </CardContent>
-                        </Card>
-                        <Card className='bg-gradient-to-tr  from-blue-700/60 to-blue-600 border-0'>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">
-                                    Total Videos
-                                </CardTitle>
-                                <Video className="h-4 w-4 text-blue-900" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{loading ? '...' : stats.totalVideos}</div>
-                                <p className="text-xs text-white">
-                                    Videos uploaded
-                                </p>
-                            </CardContent>
-                        </Card>
-                        <Card className=' bg-gradient-to-tr  from-orange-700/60 to-orange-600 border-0'>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">
-                                    Active Pitches
-                                </CardTitle>
-                                <Target className="h-4 w-4 text-orange-900" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{loading ? '...' : stats.activePitches}</div>
-                                <p className="text-xs text-white">
-                                    Active transfer pitches
-                                </p>
-                            </CardContent>
-                        </Card>
-                        <Card className='  bg-gradient-to-tr  from-green-700/60 to-green-600 border-0'>
-                            <CardHeader className="flex flex-row items-center justify-between  space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">
-                                    New Messages
-                                </CardTitle>
-                                <MessageSquare className="h-4 w-4 text-green-900" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{loading ? '...' : stats.newMessages}</div>
-                                <p className="text-xs text-white">
-                                    Unread messages
-                                </p>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Quick Actions */}
-                    <Card className="border-gray-700">
-                        <CardHeader>
-                            <CardTitle className="text-white font-polysans">Quick Actions</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <Button
-                                    onClick={() => setActiveTab('players')}
-                                    variant="outline"
-                                    className="h-20 flex flex-col items-center justify-center gap-2 border-gray-600 hover:border-rosegold"
-                                >
-                                    <Users className="h-6 w-6" />
-                                    <span className="font-polysans">Manage Players</span>
-                                </Button>
-                                <Button
-                                    onClick={() => setActiveTab('videos')}
-                                    variant="outline"
-                                    className="h-20 flex flex-col items-center justify-center gap-2 border-gray-600 hover:border-rosegold"
-                                >
-                                    <Upload className="h-6 w-6" />
-                                    <span className="font-polysans">Upload Videos</span>
-                                </Button>
-                                <Button
-                                    onClick={() => setShowCreatePitch(true)}
-                                    variant="outline"
-                                    className="h-20 flex flex-col items-center justify-center gap-2 border-gray-600 hover:border-rosegold"
-                                >
-                                    <Target className="h-6 w-6" />
-                                    <span className="font-polysans">Create Pitch</span>
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="profile" className="space-y-6">
-                    <TeamProfileSetup />
-                </TabsContent>
-
-                <TabsContent value="players" className="space-y-6">
-                    <PlayerManagement />
-                </TabsContent>
-
-                <TabsContent value="videos" className="space-y-6">
-                    <VideoManagement />
-                </TabsContent>
-
-                <TabsContent value="timeline" className="space-y-6">
-                    <Card className="border-gray-700">
-                        <CardHeader>
-                            <CardTitle className="text-white font-polysans">Transfer Timeline</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center py-8">
-                                <Target className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                                <h3 className="text-xl font-polysans font-semibold text-white mb-2">
-                                    Transfer Timeline
-                                </h3>
-                                <p className="text-gray-400 font-poppins">
-                                    Track your transfer activities and negotiations here.
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="explore" className="space-y-6">
-                    <Card className="border-gray-700">
-                        <CardHeader>
-                            <CardTitle className="text-white font-polysans">Explore Players</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center py-8">
-                                <Search className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                                <h3 className="text-xl font-polysans font-semibold text-white mb-2">
-                                    Explore Players
-                                </h3>
-                                <p className="text-gray-400 font-poppins">
-                                    Discover talented players and create transfer requests.
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="messages" className="space-y-4">
-                    <Card className="bg-white/5 border-0">
-                        <CardHeader>
-                            <CardTitle className="text-white font-polysans flex items-center gap-2">
-                                <MessageSquare className="h-5 w-5 text-rosegold" />
-                                Messages from Agents
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {messagesLoading ? (
-                                <div className="text-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto mb-2"></div>
-                                    <p className="text-gray-400">Loading messages...</p>
-                                </div>
-                            ) : messages.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-600" />
-                                    <h3 className="text-lg font-polysans text-white mb-2">No Messages Yet</h3>
-                                    <p className="text-gray-400">Agents will contact you when they're interested in your players.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {messages.map((message) => (
-                                        <Card
-                                            key={message.id}
-                                            className={`bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-700 transition-colors ${message.status !== 'read' ? 'border-l-4 border-l-rosegold' : ''
-                                                }`}
-                                            onClick={() => {
-                                                if (message.status !== 'read') {
-                                                    markMessageAsRead(message.id);
-                                                }
-                                                handleReplyToMessage(message);
-                                            }}
-                                        >
-                                            <CardContent className="p-4">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <User className="h-4 w-4 text-blue-400" />
-                                                            <span className="font-polysans font-semibold text-white">
-                                                                {message.sender_profile?.full_name || 'Unknown Agent'}
-                                                            </span>
-                                                            {message.status !== 'read' && (
-                                                                <Badge variant="destructive" className="text-xs">
-                                                                    New
-                                                                </Badge>
-                                                            )}
-                                                            <div className="flex items-center gap-1 ml-auto">
-                                                                {message.status === 'read' ? (
-                                                                    <Check className="h-3 w-3 text-green-400" />
-                                                                ) : (
-                                                                    <Clock className="h-3 w-3 text-gray-400" />
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        <p className="text-gray-300 text-sm mb-2 line-clamp-2">
-                                                            {message.content}
-                                                        </p>
-
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="text-xs text-gray-500">
-                                                                {formatMessageTime(message.created_at)}
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {/* Contract file - temporarily disabled until database migration
-                                                              {message.contract_file_url && (
-                                                                <Button
-                                                                  variant="outline"
-                                                                  size="sm"
-                                                                  onClick={() => window.open(message.contract_file_url, '_blank')}
-                                                                  className="h-6 px-2 text-xs"
-                                                                >
-                                                                  <FileText className="h-3 w-3 mr-1" />
-                                                                  View Contract
-                                                                </Button>
-                                                              )}
-                                                              */}
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => handleReplyToMessage(message)}
-                                                                    className="h-6 px-2 text-xs"
-                                                                >
-                                                                    <Reply className="h-3 w-3 mr-1" />
-                                                                    Reply
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-
-            {/* Create Transfer Pitch Modal */}
-            {showCreatePitch && (
-                <CreateTransferPitch
-                    isOpen={showCreatePitch}
-                    onClose={() => setShowCreatePitch(false)}
-                    onPitchCreated={handlePitchCreated}
-                />
-            )}
-
-            {/* Message Modal */}
-            {showMessageModal && selectedMessage && (
-                <MessageModal
-                    isOpen={showMessageModal}
-                    onClose={() => {
-                        setShowMessageModal(false);
-                        setSelectedMessage(null);
-                    }}
-                    currentUserId={profile?.id || ''}
-                    receiverId={selectedMessage.sender_id}
-                    receiverName={selectedMessage.sender_profile?.full_name || 'Unknown Agent'}
-                    receiverType="agent"
-                    pitchTitle={selectedMessage.subject}
-                    playerName="Player" // We'll need to get this from the message context or pitch data
-                />
-            )}
-        </div>
+      <div className="min-h-screen bg-background p-6">
+        <Card className="max-w-md mx-auto mt-20 border-red-500">
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+            <h2 className="text-xl font-bold text-white mb-2">Access Restricted</h2>
+            <p className="text-gray-400">
+              This dashboard is only available for team accounts.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     );
+  }
+
+  if (loading || completionLoading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-gray-700 rounded w-1/3"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-32 bg-gray-700 rounded-lg"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-polysans text-3xl font-bold text-white">
+              Team Dashboard
+            </h1>
+            {teamInfo && (
+              <p className="text-gray-400 mt-1">
+                {teamInfo.team_name} • {teamInfo.league || 'No League Set'}
+              </p>
+            )}
+          </div>
+          
+          {teamInfo?.logo_url && (
+            <div className="flex items-center gap-4">
+              <img
+                src={teamInfo.logo_url}
+                alt="Team Logo"
+                className="w-16 h-16 object-cover rounded-lg border-2 border-gray-600"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Profile Completion Status */}
+        <ProfileCompletionStatus />
+
+        {/* Statistics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Players */}
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Total Players</p>
+                  <p className="text-2xl font-bold text-white">{stats.totalPlayers}</p>
+                </div>
+                <Users className="w-8 h-8 text-rosegold" />
+              </div>
+              <div className="mt-4">
+                <Link to="/players">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Manage Players
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Videos */}
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Total Videos</p>
+                  <p className="text-2xl font-bold text-white">{stats.totalVideos}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-xs">
+                      {stats.completedAnalysis} Analyzed
+                    </Badge>
+                    {stats.pendingAnalysis > 0 && (
+                      <Badge variant="outline" className="text-xs text-orange-400">
+                        {stats.pendingAnalysis} Pending
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <Video className="w-8 h-8 text-bright-pink" />
+              </div>
+              <div className="mt-4">
+                <Link to="/videos">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Manage Videos
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Pitches */}
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Active Pitches</p>
+                  <p className="text-2xl font-bold text-white">{stats.activePitches}</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Eye className="w-3 h-3 text-gray-400" />
+                    <span className="text-xs text-gray-400">{stats.pitchViews} views</span>
+                  </div>
+                </div>
+                <Target className="w-8 h-8 text-purple-400" />
+              </div>
+              <div className="mt-4">
+                <Link to="/team-explore">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Explore Hub
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Messages */}
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Total Messages</p>
+                  <p className="text-2xl font-bold text-white">{stats.totalMessages}</p>
+                </div>
+                <MessageSquare className="w-8 h-8 text-yellow-400" />
+              </div>
+              <div className="mt-4">
+                <Link to="/messages">
+                  <Button variant="outline" size="sm" className="w-full">
+                    View Messages
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recent Activity */}
+          <Card className="lg:col-span-2 bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentActivity.length > 0 ? (
+                <div className="space-y-4">
+                  {recentActivity.map((activity) => (
+                    <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-800/50">
+                      <div className={`${getActivityColor(activity.type)} mt-0.5`}>
+                        {getActivityIcon(activity.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white">{activity.title}</p>
+                        <p className="text-xs text-gray-400 truncate">{activity.description}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(activity.timestamp).toLocaleDateString()} at{' '}
+                          {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {activity.status && (
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${activity.status === 'completed' ? 'text-green-400' : 'text-orange-400'}`}
+                        >
+                          {activity.status}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Clock className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                  <p className="text-gray-400">No recent activity</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Start by uploading videos or adding players
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Star className="w-5 h-5" />
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Link to="/videos" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  <Video className="w-4 h-4 mr-2" />
+                  Upload Videos
+                </Button>
+              </Link>
+              
+              <Link to="/players" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  <Users className="w-4 h-4 mr-2" />
+                  Add Players
+                </Button>
+              </Link>
+              
+              <Link to="/team-explore" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  <Target className="w-4 h-4 mr-2" />
+                  Create Pitch
+                </Button>
+              </Link>
+              
+              <Link to="/messages" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Check Messages
+                </Button>
+              </Link>
+              
+              <Link to="/profile" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  <Trophy className="w-4 h-4 mr-2" />
+                  Edit Profile
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Profile Completion Notice */}
+        {!completionStatus.canAccessFeatures && (
+          <Card className="bg-orange-500/10 border-orange-500/30">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <AlertTriangle className="w-6 h-6 text-orange-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-orange-400 mb-2">
+                    Complete Your Profile to Access All Features
+                  </h3>
+                  <div className="space-y-2">
+                    {completionStatus.missingRequirements.map((requirement, index) => (
+                      <div key={index} className="flex items-center gap-2 text-orange-300">
+                        <div className="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
+                        <span className="text-sm">{requirement}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4">
+                    <Link to="/profile">
+                      <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+                        Complete Profile
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default TeamDashboard;
