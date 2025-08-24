@@ -72,11 +72,11 @@ const AgentRequestsExplore = () => {
         .gt('expires_at', new Date().toISOString());
 
       // Apply filters
-      if (filters.position) {
+      if (filters.position && filters.position !== 'all') {
         query = query.eq('position', filters.position);
       }
 
-      if (filters.transferType && (filters.transferType === 'loan' || filters.transferType === 'permanent')) {
+      if (filters.transferType && filters.transferType !== 'all' && (filters.transferType === 'loan' || filters.transferType === 'permanent')) {
         query = query.eq('transfer_type', filters.transferType);
       }
 
@@ -265,10 +265,10 @@ const AgentRequestsExplore = () => {
             <div className="flex gap-2">
               {views.length > 0 && (
                 <Select onValueChange={handleLoadView}>
-                  <SelectTrigger className="w-48 bg-gray-800 border-gray-600 text-white">
+                  <SelectTrigger className="w-48 bg-black border-gray-600 text-white">
                     <SelectValue placeholder="Load saved filter" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectContent className="bg-black border-gray-600">
                     {views.map((view) => (
                       <SelectItem key={view.id} value={view.id} className="text-white hover:bg-gray-700">
                         {view.view_name}
@@ -290,14 +290,14 @@ const AgentRequestsExplore = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <Select
-              value={filters.position || ''}
-              onValueChange={(value) => setFilters({ ...filters, position: value || undefined })}
+              value={filters.position || 'all'}
+              onValueChange={(value) => setFilters({ ...filters, position: value === 'all' ? undefined : value })}
             >
-              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+              <SelectTrigger className="bg-black border-gray-600 text-white">
                 <SelectValue placeholder="Position" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="" className="text-white hover:bg-gray-700">All Positions</SelectItem>
+              <SelectContent className="bg-black border-gray-600">
+                <SelectItem value="all" className="text-white hover:bg-gray-700">All Positions</SelectItem>
                 <SelectItem value="Goalkeeper" className="text-white hover:bg-gray-700">Goalkeeper</SelectItem>
                 <SelectItem value="Centre-Back" className="text-white hover:bg-gray-700">Centre-Back</SelectItem>
                 <SelectItem value="Left-Back" className="text-white hover:bg-gray-700">Left-Back</SelectItem>
@@ -313,14 +313,14 @@ const AgentRequestsExplore = () => {
             </Select>
 
             <Select
-              value={filters.transferType || ''}
-              onValueChange={(value) => setFilters({ ...filters, transferType: value || undefined })}
+              value={filters.transferType || 'all'}
+              onValueChange={(value) => setFilters({ ...filters, transferType: value === 'all' ? undefined : value })}
             >
-              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+              <SelectTrigger className="bg-black border-gray-600 text-white">
                 <SelectValue placeholder="Transfer Type" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="" className="text-white hover:bg-gray-700">All Types</SelectItem>
+              <SelectContent className="bg-black border-gray-600">
+                <SelectItem value="all" className="text-white hover:bg-gray-700">All Types</SelectItem>
                 <SelectItem value="permanent" className="text-white hover:bg-gray-700">Permanent</SelectItem>
                 <SelectItem value="loan" className="text-white hover:bg-gray-700">Loan</SelectItem>
               </SelectContent>
@@ -332,14 +332,14 @@ const AgentRequestsExplore = () => {
                 placeholder="Min Budget"
                 value={filters.budgetMin || ''}
                 onChange={(e) => setFilters({ ...filters, budgetMin: e.target.value ? Number(e.target.value) : undefined })}
-                className="bg-gray-800 border-gray-600 text-white"
+                className="bg-black border-gray-600 text-white"
               />
               <Input
                 type="number"
                 placeholder="Max Budget"
                 value={filters.budgetMax || ''}
                 onChange={(e) => setFilters({ ...filters, budgetMax: e.target.value ? Number(e.target.value) : undefined })}
-                className="bg-gray-800 border-gray-600 text-white"
+                className="bg-black border-gray-600 text-white"
               />
             </div>
 
@@ -347,10 +347,10 @@ const AgentRequestsExplore = () => {
               value={filters.sortBy}
               onValueChange={(value) => setFilters({ ...filters, sortBy: value })}
             >
-              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+              <SelectTrigger className="bg-black border-gray-600 text-white">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
+              <SelectContent className="bg-black border-gray-600">
                 <SelectItem value="newest" className="text-white hover:bg-gray-700">Newest</SelectItem>
                 <SelectItem value="expiring" className="text-white hover:bg-gray-700">Expiring Soon</SelectItem>
                 <SelectItem value="most_tagged" className="text-white hover:bg-gray-700">Most Tagged</SelectItem>
@@ -361,12 +361,12 @@ const AgentRequestsExplore = () => {
 
           {/* Save Filter Modal */}
           {showSaveFilter && (
-            <div className="flex gap-2 items-center p-3 bg-gray-800 rounded border border-gray-600">
+            <div className="flex gap-2 items-center p-3 bg-black rounded border border-gray-600">
               <Input
                 placeholder="Filter name (e.g., 'Striker Requests under $1m in Africa')"
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
-                className="bg-gray-900 border-gray-600 text-white"
+                className="bg-black border-gray-600 text-white"
               />
               <Button onClick={handleSaveFilter} className="bg-rosegold hover:bg-rosegold/90 text-white">
                 Save
