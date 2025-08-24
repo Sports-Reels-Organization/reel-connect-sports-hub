@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -377,15 +378,15 @@ const PlayerManagement: React.FC = () => {
       </div>
 
       {/* Tabs for Player Management Organization */}
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs defaultValue="roster" className="w-full">
         <TabsList className="grid w-full grid-cols-7 bg-gray-800">
+          <TabsTrigger value="roster" className="text-white">
+            <Users className="h-4 w-4 mr-1" />
+            Roster & Squad
+          </TabsTrigger>
           <TabsTrigger value="overview" className="text-white">
             <User className="h-4 w-4 mr-1" />
             Overview
-          </TabsTrigger>
-          <TabsTrigger value="roster" className="text-white">
-            <Users className="h-4 w-4 mr-1" />
-            Roster
           </TabsTrigger>
           <TabsTrigger value="statistics" className="text-white">
             <Activity className="h-4 w-4 mr-1" />
@@ -409,124 +410,118 @@ const PlayerManagement: React.FC = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab - Main player management interface */}
-        <TabsContent value="overview" className="space-y-4">
-          {/* Player Filters */}
-          <PlayerFilters
-            players={players}
-            onFilteredPlayersChange={setFilteredPlayers}
-            onExportPlayers={handleExportPlayers}
-          />
-
-          {/* View Mode Toggle */}
-          <div className="flex gap-2">
-            <Button
-              variant={viewMode === 'cards' ? 'default' : 'outline'}
-              onClick={() => setViewMode('cards')}
-              className={viewMode === 'cards' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
-            >
-              Card View
-            </Button>
-            <Button
-              variant={viewMode === 'roster' ? 'default' : 'outline'}
-              onClick={() => setViewMode('roster')}
-              className={viewMode === 'roster' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
-            >
-              Roster View
-            </Button>
-          </div>
-
-          {showAddForm && (
-            <PlayerForm
-              teamId={teamId}
-              player={editingPlayer}
-              onSave={handlePlayerSaved}
-              onCancel={resetForm}
-            />
-          )}
-
-          {/* Player Display */}
-          {viewMode === 'roster' ? (
-            <PlayerRosterView
-              players={filteredPlayers}
-              onEditPlayer={handleEditPlayer}
-              onViewPlayer={handleViewPlayer}
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredPlayers.map((player) => {
-                const completionStatus = getPlayerCompletionStatus(player);
-                return (
-                  <div key={player.id} className="relative">
-                    <PlayerCard
-                      player={player}
-                      onEdit={handleEditPlayer}
-                      onView={handleViewPlayer}
-                    />
-                    {/* Profile Completion Indicator */}
-                    <div className="absolute top-2 right-2">
-                      <div className={`w-3 h-3 rounded-full ${completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
-                        }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {filteredPlayers.length === 0 && !showAddForm && (
-            <Card className="border-gray-700">
-              <CardContent className="p-12 text-center">
-                <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                <h3 className="font-polysans text-xl font-semibold text-white mb-2">
-                  {players.length === 0 ? 'No Players Added Yet' : 'No Players Match Your Filters'}
-                </h3>
-                <p className="text-gray-400 mb-6 font-poppins">
-                  {players.length === 0
-                    ? 'Start building your team by adding comprehensive player profiles'
-                    : 'Try adjusting your filters to see more players'
-                  }
-                </p>
-                {players.length === 0 && (
-                  <Button
-                    onClick={() => setShowAddForm(true)}
-                    className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Your First Player
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Roster Tab */}
+        {/* Roster & Squad Tab - Main roster management interface */}
         <TabsContent value="roster" className="space-y-4">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader>
               <CardTitle className="text-white font-polysans flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Team Roster Overview
+                Team Roster & Squad Management
               </CardTitle>
+              <p className="text-gray-400 text-sm">
+                Complete roster view with filtering, sorting, and quick actions for team admins
+              </p>
             </CardHeader>
-            <CardContent>
-              <PlayerRosterView
+            <CardContent className="space-y-4">
+              {/* Player Filters */}
+              <PlayerFilters
                 players={players}
-                onEditPlayer={handleEditPlayer}
-                onViewPlayer={handleViewPlayer}
+                onFilteredPlayersChange={setFilteredPlayers}
+                onExportPlayers={handleExportPlayers}
               />
+
+              {/* View Mode Toggle */}
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('cards')}
+                  className={viewMode === 'cards' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
+                >
+                  Card View
+                </Button>
+                <Button
+                  variant={viewMode === 'roster' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('roster')}
+                  className={viewMode === 'roster' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
+                >
+                  Table View
+                </Button>
+              </div>
+
+              {showAddForm && (
+                <PlayerForm
+                  teamId={teamId}
+                  player={editingPlayer}
+                  onSave={handlePlayerSaved}
+                  onCancel={resetForm}
+                />
+              )}
+
+              {/* Player Display */}
+              {viewMode === 'roster' ? (
+                <PlayerRosterView
+                  players={filteredPlayers}
+                  onEditPlayer={handleEditPlayer}
+                  onViewPlayer={handleViewPlayer}
+                />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredPlayers.map((player) => {
+                    const completionStatus = getPlayerCompletionStatus(player);
+                    return (
+                      <div key={player.id} className="relative">
+                        <PlayerCard
+                          player={player}
+                          onEdit={handleEditPlayer}
+                          onView={handleViewPlayer}
+                        />
+                        {/* Profile Completion Indicator */}
+                        <div className="absolute top-2 right-2">
+                          <div className={`w-3 h-3 rounded-full ${completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
+                            }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {filteredPlayers.length === 0 && !showAddForm && (
+                <Card className="border-gray-700">
+                  <CardContent className="p-12 text-center">
+                    <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                    <h3 className="font-polysans text-xl font-semibold text-white mb-2">
+                      {players.length === 0 ? 'No Players Added Yet' : 'No Players Match Your Filters'}
+                    </h3>
+                    <p className="text-gray-400 mb-6 font-poppins">
+                      {players.length === 0
+                        ? 'Start building your team by adding comprehensive player profiles'
+                        : 'Try adjusting your filters to see more players'
+                      }
+                    </p>
+                    {players.length === 0 && (
+                      <Button
+                        onClick={() => setShowAddForm(true)}
+                        className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Your First Player
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Statistics Tab */}
-        <TabsContent value="statistics" className="space-y-4">
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-4">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader>
               <CardTitle className="text-white font-polysans flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Team Statistics Overview
+                <User className="h-5 w-5" />
+                Player Management Overview
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -544,6 +539,44 @@ const PlayerManagement: React.FC = () => {
                     {players.filter(p => p.position).length}
                   </p>
                   <p className="text-gray-400 text-sm">Players with Positions</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Statistics Tab */}
+        <TabsContent value="statistics" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Team Statistics Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-rosegold">{players.length}</p>
+                  <p className="text-gray-400 text-sm">Squad Size</p>
+                </div>
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-green-400">
+                    {players.reduce((acc, p) => acc + (p.market_value || 0), 0).toLocaleString()}
+                  </p>
+                  <p className="text-gray-400 text-sm">Total Squad Value</p>
+                </div>
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-blue-400">
+                    {players.filter(p => p.age && p.age < 23).length}
+                  </p>
+                  <p className="text-gray-400 text-sm">Youth Players</p>
+                </div>
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-purple-400">
+                    {players.filter(p => p.contract_expires && new Date(p.contract_expires) < new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)).length}
+                  </p>
+                  <p className="text-gray-400 text-sm">Expiring Contracts</p>
                 </div>
               </div>
             </CardContent>
