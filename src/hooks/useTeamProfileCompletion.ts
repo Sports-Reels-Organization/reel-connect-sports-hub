@@ -31,6 +31,8 @@ export const useTeamProfileCompletion = () => {
   useEffect(() => {
     if (profile?.user_type === 'team') {
       checkTeamCompletion();
+    } else {
+      setLoading(false);
     }
   }, [profile]);
 
@@ -44,10 +46,7 @@ export const useTeamProfileCompletion = () => {
       // 1. Check team profile completion
       const { data: teamData, error: teamError } = await supabase
         .from('teams')
-        .select(`
-          *,
-          profiles!inner(verified)
-        `)
+        .select('*')
         .eq('profile_id', profile.id)
         .single();
 
@@ -69,7 +68,7 @@ export const useTeamProfileCompletion = () => {
 
       // Check required team fields
       const requiredTeamFields = [
-        'team_name', 'country', 'sport_type', 'member_association'
+        'team_name', 'country', 'sport_type'
       ];
       
       const missingTeamFields = requiredTeamFields.filter(field => 
@@ -80,20 +79,22 @@ export const useTeamProfileCompletion = () => {
         missingRequirements.push(`Complete team profile: ${missingTeamFields.join(', ')}`);
       }
 
+      // Check optional but recommended fields
       if (!teamData.logo_url) {
-        missingRequirements.push('Upload team logo');
+        missingRequirements.push('Upload team logo (recommended)');
       }
 
       if (!teamData.year_founded) {
-        missingRequirements.push('Add year founded');
+        missingRequirements.push('Add year founded (recommended)');
       }
 
       if (!teamData.league) {
-        missingRequirements.push('Select league/competition');
+        missingRequirements.push('Select league/competition (recommended)');
       }
 
-      if (!teamData.verified) {
-        missingRequirements.push('Team profile must be verified');
+      // Check if profile is verified (from profiles table, not teams table)
+      if (!profile.is_verified) {
+        missingRequirements.push('Team profile must be verified by admin');
       }
 
       // 2. Check player profiles completion
@@ -116,7 +117,7 @@ export const useTeamProfileCompletion = () => {
       const incompletePlayersCount = (players || []).filter(player => {
         const requiredFields = [
           'full_name', 'position', 'citizenship', 'date_of_birth',
-          'height', 'weight', 'bio', 'market_value'
+          'height', 'weight'
         ];
         
         return requiredFields.some(field => 
@@ -129,13 +130,12 @@ export const useTeamProfileCompletion = () => {
       }
 
       // 3. Check video requirements
-      const { data: videoReq } = await supabase
-        .from('video_requirements')
-        .select('video_count')
-        .eq('team_id', teamData.id)
-        .single();
+      const { data: videos, error: videosError } = await supabase
+        .from('videos')
+        .select('id')
+        .eq('team_id', teamData.id);
 
-      const videoCount = videoReq?.video_count || 0;
+      const videoCount = videos?.length || 0;
       
       if (videoCount < 5) {
         missingRequirements.push(`Upload ${5 - videoCount} more videos (minimum 5 required)`);
@@ -145,12 +145,13 @@ export const useTeamProfileCompletion = () => {
       const isTeamProfileComplete = missingTeamFields.length === 0 && 
                                    teamData.logo_url && 
                                    teamData.year_founded && 
-                                   teamData.league &&
-                                   teamData.verified;
+                                   teamData.league;
       
       const hasMinimumPlayers = playerCount > 0 && incompletePlayersCount === 0;
       const hasMinimumVideos = videoCount >= 5;
-      const canAccessFeatures = isTeamProfileComplete && hasMinimumPlayers && hasMinimumVideos;
+      
+      // For basic functionality, we only require essential fields
+      const canAccessFeatures = missingTeamFields.length === 0 && playerCount > 0;
 
       setCompletionStatus({
         isTeamProfileComplete,

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import AgentProfileForm from '@/components/AgentProfileForm';
 import TeamProfileSetup from '@/components/TeamProfileSetup';
+import ProfileCompletionStatus from '@/components/ProfileCompletionStatus';
 import { ShortlistManager } from '@/components/ShortlistManager';
 import { User, Heart, Bell, Settings, Users, Building } from 'lucide-react';
 
@@ -23,6 +24,10 @@ const Profile = () => {
             Manage your account and profile information
           </p>
         </div>
+
+        {profile?.user_type === 'team' && (
+          <ProfileCompletionStatus />
+        )}
 
         {profile?.user_type === 'agent' ? (
           <Tabs defaultValue="profile" className="w-full">
