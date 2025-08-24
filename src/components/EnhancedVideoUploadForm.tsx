@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import PlayerTagging from '@/components/PlayerTagging';
+import { PlayerTagging } from '@/components/PlayerTagging';
 import { 
   Upload, 
   Video, 
@@ -188,7 +189,7 @@ const EnhancedVideoUploadForm = () => {
       const thumbnailPath = `videos/${team.id}/thumbnails/${thumbnailUrlFileName}`;
 
       // Convert the data URL to a Blob
-      const blob = await (await fetch(thumbnailUrl)).blob();
+      const blob = await (await fetch(thumbnailUrl!)).blob();
 
       const { data: thumbnailData, error: thumbnailError } = await supabase.storage
         .from('team-videos')
@@ -210,7 +211,7 @@ const EnhancedVideoUploadForm = () => {
       }
 
       const videoUrl = `${supabase.storage.from('team-videos').getPublicUrl(videoPath).data.publicUrl}`;
-      const thumbnailUrl = `${supabase.storage.from('team-videos').getPublicUrl(thumbnailPath).data.publicUrl}`;
+      const finalThumbnailUrl = `${supabase.storage.from('team-videos').getPublicUrl(thumbnailPath).data.publicUrl}`;
 
       const { error: dbError } = await supabase
         .from('videos')
@@ -220,7 +221,7 @@ const EnhancedVideoUploadForm = () => {
           description: metadata.description,
           video_type: metadata.video_type,
           video_url: videoUrl,
-          thumbnail_url: thumbnailUrl,
+          thumbnail_url: finalThumbnailUrl,
           location: metadata.location,
           date: metadata.date,
           tags: metadata.tags,
