@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Search, Filter, X, Save, Download } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
+import { useSportData } from '@/hooks/useSportData';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 type DatabasePlayer = Tables<'players'>;
 
@@ -37,6 +39,10 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
   onFilteredPlayersChange,
   onExportPlayers
 }) => {
+  const { profile } = useAuth();
+  const [teamSportType, setTeamSportType] = useState<string>('football');
+  const sportData = useSportData(teamSportType);
+  
   const [filters, setFilters] = useState<FilterState>({
     search: '',
     position: 'all',
@@ -54,6 +60,34 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
 
   const [savedFilters, setSavedFilters] = useState<{name: string, filters: FilterState}[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Fetch team sport type on component mount
+  useEffect(() => {
+    const fetchTeamSportType = async () => {
+      if (!profile?.id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('sport_type')
+          .eq('profile_id', profile.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching team sport type:', error);
+          return;
+        }
+
+        if (data?.sport_type) {
+          setTeamSportType(data.sport_type);
+        }
+      } catch (error) {
+        console.error('Error fetching team sport type:', error);
+      }
+    };
+
+    fetchTeamSportType();
+  }, [profile]);
 
   const applyFilters = (filterState: FilterState = filters) => {
     let filtered = [...players];
@@ -253,10 +287,11 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All positions</SelectItem>
-                <SelectItem value="goalkeeper">Goalkeeper</SelectItem>
-                <SelectItem value="defender">Defender</SelectItem>
-                <SelectItem value="midfielder">Midfielder</SelectItem>
-                <SelectItem value="forward">Forward</SelectItem>
+                {sportData.positions.map((position) => (
+                  <SelectItem key={position} value={position.toLowerCase()}>
+                    {position}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
