@@ -212,24 +212,36 @@ export const enhancedContractService = {
   async getContractComments(contractId: string): Promise<ContractComment[]> {
     const { data, error } = await supabase
       .from('contract_comments')
-      .select(`
-        *,
-        profiles!contract_comments_user_id_fkey(full_name)
-      `)
+      .select('*')
       .eq('contract_id', contractId)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
     
-    return (data || []).map(comment => ({
-      id: comment.id,
-      contract_id: comment.contract_id || '',
-      user_id: comment.user_id || '',
-      comment: comment.comment,
-      is_internal: comment.is_internal || false,
-      created_at: comment.created_at || '',
-      user: comment.profiles ? { full_name: comment.profiles.full_name || 'Unknown User' } : undefined
-    }));
+    // Get user profiles separately to avoid relation issues
+    const userIds = [...new Set((data || []).map(comment => comment.user_id).filter(Boolean))];
+    let profiles: any[] = [];
+    
+    if (userIds.length > 0) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      profiles = profileData || [];
+    }
+
+    return (data || []).map(comment => {
+      const userProfile = profiles.find(p => p.id === comment.user_id);
+      return {
+        id: comment.id,
+        contract_id: comment.contract_id || '',
+        user_id: comment.user_id || '',
+        comment: comment.comment,
+        is_internal: comment.is_internal || false,
+        created_at: comment.created_at || '',
+        user: userProfile ? { full_name: userProfile.full_name || 'Unknown User' } : undefined
+      };
+    });
   },
 
   async addContractComment(contractId: string, comment: string, isInternal: boolean = false): Promise<void> {
@@ -251,25 +263,37 @@ export const enhancedContractService = {
   async getContractVersions(contractId: string): Promise<ContractVersion[]> {
     const { data, error } = await supabase
       .from('contract_versions')
-      .select(`
-        *,
-        profiles!contract_versions_created_by_fkey(full_name)
-      `)
+      .select('*')
       .eq('contract_id', contractId)
       .order('version_number', { ascending: false });
 
     if (error) throw error;
     
-    return (data || []).map(version => ({
-      id: version.id,
-      contract_id: version.contract_id || '',
-      version_number: version.version_number,
-      content: version.content,
-      changes_summary: version.changes_summary || undefined,
-      created_by: version.created_by || '',
-      created_at: version.created_at || '',
-      user: version.profiles ? { full_name: version.profiles.full_name || 'Unknown User' } : undefined
-    }));
+    // Get user profiles separately to avoid relation issues
+    const userIds = [...new Set((data || []).map(version => version.created_by).filter(Boolean))];
+    let profiles: any[] = [];
+    
+    if (userIds.length > 0) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      profiles = profileData || [];
+    }
+
+    return (data || []).map(version => {
+      const userProfile = profiles.find(p => p.id === version.created_by);
+      return {
+        id: version.id,
+        contract_id: version.contract_id || '',
+        version_number: version.version_number,
+        content: version.content,
+        changes_summary: version.changes_summary || undefined,
+        created_by: version.created_by || '',
+        created_at: version.created_at || '',
+        user: userProfile ? { full_name: userProfile.full_name || 'Unknown User' } : undefined
+      };
+    });
   },
 
   // Reminders Management
