@@ -59,6 +59,52 @@ export type Database = {
           },
         ]
       }
+      agent_request_player_tags: {
+        Row: {
+          id: string
+          player_id: string | null
+          request_id: string | null
+          tagged_at: string | null
+          team_id: string | null
+        }
+        Insert: {
+          id?: string
+          player_id?: string | null
+          request_id?: string | null
+          tagged_at?: string | null
+          team_id?: string | null
+        }
+        Update: {
+          id?: string
+          player_id?: string | null
+          request_id?: string | null
+          tagged_at?: string | null
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_request_player_tags_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_request_player_tags_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_request_player_tags_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_requests: {
         Row: {
           agent_id: string
@@ -272,6 +318,41 @@ export type Database = {
           },
           {
             foreignKeyName: "contracts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_filter_views: {
+        Row: {
+          created_at: string | null
+          filter_config: Json
+          id: string
+          team_id: string | null
+          updated_at: string | null
+          view_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          filter_config: Json
+          id?: string
+          team_id?: string | null
+          updated_at?: string | null
+          view_name: string
+        }
+        Update: {
+          created_at?: string | null
+          filter_config?: Json
+          id?: string
+          team_id?: string | null
+          updated_at?: string | null
+          view_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_filter_views_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -551,6 +632,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "match_videos_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_stages: {
+        Row: {
+          agent_id: string | null
+          created_at: string | null
+          id: string
+          last_interaction: string | null
+          pitch_id: string | null
+          stage: string | null
+          team_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string | null
+          id?: string
+          last_interaction?: string | null
+          pitch_id?: string | null
+          stage?: string | null
+          team_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string | null
+          id?: string
+          last_interaction?: string | null
+          pitch_id?: string | null
+          stage?: string | null
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_stages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_stages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
+          {
+            foreignKeyName: "message_stages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_stages_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -1804,6 +1944,60 @@ export type Database = {
           },
         ]
       }
+      squad_availability: {
+        Row: {
+          asking_price: number | null
+          available_for_transfer: boolean | null
+          created_at: string | null
+          currency: string | null
+          id: string
+          notes: string | null
+          player_id: string | null
+          team_id: string | null
+          transfer_type: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          asking_price?: number | null
+          available_for_transfer?: boolean | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          notes?: string | null
+          player_id?: string | null
+          team_id?: string | null
+          transfer_type?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          asking_price?: number | null
+          available_for_transfer?: boolean | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          notes?: string | null
+          player_id?: string | null
+          team_id?: string | null
+          transfer_type?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "squad_availability_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "squad_availability_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           country: string
@@ -2024,11 +2218,13 @@ export type Database = {
         Row: {
           asking_price: number | null
           auto_expire_enabled: boolean | null
+          contact_info_flagged: boolean | null
           contract_details: Json | null
           contract_finalized: boolean | null
           contract_finalized_at: string | null
           created_at: string | null
           currency: string | null
+          deal_stage: string | null
           description: string | null
           domestic_currency: string | null
           expires_at: string | null
@@ -2053,6 +2249,7 @@ export type Database = {
           sign_on_bonus: number | null
           status: Database["public"]["Enums"]["transfer_status"] | null
           tagged_videos: Json | null
+          team_blocked: boolean | null
           team_id: string
           tier_level: string | null
           total_transfer_value: number | null
@@ -2063,11 +2260,13 @@ export type Database = {
         Insert: {
           asking_price?: number | null
           auto_expire_enabled?: boolean | null
+          contact_info_flagged?: boolean | null
           contract_details?: Json | null
           contract_finalized?: boolean | null
           contract_finalized_at?: string | null
           created_at?: string | null
           currency?: string | null
+          deal_stage?: string | null
           description?: string | null
           domestic_currency?: string | null
           expires_at?: string | null
@@ -2092,6 +2291,7 @@ export type Database = {
           sign_on_bonus?: number | null
           status?: Database["public"]["Enums"]["transfer_status"] | null
           tagged_videos?: Json | null
+          team_blocked?: boolean | null
           team_id: string
           tier_level?: string | null
           total_transfer_value?: number | null
@@ -2102,11 +2302,13 @@ export type Database = {
         Update: {
           asking_price?: number | null
           auto_expire_enabled?: boolean | null
+          contact_info_flagged?: boolean | null
           contract_details?: Json | null
           contract_finalized?: boolean | null
           contract_finalized_at?: string | null
           created_at?: string | null
           currency?: string | null
+          deal_stage?: string | null
           description?: string | null
           domestic_currency?: string | null
           expires_at?: string | null
@@ -2131,6 +2333,7 @@ export type Database = {
           sign_on_bonus?: number | null
           status?: Database["public"]["Enums"]["transfer_status"] | null
           tagged_videos?: Json | null
+          team_blocked?: boolean | null
           team_id?: string
           tier_level?: string | null
           total_transfer_value?: number | null
@@ -2439,6 +2642,10 @@ export type Database = {
         Args: { birth_date: string }
         Returns: number
       }
+      check_pitch_requirements: {
+        Args: { p_player_id: string; p_team_id: string }
+        Returns: boolean
+      }
       delete_user_completely: {
         Args: { user_uuid: string }
         Returns: boolean
@@ -2469,6 +2676,10 @@ export type Database = {
       send_welcome_notification: {
         Args: { user_uuid: string }
         Returns: boolean
+      }
+      update_expired_pitches: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       validate_pitch_requirements: {
         Args: { p_pitch_id: string }
