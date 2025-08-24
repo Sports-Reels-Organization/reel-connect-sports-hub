@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Users, Target, AlertCircle, Video, BarChart3, Download } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
@@ -227,6 +228,132 @@ const PlayerManagement: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="text-white border-gray-600"
+              >
+                <Target className="w-4 h-4 mr-2" />
+                Transfer Requirements
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                <DialogTitle className="text-white font-polysans flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Transfer Timeline Readiness
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Video Requirements */}
+                  <div className={`p-4 rounded-lg border ${videoRequirements && videoRequirements.video_count >= 5
+                    ? 'border-green-500 bg-green-900/20'
+                    : 'border-red-500 bg-red-900/20'
+                    }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Video className="h-5 w-5" />
+                      <h3 className="font-polysans text-white">Team Videos</h3>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Current:</span>
+                        <span className="text-white">{videoRequirements?.video_count || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Required:</span>
+                        <span className="text-white">5</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${videoRequirements && videoRequirements.video_count >= 5
+                            ? 'bg-green-500'
+                            : 'bg-red-500'
+                            }`}
+                          style={{
+                            width: `${Math.min((videoRequirements?.video_count || 0) / 5 * 100, 100)}%`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Player Profiles */}
+                  <div className={`p-4 rounded-lg border ${eligiblePlayers.length > 0
+                    ? 'border-green-500 bg-green-900/20'
+                    : 'border-red-500 bg-red-900/20'
+                    }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="h-5 w-5" />
+                      <h3 className="font-polysans text-white">Complete Profiles</h3>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Complete:</span>
+                        <span className="text-white">{eligiblePlayers.length}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Total:</span>
+                        <span className="text-white">{players.length}</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${eligiblePlayers.length > 0 ? 'bg-green-500' : 'bg-red-500'
+                            }`}
+                          style={{
+                            width: `${players.length > 0 ? (eligiblePlayers.length / players.length * 100) : 0}%`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Overall Status */}
+                  <div className={`p-4 rounded-lg border ${canCreateTransferPitches()
+                    ? 'border-green-500 bg-green-900/20'
+                    : 'border-yellow-500 bg-yellow-900/20'
+                    }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="h-5 w-5" />
+                      <h3 className="font-polysans text-white">Transfer Pitches</h3>
+                    </div>
+                    <div className="space-y-2">
+                      <p className={`text-sm font-semibold ${canCreateTransferPitches() ? 'text-green-400' : 'text-yellow-400'
+                        }`}>
+                        {canCreateTransferPitches() ? 'Ready to Create' : 'Not Ready'}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {canCreateTransferPitches()
+                          ? 'You can now create transfer pitches for your players'
+                          : 'Complete requirements to create transfer pitches'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {!canCreateTransferPitches() && (
+                  <div className="bg-yellow-900/20 border border-yellow-700 p-4 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-yellow-400 font-semibold text-sm mb-1">Requirements Not Met</p>
+                        <ul className="text-yellow-300 text-sm space-y-1">
+                          {(!videoRequirements || videoRequirements.video_count < 5) && (
+                            <li>• Upload at least 5 team videos</li>
+                          )}
+                          {eligiblePlayers.length === 0 && (
+                            <li>• Complete at least one player profile with all required fields</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button
             onClick={() => setShowComparison(true)}
             variant="outline"
@@ -244,122 +371,6 @@ const PlayerManagement: React.FC = () => {
           </Button>
         </div>
       </div>
-
-      <Card className="border-0">
-        <CardHeader>
-          <CardTitle className="text-white font-polysans flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Transfer Timeline Readiness
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Video Requirements */}
-            <div className={`p-4 rounded-lg border ${videoRequirements && videoRequirements.video_count >= 5
-              ? 'border-green-500 bg-green-900/20'
-              : 'border-red-500 bg-red-900/20'
-              }`}>
-              <div className="flex items-center gap-2 mb-2">
-                <Video className="h-5 w-5" />
-                <h3 className="font-polysans text-white">Team Videos</h3>
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Current:</span>
-                  <span className="text-white">{videoRequirements?.video_count || 0}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Required:</span>
-                  <span className="text-white">5</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full transition-all ${videoRequirements && videoRequirements.video_count >= 5
-                      ? 'bg-green-500'
-                      : 'bg-red-500'
-                      }`}
-                    style={{
-                      width: `${Math.min((videoRequirements?.video_count || 0) / 5 * 100, 100)}%`
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Player Profiles */}
-            <div className={`p-4 rounded-lg border ${eligiblePlayers.length > 0
-              ? 'border-green-500 bg-green-900/20'
-              : 'border-red-500 bg-red-900/20'
-              }`}>
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="h-5 w-5" />
-                <h3 className="font-polysans text-white">Complete Profiles</h3>
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Complete:</span>
-                  <span className="text-white">{eligiblePlayers.length}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Total:</span>
-                  <span className="text-white">{players.length}</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full transition-all ${eligiblePlayers.length > 0 ? 'bg-green-500' : 'bg-red-500'
-                      }`}
-                    style={{
-                      width: `${players.length > 0 ? (eligiblePlayers.length / players.length * 100) : 0}%`
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Overall Status */}
-            <div className={`p-4 rounded-lg border ${canCreateTransferPitches()
-              ? 'border-green-500 bg-green-900/20'
-              : 'border-yellow-500 bg-yellow-900/20'
-              }`}>
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="h-5 w-5" />
-                <h3 className="font-polysans text-white">Transfer Pitches</h3>
-              </div>
-              <div className="space-y-2">
-                <p className={`text-sm font-semibold ${canCreateTransferPitches() ? 'text-green-400' : 'text-yellow-400'
-                  }`}>
-                  {canCreateTransferPitches() ? 'Ready to Create' : 'Not Ready'}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {canCreateTransferPitches()
-                    ? 'You can now create transfer pitches for your players'
-                    : 'Complete requirements to create transfer pitches'
-                  }
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {!canCreateTransferPitches() && (
-            <div className="bg-yellow-900/20 border border-yellow-700 p-4 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-yellow-400 font-semibold text-sm mb-1">Requirements Not Met</p>
-                  <ul className="text-yellow-300 text-sm space-y-1">
-                    {(!videoRequirements || videoRequirements.video_count < 5) && (
-                      <li>• Upload at least 5 team videos</li>
-                    )}
-                    {eligiblePlayers.length === 0 && (
-                      <li>• Complete at least one player profile with all required fields</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Player Filters */}
       <PlayerFilters
