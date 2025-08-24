@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/s
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, Search, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -21,10 +22,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile?.user_id) {
       fetchUnreadNotifications();
+      fetchProfileImage();
       
       // Set up real-time subscription for notifications
       const channel = supabase
@@ -64,6 +67,44 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     } catch (error) {
       console.error('Error fetching unread notifications:', error);
     }
+  };
+
+  const fetchProfileImage = async () => {
+    if (!profile?.id) return;
+
+    try {
+      if (profile.user_type === 'team') {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('logo_url')
+          .eq('profile_id', profile.id)
+          .single();
+        
+        if (!error && data?.logo_url) {
+          setProfileImage(data.logo_url);
+        }
+      } else if (profile.user_type === 'agent') {
+        const { data, error } = await supabase
+          .from('agents')
+          .select('avatar_url')
+          .eq('profile_id', profile.id)
+          .single();
+        
+        if (!error && data?.avatar_url) {
+          setProfileImage(data.avatar_url);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching profile image:', error);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('');
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -138,14 +179,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 )}
               </Button>
 
-              {/* Logo */}
-              <div className="flex items-center gap-2">
-                <img
-                  src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
-                  alt="Sports Reels"
-                  className="w-8 h-8"
-                />
-              </div>
+              {/* Profile Avatar */}
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={profileImage || undefined} alt={profile?.full_name || ''} />
+                <AvatarFallback className="text-sm">
+                  {profile?.full_name ? getInitials(profile.full_name) : 'U'}
+                </AvatarFallback>
+              </Avatar>
 
               {/* Sign Out */}
               <Button
