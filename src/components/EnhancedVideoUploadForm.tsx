@@ -140,24 +140,26 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
         throw new Error('Team not found');
       }
 
-      // Upload video file
+      // Upload video file without onUploadProgress (not supported in Supabase)
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${teamData.id}/${fileName}`;
 
+      setUploadProgress(20); // Manual progress update
+
       const { error: uploadError } = await supabase.storage
         .from('match-videos')
-        .upload(filePath, selectedFile, {
-          onUploadProgress: (progress) => {
-            setUploadProgress((progress.loaded / progress.total) * 80);
-          },
-        });
+        .upload(filePath, selectedFile);
 
       if (uploadError) throw uploadError;
+
+      setUploadProgress(60); // Manual progress update
 
       const { data: { publicUrl } } = supabase.storage
         .from('match-videos')
         .getPublicUrl(filePath);
+
+      setUploadProgress(80); // Manual progress update
 
       // Create video record with video type
       const { data: videoData, error: insertError } = await supabase
@@ -412,7 +414,11 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
 
           <div className="space-y-2">
             <Label className="text-white font-medium">Tag Players</Label>
-            <PlayerTagging onTag={handleTagPlayer} onRemove={handleRemoveTag} taggedPlayers={taggedPlayers} />
+            <PlayerTagging 
+              selectedPlayers={taggedPlayers}
+              onPlayerSelect={(playerId: string, playerName: string) => handleTagPlayer({ playerId, playerName })}
+              onPlayerRemove={handleRemoveTag}
+            />
           </div>
 
           {/* Submit Button */}
