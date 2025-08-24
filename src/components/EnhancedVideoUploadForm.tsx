@@ -43,9 +43,7 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
     opposingTeam: '',
     score: '',
   });
-  const [taggedPlayers, setTaggedPlayers] = useState<
-    { playerId: string; playerName: string }[]
-  >([]);
+  const [taggedPlayers, setTaggedPlayers] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [videoType, setVideoType] = useState<'match' | 'interview' | 'training' | 'highlight'>('match');
 
@@ -86,17 +84,17 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleTagPlayer = (player: { playerId: string; playerName: string }) => {
+  const handleTagPlayer = (playerId: string, playerName: string) => {
     setTaggedPlayers((prev) => {
-      if (prev.find((p) => p.playerId === player.playerId)) {
+      if (prev.includes(playerId)) {
         return prev;
       }
-      return [...prev, player];
+      return [...prev, playerId];
     });
   };
 
   const handleRemoveTag = (playerId: string) => {
-    setTaggedPlayers((prev) => prev.filter((p) => p.playerId !== playerId));
+    setTaggedPlayers((prev) => prev.filter((id) => id !== playerId));
   };
 
   const formatFileSize = (bytes: number) => {
@@ -170,7 +168,7 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
           description: formData.description,
           video_url: publicUrl,
           duration: Math.floor(videoDuration),
-          tagged_players: taggedPlayers.map(p => p.playerId),
+          tagged_players: taggedPlayers,
           match_date: formData.matchDate,
           opposing_team: formData.opposingTeam,
           score: formData.score,
@@ -416,8 +414,7 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
             <Label className="text-white font-medium">Tag Players</Label>
             <PlayerTagging 
               selectedPlayers={taggedPlayers}
-              onPlayerSelect={(playerId: string, playerName: string) => handleTagPlayer({ playerId, playerName })}
-              onPlayerRemove={handleRemoveTag}
+              onPlayersChange={setTaggedPlayers}
             />
           </div>
 
