@@ -11,14 +11,18 @@ import SquadAvailabilityManager from './SquadAvailabilityManager';
 import MessageStageTracker from './MessageStageTracker';
 import ExpiringSoonWidget from './ExpiringSoonWidget';
 
-export const TeamExploreHub = () => {
+interface TeamExploreHubProps {
+  initialSearch?: string;
+}
+
+export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-black to-black p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold text-white">Team Explore Hub</h1>
-          <p className="text-black">Manage your transfer timeline, explore opportunities, and track market trends</p>
+          <p className="text-gray-400">Manage your transfer timeline, explore opportunities, and track market trends</p>
         </div>
 
         {/* Top Widgets Row */}
@@ -76,7 +80,7 @@ export const TeamExploreHub = () => {
           </TabsContent>
 
           <TabsContent value="explore" className="mt-6">
-            <AgentRequestsExplore />
+            <AgentRequestsExplore initialSearch={initialSearch} />
           </TabsContent>
 
           <TabsContent value="squad" className="mt-6">
@@ -97,7 +101,7 @@ export const TeamExploreHub = () => {
                   <h3 className="text-xl font-semibold text-white mb-2">
                     Analytics Coming Soon
                   </h3>
-                  <p className="text-black">
+                  <p className="text-gray-400">
                     Detailed analytics and insights will be available here.
                   </p>
                 </div>

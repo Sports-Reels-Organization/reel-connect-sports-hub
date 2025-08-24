@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Send, Globe, Calendar, User } from 'lucide-react';
 
@@ -28,6 +28,10 @@ interface AgentRequest {
   };
 }
 
+interface AgentExploreProps {
+  initialSearch?: string;
+}
+
 const transferTypes = [
   { value: 'permanent', label: 'Permanent Transfer' },
   { value: 'loan', label: 'Loan' },
@@ -40,11 +44,13 @@ const positions = [
   'Centre-Forward', 'Striker'
 ];
 
-const AgentExplore = () => {
+const AgentExplore = ({ initialSearch }: AgentExploreProps) => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [requests, setRequests] = useState<AgentRequest[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<AgentRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState(initialSearch || '');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -60,6 +66,31 @@ const AgentExplore = () => {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  useEffect(() => {
+    if (initialSearch) {
+      setSearchQuery(initialSearch);
+    }
+  }, [initialSearch]);
+
+  useEffect(() => {
+    filterRequests();
+  }, [requests, searchQuery]);
+
+  const filterRequests = () => {
+    if (!searchQuery.trim()) {
+      setFilteredRequests(requests);
+      return;
+    }
+
+    const filtered = requests.filter(request => 
+      request.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.position?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.agents.agency_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredRequests(filtered);
+  };
 
   const fetchRequests = async () => {
     try {
@@ -194,6 +225,24 @@ const AgentExplore = () => {
 
   return (
     <div className="space-y-6">
+      {/* Search Bar */}
+      <Card className="border-gray-700">
+        <CardContent className="pt-6">
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="Search requests by title, description, position, or agency..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+            <Button variant="outline" size="icon" className="border-gray-600">
+              <Search className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Create Request Section */}
       <Card className="border-gray-700">
         <CardHeader>
@@ -339,7 +388,12 @@ const AgentExplore = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white font-polysans">
             <Globe className="w-5 h-5" />
-            Explore Requests ({requests.length})
+            Explore Requests ({filteredRequests.length})
+            {searchQuery && (
+              <Badge variant="outline" className="ml-2 text-rosegold border-rosegold">
+                Filtered by: "{searchQuery}"
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -351,19 +405,22 @@ const AgentExplore = () => {
                 </div>
               ))}
             </div>
-          ) : requests.length === 0 ? (
+          ) : filteredRequests.length === 0 ? (
             <div className="text-center py-12">
               <Search className="w-16 h-16 mx-auto mb-4 text-gray-500" />
               <h3 className="text-xl font-polysans font-semibold text-white mb-2">
-                No Active Requests
+                {searchQuery ? 'No Matching Requests' : 'No Active Requests'}
               </h3>
               <p className="text-gray-400 font-poppins">
-                Be the first to post a player request and let teams know what you're looking for.
+                {searchQuery 
+                  ? `No requests found matching "${searchQuery}". Try adjusting your search terms.`
+                  : 'Be the first to post a player request and let teams know what you\'re looking for.'
+                }
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {requests.map((request) => (
+              {filteredRequests.map((request) => (
                 <Card key={request.id} className="border-gray-600 hover:border-rosegold/50 transition-colors">
                   <CardContent className="p-4">
                     <div className="space-y-3">
