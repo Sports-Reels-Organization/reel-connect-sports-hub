@@ -143,9 +143,9 @@ export const useTeamProfileCompletion = () => {
 
       // Determine completion status
       const isTeamProfileComplete = missingTeamFields.length === 0 && 
-                                   teamData.logo_url && 
-                                   teamData.year_founded && 
-                                   teamData.league;
+                                   Boolean(teamData.logo_url) && 
+                                   Boolean(teamData.year_founded) && 
+                                   Boolean(teamData.league);
       
       const hasMinimumPlayers = playerCount > 0 && incompletePlayersCount === 0;
       const hasMinimumVideos = videoCount >= 5;
@@ -153,7 +153,7 @@ export const useTeamProfileCompletion = () => {
       // For basic functionality, we only require essential fields
       const canAccessFeatures = missingTeamFields.length === 0 && 
                                 playerCount > 0 && 
-                                Boolean(profile.is_verified);
+                                Boolean(profile?.is_verified);
 
       setCompletionStatus({
         isTeamProfileComplete,
