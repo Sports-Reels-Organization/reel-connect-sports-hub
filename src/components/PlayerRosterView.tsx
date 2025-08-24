@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,9 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Grid, List, MoreHorizontal, Edit, Eye, UserPlus, Calendar, DollarSign } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Grid, List, MoreHorizontal, Edit, Eye, UserPlus, Calendar, DollarSign, Tag } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
+import { PlayerTagManager } from './PlayerTagManager';
+import { TagBadge } from './TagBadge';
+import { usePlayerTags } from '@/hooks/usePlayerTags';
 
 type DatabasePlayer = Tables<'players'>;
 
@@ -26,9 +29,17 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [sortBy, setSortBy] = useState<keyof DatabasePlayer>('full_name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [selectedPlayerForTags, setSelectedPlayerForTags] = useState<string | null>(null);
   const navigate = useNavigate();
+  
+  const {
+    availableTags,
+    createTag,
+    getPlayerTags,
+    setPlayerTags
+  } = usePlayerTags();
 
-  const getPlayerTags = (player: DatabasePlayer) => {
+  const getPlayerTags_Original = (player: DatabasePlayer) => {
     const tags: { label: string; color: string }[] = [];
     
     // Contract status tags
@@ -162,13 +173,14 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                 >
                   Market Value {sortBy === 'market_value' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
-                <TableHead className="text-white">Status</TableHead>
+                <TableHead className="text-white">Tags</TableHead>
                 <TableHead className="text-white">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedPlayers.map((player) => {
-                const tags = getPlayerTags(player);
+                const systemTags = getPlayerTags_Original(player);
+                const customTags = getPlayerTags(player.id);
                 return (
                   <TableRow key={player.id} className="hover:bg-gray-800">
                     <TableCell className="text-white">
@@ -204,7 +216,12 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {tags.slice(0, 2).map((tag, index) => (
+                        {/* Custom Tags */}
+                        {customTags.map((tag) => (
+                          <TagBadge key={tag.id} tag={tag} />
+                        ))}
+                        {/* System Tags */}
+                        {systemTags.slice(0, 2).map((tag, index) => (
                           <Badge key={index} className={`${tag.color} text-white text-xs`}>
                             {tag.label}
                           </Badge>
@@ -227,6 +244,10 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                             <Edit className="h-4 w-4 mr-2" />
                             Edit Player
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedPlayerForTags(player.id)}>
+                            <Tag className="h-4 w-4 mr-2" />
+                            Manage Tags
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -236,6 +257,26 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
             </TableBody>
           </Table>
         </CardContent>
+
+        {/* Tag Management Dialog */}
+        <Dialog open={!!selectedPlayerForTags} onOpenChange={() => setSelectedPlayerForTags(null)}>
+          <DialogContent className="bg-gray-900 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">
+                Manage Tags - {players.find(p => p.id === selectedPlayerForTags)?.full_name}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedPlayerForTags && (
+              <PlayerTagManager
+                playerId={selectedPlayerForTags}
+                playerTags={getPlayerTags(selectedPlayerForTags)}
+                availableTags={availableTags}
+                onTagsChange={setPlayerTags}
+                onCreateTag={createTag}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </Card>
     );
   }
@@ -271,7 +312,8 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {sortedPlayers.map((player) => {
-            const tags = getPlayerTags(player);
+            const systemTags = getPlayerTags_Original(player);
+            const customTags = getPlayerTags(player.id);
             return (
               <Card key={player.id} className="bg-gray-800 border-gray-700 hover:border-rosegold transition-colors">
                 <CardContent className="p-4">
@@ -315,9 +357,15 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                     </div>
                   </div>
 
-                  {tags.length > 0 && (
+                  {/* Player Tags */}
+                  {(customTags.length > 0 || systemTags.length > 0) && (
                     <div className="flex flex-wrap gap-1 mt-3">
-                      {tags.map((tag, index) => (
+                      {/* Custom Tags First */}
+                      {customTags.map((tag) => (
+                        <TagBadge key={tag.id} tag={tag} />
+                      ))}
+                      {/* System Tags */}
+                      {systemTags.map((tag, index) => (
                         <Badge key={index} className={`${tag.color} text-white text-xs`}>
                           {tag.label}
                         </Badge>
@@ -339,10 +387,17 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={() => onEditPlayer(player)}
-                      className="flex-1 text-white border-gray-600 hover:bg-rosegold"
+                      className="text-white border-gray-600 hover:bg-rosegold"
                     >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedPlayerForTags(player.id)}
+                      className="text-white border-gray-600 hover:bg-bright-pink"
+                    >
+                      <Tag className="h-3 w-3" />
                     </Button>
                   </div>
                 </CardContent>
@@ -350,6 +405,26 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
             );
           })}
         </div>
+
+        {/* Tag Management Dialog */}
+        <Dialog open={!!selectedPlayerForTags} onOpenChange={() => setSelectedPlayerForTags(null)}>
+          <DialogContent className="bg-gray-900 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">
+                Manage Tags - {players.find(p => p.id === selectedPlayerForTags)?.full_name}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedPlayerForTags && (
+              <PlayerTagManager
+                playerId={selectedPlayerForTags}
+                playerTags={getPlayerTags(selectedPlayerForTags)}
+                availableTags={availableTags}
+                onTagsChange={setPlayerTags}
+                onCreateTag={createTag}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
