@@ -2,7 +2,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { User } from 'lucide-react';
-import { usePlayerProfile } from '@/hooks/usePlayerProfile';
+import { useNavigate } from 'react-router-dom';
 
 interface ClickablePlayerTagProps {
   playerId: string;
@@ -19,12 +19,12 @@ export const ClickablePlayerTag: React.FC<ClickablePlayerTagProps> = ({
   className = '',
   size = 'md'
 }) => {
-  const { openPlayerProfile } = usePlayerProfile();
+  const navigate = useNavigate();
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    openPlayerProfile(playerId, playerName);
+    navigate(`/players/${playerId}`);
   };
 
   const sizeClasses = {
