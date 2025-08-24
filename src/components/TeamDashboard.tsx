@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -325,9 +324,6 @@ const TeamDashboard = () => {
             </div>
           )}
         </div>
-
-        {/* Profile Completion Status */}
-        <ProfileCompletionStatus />
 
         {/* Statistics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
