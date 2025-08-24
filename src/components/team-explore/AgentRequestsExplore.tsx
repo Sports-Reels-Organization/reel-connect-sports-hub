@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,11 +22,11 @@ interface AgentRequest {
   currency: string;
   expires_at: string;
   created_at: string;
-  agents: {
+  agents?: {
     agency_name: string;
     specialization: string;
     profile_image?: string;
-  };
+  } | null;
   tagged_players_count?: number;
 }
 
@@ -79,8 +78,8 @@ const AgentRequestsExplore = () => {
         query = query.eq('position', filters.position);
       }
 
-      if (filters.transferType) {
-        query = query.eq('transfer_type', filters.transferType as 'loan' | 'permanent');
+      if (filters.transferType && (filters.transferType === 'loan' || filters.transferType === 'permanent')) {
+        query = query.eq('transfer_type', filters.transferType);
       }
 
       if (filters.budgetMin) {
@@ -111,12 +110,13 @@ const AgentRequestsExplore = () => {
 
       if (error) throw error;
 
-      // Filter out any requests with invalid agent data and get tagged players count
-      const validRequests = (data || []).filter(request => 
-        request.agents && 
-        typeof request.agents === 'object' && 
-        'agency_name' in request.agents
-      );
+      // Filter out requests with invalid agent data and get tagged players count
+      const validRequests = (data || []).filter(request => {
+        return request.agents && 
+               typeof request.agents === 'object' && 
+               !('error' in request.agents) &&
+               'agency_name' in request.agents;
+      });
 
       const requestsWithCounts = await Promise.all(
         validRequests.map(async (request) => {
@@ -126,7 +126,21 @@ const AgentRequestsExplore = () => {
             .eq('request_id', request.id);
 
           return {
-            ...request,
+            id: request.id,
+            title: request.title,
+            description: request.description,
+            position: request.position,
+            transfer_type: request.transfer_type as 'loan' | 'permanent',
+            budget_min: request.budget_min,
+            budget_max: request.budget_max,
+            currency: request.currency || 'USD',
+            expires_at: request.expires_at,
+            created_at: request.created_at,
+            agents: request.agents as {
+              agency_name: string;
+              specialization: string;
+              profile_image?: string;
+            },
             tagged_players_count: count || 0
           } as AgentRequest;
         })
@@ -411,17 +425,19 @@ const AgentRequestsExplore = () => {
                         <h3 className="text-lg font-bold text-white mb-2">
                           {request.title}
                         </h3>
-                        <div className="flex items-center gap-2 mb-2">
-                          <img
-                            src={request.agents.profile_image || '/placeholder.svg'}
-                            alt={request.agents.agency_name}
-                            className="w-8 h-8 rounded-full"
-                          />
-                          <div>
-                            <p className="text-sm text-gray-300">{request.agents.agency_name}</p>
-                            <p className="text-xs text-gray-500">{request.agents.specialization}</p>
+                        {request.agents && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <img
+                              src={request.agents.profile_image || '/placeholder.svg'}
+                              alt={request.agents.agency_name}
+                              className="w-8 h-8 rounded-full"
+                            />
+                            <div>
+                              <p className="text-sm text-gray-300">{request.agents.agency_name}</p>
+                              <p className="text-xs text-gray-500">{request.agents.specialization}</p>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                       <div className="text-right">
                         {request.budget_min && request.budget_max && (

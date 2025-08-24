@@ -3,7 +3,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
 import AgentExplore from '@/components/AgentExplore';
-import TeamExploreHub from '@/components/team-explore/TeamExploreHub';
+import { TeamExploreHub } from '@/components/team-explore/TeamExploreHub';
 
 const Explore = () => {
   const { profile } = useAuth();

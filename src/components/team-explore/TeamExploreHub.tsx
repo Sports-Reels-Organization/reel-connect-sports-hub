@@ -3,10 +3,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, Users, Search, BarChart3 } from 'lucide-react';
-import { TransferTimeline } from './TransferTimeline';
-import { CreatePitchFlow } from './CreatePitchFlow';
+import TransferTimeline from './TransferTimeline';
+import CreatePitchFlow from './CreatePitchFlow';
 import AgentRequestsExplore from './AgentRequestsExplore';
-import { MarketSnapshotWidget } from './MarketSnapshotWidget';
+import MarketSnapshotWidget from './MarketSnapshotWidget';
 
 export const TeamExploreHub = () => {
   return (
@@ -89,3 +89,5 @@ export const TeamExploreHub = () => {
     </div>
   );
 };
+
+export default TeamExploreHub;

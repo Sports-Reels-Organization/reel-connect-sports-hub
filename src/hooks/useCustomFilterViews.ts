@@ -51,11 +51,34 @@ export const useCustomFilterViews = () => {
 
       if (error) throw error;
       
-      // Type cast the filter_config from Json to FilterConfig
-      const typedViews = (data || []).map(view => ({
-        ...view,
-        filter_config: view.filter_config as FilterConfig
-      }));
+      // Type cast the filter_config from Json to FilterConfig with proper validation
+      const typedViews = (data || []).map(view => {
+        let filterConfig: FilterConfig;
+        
+        try {
+          const config = typeof view.filter_config === 'string' 
+            ? JSON.parse(view.filter_config) 
+            : view.filter_config;
+          
+          filterConfig = {
+            position: config?.position,
+            transferType: config?.transferType,
+            budgetRange: config?.budgetRange,
+            region: config?.region,
+            sortBy: config?.sortBy || 'newest'
+          };
+        } catch (e) {
+          // Fallback to default config if parsing fails
+          filterConfig = {
+            sortBy: 'newest'
+          };
+        }
+        
+        return {
+          ...view,
+          filter_config: filterConfig
+        };
+      });
       
       setViews(typedViews);
     } catch (error) {
@@ -82,7 +105,7 @@ export const useCustomFilterViews = () => {
         .insert({
           team_id: teamData.id,
           view_name: viewName,
-          filter_config: filterConfig as any // Cast to Json type for database
+          filter_config: JSON.stringify(filterConfig)
         });
 
       if (error) throw error;
