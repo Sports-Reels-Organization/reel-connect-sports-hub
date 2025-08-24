@@ -59,7 +59,7 @@ export const TeamExploreHub = () => {
           </TabsContent>
 
           <TabsContent value="create" className="mt-6">
-            <CreatePitchFlow />
+            <CreatePitchFlow onClose={() => {}} />
           </TabsContent>
 
           <TabsContent value="explore" className="mt-6">

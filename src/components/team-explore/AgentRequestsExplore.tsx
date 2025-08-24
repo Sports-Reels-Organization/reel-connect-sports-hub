@@ -25,7 +25,6 @@ interface AgentRequest {
   agents?: {
     agency_name: string;
     specialization: string;
-    profile_image?: string;
   } | null;
   tagged_players_count?: number;
 }
@@ -66,8 +65,7 @@ const AgentRequestsExplore = () => {
           *,
           agents!inner(
             agency_name,
-            specialization,
-            profile_image
+            specialization
           )
         `)
         .eq('is_public', true)
@@ -136,11 +134,10 @@ const AgentRequestsExplore = () => {
             currency: request.currency || 'USD',
             expires_at: request.expires_at,
             created_at: request.created_at,
-            agents: request.agents as {
-              agency_name: string;
-              specialization: string;
-              profile_image?: string;
-            },
+            agents: request.agents && typeof request.agents === 'object' && !('error' in request.agents) ? {
+              agency_name: request.agents.agency_name,
+              specialization: request.agents.specialization,
+            } : null,
             tagged_players_count: count || 0
           } as AgentRequest;
         })
@@ -324,7 +321,6 @@ const AgentRequestsExplore = () => {
                 <SelectItem value="" className="text-white hover:bg-gray-700">All Types</SelectItem>
                 <SelectItem value="permanent" className="text-white hover:bg-gray-700">Permanent</SelectItem>
                 <SelectItem value="loan" className="text-white hover:bg-gray-700">Loan</SelectItem>
-                <SelectItem value="free" className="text-white hover:bg-gray-700">Free Transfer</SelectItem>
               </SelectContent>
             </Select>
 
@@ -427,11 +423,11 @@ const AgentRequestsExplore = () => {
                         </h3>
                         {request.agents && (
                           <div className="flex items-center gap-2 mb-2">
-                            <img
-                              src={request.agents.profile_image || '/placeholder.svg'}
-                              alt={request.agents.agency_name}
-                              className="w-8 h-8 rounded-full"
-                            />
+                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                              <span className="text-xs text-white font-medium">
+                                {request.agents.agency_name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
                             <div>
                               <p className="text-sm text-gray-300">{request.agents.agency_name}</p>
                               <p className="text-xs text-gray-500">{request.agents.specialization}</p>
