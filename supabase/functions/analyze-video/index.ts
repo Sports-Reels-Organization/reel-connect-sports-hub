@@ -36,92 +36,320 @@ serve(async (req) => {
       taggedPlayers
     } = await req.json();
 
-    console.log(`Starting AI analysis for video ${videoId} of type ${videoType}`);
+    console.log(`Starting comprehensive AI analysis for video ${videoId} of type ${videoType}`);
 
-    // Create appropriate prompt based on video type
+    // Get video metadata from database for better context
+    const { data: videoData } = await supabase
+      .from('videos')
+      .select(`
+        *,
+        teams (
+          name,
+          country,
+          member_association
+        )
+      `)
+      .eq('id', videoId)
+      .single();
+
+    // Get player information for better analysis
+    let playerDetails = [];
+    if (taggedPlayers && taggedPlayers.length > 0) {
+      const playerIds = taggedPlayers.map((p: any) => p.playerId);
+      const { data: players } = await supabase
+        .from('players')
+        .select('id, full_name, position, jersey_number, citizenship')
+        .in('id', playerIds);
+      
+      playerDetails = players || [];
+    }
+
+    // Create comprehensive analysis prompt based on actual video data
     let analysisPrompt = '';
     
     switch (videoType) {
       case 'match':
-        analysisPrompt = `Analyze this football match video titled "${videoTitle}". ${videoDescription ? `Description: ${videoDescription}` : ''}
-        
-This is a match against ${opposingTeam}. The following players were tagged: ${taggedPlayers.map((p: any) => `${p.playerName} (#${p.jerseyNumber})`).join(', ')}.
+        analysisPrompt = `You are a professional football/soccer analyst. Analyze this match video with expert precision and provide detailed insights based on the following information:
 
-Please provide a comprehensive match analysis including:
-1. Overall match summary and key moments
-2. Team performance assessment
-3. Individual player performances (focus on tagged players)
-4. Goals, assists, fouls, cards, and significant plays
-5. Tactical analysis and team formations
-6. Key substitutions and their impact
-7. Areas for improvement and recommendations
-8. Match turning points and decisive moments
+**MATCH DETAILS:**
+- Video Title: "${videoTitle}"
+- Team: ${videoData?.teams?.name || 'Home Team'}
+- Opposition: ${opposingTeam || 'Opposition Team'}
+- Date: ${videoData?.match_date || 'Recent match'}
+- Score: ${videoData?.score || 'Score not recorded'}
+- League/Competition: ${videoData?.teams?.member_association || 'League competition'}
 
-Player statistics recorded: ${JSON.stringify(playerStats)}
+**PLAYER ROSTER:**
+${playerDetails.length > 0 ? 
+  playerDetails.map(p => `- ${p.full_name} (#${p.jersey_number || 'N/A'}) - ${p.position} (${p.citizenship})`).join('\n') :
+  'Player details to be analyzed from video content'
+}
 
-Focus on tactical insights, player positioning, decision-making, and overall team coordination. Provide constructive feedback for improvement.`;
-        break;
+**VIDEO DESCRIPTION:**
+${videoDescription || 'No specific description provided - analyze based on visual content'}
 
-      case 'interview':
-        analysisPrompt = `Analyze this sports interview video titled "${videoTitle}". ${videoDescription ? `Description: ${videoDescription}` : ''}
+**REQUIRED ANALYSIS:**
 
-Please provide a comprehensive interview summary including:
-1. Main topics discussed
-2. Key insights and quotes
-3. Player/coach perspectives shared
-4. Important announcements or revelations
-5. Overall tone and mood of the interview
-6. Notable questions and responses
-7. Any strategic information revealed
-8. Personal insights about the player/team
+## MATCH OVERVIEW & NARRATIVE
+Provide a comprehensive summary of the match, including:
+- Opening phase and early tactical approaches
+- Key periods of the game (first/second half highlights)
+- Momentum shifts and turning points
+- Overall match tempo and style of play
+- Weather and pitch conditions impact (if observable)
 
-Focus on extracting meaningful content and key messages from the conversation.`;
+## TACTICAL ANALYSIS
+### Team Formation & Setup
+- Analyze the formation and tactical structure
+- Defensive organization and pressing triggers
+- Attacking patterns and build-up play
+- Set piece strategies (corners, free kicks, throw-ins)
+- Substitutions and tactical changes
+
+### Opposition Analysis
+- ${opposingTeam || 'Opposition team'} strengths and weaknesses
+- How they countered our tactical approach
+- Key players who influenced the game
+- Their defensive and attacking strategies
+
+## INDIVIDUAL PLAYER PERFORMANCES
+${playerDetails.length > 0 ? 
+  `Provide detailed analysis for each player:\n${playerDetails.map(p => 
+    `### ${p.full_name} (#${p.jersey_number || 'N/A'}) - ${p.position}
+- Technical performance (passing, first touch, ball control)
+- Physical attributes (pace, strength, aerial ability)
+- Tactical awareness and positioning
+- Key moments and contributions
+- Decision-making under pressure
+- Rating: X/10 with justification`).join('\n\n')}` :
+  'Analyze individual performances of key players identified in the video'
+}
+
+## STATISTICAL ANALYSIS
+Based on visual observation, estimate:
+- Possession percentage
+- Key passes and chances created
+- Shots on/off target
+- Successful tackles and interceptions
+- Corners and set pieces
+- Fouls and disciplinary actions
+- Pass completion rates (approximate)
+
+## MATCH EVENTS TIMELINE
+Identify and analyze key events:
+- Goals (technique, build-up, significance)
+- Near misses and key saves
+- Cards and controversial decisions
+- Injuries and their impact
+- Tactical substitutions and their effectiveness
+
+## PERFORMANCE RATINGS
+Provide numerical ratings (1-10):
+- Overall team performance: X/10
+- Individual player ratings
+- Tactical execution: X/10
+- Physical performance: X/10
+- Mental resilience: X/10
+
+## AREAS FOR IMPROVEMENT
+### Team Level
+- Tactical adjustments needed
+- Training focus areas
+- Squad rotation considerations
+
+### Individual Level
+- Technical skills development
+- Physical conditioning needs
+- Tactical understanding improvements
+
+## FUTURE RECOMMENDATIONS
+- Strategic considerations for upcoming matches
+- Player development priorities
+- Transfer market implications
+- Tactical system refinements
+
+**ANALYSIS REQUIREMENTS:**
+- Base analysis on realistic football scenarios
+- Provide specific, actionable insights
+- Focus on observable technical and tactical details
+- Consider both strengths and areas for improvement
+- Maintain professional analytical standards`;
         break;
 
       case 'training':
-        analysisPrompt = `Analyze this training session video titled "${videoTitle}". ${videoDescription ? `Description: ${videoDescription}` : ''}
+        analysisPrompt = `As a professional football/soccer training analyst, provide comprehensive analysis of this training session:
 
-Please provide a comprehensive training analysis including:
-1. Training objectives and focus areas
-2. Drills and exercises performed
-3. Player participation and engagement levels
-4. Technical skills being developed
-5. Physical conditioning elements
-6. Team coordination and communication
-7. Areas needing improvement
-8. Recommended additional training focus
-9. Overall session effectiveness
-10. Individual player progress observations
+**SESSION DETAILS:**
+- Title: "${videoTitle}"
+- Team: ${videoData?.teams?.name || 'Training Squad'}
+- Description: ${videoDescription || 'Training session analysis'}
+- Players: ${playerDetails.map(p => p.full_name).join(', ') || 'Squad members'}
 
-Provide constructive feedback for optimizing future training sessions and player development.`;
+**TRAINING SESSION ANALYSIS:**
+
+## SESSION OVERVIEW
+- Training objectives and focus areas
+- Session intensity and duration
+- Equipment and facilities utilized
+- Weather conditions and their impact
+
+## TECHNICAL SKILLS DEVELOPMENT
+- Ball control and first touch exercises
+- Passing accuracy and range drills
+- Shooting technique and finishing
+- Dribbling and 1v1 situations
+- Crossing and aerial play practice
+
+## TACTICAL WORK
+- Formation rehearsals and positioning
+- Set piece practice (offensive/defensive)
+- Pressing patterns and defensive shape
+- Transition play (attack to defense)
+- Game situation simulations
+
+## PHYSICAL CONDITIONING
+- Fitness levels and endurance work
+- Sprint speed and acceleration drills
+- Strength and power exercises
+- Agility and coordination work
+- Recovery and injury prevention
+
+## INDIVIDUAL PLAYER ASSESSMENTS
+${playerDetails.length > 0 ? 
+  playerDetails.map(p => 
+    `### ${p.full_name} - ${p.position}
+- Technical execution quality
+- Physical effort and intensity
+- Learning adaptation rate
+- Leadership and communication
+- Areas needing focus`).join('\n\n') :
+  'Assess individual player performances during training'
+}
+
+## COACHING EFFECTIVENESS
+- Instruction clarity and communication
+- Session organization and flow
+- Individual feedback and corrections
+- Motivation and team building
+- Use of training time efficiency
+
+**Provide specific recommendations for improvement and future training focus.**`;
         break;
 
       case 'highlight':
-        analysisPrompt = `Analyze this sports highlight video titled "${videoTitle}". ${videoDescription ? `Description: ${videoDescription}` : ''}
+        analysisPrompt = `Analyze this highlight reel as a professional scout and performance analyst:
 
-Please provide a comprehensive highlight analysis including:
-1. Summary of featured moments
-2. Standout individual performances
-3. Most impressive plays and skills displayed
-4. Technical execution quality
-5. Tactical awareness shown in highlights
-6. Key statistics from featured moments
-7. What made these moments highlight-worthy
-8. Impact on team/player reputation
-9. Areas of excellence demonstrated
-10. Memorable aspects for fans and scouts
+**HIGHLIGHT COMPILATION:**
+- Title: "${videoTitle}"
+- Featured Players: ${playerDetails.map(p => `${p.full_name} (${p.position})`).join(', ') || 'Key players'}
+- Context: ${videoDescription || 'Player highlight compilation'}
 
-Focus on what makes these moments special and their significance for the team/players involved.`;
+**SCOUTING ANALYSIS:**
+
+## TECHNICAL EXCELLENCE
+- Ball control and first touch quality
+- Passing range and accuracy
+- Shooting technique and power
+- Dribbling skills and creativity
+- Defensive actions and timing
+
+## PHYSICAL ATTRIBUTES
+- Speed and acceleration
+- Strength and power
+- Agility and balance
+- Stamina and endurance
+- Aerial ability and jumping
+
+## MENTAL QUALITIES
+- Decision-making under pressure
+- Composure in crucial moments
+- Leadership and communication
+- Consistency across situations
+- Adaptability to different scenarios
+
+## STANDOUT MOMENTS
+Analyze each key highlight:
+- Technical execution quality
+- Tactical context and significance
+- Physical demands demonstrated
+- Mental strength shown
+- Impact on team/match outcome
+
+## PLAYER DEVELOPMENT PROFILE
+${playerDetails.length > 0 ? 
+  playerDetails.map(p => 
+    `### ${p.full_name} - ${p.position}
+- Current ability level assessment
+- Key strengths demonstrated
+- Areas for development
+- Potential trajectory
+- Market value considerations`).join('\n\n') :
+  'Assess featured players development potential'
+}
+
+## PROFESSIONAL READINESS
+- Level of play demonstrated
+- Consistency and reliability
+- Adaptability to higher levels
+- Transfer market appeal
+- Long-term potential
+
+**Provide detailed scouting report with specific recommendations.**`;
         break;
 
-      default:
-        analysisPrompt = `Analyze this sports video titled "${videoTitle}". ${videoDescription ? `Description: ${videoDescription}` : ''}
+      case 'interview':
+        analysisPrompt = `Analyze this player interview as a sports psychologist and media specialist:
 
-Please provide a comprehensive video analysis including key observations, notable moments, and insights about the content.`;
+**INTERVIEW DETAILS:**
+- Title: "${videoTitle}"
+- Player(s): ${playerDetails.map(p => p.full_name).join(', ') || 'Featured player'}
+- Context: ${videoDescription || 'Player interview session'}
+
+**COMMUNICATION ANALYSIS:**
+
+## VERBAL COMMUNICATION
+- Clarity and articulation
+- Language skills and fluency
+- Confidence in responses
+- Depth of football knowledge
+- Media training effectiveness
+
+## NON-VERBAL COMMUNICATION
+- Body language and posture
+- Eye contact and engagement
+- Confidence levels displayed
+- Emotional control and composure
+- Professional presentation
+
+## CONTENT ANALYSIS
+- Key topics and themes
+- Insights into mentality and mindset
+- Goals and ambitions revealed
+- Team dynamics mentioned
+- Career progression thoughts
+
+## PERSONALITY ASSESSMENT
+- Leadership qualities
+- Maturity and emotional intelligence
+- Passion and commitment
+- Cultural awareness
+- Professional attitude
+
+## MEDIA READINESS
+- Handling of difficult questions
+- Brand awareness and marketability
+- Crisis management capabilities
+- Future media potential
+- Public relations skills
+
+**Provide comprehensive player profile based on interview performance.**`;
+        break;
     }
 
-    // Call Gemini API for video analysis
-    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    console.log('Sending detailed analysis request to Gemini API...');
+
+    // Call Gemini API for comprehensive video analysis
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -133,16 +361,18 @@ Please provide a comprehensive video analysis including key observations, notabl
           }]
         }],
         generationConfig: {
-          temperature: 0.7,
+          temperature: 0.4,
           topP: 0.8,
           topK: 40,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 4096,
         }
       })
     });
 
     if (!geminiResponse.ok) {
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+      const errorData = await geminiResponse.text();
+      console.error('Gemini API error:', geminiResponse.status, errorData);
+      throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorData}`);
     }
 
     const geminiData = await geminiResponse.json();
@@ -152,9 +382,9 @@ Please provide a comprehensive video analysis including key observations, notabl
       throw new Error('No analysis text received from Gemini API');
     }
 
-    console.log('AI analysis completed successfully');
+    console.log('Comprehensive AI analysis completed successfully');
 
-    // Save analysis to database
+    // Save detailed analysis to database
     const { error: updateError } = await supabase
       .from('videos')
       .update({
@@ -162,7 +392,16 @@ Please provide a comprehensive video analysis including key observations, notabl
           analysis: analysisText,
           video_type: videoType,
           analyzed_at: new Date().toISOString(),
-          model_used: 'gemini-1.5-flash'
+          model_used: 'gemini-2.0-flash-exp',
+          analysis_version: '2.0',
+          metadata: {
+            videoTitle,
+            videoDescription,
+            opposingTeam,
+            taggedPlayers: playerDetails,
+            teamInfo: videoData?.teams,
+            analysisPromptLength: analysisPrompt.length
+          }
         },
         ai_analysis_status: 'completed'
       })
@@ -176,17 +415,23 @@ Please provide a comprehensive video analysis including key observations, notabl
     return new Response(JSON.stringify({
       success: true,
       analysis: analysisText,
-      videoType: videoType
+      videoType: videoType,
+      analysisVersion: '2.0',
+      metadata: {
+        playersAnalyzed: playerDetails.length,
+        promptComplexity: analysisPrompt.length > 2000 ? 'comprehensive' : 'standard'
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in analyze-video function:', error);
+    console.error('Error in enhanced analyze-video function:', error);
     
     return new Response(JSON.stringify({ 
       error: error.message,
-      success: false 
+      success: false,
+      analysisVersion: '2.0'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
