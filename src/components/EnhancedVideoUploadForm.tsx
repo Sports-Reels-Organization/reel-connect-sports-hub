@@ -551,7 +551,6 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
           <PlayerTagging
             selectedPlayers={taggedPlayers}
             onPlayersChange={setTaggedPlayers}
-            teamId={formData.teamId}
           />
 
           {/* Upload Progress */}
