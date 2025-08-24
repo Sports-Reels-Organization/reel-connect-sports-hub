@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Layout from '@/components/Layout';
-import PlayerDetailModal from '@/components/PlayerDetailModal';
+import PlayerDetailPage from '@/components/PlayerDetailPage';
 import { usePlayerData } from '@/hooks/usePlayerData';
 
 const PlayerProfile = () => {
@@ -46,6 +46,42 @@ const PlayerProfile = () => {
     );
   }
 
+  // Convert the player data to match the expected DatabasePlayer type
+  const databasePlayer = {
+    id: player.id,
+    full_name: player.full_name,
+    position: player.position || '',
+    citizenship: player.citizenship || '',
+    gender: player.gender as any, // Convert to the expected enum type
+    date_of_birth: player.date_of_birth || null,
+    height: player.height ? parseInt(player.height) : null,
+    weight: player.weight ? parseInt(player.weight) : null,
+    jersey_number: player.jersey_number || null,
+    market_value: player.market_value || null,
+    ai_analysis: player.ai_analysis || null,
+    created_at: new Date().toISOString(), // Provide default timestamp
+    updated_at: new Date().toISOString(), // Provide default timestamp
+    team_id: '', // This will be handled by the component
+    joined_date: player.joined_date || null,
+    contract_expires: player.contract_expires || null,
+    transfer_history: player.transfer_history || null,
+    international_duty: player.international_duty || null,
+    match_stats: player.match_stats || null,
+    age: player.age || null,
+    photo_url: player.photo_url || null,
+    fifa_id: player.fifa_id || null,
+    bio: player.bio || null,
+    place_of_birth: player.place_of_birth || null,
+    foot: player.foot || null,
+    player_agent: player.player_agent || null,
+    current_club: player.current_club || null,
+    leagues_participated: player.leagues_participated || null,
+    titles_seasons: player.titles_seasons || null,
+    headshot_url: player.headshot_url || null,
+    portrait_url: player.portrait_url || null,
+    full_body_url: player.full_body_url || null
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6">
@@ -62,12 +98,10 @@ const PlayerProfile = () => {
           <h1 className="text-3xl font-polysans text-white">Player Profile</h1>
         </div>
 
-        {/* Player Details - using the existing PlayerDetailModal component but as page content */}
+        {/* Player Details - using the PlayerDetailPage component */}
         <div className="bg-[#1a1a1a] border border-gray-700 rounded-lg">
-          <PlayerDetailModal
-            player={player}
-            isOpen={true}
-            onClose={() => {}} // No close needed for page view
+          <PlayerDetailPage
+            player={databasePlayer}
             onEdit={handleEdit}
           />
         </div>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   User,
@@ -23,7 +24,9 @@ import {
   Plus,
   Trash2,
   Eye,
-  Download
+  Download,
+  Play,
+  X
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -291,9 +294,6 @@ const PlayerDetailPage: React.FC<PlayerDetailPageProps> = ({
       day: 'numeric'
     });
   };
-
-  const [selectedPhoto, setSelectedPhoto] = useState<PlayerPhoto | null>(null);
-  const [showPhotoModal, setShowPhotoModal] = useState(false);
 
   return (
     <div className="space-y-6 p-6">
