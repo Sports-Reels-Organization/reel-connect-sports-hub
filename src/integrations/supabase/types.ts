@@ -1884,6 +1884,142 @@ export type Database = {
           },
         ]
       }
+      timeline_comments: {
+        Row: {
+          content: string
+          created_at: string | null
+          event_id: string
+          id: string
+          profile_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          event_id: string
+          id?: string
+          profile_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          event_id?: string
+          id?: string
+          profile_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_comments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "timeline_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timeline_events: {
+        Row: {
+          comments_count: number | null
+          created_at: string | null
+          created_by: string
+          description: string
+          event_date: string
+          event_type: string
+          id: string
+          is_pinned: boolean | null
+          match_id: string | null
+          metadata: Json | null
+          player_id: string | null
+          reactions_count: number | null
+          team_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          comments_count?: number | null
+          created_at?: string | null
+          created_by: string
+          description: string
+          event_date: string
+          event_type: string
+          id?: string
+          is_pinned?: boolean | null
+          match_id?: string | null
+          metadata?: Json | null
+          player_id?: string | null
+          reactions_count?: number | null
+          team_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          comments_count?: number | null
+          created_at?: string | null
+          created_by?: string
+          description?: string
+          event_date?: string
+          event_type?: string
+          id?: string
+          is_pinned?: boolean | null
+          match_id?: string | null
+          metadata?: Json | null
+          player_id?: string | null
+          reactions_count?: number | null
+          team_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_events_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeline_events_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timeline_reactions: {
+        Row: {
+          created_at: string | null
+          event_id: string
+          id: string
+          profile_id: string
+          reaction_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          event_id: string
+          id?: string
+          profile_id: string
+          reaction_type: string
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string
+          id?: string
+          profile_id?: string
+          reaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_reactions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "timeline_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transfer_pitches: {
         Row: {
           asking_price: number | null

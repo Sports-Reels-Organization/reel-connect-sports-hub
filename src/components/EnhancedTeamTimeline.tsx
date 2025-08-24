@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,7 +65,7 @@ interface TimelineComment {
   profile_id: string;
   content: string;
   created_at: string;
-  profile: {
+  profiles: {
     full_name: string;
     user_type: string;
   };
@@ -145,6 +146,15 @@ const EnhancedTeamTimeline = () => {
     try {
       setLoading(true);
       
+      // Get team ID first
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('profile_id', profile?.id)
+        .single();
+
+      if (!teamData) return;
+
       const { data, error } = await supabase
         .from('timeline_events')
         .select(`
@@ -155,7 +165,7 @@ const EnhancedTeamTimeline = () => {
             photo_url
           )
         `)
-        .eq('team_id', profile?.id)
+        .eq('team_id', teamData.id)
         .order('event_date', { ascending: false })
         .order('created_at', { ascending: false });
 
@@ -176,10 +186,19 @@ const EnhancedTeamTimeline = () => {
 
   const fetchTeamPlayers = async () => {
     try {
+      // Get team ID first
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('profile_id', profile?.id)
+        .single();
+
+      if (!teamData) return;
+
       const { data, error } = await supabase
         .from('players')
         .select('id, full_name, photo_url')
-        .eq('team_id', profile?.id)
+        .eq('team_id', teamData.id)
         .order('full_name');
 
       if (error) throw error;
@@ -255,16 +274,25 @@ const EnhancedTeamTimeline = () => {
     }
 
     try {
+      // Get team ID first
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('profile_id', profile?.id)
+        .single();
+
+      if (!teamData) return;
+
       const { error } = await supabase
         .from('timeline_events')
         .insert({
-          team_id: profile?.id,
+          team_id: teamData.id,
           event_type: newEventType,
           title: newEventTitle,
           description: newEventDescription,
           event_date: newEventDate,
           player_id: newEventPlayerId || null,
-          created_by: profile?.id,
+          created_by: profile?.id || '',
           is_pinned: false
         });
 
@@ -351,7 +379,7 @@ const EnhancedTeamTimeline = () => {
         .from('timeline_comments')
         .insert({
           event_id: selectedEventId,
-          profile_id: profile?.id,
+          profile_id: profile?.id || '',
           content: newComment
         });
 
@@ -681,9 +709,9 @@ const EnhancedTeamTimeline = () => {
               <div key={comment.id} className="flex gap-3 p-3 bg-gray-800 rounded-lg">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-white">{comment.profile.full_name}</span>
+                    <span className="font-medium text-white">{comment.profiles.full_name}</span>
                     <Badge variant="outline" className="text-xs">
-                      {comment.profile.user_type}
+                      {comment.profiles.user_type}
                     </Badge>
                     <span className="text-xs text-gray-400">
                       {formatDistanceToNow(new Date(comment.created_at))} ago
