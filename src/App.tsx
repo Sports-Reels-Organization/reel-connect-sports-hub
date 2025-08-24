@@ -16,11 +16,13 @@ import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import Timeline from "./pages/Timeline";
 import Explore from "./pages/Explore";
-import Contracts from "./pages/Contracts";
-import HistoryPage from "./pages/History";
-import NewsPage from "./pages/News";
-import Notification from "./pages/Notification";
-import UserManagementPage from "./pages/UserManagement";
+// import Notifications from "./pages/Notifications";
+// import Contracts from "./pages/Contracts";
+// import Shortlist from "./pages/Shortlist";
+
+// New pages
+import History from "./components/History";
+import News from "./components/News";
 
 const queryClient = new QueryClient();
 
@@ -41,11 +43,8 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/timeline" element={<Timeline />} />
               <Route path="/explore" element={<Explore />} />
-              <Route path="/contracts" element={<Contracts />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/news" element={<NewsPage />} />
-              <Route path="/notifications" element={<Notification />} />
-              <Route path="/user-management" element={<UserManagementPage />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/news" element={<News />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
