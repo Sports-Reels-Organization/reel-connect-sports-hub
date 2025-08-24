@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Grid, List, MoreHorizontal, Edit, Eye, UserPlus, Calendar, DollarSign, Tag } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Grid, List, MoreHorizontal, Edit, Eye, Tag } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
 import { PlayerTagManager } from './PlayerTagManager';
@@ -34,9 +34,11 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
   
   const {
     availableTags,
+    loading,
     createTag,
     getPlayerTags,
-    setPlayerTags
+    addTagToPlayer,
+    removeTagFromPlayer
   } = usePlayerTags();
 
   const getPlayerTags_Original = (player: DatabasePlayer) => {
@@ -271,8 +273,10 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                 playerId={selectedPlayerForTags}
                 playerTags={getPlayerTags(selectedPlayerForTags)}
                 availableTags={availableTags}
-                onTagsChange={setPlayerTags}
+                onAddTag={addTagToPlayer}
+                onRemoveTag={removeTagFromPlayer}
                 onCreateTag={createTag}
+                loading={loading}
               />
             )}
           </DialogContent>
@@ -419,8 +423,10 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                 playerId={selectedPlayerForTags}
                 playerTags={getPlayerTags(selectedPlayerForTags)}
                 availableTags={availableTags}
-                onTagsChange={setPlayerTags}
+                onAddTag={addTagToPlayer}
+                onRemoveTag={removeTagFromPlayer}
                 onCreateTag={createTag}
+                loading={loading}
               />
             )}
           </DialogContent>

@@ -3,24 +3,25 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, X, Tag, Palette } from 'lucide-react';
+import { Plus, X, Tag } from 'lucide-react';
 
 interface PlayerTag {
   id: string;
   label: string;
   color: string;
   description?: string;
+  is_system_tag?: boolean;
 }
 
 interface PlayerTagManagerProps {
   playerId: string;
   playerTags: PlayerTag[];
   availableTags: PlayerTag[];
-  onTagsChange: (playerId: string, tags: PlayerTag[]) => void;
+  onAddTag: (playerId: string, tagId: string) => void;
+  onRemoveTag: (playerId: string, tagId: string) => void;
   onCreateTag?: (tag: Omit<PlayerTag, 'id'>) => void;
+  loading?: boolean;
 }
 
 const predefinedColors = [
@@ -39,47 +40,58 @@ export const PlayerTagManager: React.FC<PlayerTagManagerProps> = ({
   playerId,
   playerTags,
   availableTags,
-  onTagsChange,
-  onCreateTag
+  onAddTag,
+  onRemoveTag,
+  onCreateTag,
+  loading = false
 }) => {
   const [newTagLabel, setNewTagLabel] = useState('');
   const [newTagColor, setNewTagColor] = useState(predefinedColors[0].value);
   const [newTagDescription, setNewTagDescription] = useState('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const addTagToPlayer = (tag: PlayerTag) => {
     if (!playerTags.find(pt => pt.id === tag.id)) {
-      onTagsChange(playerId, [...playerTags, tag]);
+      onAddTag(playerId, tag.id);
     }
   };
 
   const removeTagFromPlayer = (tagId: string) => {
-    onTagsChange(playerId, playerTags.filter(t => t.id !== tagId));
+    onRemoveTag(playerId, tagId);
   };
 
-  const createNewTag = () => {
-    if (!newTagLabel.trim()) return;
+  const createNewTag = async () => {
+    if (!newTagLabel.trim() || !onCreateTag) return;
     
-    const colorObj = predefinedColors.find(c => c.value === newTagColor);
+    setIsCreating(true);
+    
     const newTag = {
       label: newTagLabel.trim(),
       color: newTagColor,
       description: newTagDescription.trim()
     };
 
-    if (onCreateTag) {
-      onCreateTag(newTag);
-    }
+    await onCreateTag(newTag);
 
     setNewTagLabel('');
     setNewTagDescription('');
     setIsCreatingTag(false);
+    setIsCreating(false);
   };
 
   const getTextColor = (bgColor: string) => {
     const colorObj = predefinedColors.find(c => c.value === bgColor);
     return colorObj?.text || 'text-white';
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-bright-pink"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -183,15 +195,16 @@ export const PlayerTagManager: React.FC<PlayerTagManagerProps> = ({
                       onClick={createNewTag}
                       size="sm"
                       className="flex-1 bg-bright-pink hover:bg-bright-pink/90"
-                      disabled={!newTagLabel.trim()}
+                      disabled={!newTagLabel.trim() || isCreating}
                     >
-                      Create Tag
+                      {isCreating ? 'Creating...' : 'Create Tag'}
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setIsCreatingTag(false)}
                       className="border-gray-600"
+                      disabled={isCreating}
                     >
                       Cancel
                     </Button>

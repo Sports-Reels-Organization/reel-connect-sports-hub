@@ -1,133 +1,297 @@
 
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface PlayerTag {
   id: string;
   label: string;
   color: string;
   description?: string;
+  is_system_tag?: boolean;
 }
 
 interface PlayerTagAssignment {
-  playerId: string;
-  tags: PlayerTag[];
+  id: string;
+  player_id: string;
+  tag_id: string;
+  assigned_at: string;
+  tag: PlayerTag;
 }
 
-// Predefined system tags
-const defaultTags: PlayerTag[] = [
-  { id: 'injured', label: 'Injured', color: 'bg-red-500', description: 'Player is currently injured' },
-  { id: 'for-sale', label: 'For Sale', color: 'bg-green-500', description: 'Available for transfer' },
-  { id: 'loan', label: 'On Loan', color: 'bg-blue-500', description: 'Player is on loan' },
-  { id: 'youth', label: 'Youth Prospect', color: 'bg-purple-500', description: 'Young promising player' },
-  { id: 'captain', label: 'Captain', color: 'bg-yellow-500', description: 'Team captain' },
-  { id: 'key-player', label: 'Key Player', color: 'bg-orange-500', description: 'Important team member' },
-  { id: 'retiring', label: 'Retiring', color: 'bg-gray-500', description: 'Planning to retire' },
-  { id: 'new-signing', label: 'New Signing', color: 'bg-pink-500', description: 'Recently joined the team' },
-];
-
 export const usePlayerTags = () => {
-  const [availableTags, setAvailableTags] = useState<PlayerTag[]>(defaultTags);
+  const [availableTags, setAvailableTags] = useState<PlayerTag[]>([]);
   const [playerTagAssignments, setPlayerTagAssignments] = useState<PlayerTagAssignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    const storedTags = localStorage.getItem('player_tags');
-    const storedAssignments = localStorage.getItem('player_tag_assignments');
-    
-    if (storedTags) {
-      try {
-        const parsed = JSON.parse(storedTags);
-        setAvailableTags([...defaultTags, ...parsed]);
-      } catch (error) {
-        console.error('Error parsing stored tags:', error);
+  // Fetch available tags from database
+  const fetchAvailableTags = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('player_tags')
+        .select('*')
+        .order('is_system_tag', { ascending: false })
+        .order('label');
+
+      if (error) {
+        console.error('Error fetching tags:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load player tags",
+          variant: "destructive"
+        });
+        return;
       }
+
+      setAvailableTags(data || []);
+    } catch (error) {
+      console.error('Error fetching tags:', error);
     }
-
-    if (storedAssignments) {
-      try {
-        const parsed = JSON.parse(storedAssignments);
-        setPlayerTagAssignments(parsed);
-      } catch (error) {
-        console.error('Error parsing stored assignments:', error);
-      }
-    }
-  }, []);
-
-  // Save to localStorage when data changes
-  useEffect(() => {
-    const customTags = availableTags.filter(tag => !defaultTags.find(dt => dt.id === tag.id));
-    localStorage.setItem('player_tags', JSON.stringify(customTags));
-  }, [availableTags]);
-
-  useEffect(() => {
-    localStorage.setItem('player_tag_assignments', JSON.stringify(playerTagAssignments));
-  }, [playerTagAssignments]);
-
-  const createTag = (tagData: Omit<PlayerTag, 'id'>) => {
-    const newTag: PlayerTag = {
-      ...tagData,
-      id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    };
-    
-    setAvailableTags(prev => [...prev, newTag]);
-    return newTag;
   };
 
-  const deleteTag = (tagId: string) => {
-    // Don't allow deleting default tags
-    if (defaultTags.find(tag => tag.id === tagId)) {
+  // Fetch player tag assignments
+  const fetchPlayerTagAssignments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('player_tag_assignments')
+        .select(`
+          *,
+          tag:player_tags(*)
+        `);
+
+      if (error) {
+        console.error('Error fetching player tag assignments:', error);
+        return;
+      }
+
+      setPlayerTagAssignments(data || []);
+    } catch (error) {
+      console.error('Error fetching player tag assignments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    fetchAvailableTags();
+    fetchPlayerTagAssignments();
+  }, []);
+
+  const createTag = async (tagData: Omit<PlayerTag, 'id'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('player_tags')
+        .insert({
+          label: tagData.label,
+          color: tagData.color,
+          description: tagData.description,
+          is_system_tag: false
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating tag:', error);
+        toast({
+          title: "Error",
+          description: "Failed to create tag",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      // Refresh available tags
+      await fetchAvailableTags();
+      
+      toast({
+        title: "Success",
+        description: "Tag created successfully"
+      });
+
+      return data;
+    } catch (error) {
+      console.error('Error creating tag:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create tag",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
+  const deleteTag = async (tagId: string) => {
+    try {
+      // Check if it's a system tag
+      const tag = availableTags.find(t => t.id === tagId);
+      if (tag?.is_system_tag) {
+        toast({
+          title: "Error",
+          description: "Cannot delete system tags",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('player_tags')
+        .delete()
+        .eq('id', tagId);
+
+      if (error) {
+        console.error('Error deleting tag:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete tag",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Refresh data
+      await fetchAvailableTags();
+      await fetchPlayerTagAssignments();
+
+      toast({
+        title: "Success",
+        description: "Tag deleted successfully"
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting tag:', error);
       return false;
     }
-
-    setAvailableTags(prev => prev.filter(tag => tag.id !== tagId));
-    // Remove tag from all players
-    setPlayerTagAssignments(prev => 
-      prev.map(assignment => ({
-        ...assignment,
-        tags: assignment.tags.filter(tag => tag.id !== tagId)
-      }))
-    );
-    return true;
   };
 
   const getPlayerTags = (playerId: string): PlayerTag[] => {
-    const assignment = playerTagAssignments.find(a => a.playerId === playerId);
-    return assignment?.tags || [];
+    const assignments = playerTagAssignments.filter(a => a.player_id === playerId);
+    return assignments.map(a => a.tag);
   };
 
-  const setPlayerTags = (playerId: string, tags: PlayerTag[]) => {
-    setPlayerTagAssignments(prev => {
-      const existingIndex = prev.findIndex(a => a.playerId === playerId);
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = { playerId, tags };
-        return updated;
-      } else {
-        return [...prev, { playerId, tags }];
+  const addTagToPlayer = async (playerId: string, tagId: string) => {
+    try {
+      const { error } = await supabase
+        .from('player_tag_assignments')
+        .insert({
+          player_id: playerId,
+          tag_id: tagId
+        });
+
+      if (error) {
+        console.error('Error adding tag to player:', error);
+        toast({
+          title: "Error",
+          description: "Failed to add tag to player",
+          variant: "destructive"
+        });
+        return false;
       }
-    });
-  };
 
-  const addTagToPlayer = (playerId: string, tag: PlayerTag) => {
-    const currentTags = getPlayerTags(playerId);
-    if (!currentTags.find(t => t.id === tag.id)) {
-      setPlayerTags(playerId, [...currentTags, tag]);
+      // Refresh assignments
+      await fetchPlayerTagAssignments();
+
+      toast({
+        title: "Success",
+        description: "Tag added to player"
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error adding tag to player:', error);
+      return false;
     }
   };
 
-  const removeTagFromPlayer = (playerId: string, tagId: string) => {
-    const currentTags = getPlayerTags(playerId);
-    setPlayerTags(playerId, currentTags.filter(t => t.id !== tagId));
+  const removeTagFromPlayer = async (playerId: string, tagId: string) => {
+    try {
+      const { error } = await supabase
+        .from('player_tag_assignments')
+        .delete()
+        .eq('player_id', playerId)
+        .eq('tag_id', tagId);
+
+      if (error) {
+        console.error('Error removing tag from player:', error);
+        toast({
+          title: "Error",
+          description: "Failed to remove tag from player",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Refresh assignments
+      await fetchPlayerTagAssignments();
+
+      toast({
+        title: "Success",
+        description: "Tag removed from player"
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error removing tag from player:', error);
+      return false;
+    }
+  };
+
+  const setPlayerTags = async (playerId: string, tags: PlayerTag[]) => {
+    try {
+      // First, remove all existing tags for this player
+      const { error: deleteError } = await supabase
+        .from('player_tag_assignments')
+        .delete()
+        .eq('player_id', playerId);
+
+      if (deleteError) {
+        console.error('Error removing existing tags:', deleteError);
+        return false;
+      }
+
+      // Then add the new tags
+      if (tags.length > 0) {
+        const assignments = tags.map(tag => ({
+          player_id: playerId,
+          tag_id: tag.id
+        }));
+
+        const { error: insertError } = await supabase
+          .from('player_tag_assignments')
+          .insert(assignments);
+
+        if (insertError) {
+          console.error('Error adding new tags:', insertError);
+          return false;
+        }
+      }
+
+      // Refresh assignments
+      await fetchPlayerTagAssignments();
+      return true;
+    } catch (error) {
+      console.error('Error setting player tags:', error);
+      return false;
+    }
   };
 
   return {
     availableTags,
     playerTagAssignments,
+    loading,
     createTag,
     deleteTag,
     getPlayerTags,
-    setPlayerTags,
+    setPlayerTags: async (playerId: string, tags: PlayerTag[]) => {
+      await setPlayerTags(playerId, tags);
+    },
     addTagToPlayer,
-    removeTagFromPlayer
+    removeTagFromPlayer,
+    refreshData: () => {
+      fetchAvailableTags();
+      fetchPlayerTagAssignments();
+    }
   };
 };

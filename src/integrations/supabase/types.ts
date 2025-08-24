@@ -1329,6 +1329,75 @@ export type Database = {
           },
         ]
       }
+      player_tag_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          player_id: string
+          tag_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          player_id: string
+          tag_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          player_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_tag_assignments_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "player_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_tags: {
+        Row: {
+          color: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_system_tag: boolean | null
+          label: string
+        }
+        Insert: {
+          color: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_system_tag?: boolean | null
+          label: string
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_system_tag?: boolean | null
+          label?: string
+        }
+        Relationships: []
+      }
       player_titles_achievements: {
         Row: {
           achievement_type: string
