@@ -1,13 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import { supabase } from '@/integrations/supabase/client';
+import { usePlayerData } from '@/hooks/usePlayerData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import {
   User,
@@ -22,52 +22,10 @@ import {
   Trophy,
   Target,
   ArrowLeft,
-  Play,
-  Edit,
-  Image,
-  Upload,
-  Plus,
-  Trash2,
-  Eye,
-  Download
+  Play
 } from 'lucide-react';
 import VideoPlayer from '@/components/VideoPlayer';
-
-interface Player {
-  id: string;
-  full_name: string;
-  sport_type: string;
-  position?: string;
-  age?: number;
-  nationality?: string;
-  team?: string;
-  height?: string;
-  weight?: string;
-  preferred_foot?: string;
-  market_value?: number;
-  profile_image?: string;
-  achievements?: string[];
-  bio?: string;
-  stats?: any;
-  date_of_birth?: string;
-  citizenship?: string;
-  jersey_number?: number;
-  gender?: string;
-  foot?: string;
-  place_of_birth?: string;
-  fifa_id?: string;
-  player_agent?: string;
-  current_club?: string;
-  contract_expires?: string;
-  joined_date?: string;
-  leagues_participated?: string[];
-  titles_seasons?: string[];
-  match_stats?: any;
-  ai_analysis?: any;
-  team_id?: string;
-  photo_url?: string;
-  headshot_url?: string;
-}
+import { supabase } from '@/integrations/supabase/client';
 
 interface Video {
   id: string;
@@ -87,70 +45,30 @@ const PlayerProfile = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   
-  const [player, setPlayer] = useState<Player | null>(null);
+  console.log('PlayerProfile - playerId from params:', playerId);
+  
+  // Validate playerId
+  const isValidPlayerId = playerId && playerId !== ':playerId' && playerId.length > 10;
+  
+  const { player, loading, error } = usePlayerData(isValidPlayerId ? playerId : null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
-  const [loading, setLoading] = useState(true);
   const [isShortlisted, setIsShortlisted] = useState(false);
-  const [teamOwnerProfile, setTeamOwnerProfile] = useState<any>(null);
   const [age, setAge] = useState<number | null>(null);
 
   useEffect(() => {
-    if (playerId) {
-      fetchPlayer();
+    console.log('PlayerProfile effect - playerId:', playerId, 'isValid:', isValidPlayerId);
+    if (isValidPlayerId) {
       fetchPlayerVideos();
       checkIfShortlisted();
     }
-  }, [playerId]);
+  }, [playerId, isValidPlayerId]);
 
-  const fetchPlayer = async () => {
-    if (!playerId) return;
-
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('players')
-        .select(`
-          *,
-          teams!inner(
-            team_name,
-            sport_type,
-            country
-          )
-        `)
-        .eq('id', playerId)
-        .single();
-
-      if (error) throw error;
-
-      // Transform the data to include sport_type from teams
-      const transformedPlayer: Player = {
-        ...data,
-        sport_type: data.teams.sport_type,
-        team: data.teams.team_name,
-        nationality: data.citizenship,
-        profile_image: data.headshot_url || data.photo_url,
-        preferred_foot: data.foot,
-        achievements: data.titles_seasons || [],
-        stats: data.match_stats || {},
-        height: data.height ? data.height.toString() : undefined,
-        weight: data.weight ? data.weight.toString() : undefined
-      };
-
-      setPlayer(transformedPlayer);
-      calculateAge(data.date_of_birth);
-      fetchTeamOwnerProfile(data.team_id);
-    } catch (error) {
-      console.error('Error fetching player:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch player data.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (player?.date_of_birth) {
+      calculateAge(player.date_of_birth);
     }
-  };
+  }, [player]);
 
   const calculateAge = (dateOfBirth: string) => {
     if (dateOfBirth) {
@@ -167,26 +85,8 @@ const PlayerProfile = () => {
     }
   };
 
-  const fetchTeamOwnerProfile = async (teamId: string) => {
-    if (!teamId) return;
-
-    try {
-      const { data: teamData } = await supabase
-        .from('teams')
-        .select('profile_id, profiles!inner(*)')
-        .eq('id', teamId)
-        .single();
-
-      if (teamData) {
-        setTeamOwnerProfile(teamData.profiles);
-      }
-    } catch (error) {
-      console.error('Error fetching team owner profile:', error);
-    }
-  };
-
   const fetchPlayerVideos = async () => {
-    if (!playerId) return;
+    if (!isValidPlayerId || !player) return;
 
     try {
       const { data, error } = await supabase
@@ -209,7 +109,7 @@ const PlayerProfile = () => {
   };
 
   const checkIfShortlisted = async () => {
-    if (!player || !profile?.id) return;
+    if (!player || !profile?.id || !isValidPlayerId) return;
 
     try {
       const { data, error } = await supabase
@@ -304,23 +204,44 @@ const PlayerProfile = () => {
     });
   };
 
-  if (loading) {
+  // Show error or loading states
+  if (!isValidPlayerId) {
     return (
       <Layout>
         <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto mb-2"></div>
-          <p className="text-white">Loading player data...</p>
+          <div className="text-center">
+            <h2 className="text-white text-2xl mb-4">Invalid player ID</h2>
+            <Button onClick={() => navigate(-1)} className="bg-rosegold text-black">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Go Back
+            </Button>
+          </div>
         </div>
       </Layout>
     );
   }
 
-  if (!player) {
+  if (loading) {
     return (
       <Layout>
         <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
           <div className="text-center">
-            <h2 className="text-white text-2xl mb-4">Player not found</h2>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto mb-2"></div>
+            <p className="text-white">Loading player data...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error || !player) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-white text-2xl mb-4">
+              {error ? `Error: ${error}` : 'Player not found'}
+            </h2>
             <Button onClick={() => navigate(-1)} className="bg-rosegold text-black">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Go Back
@@ -376,15 +297,6 @@ const PlayerProfile = () => {
                 <Star className={`w-4 h-4 mr-2 ${isShortlisted ? 'fill-current' : ''}`} />
                 {isShortlisted ? 'In Shortlist' : 'Add to Shortlist'}
               </Button>
-              {teamOwnerProfile && (
-                <Button
-                  variant="outline"
-                  className="border-rosegold text-rosegold hover:bg-rosegold hover:text-black"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Message Team
-                </Button>
-              )}
             </div>
           </div>
 
@@ -428,7 +340,7 @@ const PlayerProfile = () => {
                   <Calendar className="h-4 w-4 text-gray-400" />
                   <div>
                     <p className="text-gray-400">Age</p>
-                    <p className="text-white font-semibold">{age || 'N/A'}</p>
+                    <p className="text-white font-semibold">{age || player.age || 'N/A'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
