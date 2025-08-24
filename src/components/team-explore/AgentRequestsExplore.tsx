@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -102,17 +103,19 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({
         return;
       }
 
-      // Transform the data to match our interface
-      const transformedRequests = (requestsData || []).map(request => ({
-        ...request,
-        tagged_players: Array.isArray(request.tagged_players) 
-          ? request.tagged_players 
-          : typeof request.tagged_players === 'string' 
-            ? JSON.parse(request.tagged_players) 
-            : []
-      })) as AgentRequest[];
+      // Filter out any requests with invalid agent data and transform the data
+      const validRequests = (requestsData || [])
+        .filter(request => request.agents && typeof request.agents === 'object' && 'agency_name' in request.agents)
+        .map(request => ({
+          ...request,
+          tagged_players: Array.isArray(request.tagged_players) 
+            ? request.tagged_players 
+            : typeof request.tagged_players === 'string' 
+              ? JSON.parse(request.tagged_players) 
+              : []
+        }));
 
-      setRequests(transformedRequests);
+      setRequests(validRequests as AgentRequest[]);
     } catch (error) {
       console.error('Error fetching agent requests:', error);
     } finally {
