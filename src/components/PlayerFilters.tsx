@@ -39,16 +39,16 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
 }) => {
   const [filters, setFilters] = useState<FilterState>({
     search: '',
-    position: '',
+    position: 'all',
     ageMin: '',
     ageMax: '',
     heightMin: '',
     heightMax: '',
-    citizenship: '',
-    contractExpiry: '',
+    citizenship: 'all',
+    contractExpiry: 'all',
     marketValueMin: '',
     marketValueMax: '',
-    availability: '',
+    availability: 'all',
     tags: []
   });
 
@@ -69,7 +69,7 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
     }
 
     // Position filter
-    if (filterState.position) {
+    if (filterState.position && filterState.position !== 'all') {
       filtered = filtered.filter(player => player.position === filterState.position);
     }
 
@@ -94,12 +94,12 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
     }
 
     // Citizenship filter
-    if (filterState.citizenship) {
+    if (filterState.citizenship && filterState.citizenship !== 'all') {
       filtered = filtered.filter(player => player.citizenship === filterState.citizenship);
     }
 
     // Contract expiry filter
-    if (filterState.contractExpiry) {
+    if (filterState.contractExpiry && filterState.contractExpiry !== 'all') {
       const now = new Date();
       const cutoffDate = new Date();
       
@@ -146,16 +146,16 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
   const clearFilters = () => {
     const emptyFilters: FilterState = {
       search: '',
-      position: '',
+      position: 'all',
       ageMin: '',
       ageMax: '',
       heightMin: '',
       heightMax: '',
-      citizenship: '',
-      contractExpiry: '',
+      citizenship: 'all',
+      contractExpiry: 'all',
       marketValueMin: '',
       marketValueMax: '',
-      availability: '',
+      availability: 'all',
       tags: []
     };
     setFilters(emptyFilters);
@@ -175,16 +175,19 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
   };
 
   const getUniqueValues = (field: keyof DatabasePlayer): string[] => {
-    const values = players.map(p => {
-      const value = p[field];
-      if (value === null || value === undefined) return null;
-      if (typeof value === 'string') return value;
-      if (typeof value === 'number') return value.toString();
-      if (Array.isArray(value)) return value.join(', ');
-      return String(value);
-    }).filter(Boolean);
+    const values = players
+      .map(p => {
+        const value = p[field];
+        if (value === null || value === undefined) return null;
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number') return value.toString();
+        if (Array.isArray(value)) return value.join(', ');
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value);
+      })
+      .filter((value): value is string => Boolean(value));
     
-    return [...new Set(values)] as string[];
+    return [...new Set(values)];
   };
 
   return (
@@ -249,7 +252,7 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
                 <SelectValue placeholder="All positions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All positions</SelectItem>
+                <SelectItem value="all">All positions</SelectItem>
                 <SelectItem value="goalkeeper">Goalkeeper</SelectItem>
                 <SelectItem value="defender">Defender</SelectItem>
                 <SelectItem value="midfielder">Midfielder</SelectItem>
@@ -258,7 +261,7 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
             </Select>
           </div>
 
-          {(filters.search || filters.position || filters.citizenship) && (
+          {(filters.search || (filters.position !== 'all') || (filters.citizenship !== 'all')) && (
             <Button
               variant="outline"
               size="sm"
@@ -341,7 +344,7 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
                   <SelectValue placeholder="All countries" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All countries</SelectItem>
+                  <SelectItem value="all">All countries</SelectItem>
                   {getUniqueValues('citizenship').map((country, index) => (
                     <SelectItem key={`country-${index}`} value={country}>{country}</SelectItem>
                   ))}
@@ -356,7 +359,7 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
                   <SelectValue placeholder="All contracts" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All contracts</SelectItem>
+                  <SelectItem value="all">All contracts</SelectItem>
                   <SelectItem value="expiring_soon">Expiring in 6 months</SelectItem>
                   <SelectItem value="expired">Expired</SelectItem>
                   <SelectItem value="long_term">Long-term (2+ years)</SelectItem>
