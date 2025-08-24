@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,7 +51,7 @@ interface TimelineEvent {
   created_by: string;
   reactions_count: number;
   comments_count: number;
-  player?: {
+  players?: {
     id: string;
     full_name: string;
     photo_url?: string;
@@ -65,7 +64,7 @@ interface TimelineComment {
   profile_id: string;
   content: string;
   created_at: string;
-  profiles: {
+  profiles?: {
     full_name: string;
     user_type: string;
   };
@@ -171,7 +170,14 @@ const EnhancedTeamTimeline = () => {
 
       if (error) throw error;
 
-      setEvents(data || []);
+      // Transform the data to match our interface
+      const transformedData: TimelineEvent[] = (data || []).map(item => ({
+        ...item,
+        event_type: item.event_type as EventType,
+        players: item.players as { id: string; full_name: string; photo_url?: string; } | undefined
+      }));
+
+      setEvents(transformedData);
     } catch (error) {
       console.error('Error fetching timeline events:', error);
       toast({
@@ -352,20 +358,31 @@ const EnhancedTeamTimeline = () => {
 
   const fetchComments = async (eventId: string) => {
     try {
-      const { data, error } = await supabase
+      // First get the profiles separately to avoid relation issues
+      const { data: commentData, error } = await supabase
         .from('timeline_comments')
-        .select(`
-          *,
-          profiles (
-            full_name,
-            user_type
-          )
-        `)
+        .select('*')
         .eq('event_id', eventId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setComments(data || []);
+
+      // Then get profile details for each comment
+      const commentsWithProfiles: TimelineComment[] = [];
+      for (const comment of commentData || []) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, user_type')
+          .eq('id', comment.profile_id)
+          .single();
+
+        commentsWithProfiles.push({
+          ...comment,
+          profiles: profileData || { full_name: 'Unknown User', user_type: 'user' }
+        });
+      }
+
+      setComments(commentsWithProfiles);
     } catch (error) {
       console.error('Error fetching comments:', error);
     }
@@ -643,11 +660,11 @@ const EnhancedTeamTimeline = () => {
 
                         <p className="text-gray-300 mb-3">{event.description}</p>
 
-                        {event.player && (
+                        {event.players && (
                           <div className="flex items-center gap-2 mb-3">
                             <User className="w-4 h-4 text-gray-400" />
                             <span className="text-sm text-gray-400">
-                              Related to: {event.player.full_name}
+                              Related to: {event.players.full_name}
                             </span>
                           </div>
                         )}
@@ -709,9 +726,9 @@ const EnhancedTeamTimeline = () => {
               <div key={comment.id} className="flex gap-3 p-3 bg-gray-800 rounded-lg">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-white">{comment.profiles.full_name}</span>
+                    <span className="font-medium text-white">{comment.profiles?.full_name || 'Unknown User'}</span>
                     <Badge variant="outline" className="text-xs">
-                      {comment.profiles.user_type}
+                      {comment.profiles?.user_type || 'user'}
                     </Badge>
                     <span className="text-xs text-gray-400">
                       {formatDistanceToNow(new Date(comment.created_at))} ago

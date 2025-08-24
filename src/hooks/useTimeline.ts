@@ -19,7 +19,7 @@ interface TimelineEvent {
   created_by: string;
   reactions_count: number;
   comments_count: number;
-  player?: {
+  players?: {
     id: string;
     full_name: string;
     photo_url?: string;
@@ -105,11 +105,18 @@ export const useTimeline = (options: UseTimelineOptions = {}) => {
         filteredData = filteredData.filter(event =>
           event.title.toLowerCase().includes(searchLower) ||
           event.description.toLowerCase().includes(searchLower) ||
-          event.player?.full_name.toLowerCase().includes(searchLower)
+          event.players?.full_name.toLowerCase().includes(searchLower)
         );
       }
 
-      setEvents(filteredData);
+      // Transform the data to match our interface
+      const transformedData: TimelineEvent[] = filteredData.map(item => ({
+        ...item,
+        event_type: item.event_type as EventType,
+        players: item.players as { id: string; full_name: string; photo_url?: string; } | undefined
+      }));
+
+      setEvents(transformedData);
     } catch (err) {
       console.error('Error fetching timeline events:', err);
       setError('Failed to load timeline events');
