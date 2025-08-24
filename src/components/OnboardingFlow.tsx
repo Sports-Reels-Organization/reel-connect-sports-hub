@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -78,7 +79,8 @@ const OnboardingFlow = () => {
     }
   };
 
-  const totalSteps = profile?.user_type === 'team' ? 2 : 2;
+  // Calculate total steps based on selected role
+  const totalSteps = selectedRole === 'team' ? 2 : 2;
 
   // Update basic info state when profile changes
   useEffect(() => {
@@ -260,7 +262,6 @@ const OnboardingFlow = () => {
   }
 
   const currentUserType = selectedRole;
-  const totalSteps = currentUserType === 'team' ? 2 : 2;
 
   const steps = [
     {
