@@ -4,8 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Target, AlertCircle, Video, BarChart3, Download } from 'lucide-react';
+import { 
+  Plus, Users, Target, AlertCircle, Video, BarChart3, Download, 
+  User, TrendingUp, Activity, Award, Heart, FileText
+} from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import PlayerCard from './PlayerCard';
 import PlayerForm from './PlayerForm';
@@ -372,94 +376,256 @@ const PlayerManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Player Filters */}
-      <PlayerFilters
-        players={players}
-        onFilteredPlayersChange={setFilteredPlayers}
-        onExportPlayers={handleExportPlayers}
-      />
+      {/* Tabs for Player Management Organization */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-7 bg-gray-800">
+          <TabsTrigger value="overview" className="text-white">
+            <User className="h-4 w-4 mr-1" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="roster" className="text-white">
+            <Users className="h-4 w-4 mr-1" />
+            Roster
+          </TabsTrigger>
+          <TabsTrigger value="statistics" className="text-white">
+            <Activity className="h-4 w-4 mr-1" />
+            Statistics
+          </TabsTrigger>
+          <TabsTrigger value="videos" className="text-white">
+            <Video className="h-4 w-4 mr-1" />
+            Videos
+          </TabsTrigger>
+          <TabsTrigger value="awards" className="text-white">
+            <Award className="h-4 w-4 mr-1" />
+            Awards
+          </TabsTrigger>
+          <TabsTrigger value="medical" className="text-white">
+            <Heart className="h-4 w-4 mr-1" />
+            Medical
+          </TabsTrigger>
+          <TabsTrigger value="notes" className="text-white">
+            <FileText className="h-4 w-4 mr-1" />
+            Notes
+          </TabsTrigger>
+        </TabsList>
 
-      {/* View Mode Toggle */}
-      <div className="flex gap-2">
-        <Button
-          variant={viewMode === 'cards' ? 'default' : 'outline'}
-          onClick={() => setViewMode('cards')}
-          className={viewMode === 'cards' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
-        >
-          Card View
-        </Button>
-        <Button
-          variant={viewMode === 'roster' ? 'default' : 'outline'}
-          onClick={() => setViewMode('roster')}
-          className={viewMode === 'roster' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
-        >
-          Roster View
-        </Button>
-      </div>
+        {/* Overview Tab - Main player management interface */}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Player Filters */}
+          <PlayerFilters
+            players={players}
+            onFilteredPlayersChange={setFilteredPlayers}
+            onExportPlayers={handleExportPlayers}
+          />
 
-      {showAddForm && (
-        <PlayerForm
-          teamId={teamId}
-          player={editingPlayer}
-          onSave={handlePlayerSaved}
-          onCancel={resetForm}
-        />
-      )}
+          {/* View Mode Toggle */}
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'outline'}
+              onClick={() => setViewMode('cards')}
+              className={viewMode === 'cards' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
+            >
+              Card View
+            </Button>
+            <Button
+              variant={viewMode === 'roster' ? 'default' : 'outline'}
+              onClick={() => setViewMode('roster')}
+              className={viewMode === 'roster' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
+            >
+              Roster View
+            </Button>
+          </div>
 
-      {/* Player Display */}
-      {viewMode === 'roster' ? (
-        <PlayerRosterView
-          players={filteredPlayers}
-          onEditPlayer={handleEditPlayer}
-          onViewPlayer={handleViewPlayer}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredPlayers.map((player) => {
-            const completionStatus = getPlayerCompletionStatus(player);
-            return (
-              <div key={player.id} className="relative">
-                <PlayerCard
-                  player={player}
-                  onEdit={handleEditPlayer}
-                  onView={handleViewPlayer}
-                />
-                {/* Profile Completion Indicator */}
-                <div className="absolute top-2 right-2">
-                  <div className={`w-3 h-3 rounded-full ${completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
-                    }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
+          {showAddForm && (
+            <PlayerForm
+              teamId={teamId}
+              player={editingPlayer}
+              onSave={handlePlayerSaved}
+              onCancel={resetForm}
+            />
+          )}
+
+          {/* Player Display */}
+          {viewMode === 'roster' ? (
+            <PlayerRosterView
+              players={filteredPlayers}
+              onEditPlayer={handleEditPlayer}
+              onViewPlayer={handleViewPlayer}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredPlayers.map((player) => {
+                const completionStatus = getPlayerCompletionStatus(player);
+                return (
+                  <div key={player.id} className="relative">
+                    <PlayerCard
+                      player={player}
+                      onEdit={handleEditPlayer}
+                      onView={handleViewPlayer}
+                    />
+                    {/* Profile Completion Indicator */}
+                    <div className="absolute top-2 right-2">
+                      <div className={`w-3 h-3 rounded-full ${completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
+                        }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {filteredPlayers.length === 0 && !showAddForm && (
+            <Card className="border-gray-700">
+              <CardContent className="p-12 text-center">
+                <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                <h3 className="font-polysans text-xl font-semibold text-white mb-2">
+                  {players.length === 0 ? 'No Players Added Yet' : 'No Players Match Your Filters'}
+                </h3>
+                <p className="text-gray-400 mb-6 font-poppins">
+                  {players.length === 0
+                    ? 'Start building your team by adding comprehensive player profiles'
+                    : 'Try adjusting your filters to see more players'
+                  }
+                </p>
+                {players.length === 0 && (
+                  <Button
+                    onClick={() => setShowAddForm(true)}
+                    className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First Player
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Roster Tab */}
+        <TabsContent value="roster" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Team Roster Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PlayerRosterView
+                players={players}
+                onEditPlayer={handleEditPlayer}
+                onViewPlayer={handleViewPlayer}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Statistics Tab */}
+        <TabsContent value="statistics" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Team Statistics Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-rosegold">{players.length}</p>
+                  <p className="text-gray-400 text-sm">Total Players</p>
+                </div>
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-green-400">{eligiblePlayers.length}</p>
+                  <p className="text-gray-400 text-sm">Complete Profiles</p>
+                </div>
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-blue-400">
+                    {players.filter(p => p.position).length}
+                  </p>
+                  <p className="text-gray-400 text-sm">Players with Positions</p>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {filteredPlayers.length === 0 && !showAddForm && (
-        <Card className="border-gray-700">
-          <CardContent className="p-12 text-center">
-            <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-            <h3 className="font-polysans text-xl font-semibold text-white mb-2">
-              {players.length === 0 ? 'No Players Added Yet' : 'No Players Match Your Filters'}
-            </h3>
-            <p className="text-gray-400 mb-6 font-poppins">
-              {players.length === 0
-                ? 'Start building your team by adding comprehensive player profiles'
-                : 'Try adjusting your filters to see more players'
-              }
-            </p>
-            {players.length === 0 && (
-              <Button
-                onClick={() => setShowAddForm(true)}
-                className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First Player
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        {/* Videos Tab */}
+        <TabsContent value="videos" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Video className="h-5 w-5" />
+                Player Videos Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <Video className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                <p className="text-gray-400 mb-4">Video management for individual players</p>
+                <p className="text-gray-500 text-sm">Select a player to manage their videos</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Awards Tab */}
+        <TabsContent value="awards" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Award className="h-5 w-5" />
+                Team Awards & Achievements
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <Award className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                <p className="text-gray-400 mb-4">Track team and player achievements</p>
+                <p className="text-gray-500 text-sm">Awards and honors will be displayed here</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Medical Tab */}
+        <TabsContent value="medical" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Heart className="h-5 w-5" />
+                Medical & Fitness Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <Heart className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                <p className="text-gray-400 mb-4">Monitor player health and fitness</p>
+                <p className="text-gray-500 text-sm">Medical records and fitness data will be displayed here</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Notes Tab */}
+        <TabsContent value="notes" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Scouting Notes & Internal Records
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                <p className="text-gray-400 mb-4">Internal team notes and scouting reports</p>
+                <p className="text-gray-500 text-sm">Private notes and player evaluations will be displayed here</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Player Comparison Modal */}
       <PlayerComparison
