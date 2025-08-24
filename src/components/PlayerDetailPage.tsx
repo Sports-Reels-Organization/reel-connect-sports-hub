@@ -26,7 +26,13 @@ import {
   Eye,
   Download,
   Play,
-  X
+  X,
+  Award,
+  Heart,
+  Activity,
+  FileText,
+  TrendingUp,
+  Clock
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -354,20 +360,6 @@ const PlayerDetailPage: React.FC<PlayerDetailPageProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Ruler className="h-4 w-4 text-gray-400" />
-              <div>
-                <p className="text-gray-400">Height</p>
-                <p className="text-white font-semibold">{player.height ? `${player.height} cm` : 'N/A'}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Weight className="h-4 w-4 text-gray-400" />
-              <div>
-                <p className="text-gray-400">Weight</p>
-                <p className="text-white font-semibold">{player.weight ? `${player.weight} kg` : 'N/A'}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-gray-400" />
               <div>
                 <p className="text-gray-400">Market Value</p>
@@ -376,106 +368,189 @@ const PlayerDetailPage: React.FC<PlayerDetailPageProps> = ({
                 </p>
               </div>
             </div>
-            {player.foot && (
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-gray-400" />
-                <div>
-                  <p className="text-gray-400">Preferred Foot</p>
-                  <p className="text-white font-semibold capitalize">{player.foot}</p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Enhanced Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-gray-800">
-          <TabsTrigger value="overview" className="text-white">Overview</TabsTrigger>
-          <TabsTrigger value="career" className="text-white">Career</TabsTrigger>
-          <TabsTrigger value="videos" className="text-white">Videos</TabsTrigger>
-          <TabsTrigger value="media" className="text-white">Media</TabsTrigger>
-          <TabsTrigger value="stats" className="text-white">Stats</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-7 bg-gray-800">
+          <TabsTrigger value="overview" className="text-white">
+            <User className="h-4 w-4 mr-1" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="career" className="text-white">
+            <TrendingUp className="h-4 w-4 mr-1" />
+            Career
+          </TabsTrigger>
+          <TabsTrigger value="statistics" className="text-white">
+            <Activity className="h-4 w-4 mr-1" />
+            Statistics
+          </TabsTrigger>
+          <TabsTrigger value="videos" className="text-white">
+            <Video className="h-4 w-4 mr-1" />
+            Videos
+          </TabsTrigger>
+          <TabsTrigger value="awards" className="text-white">
+            <Award className="h-4 w-4 mr-1" />
+            Awards
+          </TabsTrigger>
+          <TabsTrigger value="medical" className="text-white">
+            <Heart className="h-4 w-4 mr-1" />
+            Medical
+          </TabsTrigger>
+          <TabsTrigger value="notes" className="text-white">
+            <FileText className="h-4 w-4 mr-1" />
+            Notes
+          </TabsTrigger>
         </TabsList>
 
+        {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          {/* Bio */}
+          {/* Basic Information Card */}
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Basic Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gray-400" />
+                  <div>
+                    <p className="text-gray-400 text-sm">Age</p>
+                    <p className="text-white font-semibold">{age || 'N/A'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                  <div>
+                    <p className="text-gray-400 text-sm">Nationality</p>
+                    <p className="text-white font-semibold">{player.citizenship}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Ruler className="h-4 w-4 text-gray-400" />
+                  <div>
+                    <p className="text-gray-400 text-sm">Height</p>
+                    <p className="text-white font-semibold">{player.height ? `${player.height} cm` : 'N/A'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Weight className="h-4 w-4 text-gray-400" />
+                  <div>
+                    <p className="text-gray-400 text-sm">Weight</p>
+                    <p className="text-white font-semibold">{player.weight ? `${player.weight} kg` : 'N/A'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-gray-400" />
+                  <div>
+                    <p className="text-gray-400 text-sm">Position</p>
+                    <p className="text-white font-semibold">{player.position}</p>
+                  </div>
+                </div>
+                {player.foot && (
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-gray-400" />
+                    <div>
+                      <p className="text-gray-400 text-sm">Preferred Foot</p>
+                      <p className="text-white font-semibold capitalize">{player.foot}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Current Club Information */}
+          {player.current_club && (
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white font-polysans">Current Club</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-gray-400 text-sm">Club Name</p>
+                    <p className="text-white font-semibold">{player.current_club}</p>
+                  </div>
+                  {player.jersey_number && (
+                    <div>
+                      <p className="text-gray-400 text-sm">Jersey Number</p>
+                      <p className="text-white font-semibold">#{player.jersey_number}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Biography */}
           {player.bio && (
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
                 <CardTitle className="text-white font-polysans">Biography</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-300 font-poppins">{player.bio}</p>
+                <p className="text-gray-300 font-poppins leading-relaxed">{player.bio}</p>
               </CardContent>
             </Card>
           )}
-
-          {/* Personal Information */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white font-polysans">Personal Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {player.date_of_birth && (
-                  <div>
-                    <p className="text-gray-400 text-sm">Date of Birth</p>
-                    <p className="text-white">{formatDate(player.date_of_birth)}</p>
-                  </div>
-                )}
-                {player.place_of_birth && (
-                  <div>
-                    <p className="text-gray-400 text-sm">Place of Birth</p>
-                    <p className="text-white">{player.place_of_birth}</p>
-                  </div>
-                )}
-                {player.fifa_id && (
-                  <div>
-                    <p className="text-gray-400 text-sm">FIFA ID</p>
-                    <p className="text-white">{player.fifa_id}</p>
-                  </div>
-                )}
-                {player.player_agent && (
-                  <div>
-                    <p className="text-gray-400 text-sm">Agent</p>
-                    <p className="text-white">{player.player_agent}</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
+        {/* Career History Tab */}
         <TabsContent value="career" className="space-y-4">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader>
-              <CardTitle className="text-white font-polysans">Career Information</CardTitle>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Career Information
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {player.current_club && (
                   <div>
                     <p className="text-gray-400 text-sm">Current Club</p>
-                    <p className="text-white">{player.current_club}</p>
+                    <p className="text-white font-semibold">{player.current_club}</p>
                   </div>
                 )}
                 {player.contract_expires && (
                   <div>
                     <p className="text-gray-400 text-sm">Contract Expires</p>
-                    <p className="text-white">{formatDate(player.contract_expires)}</p>
+                    <p className="text-white font-semibold">{formatDate(player.contract_expires)}</p>
                   </div>
                 )}
                 {player.joined_date && (
                   <div>
                     <p className="text-gray-400 text-sm">Joined Date</p>
-                    <p className="text-white">{formatDate(player.joined_date)}</p>
+                    <p className="text-white font-semibold">{formatDate(player.joined_date)}</p>
+                  </div>
+                )}
+                {player.market_value && (
+                  <div>
+                    <p className="text-gray-400 text-sm">Market Value</p>
+                    <p className="text-white font-semibold">{formatCurrency(player.market_value)}</p>
+                  </div>
+                )}
+                {player.player_agent && (
+                  <div>
+                    <p className="text-gray-400 text-sm">Agent</p>
+                    <p className="text-white font-semibold">{player.player_agent}</p>
+                  </div>
+                )}
+                {player.fifa_id && (
+                  <div>
+                    <p className="text-gray-400 text-sm">FIFA ID</p>
+                    <p className="text-white font-semibold">{player.fifa_id}</p>
                   </div>
                 )}
               </div>
 
-              {/* Leagues */}
+              {/* Leagues Participated */}
               {player.leagues_participated && player.leagues_participated.length > 0 && (
                 <div>
                   <p className="text-gray-400 text-sm mb-2">Leagues Participated</p>
@@ -489,17 +564,14 @@ const PlayerDetailPage: React.FC<PlayerDetailPageProps> = ({
                 </div>
               )}
 
-              {/* Titles */}
-              {player.titles_seasons && player.titles_seasons.length > 0 && (
+              {/* Transfer History */}
+              {player.transfer_history && (
                 <div>
-                  <p className="text-gray-400 text-sm mb-2">Titles & Seasons</p>
-                  <div className="flex flex-wrap gap-2">
-                    {player.titles_seasons.map((title, index) => (
-                      <Badge key={index} variant="outline" className="text-yellow-400 border-yellow-400">
-                        <Trophy className="h-3 w-3 mr-1" />
-                        {title}
-                      </Badge>
-                    ))}
+                  <p className="text-gray-400 text-sm mb-2">Transfer History</p>
+                  <div className="bg-gray-700 p-3 rounded-lg">
+                    <pre className="text-gray-300 text-sm whitespace-pre-wrap">
+                      {JSON.stringify(player.transfer_history, null, 2)}
+                    </pre>
                   </div>
                 </div>
               )}
@@ -507,7 +579,94 @@ const PlayerDetailPage: React.FC<PlayerDetailPageProps> = ({
           </Card>
         </TabsContent>
 
+        {/* Statistics Tab */}
+        <TabsContent value="statistics" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Performance Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {player.match_stats ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Object.entries(player.match_stats as Record<string, any>).map(([key, value]) => (
+                    <div key={key} className="text-center bg-gray-700 p-4 rounded-lg">
+                      <p className="text-2xl font-bold text-rosegold">{value}</p>
+                      <p className="text-gray-400 text-sm capitalize">{key.replace('_', ' ')}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-center py-8">No statistics available</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* International Duty */}
+          {player.international_duty && (
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white font-polysans">International Duty</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-gray-700 p-3 rounded-lg">
+                  <pre className="text-gray-300 text-sm whitespace-pre-wrap">
+                    {JSON.stringify(player.international_duty, null, 2)}
+                  </pre>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AI Analysis */}
+          {player.ai_analysis && (
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white font-polysans flex items-center gap-2">
+                  <Star className="h-5 w-5 text-yellow-400" />
+                  AI Performance Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {Object.entries(player.ai_analysis as Record<string, any>).map(([key, value]) => (
+                    <div key={key} className="border-l-4 border-rosegold pl-4">
+                      <p className="text-gray-400 text-sm capitalize font-medium">{key.replace('_', ' ')}</p>
+                      <p className="text-white">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Videos Tab */}
         <TabsContent value="videos" className="space-y-4">
+          {/* Upload Section */}
+          {isOwnPlayer && (
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white font-polysans flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Upload Videos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-400 text-sm mb-4">
+                  Upload training videos, match highlights, and skill demonstrations to showcase this player's abilities.
+                </p>
+                <Button className="bg-rosegold hover:bg-rosegold/90 text-white">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Video
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Videos Grid */}
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto"></div>
@@ -556,163 +715,172 @@ const PlayerDetailPage: React.FC<PlayerDetailPageProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="media" className="space-y-4">
-          {/* Upload Section */}
-          {isOwnPlayer && (
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white font-polysans flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
-                  Upload Photos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                    id="photo-upload"
-                    disabled={photoLoading}
-                  />
-                  <label
-                    htmlFor="photo-upload"
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-gray-600 hover:border-rosegold/50 transition-colors cursor-pointer ${photoLoading ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="text-white">Select Photos</span>
-                  </label>
-                  {photoLoading && (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-rosegold"></div>
-                      <span className="text-gray-400 text-sm">Uploading...</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Photo Gallery */}
-          {photoLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto"></div>
-              <p className="text-gray-400 mt-2">Loading photos...</p>
-            </div>
-          ) : photos.length === 0 ? (
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-8 text-center">
-                <Image className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                <p className="text-gray-400">No photos available</p>
-                {isOwnPlayer && (
-                  <p className="text-gray-500 text-sm mt-2">Upload photos to showcase the player</p>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {photos.map((photo) => (
-                <Card key={photo.id} className="bg-gray-800 border-gray-700 hover:border-rosegold/50 transition-colors group">
-                  <CardContent className="p-2">
-                    <div className="aspect-square bg-gray-700 rounded-lg relative overflow-hidden">
-                      <img
-                        src={photo.url}
-                        alt={photo.title}
-                        className="w-full h-full object-cover cursor-pointer"
-                        onClick={() => {
-                          setSelectedPhoto(photo);
-                          setShowPhotoModal(true);
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-white hover:text-rosegold"
-                            onClick={() => {
-                              setSelectedPhoto(photo);
-                              setShowPhotoModal(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {isOwnPlayer && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-white hover:text-red-400"
-                              onClick={() => handleDeletePhoto(photo.id, photo.url)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <h4 className="text-white font-polysans text-sm font-semibold truncate">{photo.title}</h4>
-                      <div className="flex items-center justify-between mt-1">
-                        <Badge variant="outline" className="text-xs text-gray-400 border-gray-600">
-                          {photo.type}
-                        </Badge>
-                        <span className="text-xs text-gray-400">
-                          {new Date(photo.uploaded_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="stats" className="space-y-4">
+        {/* Awards & Achievements Tab */}
+        <TabsContent value="awards" className="space-y-4">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader>
-              <CardTitle className="text-white font-polysans">Performance Statistics</CardTitle>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-yellow-400" />
+                Titles & Achievements
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {player.match_stats ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {Object.entries(player.match_stats as Record<string, any>).map(([key, value]) => (
-                    <div key={key} className="text-center">
-                      <p className="text-2xl font-bold text-rosegold">{value}</p>
-                      <p className="text-gray-400 text-sm capitalize">{key.replace('_', ' ')}</p>
+              {player.titles_seasons && player.titles_seasons.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {player.titles_seasons.map((title, index) => (
+                    <div key={index} className="bg-gray-700 p-4 rounded-lg flex items-center gap-3">
+                      <Trophy className="h-8 w-8 text-yellow-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-white font-semibold">{title}</p>
+                        <p className="text-gray-400 text-sm">Achievement</p>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-400 text-center py-8">No statistics available</p>
+                <div className="text-center py-8">
+                  <Award className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                  <p className="text-gray-400">No awards or achievements recorded</p>
+                </div>
               )}
             </CardContent>
           </Card>
 
-          {/* AI Analysis */}
-          {player.ai_analysis && (
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white font-polysans flex items-center gap-2">
-                  <Star className="h-5 w-5 text-yellow-400" />
-                  AI Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(player.ai_analysis as Record<string, any>).map(([key, value]) => (
-                    <div key={key}>
-                      <p className="text-gray-400 text-sm capitalize">{key.replace('_', ' ')}</p>
-                      <p className="text-white">{value}</p>
+          {/* Career Highlights */}
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans">Career Highlights</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {player.market_value && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg">
+                    <Star className="h-5 w-5 text-rosegold" />
+                    <div>
+                      <p className="text-white font-semibold">Market Value</p>
+                      <p className="text-gray-400 text-sm">{formatCurrency(player.market_value)}</p>
                     </div>
-                  ))}
+                  </div>
+                )}
+                {player.leagues_participated && player.leagues_participated.length > 0 && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg">
+                    <Target className="h-5 w-5 text-blue-400" />
+                    <div>
+                      <p className="text-white font-semibold">Leagues Participated</p>
+                      <p className="text-gray-400 text-sm">{player.leagues_participated.length} leagues</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Medical & Fitness Tab */}
+        <TabsContent value="medical" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Heart className="h-5 w-5 text-red-400" />
+                Physical Measurements
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <Ruler className="h-6 w-6 mx-auto mb-2 text-blue-400" />
+                  <p className="text-white font-semibold text-lg">{player.height ? `${player.height} cm` : 'N/A'}</p>
+                  <p className="text-gray-400 text-sm">Height</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div className="bg-gray-700 p-4 rounded-lg text-center">
+                  <Weight className="h-6 w-6 mx-auto mb-2 text-green-400" />
+                  <p className="text-white font-semibold text-lg">{player.weight ? `${player.weight} kg` : 'N/A'}</p>
+                  <p className="text-gray-400 text-sm">Weight</p>
+                </div>
+                {player.date_of_birth && (
+                  <div className="bg-gray-700 p-4 rounded-lg text-center">
+                    <Calendar className="h-6 w-6 mx-auto mb-2 text-purple-400" />
+                    <p className="text-white font-semibold text-lg">{age || 'N/A'}</p>
+                    <p className="text-gray-400 text-sm">Age</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <Activity className="h-5 w-5 text-green-400" />
+                Fitness Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <Heart className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                <p className="text-gray-400">No medical or fitness data available</p>
+                {isOwnPlayer && (
+                  <p className="text-gray-500 text-sm mt-2">Add injury history and fitness assessments</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Scouting Notes Tab */}
+        <TabsContent value="notes" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-400" />
+                Scouting Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isOwnPlayer ? (
+                <div className="space-y-4">
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                    <p className="text-gray-400 mb-4">No scouting notes available</p>
+                    <Button className="bg-rosegold hover:bg-rosegold/90 text-white">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Scouting Note
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                  <p className="text-gray-400">Scouting notes are private to the team</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Player Ratings */}
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white font-polysans">Internal Ratings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isOwnPlayer ? (
+                <div className="space-y-3">
+                  <div className="text-center py-4">
+                    <Star className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                    <p className="text-gray-400 mb-4">No internal ratings set</p>
+                    <Button variant="outline" className="border-gray-600 text-gray-400">
+                      Set Player Rating
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <Star className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                  <p className="text-gray-400">Internal ratings are private to the team</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
