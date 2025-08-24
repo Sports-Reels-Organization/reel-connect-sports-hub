@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -138,12 +139,12 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
         throw new Error('Team not found');
       }
 
-      // Upload video file without onUploadProgress (not supported in Supabase)
+      // Upload video file
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${teamData.id}/${fileName}`;
 
-      setUploadProgress(20); // Manual progress update
+      setUploadProgress(20);
 
       const { error: uploadError } = await supabase.storage
         .from('match-videos')
@@ -151,47 +152,49 @@ export const EnhancedVideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSucc
 
       if (uploadError) throw uploadError;
 
-      setUploadProgress(60); // Manual progress update
+      setUploadProgress(60);
 
       const { data: { publicUrl } } = supabase.storage
         .from('match-videos')
         .getPublicUrl(filePath);
 
-      setUploadProgress(80); // Manual progress update
+      setUploadProgress(80);
+
+      // Prepare the video data - handle empty date strings
+      const videoData = {
+        team_id: teamData.id,
+        title: formData.title,
+        description: formData.description || null,
+        video_url: publicUrl,
+        duration: Math.floor(videoDuration),
+        tagged_players: taggedPlayers,
+        match_date: formData.matchDate && formData.matchDate.trim() !== '' ? formData.matchDate : null,
+        opposing_team: formData.opposingTeam || null,
+        score: formData.score || null,
+        file_size: selectedFile.size,
+        ai_analysis_status: 'pending',
+        upload_status: 'completed',
+        tags: [videoType],
+        ai_analysis: {
+          video_type: videoType,
+          metadata: {
+            playerTags: taggedPlayers,
+            matchDetails: videoType === 'match' ? {
+              opposingTeam: formData.opposingTeam,
+              matchDate: formData.matchDate,
+              finalScore: formData.score
+            } : undefined,
+            duration: Math.floor(videoDuration),
+            videoDescription: formData.description,
+            uploadedAt: new Date().toISOString()
+          }
+        }
+      };
 
       // Create video record with video type
-      const { data: videoData, error: insertError } = await supabase
+      const { data: newVideoData, error: insertError } = await supabase
         .from('videos')
-        .insert({
-          team_id: teamData.id,
-          title: formData.title,
-          description: formData.description,
-          video_url: publicUrl,
-          duration: Math.floor(videoDuration),
-          tagged_players: taggedPlayers,
-          match_date: formData.matchDate,
-          opposing_team: formData.opposingTeam,
-          score: formData.score,
-          file_size: selectedFile.size,
-          ai_analysis_status: 'pending',
-          upload_status: 'completed',
-          tags: [videoType], // Add video type as tag
-          // Add video type specific metadata
-          ai_analysis: {
-            video_type: videoType,
-            metadata: {
-              playerTags: taggedPlayers,
-              matchDetails: videoType === 'match' ? {
-                opposingTeam: formData.opposingTeam,
-                matchDate: formData.matchDate,
-                finalScore: formData.score
-              } : undefined,
-              duration: Math.floor(videoDuration),
-              videoDescription: formData.description,
-              uploadedAt: new Date().toISOString()
-            }
-          }
-        })
+        .insert(videoData)
         .select()
         .single();
 
