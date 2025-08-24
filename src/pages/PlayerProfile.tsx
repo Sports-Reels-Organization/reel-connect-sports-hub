@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -111,13 +110,32 @@ const PlayerProfile = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('players')
-        .select('*')
+        .select(`
+          *,
+          teams!inner(
+            team_name,
+            sport_type,
+            country
+          )
+        `)
         .eq('id', playerId)
         .single();
 
       if (error) throw error;
 
-      setPlayer(data);
+      // Transform the data to include sport_type from teams
+      const transformedPlayer: Player = {
+        ...data,
+        sport_type: data.teams.sport_type,
+        team: data.teams.team_name,
+        nationality: data.citizenship,
+        profile_image: data.headshot_url || data.photo_url,
+        preferred_foot: data.foot,
+        achievements: data.titles_seasons || [],
+        stats: data.match_stats || {}
+      };
+
+      setPlayer(transformedPlayer);
       calculateAge(data.date_of_birth);
       fetchTeamOwnerProfile(data.team_id);
     } catch (error) {
