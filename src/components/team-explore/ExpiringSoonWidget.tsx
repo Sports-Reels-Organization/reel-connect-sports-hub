@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +13,7 @@ interface ExpiringPitch {
   currency: string;
   view_count: number;
   message_count: number;
-  player: {
+  players: {
     full_name: string;
     position: string;
   };
@@ -177,10 +176,10 @@ const ExpiringSoonWidget = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-white">
-                        {pitch.player.full_name}
+                        {pitch.players.full_name}
                       </h3>
                       <p className="text-sm text-black">
-                        {pitch.player.position} • {formatCurrency(pitch.asking_price, pitch.currency)}
+                        {pitch.players.position} • {formatCurrency(pitch.asking_price, pitch.currency)}
                       </p>
                     </div>
                     <Badge className={getUrgencyColor(daysLeft)}>

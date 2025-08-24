@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -38,27 +37,41 @@ const MessageStageTracker = () => {
 
       if (!teamData) return;
 
-      const { data, error } = await supabase
+      // First get message stages for this team
+      const { data: stages, error: stagesError } = await supabase
         .from('message_stages')
-        .select(`
-          *,
-          transfer_pitches!inner(
-            players!inner(full_name)
-          ),
-          agents!inner(
-            agency_name
-          )
-        `)
+        .select('*')
         .eq('team_id', teamData.id)
         .order('last_interaction', { ascending: false });
 
-      if (error) throw error;
+      if (stagesError) throw stagesError;
 
-      const stagesWithNames = (data || []).map(stage => ({
-        ...stage,
-        player_name: stage.transfer_pitches?.players?.full_name || 'Unknown Player',
-        agent_name: stage.agents?.agency_name || 'Unknown Agent'
-      }));
+      // Then get related data separately
+      const stagesWithNames = await Promise.all(
+        (stages || []).map(async (stage) => {
+          // Get player name from pitch
+          const { data: pitchData } = await supabase
+            .from('transfer_pitches')
+            .select(`
+              players!inner(full_name)
+            `)
+            .eq('id', stage.pitch_id)
+            .single();
+
+          // Get agent name from profiles
+          const { data: agentData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', stage.agent_id)
+            .single();
+
+          return {
+            ...stage,
+            player_name: pitchData?.players?.full_name || 'Unknown Player',
+            agent_name: agentData?.full_name || 'Unknown Agent'
+          };
+        })
+      );
 
       setMessageStages(stagesWithNames);
     } catch (error) {
@@ -94,7 +107,7 @@ const MessageStageTracker = () => {
       case 'completed':
         return 'bg-green-600 text-white';
       default:
-        return 'bg-gray-600 text-white';
+        return 'bg-black text-white';
     }
   };
 
@@ -128,7 +141,7 @@ const MessageStageTracker = () => {
 
   if (loading) {
     return (
-      <Card className="border-gray-700">
+      <Card className="border-black">
         <CardContent className="p-6">
           <div className="animate-pulse space-y-4">
             <div className="h-6 bg-black rounded w-1/3"></div>
@@ -144,7 +157,7 @@ const MessageStageTracker = () => {
   }
 
   return (
-    <Card className="border-gray-700">
+    <Card className="border-black">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white">
           <Users className="w-5 h-5" />
@@ -165,7 +178,7 @@ const MessageStageTracker = () => {
         ) : (
           <div className="space-y-3">
             {messageStages.map((stage) => (
-              <Card key={stage.id} className="border-gray-600">
+              <Card key={stage.id} className="border-black">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
