@@ -24,7 +24,7 @@ interface AgentRequest {
   created_at: string;
   agents?: {
     agency_name: string;
-    specialization: string;
+    specialization: string[];
   } | null;
   tagged_players_count?: number;
 }
@@ -136,7 +136,9 @@ const AgentRequestsExplore = () => {
             created_at: request.created_at,
             agents: request.agents && typeof request.agents === 'object' && !('error' in request.agents) ? {
               agency_name: request.agents.agency_name,
-              specialization: request.agents.specialization,
+              specialization: Array.isArray(request.agents.specialization) 
+                ? request.agents.specialization 
+                : [request.agents.specialization].filter(Boolean),
             } : null,
             tagged_players_count: count || 0
           } as AgentRequest;
@@ -430,7 +432,11 @@ const AgentRequestsExplore = () => {
                             </div>
                             <div>
                               <p className="text-sm text-gray-300">{request.agents.agency_name}</p>
-                              <p className="text-xs text-gray-500">{request.agents.specialization}</p>
+                              <p className="text-xs text-gray-500">
+                                {Array.isArray(request.agents.specialization) 
+                                  ? request.agents.specialization.join(', ') 
+                                  : request.agents.specialization}
+                              </p>
                             </div>
                           </div>
                         )}
