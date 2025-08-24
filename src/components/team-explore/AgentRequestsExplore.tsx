@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,7 +17,8 @@ interface AgentRequest {
   description: string;
   sport_type: string;
   position: string;
-  max_budget: number;
+  budget_max: number;
+  budget_min: number;
   currency: string;
   created_at: string;
   expires_at: string;
@@ -67,8 +69,18 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
       if (error) throw error;
 
       const requestsWithAgentName = data?.map(request => ({
-        ...request,
-        agent_name: request.agent?.full_name || 'Unknown Agent'
+        id: request.id,
+        title: request.title,
+        description: request.description,
+        sport_type: request.sport_type,
+        position: request.position,
+        budget_max: request.budget_max || 0,
+        budget_min: request.budget_min || 0,
+        currency: request.currency || 'USD',
+        created_at: request.created_at || new Date().toISOString(),
+        expires_at: request.expires_at || new Date().toISOString(),
+        agent_id: request.agent_id,
+        agent_name: Array.isArray(request.agent) ? request.agent[0]?.full_name : request.agent?.full_name || 'Unknown Agent'
       })) || [];
 
       setRequests(requestsWithAgentName);
@@ -200,7 +212,10 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
                     Budget: {new Intl.NumberFormat('en-US', {
                       style: 'currency',
                       currency: request.currency || 'USD'
-                    }).format(request.max_budget)}
+                    }).format(request.budget_min)} - {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: request.currency || 'USD'
+                    }).format(request.budget_max)}
                   </div>
                   
                   <Button 

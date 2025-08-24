@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, Users, Search, BarChart3, Settings } from 'lucide-react';
 import TransferTimeline from './TransferTimeline';
 import CreatePitchFlow from './CreatePitchFlow';
-import AgentRequestsExplore from './AgentRequestsExplore';
+import { AgentRequestsExplore } from './AgentRequestsExplore';
 import MarketSnapshotWidget from './MarketSnapshotWidget';
 import SquadAvailabilityManager from './SquadAvailabilityManager';
 import MessageStageTracker from './MessageStageTracker';

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AppSidebar } from './AppSidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -84,15 +83,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           setProfileImage(data.logo_url);
         }
       } else if (profile.user_type === 'agent') {
-        const { data, error } = await supabase
-          .from('agents')
-          .select('avatar_url')
-          .eq('profile_id', profile.id)
-          .single();
-        
-        if (!error && data?.avatar_url) {
-          setProfileImage(data.avatar_url);
-        }
+        // Since agents table doesn't have avatar_url, we'll use a placeholder or profile image logic
+        // For now, we'll keep it null and show initials
+        setProfileImage(null);
       }
     } catch (error) {
       console.error('Error fetching profile image:', error);
