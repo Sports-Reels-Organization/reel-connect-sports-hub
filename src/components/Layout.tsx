@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import AppSidebar from './AppSidebar';
+import { AppSidebar } from './AppSidebar';
 import LoadingPreloader from './LoadingPreloader';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 
