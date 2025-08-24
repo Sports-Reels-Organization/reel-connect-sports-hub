@@ -54,13 +54,11 @@ export function AppSidebar() {
       url: "/explore",
       icon: Search,
     },
-
     {
       title: t('messages'),
       url: "/messages",
       icon: MessageSquare,
     },
-
     {
       title: t('contracts'),
       url: "/contracts",
@@ -70,16 +68,19 @@ export function AppSidebar() {
       title: t('profile'),
       url: "/profile",
       icon: User,
-    }, {
+    }, 
+    {
       title: t('notifications'),
       url: "/notifications",
       icon: Bell,
       showBadge: true,
-    }, {
+    }, 
+    {
       title: 'News',
       url: "/news",
       icon: Newspaper,
-    }, {
+    }, 
+    {
       title: 'History',
       url: "/history",
       icon: Clock,
@@ -88,14 +89,13 @@ export function AppSidebar() {
 
   // Agent-specific menu items
   const agentMenuItems = [
-    ...baseMenuItems.slice(0, 3), // Dashboard, History, News
+    ...baseMenuItems.slice(0, 3), // Dashboard, Explore, Messages
     {
       title: 'Shortlist',
       url: "/shortlist",
       icon: Heart,
     },
-
-    ...baseMenuItems.slice(3), // Messages, Notifications, Contracts, Profile
+    ...baseMenuItems.slice(3), // Contracts, Profile, Notifications, News, History
   ];
 
   // Team-specific menu items
@@ -116,7 +116,7 @@ export function AppSidebar() {
       url: "/timeline",
       icon: Calendar,
     },
-    ...baseMenuItems.slice(1), // History, News, Messages, Notifications, Contracts, Profile
+    ...baseMenuItems.slice(1), // Explore, Messages, Contracts, Profile, Notifications, News, History
   ];
 
   // Get appropriate menu items based on user type
@@ -172,7 +172,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="border-sidebar-border">
+    <Sidebar>
       <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
           <img
@@ -203,7 +203,6 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location.pathname === item.url}
-                    className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                   >
                     <a href={item.url} className="flex items-center gap-3">
                       <item.icon className="w-5 h-5" />
@@ -222,16 +221,14 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-6 border-0 border-sidebar-border">
-        <div className="space-y-4">
-          <SidebarMenuButton
-            onClick={handleSignOut}
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          >
-            <LogOut className="w-5 h-5 mr-3" />
-            <span>{t('signOut')}</span>
-          </SidebarMenuButton>
-        </div>
+      <SidebarFooter className="p-6">
+        <SidebarMenuButton
+          onClick={handleSignOut}
+          className="w-full justify-start"
+        >
+          <LogOut className="w-5 h-5 mr-3" />
+          <span>{t('signOut')}</span>
+        </SidebarMenuButton>
       </SidebarFooter>
     </Sidebar>
   );
