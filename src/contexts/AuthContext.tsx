@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -112,7 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user_id: userId,
         full_name: userData?.full_name || userData?.name || 'New User',
         email: userData?.email || '',
-        user_type: userData?.user_type === 'agent' ? 'agent' as const : 'team' as const,
+        user_type: userData?.user_type || 'team', // Use provided user_type or default to team
         profile_completed: false
       };
 
@@ -164,26 +163,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsAdmin(false);
         setLoading(false);
       } else if (!data) {
-        console.log('No profile found, creating one...');
-        // Get user data to create profile
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const newProfile = await createOrFetchProfile(userId, {
-            email: user.email,
-            full_name: user.user_metadata?.full_name || user.user_metadata?.name,
-            user_type: 'team' // Default to team, user can change in onboarding
-          });
-          
-          if (newProfile) {
-            console.log('Profile created/fetched successfully, setting profile data');
-            setProfile(newProfile);
-            setIsAdmin(newProfile.role === 'admin');
-          } else {
-            console.log('Failed to create/fetch profile');
-            setProfile(null);
-            setIsAdmin(false);
-          }
-        }
+        console.log('No profile found for existing user, this should not happen after trigger implementation');
+        setProfile(null);
+        setIsAdmin(false);
         setLoading(false);
       } else {
         console.log('Profile fetched successfully:', data);

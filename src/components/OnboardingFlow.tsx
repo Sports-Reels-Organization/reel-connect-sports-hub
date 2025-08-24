@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +21,9 @@ const OnboardingFlow = () => {
   const { countryCodes, loading: countryCodesLoading } = useCountryCodes();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+
+  // Add state for role selection
+  const [selectedRole, setSelectedRole] = useState<'team' | 'agent'>(profile?.user_type || 'team');
 
   // Form data
   const [basicInfo, setBasicInfo] = useState({
@@ -48,6 +50,33 @@ const OnboardingFlow = () => {
     bio: '',
     website: ''
   });
+
+  // Add function to handle role change
+  const handleRoleChange = async (newRole: 'team' | 'agent') => {
+    if (!profile) return;
+    
+    setLoading(true);
+    try {
+      await updateProfile({
+        user_type: newRole,
+        profile_completed: false // Reset completion status when changing roles
+      });
+      setSelectedRole(newRole);
+      toast({
+        title: "Role Updated",
+        description: `Your role has been changed to ${newRole === 'team' ? 'Team Manager' : 'Sports Agent'}`,
+      });
+    } catch (error) {
+      console.error('Error updating role:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update role. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totalSteps = profile?.user_type === 'team' ? 2 : 2;
 
@@ -230,6 +259,9 @@ const OnboardingFlow = () => {
     );
   }
 
+  const currentUserType = selectedRole;
+  const totalSteps = currentUserType === 'team' ? 2 : 2;
+
   const steps = [
     {
       id: 1,
@@ -240,9 +272,9 @@ const OnboardingFlow = () => {
     },
     {
       id: 2,
-      title: profile.user_type === 'team' ? "Your team details" : "Your agency details",
-      subtitle: profile.user_type === 'team' ? "Team's basic information" : "Agency's basic information",
-      icon: profile.user_type === 'team' ? Users : Building,
+      title: currentUserType === 'team' ? "Your team details" : "Your agency details",
+      subtitle: currentUserType === 'team' ? "Team's basic information" : "Agency's basic information",
+      icon: currentUserType === 'team' ? Users : Building,
       completed: false
     }
   ];
@@ -255,6 +287,27 @@ const OnboardingFlow = () => {
         <div className="flex items-center mb-12">
           <img src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png" alt="Sports Reels" className="w-8 h-8 mr-3" />
           <span className="text-xl font-bold text-white">Sports Reels</span>
+        </div>
+
+        {/* Role Selection */}
+        <div className="mb-8 p-4 bg-white/5 rounded-lg border border-white/10">
+          <Label className="text-sm font-medium text-gray-300 mb-3 block">I am a...</Label>
+          <Select
+            value={selectedRole}
+            onValueChange={(value: 'team' | 'agent') => handleRoleChange(value)}
+          >
+            <SelectTrigger className="bg-white/10 border-white/20 text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-800 border-white/20">
+              <SelectItem value="team" className="text-white hover:bg-white/10">
+                Team Manager
+              </SelectItem>
+              <SelectItem value="agent" className="text-white hover:bg-white/10">
+                Sports Agent
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Steps */}
@@ -309,12 +362,12 @@ const OnboardingFlow = () => {
               <p className="text-sm">Step {step}/{totalSteps}</p>
             </div>
             <h1 className="text-3xl font-bold text-rosegold mb-2">
-              {step === 1 ? 'Basic Info' : profile.user_type === 'team' ? 'Team Details' : 'Agency Details'}
+              {step === 1 ? 'Basic Info' : currentUserType === 'team' ? 'Team Details' : 'Agency Details'}
             </h1>
             <p className=" text-gray-400">
               {step === 1
                 ? 'Tell us a bit about yourself to get started with your new Sports Reels account.'
-                : `Provide your ${profile.user_type === 'team' ? 'team' : 'agency'} information to complete your profile.`
+                : `Provide your ${currentUserType === 'team' ? 'team' : 'agency'} information to complete your profile.`
               }
             </p>
           </div>
@@ -402,7 +455,7 @@ const OnboardingFlow = () => {
                   </div>
                 </div>
               </>
-            ) : profile.user_type === 'team' ? (
+            ) : currentUserType === 'team' ? (
               <>
                 <div className="space-y-2 text-start">
                   <Label htmlFor="team_name" className="text-gray-500 font-medium">Team Name *</Label>
