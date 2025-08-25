@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -296,7 +297,6 @@ const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({
             market_value: player.market_value,
             photo_url: null,
             position: player.position,
-            second_nationality: null,
             team_id: null,
             updated_at: new Date().toISOString(),
             weight: player.weight
