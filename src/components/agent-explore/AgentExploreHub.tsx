@@ -1,205 +1,393 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Search, 
+  Filter, 
+  Users, 
   TrendingUp, 
-  Bookmark, 
-  BarChart3, 
-  Bot,
-  AlertCircle,
-  Clock,
-  Target
+  Globe,
+  Star,
+  MapPin,
+  DollarSign,
+  Calendar,
+  Eye,
+  MessageSquare
 } from 'lucide-react';
 import AgentRequestsExplore from './AgentRequestsExplore';
-import { AgentMarketInsights } from './AgentMarketInsights';
-import { AgentSavedViews } from './AgentSavedViews';
-import { AgentRequestAnalytics } from './AgentRequestAnalytics';
+import ExploreRequests from '@/components/ExploreRequests';
 
 interface AgentExploreHubProps {
   initialSearch?: string;
 }
 
-export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch = '' }) => {
+interface TransferPitch {
+  id: string;
+  title: string;
+  asking_price: number;
+  currency: string;
+  transfer_type: string;
+  expires_at: string;
+  created_at: string;
+  players: {
+    id: string;
+    full_name: string;
+    position: string;
+    citizenship: string;
+    age: number;
+  };
+  teams: {
+    team_name: string;
+    country: string;
+  };
+}
+
+export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch }) => {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState('requests');
-  const [dashboardData, setDashboardData] = useState({
-    expiringRequests: 0,
-    totalRequests: 0,
-    totalViews: 0,
-    averageEngagement: 0
-  });
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState(initialSearch || '');
+  const [transferPitches, setTransferPitches] = useState<TransferPitch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('pitches');
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [profile]);
+    fetchTransferPitches();
+  }, []);
 
-  const fetchDashboardData = async () => {
-    if (!profile?.user_type || profile.user_type !== 'agent') return;
-
+  const fetchTransferPitches = async () => {
     try {
-      // Get agent ID
-      const { data: agentData } = await supabase
-        .from('agents')
-        .select('id')
-        .eq('profile_id', profile.id)
-        .single();
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('transfer_pitches')
+        .select(`
+          *,
+          players!inner (
+            id,
+            full_name,
+            position,
+            citizenship,
+            age
+          ),
+          teams!inner (
+            team_name,
+            country
+          )
+        `)
+        .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-      if (!agentData) return;
+      if (error) throw error;
 
-      // Use placeholder data for now since the new tables might not be synchronized yet
-      setDashboardData({
-        expiringRequests: 2,
-        totalRequests: 8,
-        totalViews: 156,
-        averageEngagement: 4.2
-      });
+      setTransferPitches(data || []);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      // Set placeholder data on error
-      setDashboardData({
-        expiringRequests: 0,
-        totalRequests: 0,
-        totalViews: 0,
-        averageEngagement: 0
+      console.error('Error fetching transfer pitches:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load transfer pitches",
+        variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (profile?.user_type !== 'agent') {
-    return (
-      <Card className="border-destructive">
-        <CardContent className="p-6 text-center">
-          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">Access Restricted</h3>
-          <p className="text-muted-foreground">This section is only available for registered agents.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      fetchTransferPitches();
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('transfer_pitches')
+        .select(`
+          *,
+          players!inner (
+            id,
+            full_name,
+            position,
+            citizenship,
+            age
+          ),
+          teams!inner (
+            team_name,
+            country
+          )
+        `)
+        .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString())
+        .or(`players.full_name.ilike.%${searchQuery}%,players.position.ilike.%${searchQuery}%,teams.team_name.ilike.%${searchQuery}%`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setTransferPitches(data || []);
+      
+      if (data?.length === 0) {
+        toast({
+          title: "No Results",
+          description: `No transfer pitches found for "${searchQuery}"`,
+        });
+      }
+    } catch (error) {
+      console.error('Error searching transfer pitches:', error);
+      toast({
+        title: "Search Error",
+        description: "Failed to search transfer pitches",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewPitch = async (pitchId: string) => {
+    try {
+      // Increment view count
+      await supabase
+        .from('transfer_pitches')
+        .update({ view_count: supabase.sql`view_count + 1` })
+        .eq('id', pitchId);
+
+      // Navigate to pitch details or open modal
+      toast({
+        title: "Pitch Viewed",
+        description: "Opening pitch details...",
+      });
+    } catch (error) {
+      console.error('Error viewing pitch:', error);
+    }
+  };
+
+  const formatCurrency = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffInDays === 0) return 'Today';
+    if (diffInDays === 1) return '1 day ago';
+    return `${diffInDays} days ago`;
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Dashboard Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Clock className="w-8 h-8 text-orange-500" />
-              <div>
-                <p className="text-2xl font-bold text-foreground">{dashboardData.expiringRequests}</p>
-                <p className="text-sm text-muted-foreground">Expiring Soon</p>
+    <div className="min-h-screen bg-[#111111] p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Globe className="w-6 h-6" />
+              Agent Explore Hub
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Search Bar */}
+            <div className="flex gap-4 mb-6">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search for players, positions, or teams..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
+              </div>
+              <Button 
+                onClick={handleSearch}
+                className="bg-bright-pink hover:bg-bright-pink/90"
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Search
+              </Button>
+              <Button 
+                variant="outline"
+                className="border-gray-600 hover:bg-gray-700"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Filters
+              </Button>
+            </div>
+
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-4 h-4 text-bright-pink" />
+                  <span className="text-gray-400 text-sm">Active Pitches</span>
+                </div>
+                <p className="text-white text-2xl font-bold">{transferPitches.length}</p>
+              </div>
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-green-500" />
+                  <span className="text-gray-400 text-sm">New Today</span>
+                </div>
+                <p className="text-white text-2xl font-bold">
+                  {transferPitches.filter(p => 
+                    new Date(p.created_at).toDateString() === new Date().toDateString()
+                  ).length}
+                </p>
+              </div>
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Star className="w-4 h-4 text-yellow-500" />
+                  <span className="text-gray-400 text-sm">Premium Pitches</span>
+                </div>
+                <p className="text-white text-2xl font-bold">
+                  {transferPitches.filter(p => p.asking_price > 1000000).length}
+                </p>
+              </div>
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Globe className="w-4 h-4 text-blue-500" />
+                  <span className="text-gray-400 text-sm">Countries</span>
+                </div>
+                <p className="text-white text-2xl font-bold">
+                  {new Set(transferPitches.map(p => p.teams.country)).size}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Target className="w-8 h-8 text-blue-500" />
-              <div>
-                <p className="text-2xl font-bold text-foreground">{dashboardData.totalRequests}</p>
-                <p className="text-sm text-muted-foreground">Active Requests</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Main Content Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2 bg-gray-700">
+            <TabsTrigger value="pitches" className="text-white data-[state=active]:bg-bright-pink">
+              Transfer Pitches
+            </TabsTrigger>
+            <TabsTrigger value="requests" className="text-white data-[state=active]:bg-bright-pink">
+              Agent Requests
+            </TabsTrigger>
+          </TabsList>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="w-8 h-8 text-green-500" />
-              <div>
-                <p className="text-2xl font-bold text-foreground">{dashboardData.totalViews}</p>
-                <p className="text-sm text-muted-foreground">Total Views</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          <TabsContent value="pitches" className="mt-6">
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white">Available Transfer Pitches</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="h-32 bg-gray-700 rounded"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : transferPitches.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                    <h3 className="text-xl font-semibold text-white mb-2">
+                      No Transfer Pitches Found
+                    </h3>
+                    <p className="text-gray-400">
+                      {searchQuery 
+                        ? `No results found for "${searchQuery}". Try adjusting your search terms.`
+                        : "No active transfer pitches available at the moment."
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {transferPitches.map((pitch) => (
+                      <Card key={pitch.id} className="bg-gray-700 border-gray-600 hover:border-bright-pink/50 transition-colors">
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            {/* Player Info */}
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="text-white font-bold text-lg mb-1">
+                                  {pitch.players.full_name}
+                                </h3>
+                                <p className="text-gray-400 text-sm">
+                                  {pitch.players.position} • {pitch.players.age} years old
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-bright-pink font-bold text-xl">
+                                  {formatCurrency(pitch.asking_price, pitch.currency)}
+                                </p>
+                                <p className="text-gray-400 text-sm capitalize">
+                                  {pitch.transfer_type}
+                                </p>
+                              </div>
+                            </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <BarChart3 className="w-8 h-8 text-purple-500" />
-              <div>
-                <p className="text-2xl font-bold text-foreground">{dashboardData.averageEngagement.toFixed(1)}</p>
-                <p className="text-sm text-muted-foreground">Avg. Engagement</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                            {/* Team & Location */}
+                            <div className="flex items-center gap-4 text-sm text-gray-300">
+                              <div className="flex items-center gap-1">
+                                <Users className="w-4 h-4" />
+                                <span>{pitch.teams.team_name}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                <span>{pitch.teams.country}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-4 h-4" />
+                                <span>{formatTimeAgo(pitch.created_at)}</span>
+                              </div>
+                            </div>
+
+                            {/* Player Details */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-gray-400">Nationality:</span>
+                                <p className="text-white">{pitch.players.citizenship}</p>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2 pt-2">
+                              <Button 
+                                onClick={() => handleViewPitch(pitch.id)}
+                                className="flex-1 bg-bright-pink hover:bg-bright-pink/90"
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Details
+                              </Button>
+                              <Button 
+                                variant="outline"
+                                className="flex-1 border-gray-600 hover:bg-gray-600"
+                              >
+                                <MessageSquare className="w-4 h-4 mr-2" />
+                                Contact
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="requests" className="mt-6">
+            <ExploreRequests />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="requests" className="flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            Requests Feed
-          </TabsTrigger>
-          <TabsTrigger value="market" className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            Market Insights
-          </TabsTrigger>
-          <TabsTrigger value="saved" className="flex items-center gap-2">
-            <Bookmark className="w-4 h-4" />
-            Saved Views
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Analytics
-          </TabsTrigger>
-          <TabsTrigger value="ai-scout" className="flex items-center gap-2">
-            <Bot className="w-4 h-4" />
-            AI Scout
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="requests" className="mt-6">
-          <AgentRequestsExplore initialSearch={initialSearch} />
-        </TabsContent>
-
-        <TabsContent value="market" className="mt-6">
-          <AgentMarketInsights />
-        </TabsContent>
-
-        <TabsContent value="saved" className="mt-6">
-          <AgentSavedViews />
-        </TabsContent>
-
-        <TabsContent value="analytics" className="mt-6">
-          <AgentRequestAnalytics />
-        </TabsContent>
-
-        <TabsContent value="ai-scout" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="w-6 h-6 text-primary" />
-                AI Scout - Coming Soon
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-12 text-center">
-              <Bot className="w-20 h-20 text-muted-foreground mx-auto mb-6" />
-              <h3 className="text-xl font-semibold text-foreground mb-4">
-                AI-Powered Scouting Assistant
-              </h3>
-              <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                Our AI Scout will analyze player data, match patterns to your requests, 
-                and suggest the best transfer targets based on your scouting preferences.
-              </p>
-              <Badge variant="secondary" className="px-4 py-2">
-                Coming Soon
-              </Badge>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 };

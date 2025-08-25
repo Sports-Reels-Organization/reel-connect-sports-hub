@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Send, Globe, Calendar, User } from 'lucide-react';
+import { Search, Send, Globe, Calendar, User, Plus } from 'lucide-react';
 import PlayerProfileWrapper from './PlayerProfileWrapper';
 import { usePlayerProfile } from '@/hooks/usePlayerProfile';
 
@@ -47,6 +48,7 @@ const ExploreRequests = () => {
   const [requests, setRequests] = useState<AgentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -72,6 +74,7 @@ const ExploreRequests = () => {
 
   const fetchRequests = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('agent_requests')
         .select(`
@@ -100,7 +103,14 @@ const ExploreRequests = () => {
   };
 
   const handleSubmitRequest = async () => {
-    if (!profile?.id) return;
+    if (!profile?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to post requests",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!formData.title || !formData.description) {
       toast({
@@ -121,23 +131,42 @@ const ExploreRequests = () => {
     }
 
     try {
-      // Get agent ID
-      const { data: agentData } = await supabase
+      setSubmitting(true);
+
+      // Get agent ID - if agent doesn't exist, create one
+      let { data: agentData, error: agentError } = await supabase
         .from('agents')
         .select('id')
         .eq('profile_id', profile.id)
-        .single();
+        .maybeSingle();
 
-      if (!agentData) {
-        toast({
-          title: "Profile Required",
-          description: "Please complete your agent profile first",
-          variant: "destructive"
-        });
-        return;
+      if (agentError && agentError.code !== 'PGRST116') {
+        throw agentError;
       }
 
-      const { error } = await supabase
+      // If no agent profile exists, create one
+      if (!agentData) {
+        const { data: newAgent, error: createError } = await supabase
+          .from('agents')
+          .insert({
+            profile_id: profile.id,
+            agency_name: profile.full_name || 'Agent',
+            contact_email: profile.email || '',
+            specialization: ['football'],
+            verification_status: 'pending'
+          })
+          .select('id')
+          .single();
+
+        if (createError) throw createError;
+        agentData = newAgent;
+      }
+
+      // Create the request
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30); // Expire in 30 days
+
+      const { error: insertError } = await supabase
         .from('agent_requests')
         .insert({
           agent_id: agentData.id,
@@ -149,11 +178,13 @@ const ExploreRequests = () => {
           budget_min: formData.budget_min ? parseFloat(formData.budget_min) : null,
           budget_max: formData.budget_max ? parseFloat(formData.budget_max) : null,
           currency: formData.currency,
-          is_public: true
+          is_public: true,
+          expires_at: expiryDate.toISOString()
         });
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
+      // Reset form
       setFormData({
         title: '',
         description: '',
@@ -176,9 +207,11 @@ const ExploreRequests = () => {
       console.error('Error posting request:', error);
       toast({
         title: "Error",
-        description: "Failed to post request",
+        description: "Failed to post request. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -226,145 +259,161 @@ const ExploreRequests = () => {
 
   return (
     <div className="space-y-6">
-      {/* Create Request Section */}
-      <Card className="border-gray-700">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white font-polysans">
-            <Search className="w-5 h-5" />
-            Post a Player Request
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!showCreateForm ? (
-            <div className="text-center py-6">
-              <p className="text-gray-400 mb-4">
-                Let teams know what type of player you're looking for
-              </p>
-              <Button
-                onClick={() => setShowCreateForm(true)}
-                className="bg-rosegold hover:bg-rosegold/90 text-white"
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Create Request
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-gray-300 text-sm font-medium">Request Title</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
-                  placeholder="e.g., Looking for Central Midfielder"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-gray-300 text-sm font-medium">Position</label>
-                  <Select value={formData.position} onValueChange={(value) => setFormData({ ...formData, position: value })}>
-                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                      <SelectValue placeholder="Select position" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-600">
-                      {positions.map((position) => (
-                        <SelectItem key={position} value={position} className="text-white hover:bg-gray-700">
-                          {position}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-gray-300 text-sm font-medium">Transfer Type</label>
-                  <Select value={formData.transfer_type} onValueChange={(value) => setFormData({ ...formData, transfer_type: value })}>
-                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-600">
-                      {transferTypes.map((type) => (
-                        <SelectItem key={type.value} value={type.value} className="text-white hover:bg-gray-700">
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <label className="text-gray-300 text-sm font-medium">Min Budget</label>
-                  <input
-                    type="number"
-                    value={formData.budget_min}
-                    onChange={(e) => setFormData({ ...formData, budget_min: e.target.value })}
-                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-gray-300 text-sm font-medium">Max Budget</label>
-                  <input
-                    type="number"
-                    value={formData.budget_max}
-                    onChange={(e) => setFormData({ ...formData, budget_max: e.target.value })}
-                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-gray-300 text-sm font-medium">Currency</label>
-                  <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
-                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-600">
-                      <SelectItem value="USD" className="text-white hover:bg-gray-700">USD</SelectItem>
-                      <SelectItem value="EUR" className="text-white hover:bg-gray-700">EUR</SelectItem>
-                      <SelectItem value="GBP" className="text-white hover:bg-gray-700">GBP</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-gray-300 text-sm font-medium">Description (max 550 characters)</label>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="bg-gray-800 border-gray-600 text-white resize-none"
-                  placeholder="I am looking for a central midfielder for a Premier League club in England for a permanent transfer with EU passport..."
-                  rows={4}
-                  maxLength={550}
-                />
-                <p className="text-xs text-gray-400 text-right">{formData.description.length}/550</p>
-              </div>
-
-              <div className="flex gap-2">
+      {/* Create Request Section - Always show for agents */}
+      {profile?.user_type === 'agent' && (
+        <Card className="border-gray-700">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white font-polysans">
+              <Plus className="w-5 h-5" />
+              Post a Player Request
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!showCreateForm ? (
+              <div className="text-center py-6">
+                <p className="text-gray-400 mb-4">
+                  Let teams know what type of player you're looking for
+                </p>
                 <Button
-                  onClick={handleSubmitRequest}
-                  disabled={!formData.title || !formData.description}
+                  onClick={() => setShowCreateForm(true)}
                   className="bg-rosegold hover:bg-rosegold/90 text-white"
                 >
                   <Send className="w-4 h-4 mr-2" />
-                  Post Request
-                </Button>
-                <Button
-                  onClick={() => setShowCreateForm(false)}
-                  variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                >
-                  Cancel
+                  Create Request
                 </Button>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-gray-300 text-sm font-medium">Request Title *</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                    placeholder="e.g., Looking for Central Midfielder"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-gray-300 text-sm font-medium">Position</label>
+                    <Select value={formData.position} onValueChange={(value) => setFormData({ ...formData, position: value })}>
+                      <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                        <SelectValue placeholder="Select position" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-600">
+                        {positions.map((position) => (
+                          <SelectItem key={position} value={position} className="text-white hover:bg-gray-700">
+                            {position}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-gray-300 text-sm font-medium">Transfer Type</label>
+                    <Select value={formData.transfer_type} onValueChange={(value) => setFormData({ ...formData, transfer_type: value })}>
+                      <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-600">
+                        {transferTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value} className="text-white hover:bg-gray-700">
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-gray-300 text-sm font-medium">Min Budget</label>
+                    <input
+                      type="number"
+                      value={formData.budget_min}
+                      onChange={(e) => setFormData({ ...formData, budget_min: e.target.value })}
+                      className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-gray-300 text-sm font-medium">Max Budget</label>
+                    <input
+                      type="number"
+                      value={formData.budget_max}
+                      onChange={(e) => setFormData({ ...formData, budget_max: e.target.value })}
+                      className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-gray-300 text-sm font-medium">Currency</label>
+                    <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
+                      <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-600">
+                        <SelectItem value="USD" className="text-white hover:bg-gray-700">USD</SelectItem>
+                        <SelectItem value="EUR" className="text-white hover:bg-gray-700">EUR</SelectItem>
+                        <SelectItem value="GBP" className="text-white hover:bg-gray-700">GBP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-gray-300 text-sm font-medium">Description * (max 550 characters)</label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="bg-gray-800 border-gray-600 text-white resize-none"
+                    placeholder="I am looking for a central midfielder for a Premier League club in England for a permanent transfer with EU passport..."
+                    rows={4}
+                    maxLength={550}
+                    required
+                  />
+                  <p className="text-xs text-gray-400 text-right">{formData.description.length}/550</p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSubmitRequest}
+                    disabled={submitting || !formData.title || !formData.description}
+                    className="bg-rosegold hover:bg-rosegold/90 text-white"
+                  >
+                    {submitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Posting...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Post Request
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => setShowCreateForm(false)}
+                    variant="outline"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Requests Feed */}
       <Card className="border-gray-700">
@@ -390,7 +439,10 @@ const ExploreRequests = () => {
                 No Active Requests
               </h3>
               <p className="text-gray-400 font-poppins">
-                Be the first to post a player request and let teams know what you're looking for.
+                {profile?.user_type === 'agent' 
+                  ? "Be the first to post a player request and let teams know what you're looking for."
+                  : "No agent requests are currently available."
+                }
               </p>
             </div>
           ) : (
@@ -404,7 +456,8 @@ const ExploreRequests = () => {
                           <h3 className="font-polysans font-bold text-white mb-1">
                             {request.title}
                           </h3>
-                          <p className="text-gray-300 text-sm mb-2">
+                          <p className="text-gray-300 text-sm mb-2 flex items-center gap-1">
+                            <User className="w-3 h-3" />
                             by {request.agents.agency_name}
                           </p>
                         </div>
@@ -430,7 +483,7 @@ const ExploreRequests = () => {
                         )}
                       </div>
 
-                      <p className="text-gray-300 text-sm">
+                      <p className="text-gray-300 text-sm leading-relaxed">
                         {request.description}
                       </p>
                     </div>
