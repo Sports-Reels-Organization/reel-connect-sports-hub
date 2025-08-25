@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,24 +12,31 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   Heart, MessageSquare, Eye, Clock, DollarSign, 
   MapPin, User, Trash2, Star, Filter, Search,
-  Play, BarChart3, Download, Share
+  Play, BarChart3, Download, Share, AlertCircle,
+  Calendar, TrendingUp, FileText, Settings,
+  Bookmark, Tag, Users
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import EnhancedVideoAnalysis from './EnhancedVideoAnalysis';
+import { usePlayerData } from '@/hooks/usePlayerData';
+import PlayerDetailModal from './PlayerDetailModal';
 
 interface ShortlistItem {
   id: string;
   notes: string;
   created_at: string;
   priority_level?: 'high' | 'medium' | 'low';
+  custom_tags?: string[];
   player: {
     id: string;
     full_name: string;
     position: string;
     age: number;
     photo_url?: string;
+    headshot_url?: string;
     market_value?: number;
     citizenship: string;
+    date_of_birth: string;
   };
   pitch: {
     id: string;
@@ -36,13 +44,26 @@ interface ShortlistItem {
     asking_price?: number;
     currency: string;
     transfer_type: string;
+    deal_stage: string;
+    view_count: number;
+    message_count: number;
+    shortlist_count: number;
     team: {
+      id: string;
       team_name: string;
       country: string;
       logo_url?: string;
     };
     tagged_videos?: string[];
   };
+}
+
+interface ShortlistStats {
+  totalPlayers: number;
+  expiringThisWeek: number;
+  averagePrice: number;
+  topPosition: string;
+  recentActivity: number;
 }
 
 const AgentShortlistEnhanced = () => {
@@ -56,9 +77,22 @@ const AgentShortlistEnhanced = () => {
   const [filterPosition, setFilterPosition] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterTransferType, setFilterTransferType] = useState('');
-  const [selectedPlayer, setSelectedPlayer] = useState<ShortlistItem | null>(null);
+  const [filterExpiring, setFilterExpiring] = useState('');
+  const [sortBy, setSortBy] = useState('created_at_desc');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   const [showVideoAnalysis, setShowVideoAnalysis] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
+  const [stats, setStats] = useState<ShortlistStats>({
+    totalPlayers: 0,
+    expiringThisWeek: 0,
+    averagePrice: 0,
+    topPosition: '',
+    recentActivity: 0
+  });
+
+  // Get player data for modal
+  const { player: modalPlayer, loading: playerLoading } = usePlayerData(selectedPlayer);
 
   useEffect(() => {
     fetchShortlist();
@@ -66,7 +100,8 @@ const AgentShortlistEnhanced = () => {
 
   useEffect(() => {
     filterShortlist();
-  }, [shortlistItems, searchTerm, filterPosition, filterPriority, filterTransferType]);
+    calculateStats();
+  }, [shortlistItems, searchTerm, filterPosition, filterPriority, filterTransferType, filterExpiring, sortBy]);
 
   const fetchShortlist = async () => {
     if (!profile?.id) return;
@@ -93,6 +128,7 @@ const AgentShortlistEnhanced = () => {
             position,
             date_of_birth,
             photo_url,
+            headshot_url,
             market_value,
             citizenship
           ),
@@ -102,8 +138,13 @@ const AgentShortlistEnhanced = () => {
             asking_price,
             currency,
             transfer_type,
+            deal_stage,
+            view_count,
+            message_count,
+            shortlist_count,
             tagged_videos,
             team:teams!inner(
+              id,
               team_name,
               country,
               logo_url
@@ -115,7 +156,7 @@ const AgentShortlistEnhanced = () => {
 
       if (error) throw error;
 
-      // Process data to calculate age and handle tagged_videos with proper type casting
+      // Process data to calculate age and handle tagged_videos
       const processedData: ShortlistItem[] = (data || []).map(item => ({
         ...item,
         player: {
@@ -125,6 +166,7 @@ const AgentShortlistEnhanced = () => {
             : 0
         },
         priority_level: (item.priority_level as 'high' | 'medium' | 'low') || 'medium',
+        custom_tags: item.custom_tags || [],
         pitch: {
           ...item.pitch,
           tagged_videos: Array.isArray(item.pitch.tagged_videos) 
@@ -134,6 +176,7 @@ const AgentShortlistEnhanced = () => {
       }));
 
       setShortlistItems(processedData);
+      console.log(`Loaded ${processedData.length} shortlisted players`);
     } catch (error) {
       console.error('Error fetching shortlist:', error);
       toast({
@@ -147,12 +190,13 @@ const AgentShortlistEnhanced = () => {
   };
 
   const filterShortlist = () => {
-    let filtered = shortlistItems;
+    let filtered = [...shortlistItems];
 
     if (searchTerm) {
       filtered = filtered.filter(item =>
         item.player.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.pitch.team.team_name.toLowerCase().includes(searchTerm.toLowerCase())
+        item.pitch.team.team_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.notes?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -174,7 +218,84 @@ const AgentShortlistEnhanced = () => {
       );
     }
 
+    if (filterExpiring) {
+      const now = new Date();
+      const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      
+      if (filterExpiring === 'expiring_soon') {
+        filtered = filtered.filter(item => 
+          new Date(item.pitch.expires_at) <= sevenDaysFromNow &&
+          new Date(item.pitch.expires_at) > now
+        );
+      } else if (filterExpiring === 'expired') {
+        filtered = filtered.filter(item => 
+          new Date(item.pitch.expires_at) <= now
+        );
+      }
+    }
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'name_asc':
+        filtered.sort((a, b) => a.player.full_name.localeCompare(b.player.full_name));
+        break;
+      case 'expires_asc':
+        filtered.sort((a, b) => new Date(a.pitch.expires_at).getTime() - new Date(b.pitch.expires_at).getTime());
+        break;
+      case 'priority_desc':
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        filtered.sort((a, b) => priorityOrder[b.priority_level || 'medium'] - priorityOrder[a.priority_level || 'medium']);
+        break;
+      case 'price_desc':
+        filtered.sort((a, b) => (b.pitch.asking_price || 0) - (a.pitch.asking_price || 0));
+        break;
+      default: // created_at_desc
+        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
     setFilteredItems(filtered);
+  };
+
+  const calculateStats = () => {
+    if (shortlistItems.length === 0) return;
+
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    const expiringThisWeek = shortlistItems.filter(item => {
+      const expiryDate = new Date(item.pitch.expires_at);
+      return expiryDate <= sevenDaysFromNow && expiryDate > now;
+    }).length;
+
+    const validPrices = shortlistItems
+      .filter(item => item.pitch.asking_price)
+      .map(item => item.pitch.asking_price!);
+    
+    const averagePrice = validPrices.length > 0 
+      ? validPrices.reduce((sum, price) => sum + price, 0) / validPrices.length 
+      : 0;
+
+    const positionCounts: Record<string, number> = {};
+    shortlistItems.forEach(item => {
+      positionCounts[item.player.position] = (positionCounts[item.player.position] || 0) + 1;
+    });
+    
+    const topPosition = Object.entries(positionCounts)
+      .sort(([,a], [,b]) => b - a)[0]?.[0] || '';
+
+    const recentActivity = shortlistItems.filter(item => {
+      const createdDate = new Date(item.created_at);
+      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      return createdDate >= threeDaysAgo;
+    }).length;
+
+    setStats({
+      totalPlayers: shortlistItems.length,
+      expiringThisWeek,
+      averagePrice,
+      topPosition,
+      recentActivity
+    });
   };
 
   const updatePriority = async (shortlistId: string, priority: 'high' | 'medium' | 'low') => {
@@ -275,6 +396,41 @@ const AgentShortlistEnhanced = () => {
     }
   };
 
+  const exportShortlist = () => {
+    const exportData = filteredItems.map(item => ({
+      playerName: item.player.full_name,
+      position: item.player.position,
+      age: item.player.age,
+      nationality: item.player.citizenship,
+      team: item.pitch.team.team_name,
+      country: item.pitch.team.country,
+      transferType: item.pitch.transfer_type,
+      askingPrice: item.pitch.asking_price,
+      currency: item.pitch.currency,
+      expiresAt: item.pitch.expires_at,
+      priority: item.priority_level,
+      notes: item.notes,
+      shortlistedAt: item.created_at
+    }));
+
+    const csvContent = "data:text/csv;charset=utf-8," + 
+      Object.keys(exportData[0]).join(",") + "\n" +
+      exportData.map(row => Object.values(row).join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `shortlist_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Exported",
+      description: "Shortlist exported successfully",
+    });
+  };
+
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -296,6 +452,13 @@ const AgentShortlistEnhanced = () => {
     return new Date(expiresAt) <= new Date();
   };
 
+  const isExpiringSoon = (expiresAt: string) => {
+    const expiryDate = new Date(expiresAt);
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    return expiryDate <= sevenDaysFromNow && expiryDate > new Date();
+  };
+
   if (showVideoAnalysis && selectedVideo) {
     return (
       <EnhancedVideoAnalysis
@@ -311,26 +474,91 @@ const AgentShortlistEnhanced = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Heart className="w-8 h-8 text-bright-pink" />
+              <div>
+                <p className="text-2xl font-bold text-white">{stats.totalPlayers}</p>
+                <p className="text-sm text-gray-400">Total Players</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-8 h-8 text-red-500" />
+              <div>
+                <p className="text-2xl font-bold text-white">{stats.expiringThisWeek}</p>
+                <p className="text-sm text-gray-400">Expiring Soon</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <DollarSign className="w-8 h-8 text-green-500" />
+              <div>
+                <p className="text-lg font-bold text-white">
+                  {stats.averagePrice > 0 ? formatCurrency(stats.averagePrice, 'USD') : 'N/A'}
+                </p>
+                <p className="text-sm text-gray-400">Avg. Price</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Users className="w-8 h-8 text-blue-500" />
+              <div>
+                <p className="text-lg font-bold text-white">{stats.topPosition || 'N/A'}</p>
+                <p className="text-sm text-gray-400">Top Position</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-8 h-8 text-purple-500" />
+              <div>
+                <p className="text-2xl font-bold text-white">{stats.recentActivity}</p>
+                <p className="text-sm text-gray-400">Recent Activity</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-white font-polysans flex items-center gap-2">
+          <h2 className="text-3xl font-bold text-white flex items-center gap-2">
             <Heart className="w-8 h-8 text-bright-pink" />
             Enhanced Shortlist
           </h2>
           <p className="text-gray-400 mt-1">
-            {filteredItems.length} player{filteredItems.length !== 1 ? 's' : ''} shortlisted
+            {filteredItems.length} of {shortlistItems.length} player{filteredItems.length !== 1 ? 's' : ''} shortlisted
           </p>
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.print()}>
+          <Button variant="outline" onClick={exportShortlist} disabled={filteredItems.length === 0}>
             <Download className="w-4 h-4 mr-2" />
-            Export
+            Export CSV
           </Button>
           <Button variant="outline">
             <Share className="w-4 h-4 mr-2" />
-            Share
+            Share List
           </Button>
         </div>
       </div>
@@ -338,11 +566,11 @@ const AgentShortlistEnhanced = () => {
       {/* Filters */}
       <Card className="bg-gray-800 border-gray-700">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+            <div className="relative md:col-span-2">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search players..."
+                placeholder="Search players, teams, notes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 bg-gray-700 border-gray-600"
@@ -354,7 +582,7 @@ const AgentShortlistEnhanced = () => {
                 <SelectValue placeholder="Position" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Positions</SelectItem>
+                <SelectItem value="all">All Positions</SelectItem>
                 <SelectItem value="forward">Forward</SelectItem>
                 <SelectItem value="midfielder">Midfielder</SelectItem>
                 <SelectItem value="defender">Defender</SelectItem>
@@ -367,7 +595,7 @@ const AgentShortlistEnhanced = () => {
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Priorities</SelectItem>
+                <SelectItem value="all">All Priorities</SelectItem>
                 <SelectItem value="high">High Priority</SelectItem>
                 <SelectItem value="medium">Medium Priority</SelectItem>
                 <SelectItem value="low">Low Priority</SelectItem>
@@ -379,25 +607,35 @@ const AgentShortlistEnhanced = () => {
                 <SelectValue placeholder="Transfer Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="permanent">Permanent</SelectItem>
                 <SelectItem value="loan">Loan</SelectItem>
               </SelectContent>
             </Select>
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('');
-                setFilterPosition('');
-                setFilterPriority('');
-                setFilterTransferType('');
-              }}
-              className="border-gray-600"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Clear
-            </Button>
+            <Select value={filterExpiring} onValueChange={setFilterExpiring}>
+              <SelectTrigger className="bg-gray-700 border-gray-600">
+                <SelectValue placeholder="Expiry Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="expiring_soon">Expiring Soon</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="bg-gray-700 border-gray-600">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at_desc">Recently Added</SelectItem>
+                <SelectItem value="expires_asc">Expiring Soon</SelectItem>
+                <SelectItem value="priority_desc">High Priority</SelectItem>
+                <SelectItem value="price_desc">Highest Price</SelectItem>
+                <SelectItem value="name_asc">Name A-Z</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -424,7 +662,7 @@ const AgentShortlistEnhanced = () => {
             </h3>
             <p className="text-gray-400">
               {shortlistItems.length === 0 
-                ? "Start exploring the timeline to shortlist players you're interested in."
+                ? "Start exploring the transfer timeline to shortlist players you're interested in."
                 : "Try adjusting your search filters to find more players."
               }
             </p>
@@ -444,9 +682,9 @@ const AgentShortlistEnhanced = () => {
                 <div className="relative">
                   <div className="h-32 bg-gradient-to-br from-gray-800 to-gray-900 p-4 flex items-center">
                     <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 mr-4">
-                      {item.player.photo_url ? (
+                      {item.player.photo_url || item.player.headshot_url ? (
                         <img
-                          src={item.player.photo_url}
+                          src={item.player.photo_url || item.player.headshot_url}
                           alt={item.player.full_name}
                           className="w-full h-full object-cover"
                         />
@@ -458,10 +696,10 @@ const AgentShortlistEnhanced = () => {
                     </div>
                     
                     <div className="flex-1">
-                      <h3 className="font-polysans font-bold text-white text-lg line-clamp-1">
+                      <h3 className="font-bold text-white text-lg line-clamp-1">
                         {item.player.full_name}
                       </h3>
-                      <p className="text-gray-300 font-poppins text-sm">
+                      <p className="text-gray-300 text-sm">
                         {item.player.position} • Age {item.player.age}
                       </p>
                       <div className="flex items-center gap-1 mt-1">
@@ -491,13 +729,20 @@ const AgentShortlistEnhanced = () => {
                     </Select>
                   </div>
 
-                  {/* Expired Badge */}
-                  {isExpired(item.pitch.expires_at) && (
-                    <Badge variant="destructive" className="absolute bottom-2 left-2 text-xs">
-                      <Clock className="w-3 h-3 mr-1" />
-                      Expired
-                    </Badge>
-                  )}
+                  {/* Status Badges */}
+                  <div className="absolute bottom-2 left-2 flex gap-1">
+                    {isExpired(item.pitch.expires_at) ? (
+                      <Badge variant="destructive" className="text-xs">
+                        <Clock className="w-3 h-3 mr-1" />
+                        Expired
+                      </Badge>
+                    ) : isExpiringSoon(item.pitch.expires_at) && (
+                      <Badge variant="destructive" className="text-xs animate-pulse">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Expiring Soon
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-4 space-y-4">
@@ -528,6 +773,22 @@ const AgentShortlistEnhanced = () => {
                         {formatCurrency(item.pitch.asking_price, item.pitch.currency)}
                       </div>
                     )}
+
+                    {/* Engagement Stats */}
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <Eye className="w-3 h-3" />
+                        {item.pitch.view_count || 0}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MessageSquare className="w-3 h-3" />
+                        {item.pitch.message_count || 0}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Heart className="w-3 h-3" />
+                        {item.pitch.shortlist_count || 0}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Notes */}
@@ -545,9 +806,10 @@ const AgentShortlistEnhanced = () => {
                     <Button
                       size="sm"
                       className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white text-xs"
+                      onClick={() => setSelectedPlayer(item.player.id)}
                     >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Message
+                      <Eye className="h-3 w-3 mr-1" />
+                      View Profile
                     </Button>
                     
                     <Button
@@ -582,6 +844,15 @@ const AgentShortlistEnhanced = () => {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Player Detail Modal */}
+      {selectedPlayer && modalPlayer && (
+        <PlayerDetailModal
+          isOpen={!!selectedPlayer}
+          onClose={() => setSelectedPlayer(null)}
+          player={modalPlayer}
+        />
       )}
     </div>
   );

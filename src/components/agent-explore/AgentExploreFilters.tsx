@@ -1,119 +1,224 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Filter, X, Save, Bookmark } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { Search, Filter, X, Save, Bookmark } from 'lucide-react';
 
-interface AgentExploreFiltersProps {
-  activeFilters: any;
+interface FilterProps {
   onFiltersChange: (filters: any) => void;
-  sportPositions: Record<string, string[]>;
-  transferTypes: Array<{ value: string; label: string }>;
-  categories: Array<{ value: string; label: string }>;
-  dealStages: Array<{ value: string; label: string }>;
+  initialFilters?: any;
 }
 
-export const AgentExploreFilters: React.FC<AgentExploreFiltersProps> = ({
-  activeFilters,
+interface PositionData {
+  position: string;
+  count: number;
+}
+
+interface CountryData {
+  country: string;
+  count: number;
+}
+
+export const AgentExploreFilters: React.FC<FilterProps> = ({
   onFiltersChange,
-  sportPositions,
-  transferTypes,
-  categories,
-  dealStages
+  initialFilters = {}
 }) => {
-  const budgetRanges = [
-    { value: '0-100000', label: 'Under $100K' },
-    { value: '100000-500000', label: '$100K - $500K' },
-    { value: '500000-1000000', label: '$500K - $1M' },
-    { value: '1000000-5000000', label: '$1M - $5M' },
-    { value: '5000000-999999999', label: 'Over $5M' }
-  ];
+  const [searchTerm, setSearchTerm] = useState(initialFilters.searchTerm || '');
+  const [position, setPosition] = useState(initialFilters.position || '');
+  const [nationality, setNationality] = useState(initialFilters.nationality || '');
+  const [transferType, setTransferType] = useState(initialFilters.transferType || '');
+  const [ageRange, setAgeRange] = useState(initialFilters.ageRange || [16, 40]);
+  const [priceRange, setPriceRange] = useState(initialFilters.priceRange || [0, 10000000]);
+  const [sortBy, setSortBy] = useState(initialFilters.sortBy || 'newest');
+  
+  const [positions, setPositions] = useState<PositionData[]>([]);
+  const [countries, setCountries] = useState<CountryData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
 
-  const passportOptions = [
-    { value: 'all', label: 'All Passports' },
-    { value: 'eu', label: 'EU Passport' },
-    { value: 'african', label: 'African Passport' },
-    { value: 'asian', label: 'Asian Passport' },
-    { value: 'american', label: 'American Passport' },
-    { value: 'australian', label: 'Australian Passport' }
-  ];
+  useEffect(() => {
+    fetchFilterOptions();
+  }, []);
 
-  const updateFilter = (key: string, value: string) => {
-    onFiltersChange({
-      ...activeFilters,
-      [key]: value === 'all' ? '' : value
-    });
+  useEffect(() => {
+    const filters = {
+      searchTerm,
+      position: position || undefined,
+      nationality: nationality || undefined,
+      transferType: transferType || undefined,
+      ageRange,
+      priceRange,
+      sortBy
+    };
+    
+    onFiltersChange(filters);
+    updateActiveFilters();
+  }, [searchTerm, position, nationality, transferType, ageRange, priceRange, sortBy]);
+
+  const fetchFilterOptions = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch available positions from active pitches
+      const { data: pitchData, error: pitchError } = await supabase
+        .from('transfer_pitches')
+        .select(`
+          players!inner(position, citizenship)
+        `)
+        .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString());
+
+      if (pitchError) throw pitchError;
+
+      if (pitchData) {
+        // Process positions
+        const positionCounts: Record<string, number> = {};
+        const countryCounts: Record<string, number> = {};
+        
+        pitchData.forEach(pitch => {
+          if (pitch.players?.position) {
+            positionCounts[pitch.players.position] = (positionCounts[pitch.players.position] || 0) + 1;
+          }
+          if (pitch.players?.citizenship) {
+            countryCounts[pitch.players.citizenship] = (countryCounts[pitch.players.citizenship] || 0) + 1;
+          }
+        });
+
+        const positionsArray = Object.entries(positionCounts)
+          .map(([position, count]) => ({ position, count }))
+          .sort((a, b) => b.count - a.count);
+
+        const countriesArray = Object.entries(countryCounts)
+          .map(([country, count]) => ({ country, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 20); // Top 20 countries
+
+        setPositions(positionsArray);
+        setCountries(countriesArray);
+      }
+    } catch (error) {
+      console.error('Error fetching filter options:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateActiveFilters = () => {
+    const active: string[] = [];
+    if (searchTerm) active.push('search');
+    if (position) active.push('position');
+    if (nationality) active.push('nationality');
+    if (transferType) active.push('transferType');
+    if (ageRange[0] !== 16 || ageRange[1] !== 40) active.push('age');
+    if (priceRange[0] !== 0 || priceRange[1] !== 10000000) active.push('price');
+    setActiveFilters(active);
   };
 
   const clearAllFilters = () => {
-    onFiltersChange({});
+    setSearchTerm('');
+    setPosition('');
+    setNationality('');
+    setTransferType('');
+    setAgeRange([16, 40]);
+    setPriceRange([0, 10000000]);
+    setSortBy('newest');
   };
 
-  const saveFilters = () => {
-    // TODO: Implement save filters functionality
-    console.log('Save filters:', activeFilters);
+  const formatPrice = (value: number) => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+    return `$${value}`;
   };
-
-  const activeFilterCount = Object.values(activeFilters).filter(value => value && value !== 'all').length;
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="bg-gray-800 border-gray-700">
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
+          <CardTitle className="text-white flex items-center gap-2">
             <Filter className="w-5 h-5" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
-                {activeFilterCount}
-              </span>
-            )}
+            Filters & Search
           </CardTitle>
-          
-          <div className="flex gap-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={saveFilters}
-              disabled={activeFilterCount === 0}
-            >
-              <Bookmark className="w-4 h-4 mr-1" />
-              Save
-            </Button>
-            
-            <Button 
-              size="sm" 
-              variant="ghost" 
+          {activeFilters.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={clearAllFilters}
-              disabled={activeFilterCount === 0}
+              className="text-gray-400 hover:text-white"
             >
               <X className="w-4 h-4 mr-1" />
               Clear All
             </Button>
+          )}
+        </div>
+        
+        {activeFilters.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {activeFilters.map(filter => (
+              <Badge key={filter} variant="secondary" className="text-xs">
+                {filter === 'search' && `Search: ${searchTerm}`}
+                {filter === 'position' && `Position: ${position}`}
+                {filter === 'nationality' && `Country: ${nationality}`}
+                {filter === 'transferType' && `Type: ${transferType}`}
+                {filter === 'age' && `Age: ${ageRange[0]}-${ageRange[1]}`}
+                {filter === 'price' && `Price: ${formatPrice(priceRange[0])}-${formatPrice(priceRange[1])}`}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        {/* Search */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-200">Search Players</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by player name, club, or keywords..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 bg-gray-700 border-gray-600 text-white"
+            />
           </div>
         </div>
-      </CardHeader>
 
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Quick Filters Row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Position */}
           <div className="space-y-2">
-            <Label>Position</Label>
-            <Select 
-              value={activeFilters.position || 'all'} 
-              onValueChange={(value) => updateFilter('position', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any position" />
+            <label className="text-sm font-medium text-gray-200">Position</label>
+            <Select value={position} onValueChange={setPosition}>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                <SelectValue placeholder="All positions" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-700 border-gray-600">
                 <SelectItem value="all">All Positions</SelectItem>
-                {(sportPositions.football || []).map((position) => (
-                  <SelectItem key={position} value={position}>
-                    {position}
+                {positions.map(pos => (
+                  <SelectItem key={pos.position} value={pos.position}>
+                    {pos.position} ({pos.count})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Nationality */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-200">Nationality</label>
+            <Select value={nationality} onValueChange={setNationality}>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                <SelectValue placeholder="All countries" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-700 border-gray-600">
+                <SelectItem value="all">All Countries</SelectItem>
+                {countries.map(country => (
+                  <SelectItem key={country.country} value={country.country}>
+                    {country.country} ({country.count})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -122,131 +227,90 @@ export const AgentExploreFilters: React.FC<AgentExploreFiltersProps> = ({
 
           {/* Transfer Type */}
           <div className="space-y-2">
-            <Label>Transfer Type</Label>
-            <Select 
-              value={activeFilters.transfer_type || 'all'} 
-              onValueChange={(value) => updateFilter('transfer_type', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any type" />
+            <label className="text-sm font-medium text-gray-200">Transfer Type</label>
+            <Select value={transferType} onValueChange={setTransferType}>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                <SelectValue placeholder="All types" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-700 border-gray-600">
                 <SelectItem value="all">All Types</SelectItem>
-                {transferTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="permanent">Permanent</SelectItem>
+                <SelectItem value="loan">Loan</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Budget Range */}
+          {/* Sort By */}
           <div className="space-y-2">
-            <Label>Budget Range</Label>
-            <Select 
-              value={activeFilters.budget_range || 'all'} 
-              onValueChange={(value) => updateFilter('budget_range', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any budget" />
+            <label className="text-sm font-medium text-gray-200">Sort By</label>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Budgets</SelectItem>
-                {budgetRanges.map((range) => (
-                  <SelectItem key={range.value} value={range.value}>
-                    {range.label}
-                  </SelectItem>
-                ))}
+              <SelectContent className="bg-gray-700 border-gray-600">
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="expiring">Expiring Soon</SelectItem>
+                <SelectItem value="highest_value">Highest Value</SelectItem>
+                <SelectItem value="most_viewed">Most Viewed</SelectItem>
+                <SelectItem value="most_shortlisted">Most Shortlisted</SelectItem>
               </SelectContent>
             </Select>
           </div>
+        </div>
 
-          {/* Category */}
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Select 
-              value={activeFilters.category || 'all'} 
-              onValueChange={(value) => updateFilter('category', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Deal Stage */}
-          <div className="space-y-2">
-            <Label>Deal Stage</Label>
-            <Select 
-              value={activeFilters.deal_stage || 'all'} 
-              onValueChange={(value) => updateFilter('deal_stage', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any stage" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Stages</SelectItem>
-                {dealStages.map((stage) => (
-                  <SelectItem key={stage.value} value={stage.value}>
-                    {stage.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Passport Requirement */}
-          <div className="space-y-2">
-            <Label>Passport</Label>
-            <Select 
-              value={activeFilters.passport_requirement || 'all'} 
-              onValueChange={(value) => updateFilter('passport_requirement', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any passport" />
-              </SelectTrigger>
-              <SelectContent>
-                {passportOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Country */}
-          <div className="space-y-2">
-            <Label>Country</Label>
-            <Input
-              value={activeFilters.country || ''}
-              onChange={(e) => updateFilter('country', e.target.value)}
-              placeholder="Any country"
+        {/* Range Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Age Range */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-200">
+              Age Range: {ageRange[0]} - {ageRange[1]} years
+            </label>
+            <Slider
+              value={ageRange}
+              onValueChange={setAgeRange}
+              max={40}
+              min={16}
+              step={1}
+              className="w-full"
             />
           </div>
 
-          {/* League Level */}
-          <div className="space-y-2">
-            <Label>League/Division</Label>
-            <Input
-              value={activeFilters.league_level || ''}
-              onChange={(e) => updateFilter('league_level', e.target.value)}
-              placeholder="Any league"
+          {/* Price Range */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-200">
+              Price Range: {formatPrice(priceRange[0])} - {formatPrice(priceRange[1])}
+            </label>
+            <Slider
+              value={priceRange}
+              onValueChange={setPriceRange}
+              max={10000000}
+              min={0}
+              step={100000}
+              className="w-full"
             />
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-gray-600 text-gray-300"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Save Filter
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-gray-600 text-gray-300"
+          >
+            <Bookmark className="w-4 h-4 mr-2" />
+            Load Saved
+          </Button>
         </div>
       </CardContent>
     </Card>
   );
 };
-
-export default AgentExploreFilters;

@@ -3,53 +3,50 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
-  Plus, 
-  Search, 
-  Filter, 
-  MessageSquare, 
-  Eye, 
-  Clock, 
-  DollarSign,
-  Users,
-  MapPin,
-  TrendingUp,
-  Heart,
-  MoreVertical
+  Search, Clock, DollarSign, MapPin, User, Eye, MessageSquare, 
+  Heart, Filter, Bookmark, TrendingUp, AlertCircle, Star
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import CreateAgentRequestModal from './CreateAgentRequestModal';
+import { AgentExploreFilters } from './AgentExploreFilters';
+import { ShortlistManager } from '@/components/ShortlistManager';
 import TaggedPlayerCard from './TaggedPlayerCard';
 
-interface AgentRequest {
+interface TransferPitch {
   id: string;
-  created_at: string;
-  title: string;
-  description: string;
-  sport_type: 'football' | 'basketball' | 'tennis' | 'rugby';
-  transfer_type: 'permanent' | 'loan';
-  position: string | null;
-  budget_min: number | null;
-  budget_max: number | null;
+  asking_price: number;
   currency: string;
-  agent_id: string;
-}
-
-interface Player {
-  id: string;
-  full_name: string;
-  position: string;
-  citizenship: string;
-  market_value: number;
-  team?: {
+  transfer_type: string;
+  expires_at: string;
+  created_at: string;
+  view_count: number;
+  message_count: number;
+  shortlist_count: number;
+  is_international: boolean;
+  description: string;
+  deal_stage: string;
+  tagged_videos: string[];
+  players: {
+    id: string;
+    full_name: string;
+    position: string;
+    citizenship: string;
+    age: number;
+    photo_url?: string;
+    market_value?: number;
+    headshot_url?: string;
+    date_of_birth: string;
+  };
+  teams: {
+    id: string;
     team_name: string;
     country: string;
+    logo_url?: string;
   };
 }
 
@@ -57,78 +54,74 @@ interface AgentRequestsExploreProps {
   initialSearch?: string;
 }
 
-const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSearch }) => {
+const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSearch = '' }) => {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const [requests, setRequests] = useState<AgentRequest[]>([]);
-  const [filteredRequests, setFilteredRequests] = useState<AgentRequest[]>([]);
+  
+  const [pitches, setPitches] = useState<TransferPitch[]>([]);
+  const [filteredPitches, setFilteredPitches] = useState<TransferPitch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState(initialSearch || '');
-  const [filterSport, setFilterSport] = useState('');
-  const [filterTransferType, setFilterTransferType] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [taggedPlayers, setTaggedPlayers] = useState<{ [requestId: string]: string[] }>({});
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [filters, setFilters] = useState<any>({});
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedPitch, setSelectedPitch] = useState<TransferPitch | null>(null);
 
   useEffect(() => {
-    fetchRequests();
-  }, [profile]);
+    fetchTransferPitches();
+  }, []);
 
   useEffect(() => {
-    filterRequests();
-  }, [requests, searchTerm, filterSport, filterTransferType]);
+    applyFilters();
+  }, [pitches, filters]);
 
-  const fetchRequests = async () => {
-    if (!profile?.id) return;
-
+  const fetchTransferPitches = async () => {
     try {
       setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('transfer_pitches')
+        .select(`
+          *,
+          players!inner(
+            id,
+            full_name,
+            position,
+            citizenship,
+            photo_url,
+            headshot_url,
+            market_value,
+            date_of_birth
+          ),
+          teams!inner(
+            id,
+            team_name,
+            country,
+            logo_url
+          )
+        `)
+        .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
 
-      // Get agent ID
-      const { data: agentData } = await supabase
-        .from('agents')
-        .select('id')
-        .eq('profile_id', profile.id)
-        .single();
+      if (error) throw error;
 
-      if (!agentData) return;
-
-      // Use placeholder data since the database might not be fully synchronized
-      const placeholderData: AgentRequest[] = [
-        {
-          id: '1',
-          created_at: new Date().toISOString(),
-          title: 'Seeking Midfielder for European Campaign',
-          description: 'Looking for a creative midfielder with Champions League experience.',
-          sport_type: 'football',
-          transfer_type: 'permanent',
-          position: 'Midfielder',
-          budget_min: 15000000,
-          budget_max: 25000000,
-          currency: 'EUR',
-          agent_id: agentData.id
-        },
-        {
-          id: '2',
-          created_at: new Date().toISOString(),
-          title: 'Loan Deal for Young Striker',
-          description: 'Short-term loan opportunity for developing striker.',
-          sport_type: 'football',
-          transfer_type: 'loan',
-          position: 'Forward',
-          budget_min: null,
-          budget_max: null,
-          currency: 'USD',
-          agent_id: agentData.id
+      const processedPitches = (data || []).map(pitch => ({
+        ...pitch,
+        players: {
+          ...pitch.players,
+          age: pitch.players.date_of_birth 
+            ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
+            : 25
         }
-      ];
+      }));
 
-      setRequests(placeholderData);
+      setPitches(processedPitches);
+      
+      console.log(`Loaded ${processedPitches.length} active transfer pitches`);
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      console.error('Error fetching transfer pitches:', error);
       toast({
         title: "Error",
-        description: "Failed to load requests",
+        description: "Failed to load transfer pitches",
         variant: "destructive"
       });
     } finally {
@@ -136,166 +129,147 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
     }
   };
 
-  const filterRequests = () => {
-    let filtered = requests;
+  const applyFilters = () => {
+    let filtered = [...pitches];
 
-    if (searchTerm) {
-      filtered = filtered.filter(req =>
-        req.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.description.toLowerCase().includes(searchTerm.toLowerCase())
+    // Apply search filter
+    if (filters.searchTerm) {
+      const searchLower = filters.searchTerm.toLowerCase();
+      filtered = filtered.filter(pitch =>
+        pitch.players.full_name.toLowerCase().includes(searchLower) ||
+        pitch.teams.team_name.toLowerCase().includes(searchLower) ||
+        pitch.players.position.toLowerCase().includes(searchLower) ||
+        pitch.description?.toLowerCase().includes(searchLower)
       );
     }
 
-    if (filterSport) {
-      filtered = filtered.filter(req => req.sport_type === filterSport);
+    // Apply position filter
+    if (filters.position && filters.position !== 'all') {
+      filtered = filtered.filter(pitch => 
+        pitch.players.position.toLowerCase() === filters.position.toLowerCase()
+      );
     }
 
-    if (filterTransferType) {
-      filtered = filtered.filter(req => req.transfer_type === filterTransferType);
+    // Apply nationality filter
+    if (filters.nationality && filters.nationality !== 'all') {
+      filtered = filtered.filter(pitch => 
+        pitch.players.citizenship === filters.nationality
+      );
     }
 
-    setFilteredRequests(filtered);
+    // Apply transfer type filter
+    if (filters.transferType && filters.transferType !== 'all') {
+      filtered = filtered.filter(pitch => 
+        pitch.transfer_type === filters.transferType
+      );
+    }
+
+    // Apply age range filter
+    if (filters.ageRange) {
+      const [minAge, maxAge] = filters.ageRange;
+      filtered = filtered.filter(pitch => 
+        pitch.players.age >= minAge && pitch.players.age <= maxAge
+      );
+    }
+
+    // Apply price range filter
+    if (filters.priceRange && filters.asking_price) {
+      const [minPrice, maxPrice] = filters.priceRange;
+      filtered = filtered.filter(pitch => 
+        pitch.asking_price >= minPrice && pitch.asking_price <= maxPrice
+      );
+    }
+
+    // Apply sorting
+    switch (filters.sortBy) {
+      case 'expiring':
+        filtered.sort((a, b) => new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime());
+        break;
+      case 'highest_value':
+        filtered.sort((a, b) => (b.asking_price || 0) - (a.asking_price || 0));
+        break;
+      case 'most_viewed':
+        filtered.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+        break;
+      case 'most_shortlisted':
+        filtered.sort((a, b) => (b.shortlist_count || 0) - (a.shortlist_count || 0));
+        break;
+      default: // newest
+        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
+    setFilteredPitches(filtered);
   };
 
-  const handleTagPlayer = async (requestId: string) => {
-    if (!selectedPlayerId) {
-      toast({
-        title: "Error",
-        description: "Please select a player to tag.",
-        variant: "destructive"
-      });
-      return;
-    }
-
+  const updatePitchEngagement = async (pitchId: string, type: 'view' | 'message' | 'shortlist') => {
     try {
-      const existingTags = taggedPlayers[requestId] || [];
-      if (existingTags.includes(selectedPlayerId)) {
-        toast({
-          title: "Info",
-          description: "Player already tagged to this request.",
-        });
-        return;
+      const column = type === 'view' ? 'view_count' : 
+                   type === 'message' ? 'message_count' : 'shortlist_count';
+      
+      const { data: currentPitch } = await supabase
+        .from('transfer_pitches')
+        .select(column)
+        .eq('id', pitchId)
+        .single();
+
+      if (currentPitch) {
+        const newCount = (currentPitch[column] || 0) + 1;
+        
+        await supabase
+          .from('transfer_pitches')
+          .update({ [column]: newCount })
+          .eq('id', pitchId);
+
+        // Update local state
+        setPitches(prev => prev.map(pitch => 
+          pitch.id === pitchId 
+            ? { ...pitch, [column]: newCount }
+            : pitch
+        ));
       }
-
-      const updatedTags = [...existingTags, selectedPlayerId];
-      setTaggedPlayers(prev => ({ ...prev, [requestId]: updatedTags }));
-
-      toast({
-        title: "Success",
-        description: "Player tagged successfully",
-      });
     } catch (error) {
-      console.error('Error tagging player:', error);
-      toast({
-        title: "Error",
-        description: "Failed to tag player",
-        variant: "destructive"
-      });
-    } finally {
-      setSelectedPlayerId(null);
+      console.error(`Error updating ${type} count:`, error);
     }
   };
 
-  const handleUntagPlayer = async (requestId: string, playerId: string) => {
-    try {
-      const existingTags = taggedPlayers[requestId] || [];
-      const updatedTags = existingTags.filter(id => id !== playerId);
+  const handleViewPlayer = (pitch: TransferPitch) => {
+    updatePitchEngagement(pitch.id, 'view');
+    setSelectedPitch(pitch);
+  };
 
-      setTaggedPlayers(prev => ({
-        ...prev,
-        [requestId]: updatedTags,
-      }));
+  const handleMessagePlayer = (pitch: TransferPitch) => {
+    updatePitchEngagement(pitch.id, 'message');
+    // Navigate to messaging
+  };
 
-      toast({
-        title: "Success",
-        description: "Player untagged successfully",
-      });
-    } catch (error) {
-      console.error('Error untagging player:', error);
-      toast({
-        title: "Error",
-        description: "Failed to untag player",
-        variant: "destructive"
-      });
+  const formatCurrency = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const getDealStageColor = (stage: string) => {
+    switch (stage) {
+      case 'pitch': return 'bg-blue-500';
+      case 'interest': return 'bg-yellow-500';
+      case 'discussion': return 'bg-green-500';
+      case 'expired': return 'bg-red-500';
+      default: return 'bg-gray-500';
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-white font-polysans flex items-center gap-2">
-            <Heart className="w-8 h-8 text-bright-pink" />
-            Agent Requests
-          </h2>
-          <p className="text-gray-400 mt-1">
-            {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''}
-          </p>
-        </div>
+  const isExpiringSoon = (expiresAt: string) => {
+    const expiryDate = new Date(expiresAt);
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    return expiryDate <= sevenDaysFromNow;
+  };
 
-        <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white" onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Request
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search requests..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-gray-700 border-gray-600"
-              />
-            </div>
-
-            <Select value={filterSport} onValueChange={setFilterSport}>
-              <SelectTrigger className="bg-gray-700 border-gray-600">
-                <SelectValue placeholder="Sport" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Sports</SelectItem>
-                <SelectItem value="football">Football</SelectItem>
-                <SelectItem value="basketball">Basketball</SelectItem>
-                <SelectItem value="tennis">Tennis</SelectItem>
-                <SelectItem value="rugby">Rugby</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterTransferType} onValueChange={setFilterTransferType}>
-              <SelectTrigger className="bg-gray-700 border-gray-600">
-                <SelectValue placeholder="Transfer Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
-                <SelectItem value="permanent">Permanent</SelectItem>
-                <SelectItem value="loan">Loan</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('');
-                setFilterSport('');
-                setFilterTransferType('');
-              }}
-              className="border-gray-600"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Clear
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Requests Grid */}
-      {loading ? (
+  if (loading) {
+    return (
+      <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="animate-pulse bg-gray-800">
@@ -307,102 +281,216 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
             </Card>
           ))}
         </div>
-      ) : filteredRequests.length === 0 ? (
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <AgentExploreFilters
+        onFiltersChange={setFilters}
+        initialFilters={{ searchTerm: initialSearch }}
+      />
+
+      {/* Results Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-semibold text-white">
+            Transfer Opportunities ({filteredPitches.length})
+          </h3>
+          <p className="text-gray-400 text-sm">
+            Active pitches from verified teams worldwide
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Select value={viewMode} onValueChange={(value: 'grid' | 'list') => setViewMode(value)}>
+            <SelectTrigger className="w-32 bg-gray-700 border-gray-600">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-700 border-gray-600">
+              <SelectItem value="grid">Grid View</SelectItem>
+              <SelectItem value="list">List View</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchTransferPitches}
+            className="border-gray-600"
+          >
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Results */}
+      {filteredPitches.length === 0 ? (
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-12 text-center">
-            <Heart className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+            <Search className="w-16 h-16 mx-auto mb-4 text-gray-500" />
             <h3 className="text-xl font-semibold text-white mb-2">
-              No Requests Found
+              No Transfer Opportunities Found
             </h3>
             <p className="text-gray-400">
-              Create a new request or adjust your search filters.
+              Try adjusting your filters or check back later for new pitches.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRequests.map((request) => (
-            <Card key={request.id} className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">{request.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="text-gray-400 text-sm">{request.description}</div>
-                
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <Clock className="w-3 h-3" />
-                  Created {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Badge variant="secondary">{request.sport_type.toUpperCase()}</Badge>
-                    <Badge variant="outline" className="ml-2">{request.transfer_type.toUpperCase()}</Badge>
+        <div className={`grid gap-6 ${
+          viewMode === 'grid' 
+            ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+            : 'grid-cols-1'
+        }`}>
+          {filteredPitches.map((pitch) => (
+            <Card 
+              key={pitch.id} 
+              className={`bg-gray-800 border-gray-600 hover:border-bright-pink/50 transition-colors ${
+                isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : ''
+              }`}
+            >
+              <CardContent className="p-0">
+                {/* Player Header */}
+                <div className="relative">
+                  <div className="h-32 bg-gradient-to-br from-gray-800 to-gray-900 p-4 flex items-center">
+                    <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 mr-4">
+                      {pitch.players.photo_url || pitch.players.headshot_url ? (
+                        <img
+                          src={pitch.players.photo_url || pitch.players.headshot_url}
+                          alt={pitch.players.full_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <User className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <h3 className="font-bold text-white text-lg line-clamp-1">
+                        {pitch.players.full_name}
+                      </h3>
+                      <p className="text-gray-300 text-sm">
+                        {pitch.players.position} • Age {pitch.players.age}
+                      </p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <MapPin className="h-3 w-3 text-gray-400" />
+                        <span className="text-gray-400 text-xs">{pitch.players.citizenship}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  {request.budget_min && request.budget_max && (
-                    <div className="text-bright-pink font-medium">
-                      <DollarSign className="w-3 h-3 inline mr-1" />
-                      {new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: request.currency || 'USD',
-                        minimumFractionDigits: 0
-                      }).format(request.budget_min)} - {new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: request.currency || 'USD',
-                        minimumFractionDigits: 0
-                      }).format(request.budget_max)}
-                    </div>
+                  {/* Expiring Badge */}
+                  {isExpiringSoon(pitch.expires_at) && (
+                    <Badge variant="destructive" className="absolute top-2 right-2 text-xs animate-pulse">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      Expiring Soon
+                    </Badge>
                   )}
                 </div>
 
-                {/* Tagged Players */}
-                <div>
-                  <h4 className="text-sm text-gray-400 mb-2">Tagged Players</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {(taggedPlayers[request.id] || []).map(playerId => (
-                      <Badge key={playerId} variant="default" className="gap-1.5">
-                        <Users className="h-3.5 w-3.5" />
-                        {playerId}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="-mr-1 h-5 w-5"
-                          onClick={() => handleUntagPlayer(request.id, playerId)}
-                        >
-                          <MoreVertical className="h-3 w-3" />
-                          <span className="sr-only">Untag</span>
-                        </Button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                <div className="p-4 space-y-4">
+                  {/* Team & Transfer Info */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <span>{pitch.teams.team_name}, {pitch.teams.country}</span>
+                    </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1 text-xs">
-                    <Eye className="w-3 h-3 mr-1" />
-                    View
-                  </Button>
-                  <Button size="sm" className="flex-1 bg-rosegold hover:bg-rosegold/90 text-white text-xs">
-                    <MessageSquare className="w-3 h-3 mr-1" />
-                    Contact
-                  </Button>
+                    <div className="flex items-center justify-between">
+                      <Badge 
+                        variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}
+                      >
+                        {pitch.transfer_type.toUpperCase()}
+                      </Badge>
+                      
+                      <div className="text-xs text-gray-400">
+                        <Clock className="h-3 w-3 inline mr-1" />
+                        {formatDistanceToNow(new Date(pitch.expires_at))} left
+                      </div>
+                    </div>
+
+                    {pitch.asking_price && (
+                      <div className="flex items-center gap-1 text-bright-pink font-bold text-lg">
+                        <DollarSign className="h-4 w-4" />
+                        {formatCurrency(pitch.asking_price, pitch.currency)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Engagement Stats */}
+                  <div className="flex items-center gap-4 text-sm text-gray-400">
+                    <div className="flex items-center gap-1">
+                      <Eye className="w-4 h-4" />
+                      {pitch.view_count || 0}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MessageSquare className="w-4 h-4" />
+                      {pitch.message_count || 0}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Heart className="w-4 h-4" />
+                      {pitch.shortlist_count || 0}
+                    </div>
+                    {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4" />
+                        {pitch.tagged_videos.length} videos
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  {pitch.description && (
+                    <p className="text-gray-300 text-sm line-clamp-2">
+                      {pitch.description}
+                    </p>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 border-gray-600 text-xs"
+                      onClick={() => handleViewPlayer(pitch)}
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      View Profile
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white text-xs"
+                      onClick={() => handleMessagePlayer(pitch)}
+                    >
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      Message
+                    </Button>
+                    
+                    <div className="flex-shrink-0">
+                      <ShortlistManager
+                        pitchId={pitch.id}
+                        playerId={pitch.players.id}
+                        onShortlistChange={(isShortlisted) => {
+                          if (isShortlisted) {
+                            updatePitchEngagement(pitch.id, 'shortlist');
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
-
-      <CreateAgentRequestModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onRequestCreated={fetchRequests}
-      />
     </div>
   );
 };
 
-export { AgentRequestsExplore };
 export default AgentRequestsExplore;
