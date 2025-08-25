@@ -25,6 +25,37 @@ export class PDFReportService {
     teamId: string
   ): Promise<string> {
     try {
+      console.log('Starting PDF generation with params:', { videoId, teamId });
+
+      // First, let's verify the user's team access
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, user_id')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (profileError || !userProfile) {
+        console.error('Failed to get user profile:', profileError);
+        throw new Error('User authentication failed');
+      }
+
+      console.log('User profile found:', userProfile);
+
+      // Verify team access
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .select('id, profile_id, team_name')
+        .eq('id', teamId)
+        .eq('profile_id', userProfile.id)
+        .single();
+
+      if (teamError || !teamData) {
+        console.error('Team access verification failed:', teamError);
+        throw new Error('Team access denied or team not found');
+      }
+
+      console.log('Team access verified:', teamData);
+
       const doc = new jsPDF('p', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -236,7 +267,7 @@ export class PDFReportService {
       const pdfBlob = doc.output('blob');
       const fileName = `analysis-report-${videoId}-${Date.now()}.pdf`;
       
-      console.log('Uploading PDF to Supabase Storage...');
+      console.log('Uploading PDF to Supabase Storage...', fileName);
       
       // Upload to Supabase Storage with proper error handling
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -260,25 +291,31 @@ export class PDFReportService {
 
       console.log('Generated public URL:', urlData.publicUrl);
 
+      // Prepare report record with explicit team_id from verified team data
+      const reportRecord = {
+        video_id: videoId,
+        team_id: teamData.id, // Use the verified team ID
+        report_type: 'comprehensive',
+        pdf_url: urlData.publicUrl,
+        report_data: reportData as any // Cast to any for Json compatibility
+      };
+
+      console.log('Inserting report record:', reportRecord);
+
       // Save report record to database
-      const { data: reportRecord, error: dbError } = await supabase
+      const { data: savedRecord, error: dbError } = await supabase
         .from('ai_analysis_reports')
-        .insert({
-          video_id: videoId,
-          team_id: teamId,
-          report_type: 'comprehensive',
-          pdf_url: urlData.publicUrl,
-          report_data: reportData as any // Cast to any for Json compatibility
-        })
+        .insert(reportRecord)
         .select()
         .single();
 
       if (dbError) {
         console.error('Database insert error:', dbError);
+        console.error('Failed record data:', reportRecord);
         throw new Error(`Failed to save report record: ${dbError.message}`);
       }
 
-      console.log('Report record saved successfully:', reportRecord);
+      console.log('Report record saved successfully:', savedRecord);
 
       return urlData.publicUrl;
 
