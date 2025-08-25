@@ -347,7 +347,7 @@ const VideoAnalysisPageTabs: React.FC<VideoAnalysisPageTabsProps> = ({
                                   <Clock className="w-4 h-4 text-gray-400" />
                                   <span className="text-gray-400">{moment.timestamp}s</span>
                                   <Badge variant="secondary">
-                                    {Math.round(moment.confidence * 100)}%
+                                    {Math.round((moment.confidence || 0) * 100)}%
                                   </Badge>
                                 </div>
                               </div>
@@ -376,16 +376,16 @@ const VideoAnalysisPageTabs: React.FC<VideoAnalysisPageTabsProps> = ({
                         <div className="flex items-center gap-3">
                           <div className={`w-3 h-3 rounded-full ${detection.is_tagged_player ? 'bg-bright-pink' : 'bg-gray-400'}`}></div>
                           <div>
-                            <p className="text-white font-medium">{detection.player_name}</p>
+                            <p className="text-white font-medium">{detection.player_name || 'Unknown Player'}</p>
                             <p className="text-gray-400 text-sm">
                               {detection.is_tagged_player ? 'Tagged Player' : 'Other Player'}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-gray-300">{detection.timestamp}s</p>
+                          <p className="text-gray-300">{detection.timestamp || 0}s</p>
                           <Badge variant="secondary">
-                            {Math.round(detection.confidence * 100)}%
+                            {Math.round((detection.confidence || 0) * 100)}%
                           </Badge>
                         </div>
                       </div>
@@ -405,7 +405,7 @@ const VideoAnalysisPageTabs: React.FC<VideoAnalysisPageTabsProps> = ({
                     <CardHeader>
                       <CardTitle className="text-white flex items-center gap-2">
                         <TrendingUp className="w-5 h-5" />
-                        {metric.player_name} Performance
+                        {metric.player_name || 'Unknown Player'} Performance
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -417,7 +417,7 @@ const VideoAnalysisPageTabs: React.FC<VideoAnalysisPageTabsProps> = ({
                                 {key.replace(/_/g, ' ')}
                               </p>
                               <p className="text-white text-xl font-bold">
-                                {typeof value === 'number' ? value.toFixed(1) : value}
+                                {typeof value === 'number' ? value.toFixed(1) : String(value)}
                               </p>
                             </div>
                           ))}

@@ -29,12 +29,15 @@ interface AgentExploreHubProps {
 
 interface TransferPitch {
   id: string;
-  title: string;
   asking_price: number;
   currency: string;
   transfer_type: string;
   expires_at: string;
   created_at: string;
+  description?: string;
+  view_count?: number;
+  message_count?: number;
+  shortlist_count?: number;
   players: {
     id: string;
     full_name: string;
@@ -66,13 +69,22 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
       const { data, error } = await supabase
         .from('transfer_pitches')
         .select(`
-          *,
+          id,
+          asking_price,
+          currency,
+          transfer_type,
+          expires_at,
+          created_at,
+          description,
+          view_count,
+          message_count,
+          shortlist_count,
           players!inner (
             id,
             full_name,
             position,
             citizenship,
-            age
+            date_of_birth
           ),
           teams!inner (
             team_name,
@@ -86,7 +98,18 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
       if (error) throw error;
 
-      setTransferPitches(data || []);
+      // Process data to add age calculation
+      const processedPitches = (data || []).map(pitch => ({
+        ...pitch,
+        players: {
+          ...pitch.players,
+          age: pitch.players.date_of_birth 
+            ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
+            : 0
+        }
+      }));
+
+      setTransferPitches(processedPitches);
     } catch (error) {
       console.error('Error fetching transfer pitches:', error);
       toast({
@@ -110,13 +133,22 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
       const { data, error } = await supabase
         .from('transfer_pitches')
         .select(`
-          *,
+          id,
+          asking_price,
+          currency,
+          transfer_type,
+          expires_at,
+          created_at,
+          description,
+          view_count,
+          message_count,
+          shortlist_count,
           players!inner (
             id,
             full_name,
             position,
             citizenship,
-            age
+            date_of_birth
           ),
           teams!inner (
             team_name,
@@ -130,9 +162,20 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
       if (error) throw error;
 
-      setTransferPitches(data || []);
+      // Process data to add age calculation
+      const processedPitches = (data || []).map(pitch => ({
+        ...pitch,
+        players: {
+          ...pitch.players,
+          age: pitch.players.date_of_birth 
+            ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
+            : 0
+        }
+      }));
+
+      setTransferPitches(processedPitches);
       
-      if (data?.length === 0) {
+      if (processedPitches.length === 0) {
         toast({
           title: "No Results",
           description: `No transfer pitches found for "${searchQuery}"`,
@@ -152,13 +195,17 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
   const handleViewPitch = async (pitchId: string) => {
     try {
-      // Increment view count
-      await supabase
-        .from('transfer_pitches')
-        .update({ view_count: supabase.sql`view_count + 1` })
-        .eq('id', pitchId);
+      // Increment view count using RPC function or raw SQL
+      const { error } = await supabase.rpc('increment_pitch_views', { pitch_id: pitchId });
+      
+      if (error) {
+        // Fallback to direct update if RPC doesn't exist
+        await supabase
+          .from('transfer_pitches')
+          .update({ view_count: (transferPitches.find(p => p.id === pitchId)?.view_count || 0) + 1 })
+          .eq('id', pitchId);
+      }
 
-      // Navigate to pitch details or open modal
       toast({
         title: "Pitch Viewed",
         description: "Opening pitch details...",
@@ -252,7 +299,7 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
                   <span className="text-gray-400 text-sm">Premium Pitches</span>
                 </div>
                 <p className="text-white text-2xl font-bold">
-                  {transferPitches.filter(p => p.asking_price > 1000000).length}
+                  {transferPitches.filter(p => (p.asking_price || 0) > 1000000).length}
                 </p>
               </div>
               <div className="bg-gray-700 p-4 rounded-lg">
@@ -324,7 +371,7 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
                               </div>
                               <div className="text-right">
                                 <p className="text-bright-pink font-bold text-xl">
-                                  {formatCurrency(pitch.asking_price, pitch.currency)}
+                                  {formatCurrency(pitch.asking_price || 0, pitch.currency || 'USD')}
                                 </p>
                                 <p className="text-gray-400 text-sm capitalize">
                                   {pitch.transfer_type}
