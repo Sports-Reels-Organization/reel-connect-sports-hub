@@ -19,7 +19,7 @@ import TaggedPlayerCard from './TaggedPlayerCard';
 
 interface TransferPitch {
   id: string;
-  asking_price: number;
+  asking_price: number | null;
   currency: string;
   transfer_type: string;
   expires_at: string;
@@ -106,6 +106,12 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
 
       const processedPitches = (data || []).map(pitch => ({
         ...pitch,
+        asking_price: pitch.asking_price || null,
+        tagged_videos: Array.isArray(pitch.tagged_videos) 
+          ? pitch.tagged_videos.map((video: any) => String(video))
+          : pitch.tagged_videos 
+            ? [String(pitch.tagged_videos)]
+            : [],
         players: {
           ...pitch.players,
           age: pitch.players.date_of_birth 
@@ -176,7 +182,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
     if (filters.priceRange && filters.asking_price) {
       const [minPrice, maxPrice] = filters.priceRange;
       filtered = filtered.filter(pitch => 
-        pitch.asking_price >= minPrice && pitch.asking_price <= maxPrice
+        pitch.asking_price && pitch.asking_price >= minPrice && pitch.asking_price <= maxPrice
       );
     }
 

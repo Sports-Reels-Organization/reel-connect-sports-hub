@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -159,6 +158,7 @@ const AgentShortlistEnhanced = () => {
       // Process data to calculate age and handle tagged_videos
       const processedData: ShortlistItem[] = (data || []).map(item => ({
         ...item,
+        custom_tags: item.custom_tags || [],
         player: {
           ...item.player,
           age: item.player.date_of_birth 
@@ -166,12 +166,13 @@ const AgentShortlistEnhanced = () => {
             : 0
         },
         priority_level: (item.priority_level as 'high' | 'medium' | 'low') || 'medium',
-        custom_tags: item.custom_tags || [],
         pitch: {
           ...item.pitch,
           tagged_videos: Array.isArray(item.pitch.tagged_videos) 
             ? item.pitch.tagged_videos.map(video => String(video))
-            : []
+            : item.pitch.tagged_videos 
+              ? [String(item.pitch.tagged_videos)]
+              : []
         }
       }));
 
@@ -200,25 +201,25 @@ const AgentShortlistEnhanced = () => {
       );
     }
 
-    if (filterPosition) {
+    if (filterPosition && filterPosition !== 'all') {
       filtered = filtered.filter(item =>
         item.player.position.toLowerCase().includes(filterPosition.toLowerCase())
       );
     }
 
-    if (filterPriority) {
+    if (filterPriority && filterPriority !== 'all') {
       filtered = filtered.filter(item =>
         item.priority_level === filterPriority
       );
     }
 
-    if (filterTransferType) {
+    if (filterTransferType && filterTransferType !== 'all') {
       filtered = filtered.filter(item =>
         item.pitch.transfer_type === filterTransferType
       );
     }
 
-    if (filterExpiring) {
+    if (filterExpiring && filterExpiring !== 'all') {
       const now = new Date();
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       
@@ -851,7 +852,13 @@ const AgentShortlistEnhanced = () => {
         <PlayerDetailModal
           isOpen={!!selectedPlayer}
           onClose={() => setSelectedPlayer(null)}
-          player={modalPlayer}
+          player={{
+            ...modalPlayer,
+            created_at: modalPlayer.date_of_birth || new Date().toISOString(),
+            team_id: '',
+            updated_at: new Date().toISOString(),
+            ai_analysis: null
+          }}
         />
       )}
     </div>
