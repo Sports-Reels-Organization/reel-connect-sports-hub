@@ -1,441 +1,381 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Play, 
-  Pause, 
-  Brain, 
-  ArrowLeft, 
-  Clock, 
-  Users, 
+import {
+  Brain,
+  Download,
+  Clock,
+  TrendingUp,
+  Users,
+  FileText,
   BarChart3,
-  Loader2,
-  CheckCircle,
+  Target,
   AlertCircle,
-  RefreshCw
+  CheckCircle,
+  Eye,
+  ArrowRight,
+  Sparkles,
+  Play,
+  Pause,
+  RotateCcw
 } from 'lucide-react';
-import { AIVideoAnalysisService } from '@/services/aiVideoAnalysisService';
+import { supabase } from '@/integrations/supabase/client';
+import { EnhancedAIAnalysisService } from '@/services/enhancedAIAnalysisService';
 import VideoAnalysisResults from './VideoAnalysisResults';
 
 interface EnhancedVideoAnalysisProps {
-  videoId: string;
-  videoUrl: string;
+  videoFile: File;
+  videoType: 'match' | 'training' | 'interview' | 'highlight';
+  taggedPlayers?: string[];
   videoTitle: string;
-  videoMetadata: {
-    playerTags: string[];
-    matchDetails?: {
-      opposingTeam: string;
-      matchDate: string;
-      finalScore: string;
-    };
-    duration: number;
-    videoDescription?: string;
-    videoType?: 'match' | 'interview' | 'training' | 'highlight';
-  };
-  onClose: () => void;
+  onAnalysisComplete: (analysisData: any) => void;
+  teamId: string;
 }
 
 const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
-  videoId,
-  videoUrl,
+  videoFile,
+  videoType,
+  taggedPlayers = [],
   videoTitle,
-  videoMetadata,
-  onClose
+  onAnalysisComplete,
+  teamId
 }) => {
   const { toast } = useToast();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [analysisStatus, setAnalysisStatus] = useState<'idle' | 'analyzing' | 'completed' | 'failed'>('idle');
-  const [analysisStatusText, setAnalysisStatusText] = useState('');
-  const [analysisResults, setAnalysisResults] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('video');
-  
-  const videoType = videoMetadata.videoType || 'match';
+  const [analysisStage, setAnalysisStage] = useState<'initializing' | 'processing' | 'generating' | 'completed' | 'error'>('initializing');
+  const [progress, setProgress] = useState(0);
+  const [currentStage, setCurrentStage] = useState('');
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [videoId, setVideoId] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [detailedProgress, setDetailedProgress] = useState({
+    frameExtraction: 0,
+    aiProcessing: 0,
+    reportGeneration: 0
+  });
+
+  const aiService = new EnhancedAIAnalysisService();
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const updateTime = () => setCurrentTime(video.currentTime);
-    const updateDuration = () => setDuration(video.duration);
-
-    video.addEventListener('timeupdate', updateTime);
-    video.addEventListener('loadedmetadata', updateDuration);
-    video.addEventListener('play', () => setIsPlaying(true));
-    video.addEventListener('pause', () => setIsPlaying(false));
-
-    return () => {
-      video.removeEventListener('timeupdate', updateTime);
-      video.removeEventListener('loadedmetadata', updateDuration);
-      video.removeEventListener('play', () => setIsPlaying(true));
-      video.removeEventListener('pause', () => setIsPlaying(false));
-    };
+    startAnalysis();
   }, []);
 
-  const togglePlayPause = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (isPlaying) {
-      video.pause();
-    } else {
-      video.play();
-    }
-  };
-
-  const formatTime = (timeInSeconds: number) => {
-    const minutes = Math.floor(timeInSeconds / 60);
-    const seconds = Math.floor(timeInSeconds % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const video = videoRef.current;
-    if (!video || !duration) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const newTime = (clickX / rect.width) * duration;
-    
-    video.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
-  const startAIAnalysis = async () => {
+  const startAnalysis = async () => {
     try {
-      setAnalysisStatus('analyzing');
-      setAnalysisProgress(0);
-      setAnalysisStatusText('Initializing AI analysis...');
+      setAnalysisStage('initializing');
+      setProgress(10);
+      setCurrentStage('Initializing analysis...');
 
-      const analysisService = new AIVideoAnalysisService(videoId, videoType);
+      // Create video URL for analysis
+      const videoUrl = URL.createObjectURL(videoFile);
       
-      // Set up progress callback
-      analysisService.onProgress((progress, status) => {
-        setAnalysisProgress(progress);
-        setAnalysisStatusText(status);
-      });
-
-      // Start analysis
-      const result = await analysisService.analyzeVideo(videoUrl, {
-        videoTitle,
-        videoDescription: videoMetadata.videoDescription,
-        playerTags: videoMetadata.playerTags,
-        matchDetails: videoMetadata.matchDetails,
-        duration: videoMetadata.duration,
-        videoType
-      });
-
-      setAnalysisResults(result.analysisData);
-      setAnalysisStatus('completed');
-      setActiveTab('analysis');
+      setAnalysisStage('processing');
+      setProgress(30);
+      setCurrentStage('Processing video frames...');
       
+      // Simulate frame extraction progress
+      for (let i = 0; i <= 100; i += 10) {
+        setDetailedProgress(prev => ({ ...prev, frameExtraction: i }));
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      setProgress(60);
+      setCurrentStage('Running AI analysis...');
+      
+      // Run AI analysis
+      const analysis = await aiService.analyzeVideo(
+        videoUrl,
+        videoType,
+        taggedPlayers,
+        (progressUpdate) => {
+          setDetailedProgress(prev => ({ ...prev, aiProcessing: progressUpdate }));
+        }
+      );
+
+      setProgress(90);
+      setCurrentStage('Generating comprehensive report...');
+      
+      // Simulate report generation
+      for (let i = 0; i <= 100; i += 20) {
+        setDetailedProgress(prev => ({ ...prev, reportGeneration: i }));
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      setProgress(100);
+      setAnalysisStage('completed');
+      setCurrentStage('Analysis completed successfully!');
+      setAnalysisData(analysis);
+      
+      // Store analysis in database (simulate videoId for now)
+      const mockVideoId = `video_${Date.now()}`;
+      setVideoId(mockVideoId);
+      
+      onAnalysisComplete(analysis);
+
       toast({
-        title: "Analysis Complete",
-        description: `${videoType.charAt(0).toUpperCase() + videoType.slice(1)} analysis completed successfully!`,
+        title: "Analysis Complete!",
+        description: "Your video has been successfully analyzed with AI insights.",
       });
 
     } catch (error) {
-      console.error('AI analysis failed:', error);
-      setAnalysisStatus('failed');
-      setAnalysisStatusText('Analysis failed. Please try again.');
+      console.error('Analysis error:', error);
+      setAnalysisStage('error');
+      setCurrentStage('Analysis failed. Please try again.');
       
       toast({
         title: "Analysis Failed",
-        description: error instanceof Error ? error.message : "An error occurred during analysis",
-        variant: "destructive",
+        description: "There was an error analyzing your video. Please try again.",
+        variant: "destructive"
       });
     }
   };
 
-  const retryAnalysis = () => {
-    setAnalysisStatus('idle');
-    setAnalysisProgress(0);
-    setAnalysisStatusText('');
-    setAnalysisResults(null);
+  const retryAnalysis = async () => {
+    setIsRetrying(true);
+    setProgress(0);
+    setDetailedProgress({ frameExtraction: 0, aiProcessing: 0, reportGeneration: 0 });
+    await startAnalysis();
+    setIsRetrying(false);
   };
 
+  const getStageIcon = () => {
+    switch (analysisStage) {
+      case 'initializing':
+      case 'processing':
+        return <div className="animate-spin w-6 h-6 border-2 border-bright-pink border-t-transparent rounded-full" />;
+      case 'generating':
+        return <Sparkles className="w-6 h-6 text-bright-pink animate-pulse" />;
+      case 'completed':
+        return <CheckCircle className="w-6 h-6 text-green-500" />;
+      case 'error':
+        return <AlertCircle className="w-6 h-6 text-red-500" />;
+      default:
+        return <Brain className="w-6 h-6 text-bright-pink" />;
+    }
+  };
+
+  const getStageColor = () => {
+    switch (analysisStage) {
+      case 'completed':
+        return 'text-green-400';
+      case 'error':
+        return 'text-red-400';
+      default:
+        return 'text-bright-pink';
+    }
+  };
+
+  if (analysisStage === 'completed' && analysisData && videoId) {
+    return (
+      <VideoAnalysisResults
+        videoId={videoId}
+        videoType={videoType}
+        teamId={teamId}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#111111] text-white">
-      <div className="container mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      {/* Analysis Header */}
+      <Card className="bg-gradient-to-r from-gray-900 to-gray-800 border-gray-700">
+        <CardHeader>
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={onClose}
-              className="text-white hover:text-bright-pink"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Videos
-            </Button>
+            {getStageIcon()}
+            <div className="flex-1">
+              <CardTitle className="text-white text-xl font-bold">
+                AI Video Analysis
+              </CardTitle>
+              <p className="text-gray-300 mt-1">
+                Analyzing "{videoTitle}" • {videoType.charAt(0).toUpperCase() + videoType.slice(1)} Video
+              </p>
+            </div>
             
+            {taggedPlayers.length > 0 && (
+              <Badge className="bg-bright-pink/20 text-bright-pink border-bright-pink">
+                <Users className="w-3 h-3 mr-1" />
+                {taggedPlayers.length} Players Tagged
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Progress Section */}
+      <Card className="bg-gray-800 border-gray-700">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            {/* Main Progress */}
             <div>
-              <h1 className="text-2xl font-bold text-white font-polysans">{videoTitle}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline">
-                  {videoType.charAt(0).toUpperCase() + videoType.slice(1)} Video
-                </Badge>
-                {videoMetadata.matchDetails && (
-                  <Badge variant="secondary">
-                    vs {videoMetadata.matchDetails.opposingTeam}
-                  </Badge>
-                )}
+              <div className="flex items-center justify-between mb-2">
+                <span className={`font-medium ${getStageColor()}`}>
+                  {currentStage}
+                </span>
+                <span className="text-gray-400 text-sm">
+                  {progress}%
+                </span>
               </div>
+              <Progress 
+                value={progress} 
+                className="h-3 bg-gray-700"
+              />
+            </div>
+
+            {/* Detailed Progress */}
+            {analysisStage !== 'error' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm text-gray-300">Frame Extraction</span>
+                  </div>
+                  <Progress 
+                    value={detailedProgress.frameExtraction} 
+                    className="h-2 bg-gray-700"
+                  />
+                  <div className="text-xs text-gray-500">
+                    {detailedProgress.frameExtraction}% complete
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-bright-pink" />
+                    <span className="text-sm text-gray-300">AI Processing</span>
+                  </div>
+                  <Progress 
+                    value={detailedProgress.aiProcessing} 
+                    className="h-2 bg-gray-700"
+                  />
+                  <div className="text-xs text-gray-500">
+                    {detailedProgress.aiProcessing}% complete
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-green-400" />
+                    <span className="text-sm text-gray-300">Report Generation</span>
+                  </div>
+                  <Progress 
+                    value={detailedProgress.reportGeneration} 
+                    className="h-2 bg-gray-700"
+                  />
+                  <div className="text-xs text-gray-500">
+                    {detailedProgress.reportGeneration}% complete
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Error State */}
+          {analysisStage === 'error' && (
+            <div className="text-center py-6">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">
+                Analysis Failed
+              </h3>
+              <p className="text-gray-400 mb-6">
+                We encountered an error while analyzing your video. This might be due to:
+              </p>
+              <ul className="text-sm text-gray-400 text-left max-w-md mx-auto mb-6">
+                <li>• Video format compatibility issues</li>
+                <li>• Network connectivity problems</li>
+                <li>• Temporary service unavailability</li>
+              </ul>
+              <Button
+                onClick={retryAnalysis}
+                disabled={isRetrying}
+                className="bg-bright-pink hover:bg-bright-pink/90 text-white"
+              >
+                {isRetrying ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
+                    Retrying...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Retry Analysis
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Analysis Stages Info */}
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Brain className="w-5 h-5 text-bright-pink" />
+            What We're Analyzing
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <h4 className="font-medium text-white">Technical Analysis</h4>
+              <ul className="space-y-2 text-sm text-gray-300">
+                <li className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-bright-pink rounded-full" />
+                  Game flow and momentum shifts
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-bright-pink rounded-full" />
+                  Key events and timestamps
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-bright-pink rounded-full" />
+                  Performance patterns
+                </li>
+              </ul>
+            </div>
+            
+            <div className="space-y-3">
+              <h4 className="font-medium text-white">Player Insights</h4>
+              <ul className="space-y-2 text-sm text-gray-300">
+                <li className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-bright-pink rounded-full" />
+                  Individual player analysis
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-bright-pink rounded-full" />
+                  Team coordination metrics
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-bright-pink rounded-full" />
+                  Strategic recommendations
+                </li>
+              </ul>
             </div>
           </div>
 
-          {analysisStatus === 'idle' && (
-            <Button
-              onClick={startAIAnalysis}
-              className="bg-bright-pink hover:bg-bright-pink/90 text-white"
-            >
-              <Brain className="w-4 h-4 mr-2" />
-              Start AI Analysis
-            </Button>
-          )}
-
-          {analysisStatus === 'failed' && (
-            <Button
-              onClick={retryAnalysis}
-              variant="outline"
-              className="border-red-500 text-red-500 hover:bg-red-500/10"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Retry Analysis
-            </Button>
-          )}
-        </div>
-
-        {/* Analysis Progress */}
-        {analysisStatus === 'analyzing' && (
-          <Card className="bg-gray-800 border-gray-700 mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Loader2 className="w-5 h-5 text-bright-pink animate-spin" />
-                <span className="font-medium text-white">AI Analysis in Progress</span>
-              </div>
-              
-              <Progress value={analysisProgress} className="h-3 mb-2" />
-              
-              <div className="text-sm text-gray-400">
-                {analysisStatusText} ({analysisProgress.toFixed(0)}%)
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Analysis Status */}
-        {analysisStatus === 'completed' && (
-          <Card className="bg-gray-800 border-gray-700 mb-6">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                <span className="font-medium text-white">
-                  AI Analysis Complete - {videoType.charAt(0).toUpperCase() + videoType.slice(1)} insights generated
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {analysisStatus === 'failed' && (
-          <Card className="bg-gray-800 border-gray-700 mb-6">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-red-500" />
-                <span className="font-medium text-white">Analysis Failed</span>
-                <span className="text-sm text-gray-400">{analysisStatusText}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 bg-gray-800 mb-6">
-            <TabsTrigger value="video" className="flex items-center gap-2">
-              <Play className="w-4 h-4" />
-              Video Player
-            </TabsTrigger>
-            <TabsTrigger 
-              value="analysis" 
-              className="flex items-center gap-2"
-              disabled={!analysisResults}
-            >
-              <Brain className="w-4 h-4" />
-              AI Analysis Results
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="video" className="space-y-6">
-            {/* Video Player */}
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-0">
-                <div className="relative bg-black rounded-t-lg overflow-hidden">
-                  <video
-                    ref={videoRef}
-                    src={videoUrl}
-                    className="w-full h-auto max-h-[70vh] object-contain"
-                    poster={`${videoUrl}?thumbnail=true`}
-                  />
-                  
-                  {/* Video Controls Overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                    {/* Progress Bar */}
-                    <div 
-                      className="w-full h-2 bg-gray-600 rounded-full cursor-pointer mb-3"
-                      onClick={handleProgressClick}
-                    >
-                      <div 
-                        className="h-full bg-bright-pink rounded-full transition-all duration-200"
-                        style={{ width: duration ? `${(currentTime / duration) * 100}%` : '0%' }}
-                      />
-                    </div>
-                    
-                    {/* Control Buttons */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={togglePlayPause}
-                          className="text-white hover:text-bright-pink"
-                        >
-                          {isPlaying ? (
-                            <Pause className="w-5 h-5" />
-                          ) : (
-                            <Play className="w-5 h-5" />
-                          )}
-                        </Button>
-                        
-                        <div className="text-white text-sm flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {formatTime(currentTime)} / {formatTime(duration)}
-                        </div>
-                      </div>
-                      
-                      {videoMetadata.playerTags.length > 0 && (
-                        <div className="flex items-center gap-1 text-white text-sm">
-                          <Users className="w-4 h-4" />
-                          {videoMetadata.playerTags.length} tagged
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Video Metadata */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-400">Video Type</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Badge variant="default" className="bg-bright-pink">
-                    {videoType.charAt(0).toUpperCase() + videoType.slice(1)}
+          {taggedPlayers.length > 0 && (
+            <div className="mt-6 p-4 bg-gray-700 rounded-lg">
+              <h4 className="font-medium text-white mb-2">Tagged Players Analysis</h4>
+              <div className="flex flex-wrap gap-2">
+                {taggedPlayers.map((player, index) => (
+                  <Badge key={index} variant="outline" className="text-bright-pink border-bright-pink">
+                    Player {player}
                   </Badge>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-400">Duration</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="text-xl font-bold text-white">
-                    {formatTime(videoMetadata.duration)}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-400">Tagged Players</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="text-xl font-bold text-white">
-                    {videoMetadata.playerTags.length}
-                  </div>
-                </CardContent>
-              </Card>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400 mt-2">
+                We'll provide detailed analysis for each tagged player including performance metrics, 
+                key moments, and improvement recommendations.
+              </p>
             </div>
-
-            {/* Video Description */}
-            {videoMetadata.videoDescription && (
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <CardTitle>Description</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-300">{videoMetadata.videoDescription}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Tagged Players Info */}
-            {videoMetadata.playerTags.length > 0 && (
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-bright-pink" />
-                    Tagged Players
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {videoMetadata.playerTags.map((playerId, index) => (
-                      <Badge key={index} variant="secondary">
-                        Player {index + 1}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="analysis">
-            {analysisResults ? (
-              <VideoAnalysisResults
-                videoType={videoType}
-                analysisData={analysisResults}
-                videoTitle={videoTitle}
-              />
-            ) : (
-              <Card className="bg-gray-800 border-gray-700">
-                <CardContent className="pt-6 text-center">
-                  <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-white mb-2">
-                    No Analysis Results Yet
-                  </h3>
-                  <p className="text-gray-400 mb-4">
-                    Click "Start AI Analysis" to generate {videoType} insights for this video.
-                  </p>
-                  {analysisStatus === 'idle' && (
-                    <Button
-                      onClick={startAIAnalysis}
-                      className="bg-bright-pink hover:bg-bright-pink/90 text-white"
-                    >
-                      <Brain className="w-4 h-4 mr-2" />
-                      Start AI Analysis
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
