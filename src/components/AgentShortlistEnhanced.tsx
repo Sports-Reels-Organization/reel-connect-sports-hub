@@ -299,23 +299,15 @@ const AgentShortlistEnhanced = () => {
   if (showVideoAnalysis && selectedVideo) {
     return (
       <EnhancedVideoAnalysis
-        videoId={selectedVideo.id}
-        videoUrl={selectedVideo.video_url}
+        videoFile={new File([], selectedVideo.title)} // Mock file for now
+        videoType="match"
+        taggedPlayers={selectedVideo.tagged_players || []}
         videoTitle={selectedVideo.title}
-        videoMetadata={{
-          playerTags: selectedVideo.tagged_players || [],
-          matchDetails: {
-            opposingTeam: selectedVideo.opposing_team || 'Unknown Team',
-            matchDate: selectedVideo.match_date,
-            finalScore: selectedVideo.score || '0-0'
-          },
-          duration: selectedVideo.duration || 300,
-          videoDescription: selectedVideo.description
-        }}
-        onClose={() => {
+        onAnalysisComplete={() => {
           setShowVideoAnalysis(false);
           setSelectedVideo(null);
         }}
+        teamId={selectedVideo.team_id}
       />
     );
   }

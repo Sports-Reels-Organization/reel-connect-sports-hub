@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -87,14 +86,11 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
       setProgress(60);
       setCurrentStage('Running AI analysis...');
       
-      // Run AI analysis
+      // Run AI analysis - fix the function call to use correct number of arguments
       const analysis = await aiService.analyzeVideo(
         videoUrl,
         videoType,
-        taggedPlayers,
-        (progressUpdate) => {
-          setDetailedProgress(prev => ({ ...prev, aiProcessing: progressUpdate }));
-        }
+        taggedPlayers
       );
 
       setProgress(90);
