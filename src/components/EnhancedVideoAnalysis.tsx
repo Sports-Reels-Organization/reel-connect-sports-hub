@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -86,12 +87,19 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
       setProgress(60);
       setCurrentStage('Running AI analysis...');
       
-      // Run AI analysis - fix the function call to use correct number of arguments
-      const analysis = await aiService.analyzeVideo(
-        videoUrl,
-        videoType,
-        taggedPlayers
-      );
+      // Run AI analysis - fix the function call to pass correct object structure
+      const analysis = await aiService.analyzeVideo({
+        title: videoTitle,
+        videoType: videoType,
+        duration: 300, // Default duration in seconds
+        playerTags: taggedPlayers,
+        description: `Analysis for ${videoTitle}`,
+        matchDetails: videoType === 'match' ? {
+          opposingTeam: 'TBD',
+          matchDate: new Date().toISOString(),
+          finalScore: 'TBD'
+        } : undefined
+      });
 
       setProgress(90);
       setCurrentStage('Generating comprehensive report...');

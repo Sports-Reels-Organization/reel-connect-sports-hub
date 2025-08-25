@@ -117,7 +117,7 @@ const VideoManagement: React.FC = () => {
         final_score: video.final_score_home && video.final_score_away 
           ? `${video.final_score_home}-${video.final_score_away}`
           : undefined,
-        league: video.competition || video.league_name || undefined, // Handle different possible league field names
+        league: undefined, // Remove reference to non-existent properties
       }));
       
       setVideos(transformedVideos);
