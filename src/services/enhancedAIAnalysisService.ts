@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { analyzeVideoWithGemini } from './geminiService';
 
@@ -77,10 +78,8 @@ export class EnhancedAIAnalysisService {
           team_id,
           teams!inner (
             id,
-            name,
-            profiles!inner (
-              user_id
-            )
+            team_name,
+            profile_id
           )
         `)
         .eq('id', videoId)
@@ -91,9 +90,24 @@ export class EnhancedAIAnalysisService {
         throw new Error('Video not found or you do not have permission to analyze it');
       }
 
-      // Verify user has access to this video
+      // Verify user has access to this video through team ownership
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || videoData.teams.profiles.user_id !== user.id) {
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Check if the user owns this video's team
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError || !userProfile) {
+        throw new Error('User profile not found');
+      }
+
+      if (videoData.teams.profile_id !== userProfile.id) {
         throw new Error('You do not have permission to analyze this video');
       }
 
