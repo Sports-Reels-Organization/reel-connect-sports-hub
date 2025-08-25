@@ -856,7 +856,7 @@ const AgentShortlistEnhanced = () => {
             bio: modalPlayer.bio || '',
             citizenship: modalPlayer.citizenship || '',
             contract_expires: modalPlayer.contract_expires || '',
-            created_at: modalPlayer.created_at || new Date().toISOString(),
+            created_at: new Date().toISOString(),
             current_club: modalPlayer.current_club || '',
             date_of_birth: modalPlayer.date_of_birth || '',
             fifa_id: modalPlayer.fifa_id || '',
@@ -878,10 +878,10 @@ const AgentShortlistEnhanced = () => {
             player_agent: modalPlayer.player_agent || '',
             portrait_url: modalPlayer.portrait_url || '',
             position: modalPlayer.position || '',
-            team_id: modalPlayer.team_id || '',
+            team_id: '',
             titles_seasons: modalPlayer.titles_seasons || [],
             transfer_history: modalPlayer.transfer_history || null,
-            updated_at: modalPlayer.updated_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             weight: typeof modalPlayer.weight === 'string' ? parseFloat(modalPlayer.weight) || 0 : modalPlayer.weight || 0
           }}
         />
