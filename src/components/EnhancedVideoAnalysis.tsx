@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -87,19 +86,29 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
       setProgress(60);
       setCurrentStage('Running AI analysis...');
       
-      // Run AI analysis - fix the function call to pass correct object structure
-      const analysis = await aiService.analyzeVideo({
-        title: videoTitle,
-        videoType: videoType,
-        duration: 300, // Default duration in seconds
-        playerTags: taggedPlayers,
-        description: `Analysis for ${videoTitle}`,
-        matchDetails: videoType === 'match' ? {
-          opposingTeam: 'TBD',
-          matchDate: new Date().toISOString(),
-          finalScore: 'TBD'
-        } : undefined
-      });
+      // Generate mock video ID for analysis
+      const mockVideoId = `video_${Date.now()}`;
+      
+      // Run AI analysis with correct arguments
+      const analysis = await aiService.analyzeVideo(
+        mockVideoId,
+        {
+          title: videoTitle,
+          videoType: videoType,
+          duration: 300, // Default duration in seconds
+          playerTags: taggedPlayers,
+          description: `Analysis for ${videoTitle}`,
+          matchDetails: videoType === 'match' ? {
+            opposingTeam: 'TBD',
+            matchDate: new Date().toISOString(),
+            finalScore: 'TBD'
+          } : undefined
+        },
+        (progressValue: number, status: string) => {
+          setProgress(Math.max(progress, progressValue));
+          setCurrentStage(status);
+        }
+      );
 
       setProgress(90);
       setCurrentStage('Generating comprehensive report...');
@@ -114,9 +123,6 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
       setAnalysisStage('completed');
       setCurrentStage('Analysis completed successfully!');
       setAnalysisData(analysis);
-      
-      // Store analysis in database (simulate videoId for now)
-      const mockVideoId = `video_${Date.now()}`;
       setVideoId(mockVideoId);
       
       onAnalysisComplete(analysis);
