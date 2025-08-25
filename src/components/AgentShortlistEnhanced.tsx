@@ -25,7 +25,6 @@ interface ShortlistItem {
   notes: string;
   created_at: string;
   priority_level?: 'high' | 'medium' | 'low';
-  custom_tags?: string[];
   player: {
     id: string;
     full_name: string;
@@ -158,7 +157,6 @@ const AgentShortlistEnhanced = () => {
       // Process data to calculate age and handle tagged_videos
       const processedData: ShortlistItem[] = (data || []).map(item => ({
         ...item,
-        custom_tags: (item.custom_tags as string[]) || [],
         player: {
           ...item.player,
           age: item.player.date_of_birth 
@@ -864,7 +862,7 @@ const AgentShortlistEnhanced = () => {
             fifa_id: modalPlayer.fifa_id || '',
             foot: modalPlayer.foot || '',
             full_name: modalPlayer.full_name,
-            gender: modalPlayer.gender || '',
+            gender: (modalPlayer.gender as "male" | "female" | "other") || 'male',
             headshot_url: modalPlayer.headshot_url || '',
             height: typeof modalPlayer.height === 'string' ? parseFloat(modalPlayer.height) || 0 : 0,
             id: modalPlayer.id,
