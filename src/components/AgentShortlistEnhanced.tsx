@@ -299,15 +299,12 @@ const AgentShortlistEnhanced = () => {
   if (showVideoAnalysis && selectedVideo) {
     return (
       <EnhancedVideoAnalysis
-        videoFile={new File([], selectedVideo.title)} // Mock file for now
-        videoType="match"
-        taggedPlayers={selectedVideo.tagged_players || []}
-        videoTitle={selectedVideo.title}
+        videoId={selectedVideo.id}
+        teamId={selectedVideo.team_id}
         onAnalysisComplete={() => {
           setShowVideoAnalysis(false);
           setSelectedVideo(null);
         }}
-        teamId={selectedVideo.team_id}
       />
     );
   }

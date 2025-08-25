@@ -279,7 +279,7 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
             citizenship: player.citizenship,
             market_value: player.market_value,
             portrait_url: player.portrait_url,
-            age: 0, // Default values for missing properties
+            age: 0,
             ai_analysis: {},
             bio: '',
             contract_expires: '',
@@ -289,7 +289,6 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
             fifa_id: '',
             foot: '',
             height: 0,
-            injury_history: [],
             jersey_number: 0,
             join_date: '',
             league: '',
