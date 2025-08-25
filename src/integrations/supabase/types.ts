@@ -753,7 +753,7 @@ export type Database = {
           {
             foreignKeyName: "enhanced_video_analysis_video_id_fkey"
             columns: ["video_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "videos"
             referencedColumns: ["id"]
           },
@@ -2794,6 +2794,7 @@ export type Database = {
       video_compression_logs: {
         Row: {
           compressed_size_mb: number | null
+          compression_algorithm: string | null
           compression_method: string | null
           compression_ratio: number | null
           compression_status: string | null
@@ -2804,6 +2805,7 @@ export type Database = {
         }
         Insert: {
           compressed_size_mb?: number | null
+          compression_algorithm?: string | null
           compression_method?: string | null
           compression_ratio?: number | null
           compression_status?: string | null
@@ -2814,6 +2816,7 @@ export type Database = {
         }
         Update: {
           compressed_size_mb?: number | null
+          compression_algorithm?: string | null
           compression_method?: string | null
           compression_ratio?: number | null
           compression_status?: string | null

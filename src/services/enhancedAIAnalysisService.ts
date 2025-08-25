@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { analyzeVideoWithGemini } from './geminiService';
 
@@ -567,52 +566,51 @@ export class EnhancedAIAnalysisService {
         video_id: videoId,
         analysis_status: 'completed' as const,
         tagged_player_present: Object.values(result.taggedPlayerAnalysis).some(p => p.present),
-        overview: result.overview,
-        key_events: result.keyEvents,
-        context_reasoning: result.contextReasoning,
-        explanations: result.explanations,
-        recommendations: result.recommendations,
-        visual_summary: result.visualSummary,
-        player_performance_radar: result.playerPerformanceRadar,
-        event_timeline: result.eventTimeline,
-        tagged_player_analysis: result.taggedPlayerAnalysis,
-        missing_players: result.missingPlayers,
-        analysis_metadata: {
-          generated_at: new Date().toISOString(),
-          analysis_version: '2.0',
-          video_metadata: {
-            duration: 1800,
-            player_count: Object.keys(result.taggedPlayerAnalysis).length
-          }
-        },
         game_context: {
           analysis_type: 'enhanced',
           processing_date: new Date().toISOString()
-        }
+        },
+        overall_assessment: result.overview,
+        recommendations: result.recommendations
       };
 
       console.log('Attempting to save analysis data:', analysisData);
 
-      // Use upsert to handle both insert and update cases
-      const { data, error } = await supabase
+      // Check if analysis already exists
+      const { data: existingAnalysis } = await supabase
         .from('enhanced_video_analysis')
-        .upsert(analysisData, {
-          onConflict: 'video_id'
-        })
-        .select();
+        .select('id')
+        .eq('video_id', videoId)
+        .single();
 
-      if (error) {
-        console.error('Error saving enhanced analysis:', error);
-        console.error('Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        throw new Error(`Failed to save analysis: ${error.message}`);
+      if (existingAnalysis) {
+        // Update existing analysis
+        const { data, error } = await supabase
+          .from('enhanced_video_analysis')
+          .update(analysisData)
+          .eq('video_id', videoId)
+          .select();
+
+        if (error) {
+          console.error('Error updating enhanced analysis:', error);
+          throw new Error(`Failed to update analysis: ${error.message}`);
+        }
+
+        console.log('Enhanced analysis updated successfully:', data);
+      } else {
+        // Insert new analysis
+        const { data, error } = await supabase
+          .from('enhanced_video_analysis')
+          .insert(analysisData)
+          .select();
+
+        if (error) {
+          console.error('Error inserting enhanced analysis:', error);
+          throw new Error(`Failed to save analysis: ${error.message}`);
+        }
+
+        console.log('Enhanced analysis saved successfully:', data);
       }
-
-      console.log('Enhanced analysis saved successfully:', data);
     } catch (error) {
       console.error('Failed to save enhanced analysis:', error);
       throw error;
