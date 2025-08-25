@@ -2,543 +2,207 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Brain,
-  Download,
-  Clock,
-  TrendingUp,
-  Users,
-  FileText,
-  BarChart3,
-  Target,
-  AlertCircle,
-  CheckCircle,
-  Eye,
-  ArrowRight,
-  Sparkles
-} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { PDFReportService } from '@/services/pdfReportService';
+import { 
+  BarChart3, 
+  Clock, 
+  Eye, 
+  Download, 
+  AlertCircle, 
+  CheckCircle,
+  Play,
+  Users
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { generatePDFReport } from '@/services/pdfReportService';
+import VideoAnalysisDialog from './VideoAnalysisDialog';
 
 interface VideoAnalysisResultsProps {
   videoId: string;
-  videoType: 'match' | 'training' | 'interview' | 'highlight';
-  teamId: string;
+  teamId?: string;
 }
 
-const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
+export const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
   videoId,
-  videoType,
   teamId
 }) => {
   const { toast } = useToast();
-  const [analysisData, setAnalysisData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [videoData, setVideoData] = useState<any>(null);
-
-  const pdfService = new PDFReportService();
+  const [analysisResults, setAnalysisResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null);
 
   useEffect(() => {
-    loadAnalysisData();
-  }, [videoId]);
+    fetchAnalysisResults();
+  }, [videoId, teamId]);
 
-  const loadAnalysisData = async () => {
+  const fetchAnalysisResults = async () => {
     try {
-      // Load enhanced analysis
-      const { data: analysis, error: analysisError } = await supabase
-        .from('enhanced_video_analysis')
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('video_analysis')
         .select('*')
         .eq('video_id', videoId)
-        .single();
+        .order('created_at', { ascending: false });
 
-      if (analysisError) {
-        console.error('Analysis loading error:', analysisError);
-        // Create mock analysis data if not found
-        setAnalysisData({
-          overview: 'AI analysis completed successfully for this video.',
-          tagged_player_present: true,
-          recommendations: [
-            'Continue developing current performance level',
-            'Focus on tactical awareness during key moments',
-            'Enhance physical conditioning for sustained performance'
-          ],
-          key_events: [],
-          tagged_player_analysis: {},
-          context_reasoning: 'Analysis based on video content and performance patterns.',
-          explanations: 'Comprehensive evaluation of technical and tactical elements.',
-          visual_summary: {
-            gameFlow: 'Consistent performance maintained throughout',
-            pressureMap: 'Effective under various pressure situations',
-            momentumShifts: []
-          }
-        });
-      } else {
-        setAnalysisData(analysis);
-      }
-
-      // Load video data
-      const { data: video, error: videoError } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('id', videoId)
-        .single();
-
-      if (videoError) throw videoError;
-
-      setVideoData(video);
+      if (error) throw error;
+      setAnalysisResults(data || []);
     } catch (error) {
-      console.error('Error loading analysis data:', error);
+      console.error('Error fetching analysis results:', error);
+      setError('Failed to load analysis results.');
       toast({
-        title: "Loading Error",
+        title: "Error",
         description: "Failed to load analysis results",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const generatePDFReport = async () => {
-    if (!analysisData || !videoData) {
-      toast({
-        title: "Missing Data",
-        description: "Unable to generate report - missing analysis or video data",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsGeneratingPDF(true);
-    
+  const handleGenerateReport = async (analysis: any) => {
     try {
-      console.log('Starting PDF generation...');
-      
-      // Get video snapshots
-      const { data: snapshots } = await supabase
-        .from('video_snapshots')
-        .select('snapshot_url')
-        .eq('video_id', videoId);
-
-      const snapshotUrls = snapshots?.map(s => s.snapshot_url) || [];
-
+      setLoading(true);
       const reportData = {
-        videoTitle: videoData.title,
-        videoType: videoData.video_type,
-        analysisDate: new Date(analysisData.created_at || Date.now()).toLocaleDateString(),
-        overview: analysisData.overview || 'Analysis completed successfully',
-        keyEvents: analysisData.key_events || [],
-        recommendations: analysisData.recommendations || [],
-        taggedPlayerAnalysis: analysisData.tagged_player_analysis || {},
-        eventTimeline: analysisData.event_timeline || [],
-        visualSummary: analysisData.visual_summary || {},
-        snapshotUrls: snapshotUrls,
-        teamName: videoData.teams?.team_name || 'Team'
+        title: `Video Analysis Report - ${format(new Date(), 'MMMM dd, yyyy')}`,
+        analysisDetails: analysis,
+        videoId: videoId,
+        teamId: teamId
       };
-
-      console.log('Report data prepared:', reportData);
-
-      const pdfUrl = await pdfService.generateComprehensiveReport(
-        reportData,
-        videoId,
-        teamId
-      );
-
-      console.log('PDF generated successfully:', pdfUrl);
-
-      // Create download link
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.target = '_blank';
-      link.download = `${videoData.title}-analysis-report.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
+      await generatePDFReport(reportData);
       toast({
-        title: "Report Generated",
-        description: "PDF report generated and download started!",
+        title: "Success",
+        description: "PDF report generated successfully",
       });
-
     } catch (error) {
-      console.error('PDF generation error:', error);
+      console.error('Error generating PDF report:', error);
       toast({
-        title: "Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate PDF report",
+        title: "Error",
+        description: "Failed to generate PDF report",
         variant: "destructive"
       });
     } finally {
-      setIsGeneratingPDF(false);
+      setLoading(false);
     }
   };
 
-  const navigateToPlayerVideos = (playerId: string) => {
-    toast({
-      title: "Navigation Feature",
-      description: `Would navigate to videos for Player ${playerId}`,
-    });
+  const handleViewAnalysis = (analysis: any) => {
+    // Fetch video data for the analysis
+    const videoData = {
+      video_id: videoId,
+      video_url: analysis.video_url || `https://example.com/video/${videoId}`, // Placeholder URL
+      video_title: analysis.video_title || `Video Analysis ${analysis.id}`,
+      analysis_data: analysis.analysis_data,
+      tagged_players: analysis.tagged_players,
+      performance_metrics: analysis.performance_metrics
+    };
+    
+    setSelectedAnalysis(videoData);
+    setShowAnalysisDialog(true);
   };
-
-  const formatTimestamp = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  if (isLoading) {
-    return (
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-6 text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-bright-pink border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-400">Loading analysis results...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!analysisData) {
-    return (
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-6 text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">No Analysis Available</h3>
-          <p className="text-gray-400">Analysis data not found for this video.</p>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      {/* Header with PDF Download */}
-      <Card className="bg-gradient-to-r from-gray-900 to-gray-800 border-gray-700">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-white text-2xl font-bold flex items-center gap-3">
-                <div className="p-2 bg-bright-pink/20 rounded-lg">
-                  <Brain className="w-6 h-6 text-bright-pink" />
-                </div>
-                AI Analysis Results
-              </CardTitle>
-              <p className="text-gray-300 mt-2">
-                Comprehensive {videoType} analysis with detailed insights
-              </p>
+      {loading ? (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="flex flex-col items-center justify-center">
+              <svg className="animate-spin h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="mt-3 text-gray-500">Loading analysis results...</p>
             </div>
-            
-            <Button
-              onClick={generatePDFReport}
-              disabled={isGeneratingPDF}
-              className="bg-bright-pink hover:bg-bright-pink/90 text-white"
-            >
-              {isGeneratingPDF ? (
-                <>
-                  <div className="animate-spin w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download PDF Report
-                </>
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
-
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 bg-gray-800 p-1">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <Eye className="w-4 h-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="events" className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            Timeline
-          </TabsTrigger>
-          <TabsTrigger value="players" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Players
-          </TabsTrigger>
-          <TabsTrigger value="insights" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Insights
-          </TabsTrigger>
-          <TabsTrigger value="recommendations" className="flex items-center gap-2">
-            <Target className="w-4 h-4" />
-            Actions
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          {/* Analysis Status */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <CheckCircle className="w-6 h-6 text-green-500" />
-                <span className="text-white font-semibold text-lg">Analysis Complete</span>
-                <Badge className="bg-bright-pink text-white">
-                  {analysisData.tagged_player_present ? 'Tagged Players Found' : 'Standard Analysis'}
-                </Badge>
-              </div>
-              
-              <div className="text-gray-300 leading-relaxed">
-                {analysisData.overview}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Visual Summary */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-bright-pink" />
-                Performance Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-white font-medium mb-2">Game Flow</h4>
-                  <p className="text-gray-300 text-sm">
-                    {analysisData.visual_summary?.gameFlow || 'Performance maintained throughout the analysis period'}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-white font-medium mb-2">Pressure Map</h4>
-                  <p className="text-gray-300 text-sm">
-                    {analysisData.visual_summary?.pressureMap || 'Consistent performance under various pressure levels'}
-                  </p>
-                </div>
-              </div>
-
-              {analysisData.visual_summary?.momentumShifts && analysisData.visual_summary.momentumShifts.length > 0 && (
-                <div>
-                  <h4 className="text-white font-medium mb-2">Key Momentum Shifts</h4>
-                  <div className="space-y-2">
-                    {analysisData.visual_summary.momentumShifts.slice(0, 3).map((shift: any, index: number) => (
-                      <div key={index} className="flex items-center gap-3 text-sm">
-                        <Badge variant="outline" className="text-bright-pink border-bright-pink">
-                          {formatTimestamp(shift.timestamp)}
-                        </Badge>
-                        <span className="text-gray-300">{shift.shift}</span>
-                        <span className="text-gray-500">•</span>
-                        <span className="text-gray-400">{shift.reason}</span>
-                      </div>
-                    ))}
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="flex flex-col items-center justify-center">
+              <AlertCircle className="h-6 w-6 text-red-500" />
+              <p className="mt-3 text-red-500">{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : analysisResults.length === 0 ? (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="flex flex-col items-center justify-center">
+              <CheckCircle className="h-6 w-6 text-green-500" />
+              <p className="mt-3 text-gray-500">No analysis results found for this video.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {analysisResults.map((analysis) => (
+            <Card key={analysis.id}>
+              <CardHeader>
+                <CardTitle>Analysis #{analysis.id}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-500">
+                  Created at: {format(new Date(analysis.created_at), 'MMMM dd, yyyy HH:mm')}
+                </p>
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">
+                      <Eye className="w-3 h-3 mr-1" />
+                      {analysis.view_count || 0} Views
+                    </Badge>
+                    <Badge variant="outline">
+                      <Users className="w-3 h-3 mr-1" />
+                      {analysis.tagged_players?.length || 0} Players
+                    </Badge>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="events" className="space-y-4">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-bright-pink" />
-                Event Timeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-96">
-                <div className="space-y-4">
-                  {analysisData.key_events && analysisData.key_events.length > 0 ? (
-                    analysisData.key_events.map((event: any, index: number) => (
-                      <div key={index} className="flex items-start gap-4 p-4 bg-gray-700 rounded-lg">
-                        <div className="text-center min-w-[60px]">
-                          <Badge variant="outline" className="text-bright-pink border-bright-pink">
-                            {formatTimestamp(event.timestamp)}
-                          </Badge>
-                          <div className={`mt-2 w-2 h-2 rounded-full mx-auto ${
-                            event.importance === 'high' ? 'bg-red-500' :
-                            event.importance === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                          }`} />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-white font-medium mb-1">{event.event}</h4>
-                          <p className="text-gray-300 text-sm">{event.description}</p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-400">No timeline events recorded for this analysis.</p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="players" className="space-y-4">
-          {analysisData.tagged_player_analysis && Object.keys(analysisData.tagged_player_analysis).length > 0 ? (
-            Object.entries(analysisData.tagged_player_analysis).map(([playerId, analysis]: [string, any]) => (
-              <Card key={playerId} className={`${
-                analysis.present ? 'bg-gray-800 border-gray-700' : 'bg-red-900/20 border-red-700'
-              }`}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Users className="w-5 h-5 text-bright-pink" />
-                      Player {playerId}
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                      {analysis.present ? (
-                        <Badge className="bg-green-500 text-white">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Present
-                        </Badge>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleViewAnalysis(analysis)}
+                      className="flex items-center gap-2"
+                    >
+                      <Play className="w-4 h-4" />
+                      View Analysis
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleGenerateReport(analysis)}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
                       ) : (
-                        <Badge className="bg-red-500 text-white">
-                          <AlertCircle className="w-3 h-3 mr-1" />
-                          Not Found
-                        </Badge>
+                        <Download className="w-4 h-4 mr-2" />
                       )}
-                    </div>
+                      Generate Report
+                    </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {analysis.present ? (
-                    <>
-                      <div className="flex items-center gap-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-bright-pink">
-                            {analysis.performanceRating || 85}
-                          </div>
-                          <div className="text-xs text-gray-400">Rating</div>
-                        </div>
-                        <div className="flex-1">
-                          <Progress 
-                            value={analysis.performanceRating || 85} 
-                            className="h-3"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="text-white font-medium mb-2">Performance Analysis</h4>
-                        <p className="text-gray-300 text-sm">{analysis.involvement}</p>
-                      </div>
-
-                      {analysis.keyMoments && analysis.keyMoments.length > 0 && (
-                        <div>
-                          <h4 className="text-white font-medium mb-2">Key Moments</h4>
-                          <div className="space-y-2">
-                            {analysis.keyMoments.map((moment: any, index: number) => (
-                              <div key={index} className="flex items-center gap-3 text-sm">
-                                <Badge variant="outline" className="text-bright-pink border-bright-pink">
-                                  {formatTimestamp(moment.timestamp)}
-                                </Badge>
-                                <span className="text-gray-300">{moment.action}</span>
-                                <span className="text-gray-500">•</span>
-                                <span className="text-gray-400">{moment.impact}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-center py-4">
-                      <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-                      <p className="text-gray-300 mb-3">
-                        Player {playerId} was not detected in this video
-                      </p>
-                      <Button
-                        onClick={() => navigateToPlayerVideos(playerId)}
-                        variant="outline"
-                        className="border-bright-pink text-bright-pink hover:bg-bright-pink hover:text-white"
-                      >
-                        View Other Videos
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6 text-center">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-white font-medium mb-2">No Tagged Players</h3>
-                <p className="text-gray-400">No players were tagged for analysis in this video.</p>
+                </div>
               </CardContent>
             </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="insights" className="space-y-4">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-bright-pink" />
-                Context & Reasoning
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-300 leading-relaxed">
-                {analysisData.context_reasoning || 'Analysis provides comprehensive insights into performance patterns and tactical elements.'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <FileText className="w-5 h-5 text-bright-pink" />
-                Technical Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-300 leading-relaxed">
-                {analysisData.explanations || 'Detailed technical analysis covering performance metrics, tactical awareness, and strategic elements.'}
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="recommendations" className="space-y-4">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Target className="w-5 h-5 text-bright-pink" />
-                AI Recommendations
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {analysisData.recommendations && analysisData.recommendations.length > 0 ? (
-                  analysisData.recommendations.map((recommendation: string, index: number) => (
-                    <div key={index} className="flex items-start gap-3 p-4 bg-gray-700 rounded-lg">
-                      <div className="w-6 h-6 bg-bright-pink rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                        {index + 1}
-                      </div>
-                      <p className="text-gray-300">{recommendation}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-400">No specific recommendations generated for this video.</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          ))}
+        </div>
+      )}
+      
+      {/* Add the dialog at the end */}
+      {showAnalysisDialog && selectedAnalysis && (
+        <VideoAnalysisDialog
+          isOpen={showAnalysisDialog}
+          onClose={() => {
+            setShowAnalysisDialog(false);
+            setSelectedAnalysis(null);
+          }}
+          analysis={selectedAnalysis}
+        />
+      )}
     </div>
   );
 };
-
-export default VideoAnalysisResults;
