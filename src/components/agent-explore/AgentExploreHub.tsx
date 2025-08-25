@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,14 +97,30 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
       if (error) throw error;
 
-      // Process data to add age calculation
+      // Process data to add age calculation and ensure proper typing
       const processedPitches = (data || []).map(pitch => ({
-        ...pitch,
+        id: pitch.id,
+        asking_price: pitch.asking_price || 0,
+        currency: pitch.currency || 'USD',
+        transfer_type: pitch.transfer_type,
+        expires_at: pitch.expires_at,
+        created_at: pitch.created_at,
+        description: pitch.description,
+        view_count: pitch.view_count,
+        message_count: pitch.message_count,
+        shortlist_count: pitch.shortlist_count,
         players: {
-          ...pitch.players,
+          id: pitch.players.id,
+          full_name: pitch.players.full_name,
+          position: pitch.players.position,
+          citizenship: pitch.players.citizenship,
           age: pitch.players.date_of_birth 
             ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
             : 0
+        },
+        teams: {
+          team_name: pitch.teams.team_name,
+          country: pitch.teams.country
         }
       }));
 
@@ -162,14 +177,30 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
       if (error) throw error;
 
-      // Process data to add age calculation
+      // Process data to add age calculation and ensure proper typing
       const processedPitches = (data || []).map(pitch => ({
-        ...pitch,
+        id: pitch.id,
+        asking_price: pitch.asking_price || 0,
+        currency: pitch.currency || 'USD',
+        transfer_type: pitch.transfer_type,
+        expires_at: pitch.expires_at,
+        created_at: pitch.created_at,
+        description: pitch.description,
+        view_count: pitch.view_count,
+        message_count: pitch.message_count,
+        shortlist_count: pitch.shortlist_count,
         players: {
-          ...pitch.players,
+          id: pitch.players.id,
+          full_name: pitch.players.full_name,
+          position: pitch.players.position,
+          citizenship: pitch.players.citizenship,
           age: pitch.players.date_of_birth 
             ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
             : 0
+        },
+        teams: {
+          team_name: pitch.teams.team_name,
+          country: pitch.teams.country
         }
       }));
 
@@ -195,15 +226,17 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
   const handleViewPitch = async (pitchId: string) => {
     try {
-      // Increment view count using RPC function or raw SQL
-      const { error } = await supabase.rpc('increment_pitch_views', { pitch_id: pitchId });
-      
+      // Try to increment view count directly in the database
+      const currentPitch = transferPitches.find(p => p.id === pitchId);
+      const currentViewCount = currentPitch?.view_count || 0;
+
+      const { error } = await supabase
+        .from('transfer_pitches')
+        .update({ view_count: currentViewCount + 1 })
+        .eq('id', pitchId);
+
       if (error) {
-        // Fallback to direct update if RPC doesn't exist
-        await supabase
-          .from('transfer_pitches')
-          .update({ view_count: (transferPitches.find(p => p.id === pitchId)?.view_count || 0) + 1 })
-          .eq('id', pitchId);
+        console.error('Error updating view count:', error);
       }
 
       toast({
