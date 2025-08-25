@@ -31,7 +31,8 @@ export class EnhancedVideoCompressionService {
    */
   async compressVideo(
     file: File,
-    options: Partial<CompressionOptions> = {}
+    options: Partial<CompressionOptions> = {},
+    videoId?: string
   ): Promise<CompressionResult> {
     const startTime = Date.now();
     const finalOptions = { ...this.defaultOptions, ...options };
@@ -40,10 +41,15 @@ export class EnhancedVideoCompressionService {
     console.log(`Target size: ${finalOptions.targetSizeMB}MB`);
     console.log(`Original size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
 
-    try {
-      // Log compression start
-      await this.logCompressionStart(file);
+    const originalSizeMB = file.size / (1024 * 1024);
 
+    // Log compression start to database
+    let logId: string | null = null;
+    if (videoId) {
+      logId = await this.logCompressionStart(videoId, originalSizeMB, finalOptions.targetSizeMB);
+    }
+
+    try {
       // Generate thumbnail if requested
       let thumbnailBlob: Blob | undefined;
       if (finalOptions.generateThumbnail) {
@@ -58,7 +64,6 @@ export class EnhancedVideoCompressionService {
       );
 
       const processingTime = Date.now() - startTime;
-      const originalSizeMB = file.size / (1024 * 1024);
       const compressedSizeMB = compressedFile.size / (1024 * 1024);
       const compressionRatio = 1 - (compressedSizeMB / originalSizeMB);
 
@@ -73,8 +78,10 @@ export class EnhancedVideoCompressionService {
         thumbnailBlob
       };
 
-      // Log compression completion
-      await this.logCompressionComplete(result);
+      // Log compression completion to database
+      if (logId) {
+        await this.logCompressionComplete(logId, result);
+      }
 
       console.log(`Compression completed successfully:`);
       console.log(`- Original: ${originalSizeMB.toFixed(2)}MB`);
@@ -87,8 +94,88 @@ export class EnhancedVideoCompressionService {
 
     } catch (error) {
       console.error('Video compression failed:', error);
-      await this.logCompressionError(file, error);
+      
+      // Log compression error to database
+      if (logId) {
+        await this.logCompressionError(logId, error);
+      }
+      
       throw new Error(`Video compression failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Log compression start to database
+   */
+  private async logCompressionStart(videoId: string, originalSizeMB: number, targetSizeMB: number): Promise<string | null> {
+    try {
+      const { data, error } = await supabase
+        .from('video_compression_logs')
+        .insert({
+          video_id: videoId,
+          original_size_mb: originalSizeMB,
+          target_size_mb: targetSizeMB,
+          compression_status: 'processing',
+          compression_algorithm: 'h264'
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.warn('Failed to log compression start:', error);
+        return null;
+      }
+
+      return data.id;
+    } catch (error) {
+      console.warn('Failed to log compression start:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Log compression completion to database
+   */
+  private async logCompressionComplete(logId: string, result: CompressionResult): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('video_compression_logs')
+        .update({
+          compressed_size_mb: result.compressedSizeMB,
+          compression_ratio: result.compressionRatio,
+          compression_status: 'completed',
+          processing_time: Math.round(result.processingTime / 1000), // Convert to seconds
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', logId);
+
+      if (error) {
+        console.warn('Failed to log compression completion:', error);
+      }
+    } catch (error) {
+      console.warn('Failed to log compression completion:', error);
+    }
+  }
+
+  /**
+   * Log compression error to database
+   */
+  private async logCompressionError(logId: string, error: any): Promise<void> {
+    try {
+      const { error: dbError } = await supabase
+        .from('video_compression_logs')
+        .update({
+          compression_status: 'failed',
+          error_message: error.message || 'Unknown error occurred',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', logId);
+
+      if (dbError) {
+        console.warn('Failed to log compression error:', dbError);
+      }
+    } catch (dbError) {
+      console.warn('Failed to log compression error:', dbError);
     }
   }
 
@@ -321,122 +408,6 @@ export class EnhancedVideoCompressionService {
       video.onerror = () => reject(new Error('Video loading failed'));
       video.src = URL.createObjectURL(file);
     });
-  }
-
-  /**
-   * Log compression start to database
-   */
-  private async logCompressionStart(file: File): Promise<void> {
-    // Temporarily disable database logging until migration is run
-    console.log('Database logging temporarily disabled - compression starting');
-    return;
-    
-    // TODO: Re-enable when migration is run
-    /*
-    try {
-      // Check if the table exists before trying to log
-      const { data: tableExists } = await supabase
-        .from('video_compression_logs')
-        .select('id')
-        .limit(1);
-
-      if (tableExists !== null) {
-        const { error } = await supabase
-          .from('video_compression_logs')
-          .insert({
-            original_size_mb: file.size / (1024 * 1024),
-            compression_status: 'processing',
-            target_size_mb: this.defaultOptions.targetSizeMB,
-            compression_algorithm: 'h264'
-          });
-
-        if (error) {
-          console.warn('Failed to log compression start:', error);
-        }
-      }
-    } catch (error) {
-      // Table doesn't exist yet, skip logging
-      console.log('Compression logging table not available yet');
-    }
-    */
-  }
-
-  /**
-   * Log compression completion to database
-   */
-  private async logCompressionComplete(result: CompressionResult): Promise<void> {
-    // Temporarily disable database logging until migration is run
-    console.log('Database logging temporarily disabled - compression completed');
-    return;
-    
-    // TODO: Re-enable when migration is run
-    /*
-    try {
-      // Check if the table exists before trying to log
-      const { data: tableExists } = await supabase
-        .from('video_compression_logs')
-        .select('id')
-        .limit(1);
-
-      if (tableExists !== null) {
-        const { error } = await supabase
-          .from('video_compression_logs')
-          .update({
-            compressed_size_mb: result.compressedSizeMB,
-            compression_ratio: result.compressionRatio,
-            compression_status: 'completed',
-            processing_time: result.processingTime
-          })
-          .eq('original_size_mb', result.originalSizeMB)
-          .eq('compression_status', 'processing');
-
-        if (error) {
-          console.warn('Failed to log compression completion:', error);
-        }
-      }
-    } catch (error) {
-      // Table doesn't exist yet, skip logging
-      console.log('Compression logging table not available yet');
-    }
-    */
-  }
-
-  /**
-   * Log compression error to database
-   */
-  private async logCompressionError(file: File, error: any): Promise<void> {
-    // Temporarily disable database logging until migration is run
-    console.log('Database logging temporarily disabled - compression error:', error.message);
-    return;
-    
-    // TODO: Re-enable when migration is run
-    /*
-    try {
-      // Check if the table exists before trying to log
-      const { data: tableExists } = await supabase
-        .from('video_compression_logs')
-        .select('id')
-        .limit(1);
-
-      if (tableExists !== null) {
-        const { error: dbError } = await supabase
-          .from('video_compression_logs')
-          .update({
-            compression_status: 'failed',
-            error_message: error.message
-          })
-          .eq('original_size_mb', file.size / (1024 * 1024))
-          .eq('compression_status', 'processing');
-
-        if (dbError) {
-          console.warn('Failed to log compression error:', dbError);
-        }
-      }
-    } catch (dbError) {
-      // Table doesn't exist yet, skip logging
-      console.log('Compression logging table not available yet');
-    }
-    */
   }
 
   /**

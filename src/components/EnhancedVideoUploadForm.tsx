@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -117,6 +116,62 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
   };
 
+  const compressVideo = async (file: File, videoId?: string): Promise<File> => {
+    setIsCompressing(true);
+    setCompressionProgress(0);
+
+    // Simulate progress since the service doesn't have a callback
+    const progressInterval = setInterval(() => {
+      setCompressionProgress(prev => {
+        const newProgress = prev + Math.random() * 20;
+        if (newProgress >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return newProgress;
+      });
+    }, 200);
+
+    try {
+      const result = await videoCompressionService.compressVideo(
+        file, 
+        {
+          targetSizeMB: 10,
+          maxQuality: 'high',
+          generateThumbnail: true
+        },
+        videoId // Pass video ID for logging
+      );
+
+      clearInterval(progressInterval);
+      setCompressionProgress(100);
+
+      setCompressionStats({
+        originalSize: result.originalSizeMB,
+        compressedSize: result.compressedSizeMB,
+        ratio: result.compressionRatio
+      });
+
+      toast({
+        title: "Video Compressed Successfully",
+        description: `Reduced from ${result.originalSizeMB.toFixed(1)}MB to ${result.compressedSizeMB.toFixed(1)}MB`,
+      });
+
+      return result.compressedFile;
+    } catch (error) {
+      clearInterval(progressInterval);
+      console.error('Compression error:', error);
+      toast({
+        title: "Compression Failed",
+        description: "Using original file for upload",
+        variant: "destructive"
+      });
+      return file;
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -175,58 +230,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       ...prev,
       playerTags: prev.playerTags.filter(tag => tag !== playerName)
     }));
-  };
-
-  const compressVideo = async (file: File): Promise<File> => {
-    setIsCompressing(true);
-    setCompressionProgress(0);
-
-    // Simulate progress since the service doesn't have a callback
-    const progressInterval = setInterval(() => {
-      setCompressionProgress(prev => {
-        const newProgress = prev + Math.random() * 20;
-        if (newProgress >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return newProgress;
-      });
-    }, 200);
-
-    try {
-      const result = await videoCompressionService.compressVideo(file, {
-        targetSizeMB: 10,
-        maxQuality: 'high',
-        generateThumbnail: true
-      });
-
-      clearInterval(progressInterval);
-      setCompressionProgress(100);
-
-      setCompressionStats({
-        originalSize: result.originalSizeMB,
-        compressedSize: result.compressedSizeMB,
-        ratio: result.compressionRatio
-      });
-
-      toast({
-        title: "Video Compressed Successfully",
-        description: `Reduced from ${result.originalSizeMB.toFixed(1)}MB to ${result.compressedSizeMB.toFixed(1)}MB`,
-      });
-
-      return result.compressedFile;
-    } catch (error) {
-      clearInterval(progressInterval);
-      console.error('Compression error:', error);
-      toast({
-        title: "Compression Failed",
-        description: "Using original file for upload",
-        variant: "destructive"
-      });
-      return file;
-    } finally {
-      setIsCompressing(false);
-    }
   };
 
   const uploadVideo = async (file: File): Promise<string> => {
@@ -289,38 +292,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
   };
 
-  const saveVideoRecord = async (videoUrl: string, thumbnailUrl: string): Promise<string> => {
-    const videoData = {
-      team_id: teamId,
-      title: metadata.title,
-      video_url: videoUrl,
-      thumbnail_url: thumbnailUrl,
-      video_description: metadata.description,
-      video_type: metadata.videoType,
-      player_tags: metadata.playerTags,
-      duration: 0, // Will be updated after analysis
-      file_size: selectedFile?.size || 0,
-      ai_analysis_status: 'pending',
-      ...(metadata.videoType === 'match' && metadata.matchDetails && {
-        opposing_team: metadata.matchDetails.opposingTeam,
-        match_date: metadata.matchDetails.matchDate,
-        league: metadata.matchDetails.league,
-        home_or_away: metadata.matchDetails.homeOrAway,
-        final_score: metadata.matchDetails.finalScore
-      })
-    };
-
-    const { data, error } = await supabase
-      .from('videos')
-      .insert(videoData)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return data.id;
-  };
-
   const performAIAnalysis = async (videoId: string) => {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
@@ -371,19 +342,58 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
 
     try {
-      // Step 1: Compress video
-      const compressedFile = await compressVideo(selectedFile);
+      // Step 1: Create video record first to get ID
+      const videoData = {
+        team_id: teamId,
+        title: metadata.title,
+        video_url: '', // Will be updated after upload
+        thumbnail_url: '', // Will be updated after upload
+        video_description: metadata.description,
+        video_type: metadata.videoType,
+        player_tags: metadata.playerTags,
+        duration: 0,
+        file_size: selectedFile.size,
+        ai_analysis_status: 'pending',
+        compression_status: 'pending',
+        ...(metadata.videoType === 'match' && metadata.matchDetails && {
+          opposing_team: metadata.matchDetails.opposingTeam,
+          match_date: metadata.matchDetails.matchDate,
+          league: metadata.matchDetails.league,
+          home_or_away: metadata.matchDetails.homeOrAway,
+          final_score: metadata.matchDetails.finalScore
+        })
+      };
 
-      // Step 2: Generate thumbnail
+      const { data: videoRecord, error: videoError } = await supabase
+        .from('videos')
+        .insert(videoData)
+        .select()
+        .single();
+
+      if (videoError) throw videoError;
+
+      const videoId = videoRecord.id;
+
+      // Step 2: Compress video with logging
+      const compressedFile = await compressVideo(selectedFile, videoId);
+
+      // Step 3: Generate thumbnail
       const thumbnailUrl = await generateThumbnail(compressedFile);
 
-      // Step 3: Upload video
+      // Step 4: Upload video
       const videoUrl = await uploadVideo(compressedFile);
 
-      // Step 4: Save video record
-      const videoId = await saveVideoRecord(videoUrl, thumbnailUrl);
+      // Step 5: Update video record with URLs and compression status
+      await supabase
+        .from('videos')
+        .update({
+          video_url: videoUrl,
+          thumbnail_url: thumbnailUrl,
+          compression_status: 'completed'
+        })
+        .eq('id', videoId);
 
-      // Step 5: Perform AI analysis
+      // Step 6: Perform AI analysis
       await performAIAnalysis(videoId);
 
       toast({
@@ -547,7 +557,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           />
         </div>
 
-                {/* Player Tags */}
+        {/* Player Tags */}
         <div className="space-y-2">
           <Label htmlFor="player-tags" className="text-gray-300 flex items-center gap-1">
             <Users className="w-4 h-4" />
@@ -581,10 +591,10 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
               ))}
               {teamPlayers.filter(player => !metadata.playerTags.includes(player.full_name)).length > 0 ? (
                 <>
-                                   <Select
-                   value={selectedPlayerId}
-                   onValueChange={setSelectedPlayerId}
-                 >
+                  <Select
+                    value={selectedPlayerId}
+                    onValueChange={setSelectedPlayerId}
+                  >
                     <SelectTrigger className="h-8">
                       <SelectValue placeholder="Select Player" />
                     </SelectTrigger>
