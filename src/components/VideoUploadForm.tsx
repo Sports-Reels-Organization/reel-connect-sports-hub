@@ -21,13 +21,48 @@ interface VideoUploadFormProps {
 }
 
 const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onSuccess, onCancel }) => {
+  const { profile } = useAuth();
+  const [teamId, setTeamId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadTeamData = async () => {
+      if (profile?.user_type === 'team') {
+        try {
+          const { data: teamData, error } = await supabase
+            .from('teams')
+            .select('id')
+            .eq('profile_id', profile.id)
+            .single();
+
+          if (error) throw error;
+          setTeamId(teamData.id);
+        } catch (error) {
+          console.error('Error loading team data:', error);
+        }
+      }
+    };
+
+    loadTeamData();
+  }, [profile]);
+
+  if (!teamId) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-bright-pink"></div>
+      </div>
+    );
+  }
+
   return (
     <React.Suspense fallback={
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-bright-pink"></div>
       </div>
     }>
-      <EnhancedVideoUploadForm />
+      <EnhancedVideoUploadForm 
+        teamId={teamId}
+        onUploadComplete={onSuccess}
+      />
     </React.Suspense>
   );
 };

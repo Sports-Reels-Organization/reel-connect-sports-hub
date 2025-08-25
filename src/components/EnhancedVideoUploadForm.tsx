@@ -19,7 +19,7 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  Compress
+  Minimize2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { VideoCompressionService } from '@/services/videoCompressionService';
@@ -162,13 +162,24 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     const fileName = `${teamId}/${Date.now()}-${file.name}`;
 
     try {
+      // Create a simple progress simulator since Supabase doesn't support onUploadProgress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const newProgress = prev + 10;
+          if (newProgress >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return newProgress;
+        });
+      }, 200);
+
       const { data, error } = await supabase.storage
         .from('match-videos')
-        .upload(fileName, file, {
-          onUploadProgress: (progress) => {
-            setUploadProgress(Math.round((progress.loaded / progress.total) * 100));
-          }
-        });
+        .upload(fileName, file);
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
       if (error) throw error;
 
@@ -378,7 +389,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           <Card className="bg-gray-700 border-gray-600">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Compress className="w-4 h-4 text-bright-pink animate-spin" />
+                <Minimize2 className="w-4 h-4 text-bright-pink animate-spin" />
                 <span className="text-white font-medium">Compressing Video</span>
               </div>
               <Progress value={compressionProgress} className="h-2" />

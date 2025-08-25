@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +32,7 @@ interface Video {
   video_url: string;
   thumbnail_url: string;
   video_type: string;
-  player_tags: string[];
+  player_tags: string[] | null;
   ai_analysis_status: string;
   created_at: string;
   duration: number;
@@ -103,7 +102,14 @@ const VideoManagement: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setVideos(data || []);
+      
+      // Transform the data to match our interface
+      const transformedVideos = (data || []).map(video => ({
+        ...video,
+        player_tags: video.player_tags || []
+      }));
+      
+      setVideos(transformedVideos);
     } catch (error) {
       console.error('Error loading videos:', error);
       toast({
@@ -379,7 +385,7 @@ const VideoManagement: React.FC = () => {
 
                 <div className="flex items-center gap-2 mb-3">
                   {getTypeBadge(video.video_type)}
-                  {video.player_tags.length > 0 && (
+                  {video.player_tags && video.player_tags.length > 0 && (
                     <Badge variant="outline" className="text-xs">
                       <Users className="w-3 h-3 mr-1" />
                       {video.player_tags.length} tagged

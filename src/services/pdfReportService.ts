@@ -10,11 +10,12 @@ export interface PDFReportData {
   overview: string;
   keyEvents: any[];
   recommendations: string[];
-  taggedPlayerAnalysis: any;
+  taggedPlayerAnalysis: Record<string, any>;
   eventTimeline: any[];
-  visualSummary: any;
+  visualSummary: Record<string, any>;
   snapshotUrls: string[];
   teamName?: string;
+  [key: string]: any; // Index signature for Json compatibility
 }
 
 export class PDFReportService {
@@ -240,7 +241,7 @@ export class PDFReportService {
       .from('video-analysis-reports')
       .getPublicUrl(fileName);
 
-    // Save report record to database
+    // Save report record to database - fix the type issue
     await supabase
       .from('ai_analysis_reports')
       .insert({
@@ -248,7 +249,7 @@ export class PDFReportService {
         team_id: teamId,
         report_type: 'comprehensive',
         pdf_url: urlData.publicUrl,
-        report_data: reportData
+        report_data: reportData as any // Cast to any for Json compatibility
       });
 
     return urlData.publicUrl;
