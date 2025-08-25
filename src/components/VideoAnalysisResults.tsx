@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -92,7 +91,6 @@ export const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
   };
 
   const handleViewAnalysis = (analysis: any) => {
-    // Fetch video data for the analysis
     const videoData = {
       video_id: videoId,
       video_url: analysis.video_url || `https://example.com/video/${videoId}`, 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +26,7 @@ interface PlayerData {
   market_value: number;
   portrait_url?: string;
   team?: {
+    id?: string;
     team_name: string;
     country: string;
   };
@@ -61,7 +61,6 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
     try {
       setLoading(true);
       
-      // Get player with team and active pitch
       const { data: playerData, error } = await supabase
         .from('players')
         .select(`
@@ -72,6 +71,7 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
           market_value,
           portrait_url,
           team:teams(
+            id,
             team_name,
             country
           )
@@ -81,7 +81,6 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
 
       if (error) throw error;
 
-      // Get active pitch for this player
       const { data: pitchData } = await supabase
         .from('transfer_pitches')
         .select(`
@@ -99,9 +98,17 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
         .limit(1)
         .single();
 
+      // Handle tagged_videos type conversion
+      const processedPitch = pitchData ? {
+        ...pitchData,
+        tagged_videos: Array.isArray(pitchData.tagged_videos) 
+          ? pitchData.tagged_videos 
+          : pitchData.tagged_videos ? [pitchData.tagged_videos] : []
+      } : undefined;
+
       setPlayer({
         ...playerData,
-        pitch: pitchData || undefined
+        pitch: processedPitch
       });
     } catch (error) {
       console.error('Error fetching player data:', error);
@@ -169,7 +176,6 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
     <>
       <Card className="hover:shadow-md transition-shadow cursor-pointer group">
         <CardContent className="p-4 space-y-3">
-          {/* Player Header */}
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex items-center justify-center">
               {player.portrait_url ? (
@@ -191,7 +197,6 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
             </div>
           </div>
 
-          {/* Player Info */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <MapPin className="w-3 h-3" />
@@ -206,7 +211,6 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
             )}
           </div>
 
-          {/* Pitch Info */}
           {player.pitch && (
             <div className="space-y-2 pt-2 border-t">
               <div className="flex items-center justify-between">
@@ -240,7 +244,6 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex gap-2 pt-2">
             <Button 
               size="sm" 
@@ -267,10 +270,39 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
         </CardContent>
       </Card>
 
-      {/* Modals */}
       {showPlayerDetail && player && (
         <PlayerDetailModal
-          player={player}
+          player={{
+            id: player.id,
+            full_name: player.full_name,
+            position: player.position,
+            citizenship: player.citizenship,
+            market_value: player.market_value,
+            portrait_url: player.portrait_url,
+            age: 0, // Default values for missing properties
+            ai_analysis: {},
+            bio: '',
+            contract_expires: '',
+            created_at: '',
+            current_club: player.team?.team_name || '',
+            date_of_birth: '',
+            fifa_id: '',
+            foot: '',
+            height: 0,
+            injury_history: [],
+            jersey_number: 0,
+            join_date: '',
+            league: '',
+            nationality: player.citizenship,
+            previous_clubs: [],
+            profile_id: '',
+            sports_type: 'football',
+            stats: {},
+            tagged_players: [],
+            team_id: player.team?.id || '',
+            updated_at: '',
+            weight: 0
+          }}
           isOpen={showPlayerDetail}
           onClose={() => setShowPlayerDetail(false)}
         />

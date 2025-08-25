@@ -24,7 +24,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import EnhancedVideoUploadForm from './EnhancedVideoUploadForm';
-import { VideoAnalysisResults } from '@/components/VideoAnalysisResults';
+import { VideoAnalysisResults } from './VideoAnalysisResults';
 
 interface Video {
   id: string;
@@ -102,7 +102,6 @@ const VideoManagement: React.FC = () => {
 
       if (error) throw error;
       
-      // Transform the data to match our interface, handling missing properties
       const transformedVideos = (data || []).map(video => ({
         id: video.id,
         title: video.title,
@@ -116,7 +115,7 @@ const VideoManagement: React.FC = () => {
         final_score: video.final_score_home && video.final_score_away 
           ? `${video.final_score_home}-${video.final_score_away}`
           : undefined,
-        league: undefined, // Remove reference to non-existent properties
+        league: undefined,
       }));
       
       setVideos(transformedVideos);
@@ -135,7 +134,6 @@ const VideoManagement: React.FC = () => {
   const applyFilters = () => {
     let filtered = videos;
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(video =>
         video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -144,12 +142,10 @@ const VideoManagement: React.FC = () => {
       );
     }
 
-    // Type filter
     if (filterType !== 'all') {
       filtered = filtered.filter(video => video.video_type === filterType);
     }
 
-    // Status filter
     if (filterStatus !== 'all') {
       filtered = filtered.filter(video => video.ai_analysis_status === filterStatus);
     }
@@ -234,7 +230,6 @@ const VideoManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Video Management</h1>
@@ -265,7 +260,6 @@ const VideoManagement: React.FC = () => {
         </Dialog>
       </div>
 
-      {/* Filters */}
       <Card className="bg-gray-800 border-gray-700">
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4">
@@ -310,7 +304,6 @@ const VideoManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Video Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, index) => (
@@ -351,7 +344,6 @@ const VideoManagement: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredVideos.map((video) => (
             <Card key={video.id} className="bg-gray-800 border-gray-700 overflow-hidden hover:border-bright-pink/50 transition-colors">
-              {/* Video Thumbnail */}
               <div className="relative aspect-video bg-gray-900">
                 {video.thumbnail_url ? (
                   <img
@@ -365,14 +357,12 @@ const VideoManagement: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Duration overlay */}
                 {video.duration > 0 && (
                   <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-white text-xs">
                     {formatDuration(video.duration)}
                   </div>
                 )}
                 
-                {/* Status overlay */}
                 <div className="absolute top-2 left-2">
                   {getStatusBadge(video.ai_analysis_status)}
                 </div>
@@ -397,7 +387,6 @@ const VideoManagement: React.FC = () => {
                   {getTypeBadge(video.video_type)}
                 </div>
 
-                {/* Match details */}
                 {video.video_type === 'match' && video.opposing_team && (
                   <div className="text-sm text-gray-400 mb-2">
                     vs {video.opposing_team}
@@ -412,7 +401,6 @@ const VideoManagement: React.FC = () => {
                   {new Date(video.created_at).toLocaleDateString()}
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex gap-2">
                   {video.ai_analysis_status === 'completed' ? (
                     <Dialog>
@@ -432,7 +420,6 @@ const VideoManagement: React.FC = () => {
                         {teamId && (
                           <VideoAnalysisResults
                             videoId={video.id}
-                            videoType={video.video_type as any}
                             teamId={teamId}
                           />
                         )}
@@ -471,7 +458,6 @@ const VideoManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Statistics */}
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white">Video Statistics</CardTitle>
