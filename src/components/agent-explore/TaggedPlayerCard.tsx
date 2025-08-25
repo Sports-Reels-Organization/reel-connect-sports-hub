@@ -313,7 +313,6 @@ const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({
             titles_seasons: null,
             transfer_history: null
           }}
-          onMessagePlayer={handleMessagePlayer}
         />
       )}
 
