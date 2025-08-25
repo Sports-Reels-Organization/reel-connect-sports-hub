@@ -687,37 +687,67 @@ export type Database = {
       }
       enhanced_video_analysis: {
         Row: {
+          analysis_metadata: Json | null
           analysis_status: string | null
+          context_reasoning: string | null
           created_at: string | null
+          event_timeline: Json | null
+          explanations: string | null
           game_context: Json | null
           id: string
+          key_events: Json | null
+          missing_players: Json | null
           overall_assessment: string | null
+          overview: string | null
+          player_performance_radar: Json | null
           recommendations: string[] | null
+          tagged_player_analysis: Json | null
           tagged_player_present: boolean | null
           updated_at: string | null
           video_id: string | null
+          visual_summary: Json | null
         }
         Insert: {
+          analysis_metadata?: Json | null
           analysis_status?: string | null
+          context_reasoning?: string | null
           created_at?: string | null
+          event_timeline?: Json | null
+          explanations?: string | null
           game_context?: Json | null
           id?: string
+          key_events?: Json | null
+          missing_players?: Json | null
           overall_assessment?: string | null
+          overview?: string | null
+          player_performance_radar?: Json | null
           recommendations?: string[] | null
+          tagged_player_analysis?: Json | null
           tagged_player_present?: boolean | null
           updated_at?: string | null
           video_id?: string | null
+          visual_summary?: Json | null
         }
         Update: {
+          analysis_metadata?: Json | null
           analysis_status?: string | null
+          context_reasoning?: string | null
           created_at?: string | null
+          event_timeline?: Json | null
+          explanations?: string | null
           game_context?: Json | null
           id?: string
+          key_events?: Json | null
+          missing_players?: Json | null
           overall_assessment?: string | null
+          overview?: string | null
+          player_performance_radar?: Json | null
           recommendations?: string[] | null
+          tagged_player_analysis?: Json | null
           tagged_player_present?: boolean | null
           updated_at?: string | null
           video_id?: string | null
+          visual_summary?: Json | null
         }
         Relationships: [
           {
