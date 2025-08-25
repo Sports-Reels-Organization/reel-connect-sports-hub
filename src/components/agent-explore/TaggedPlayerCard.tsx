@@ -19,8 +19,8 @@ import {
   Heart,
   Info
 } from 'lucide-react';
-import { PlayerDetailModal } from '@/components/PlayerDetailModal';
-import { MessagePlayerModal } from '@/components/MessagePlayerModal';
+import PlayerDetailModal from '@/components/PlayerDetailModal';
+import MessagePlayerModal from '@/components/MessagePlayerModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
