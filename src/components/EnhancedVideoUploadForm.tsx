@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,10 +19,11 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  Minimize2
+  Minimize2,
+  X
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { VideoCompressionService } from '@/services/videoCompressionService';
+import EnhancedVideoCompressionService from '@/services/enhancedVideoCompressionService';
 import { EnhancedAIAnalysisService } from '@/services/enhancedAIAnalysisService';
 
 interface VideoMetadata {
@@ -37,6 +38,13 @@ interface VideoMetadata {
     homeOrAway: 'home' | 'away';
     finalScore: string;
   };
+}
+
+interface TeamPlayer {
+  id: string;
+  full_name: string;
+  position: string;
+  jersey_number?: number;
 }
 
 interface EnhancedVideoUploadFormProps {
@@ -62,6 +70,8 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     compressedSize: number;
     ratio: number;
   } | null>(null);
+  const [teamPlayers, setTeamPlayers] = useState<TeamPlayer[]>([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
 
   const [metadata, setMetadata] = useState<VideoMetadata>({
     title: '',
@@ -77,8 +87,35 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
   });
 
-  const videoCompressionService = new VideoCompressionService();
+  const videoCompressionService = new EnhancedVideoCompressionService();
   const aiAnalysisService = new EnhancedAIAnalysisService();
+
+  // Fetch team players on component mount
+  useEffect(() => {
+    fetchTeamPlayers();
+  }, [teamId]);
+
+  const fetchTeamPlayers = async () => {
+    if (!teamId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .select('id, full_name, position, jersey_number')
+        .eq('team_id', teamId)
+        .order('full_name');
+
+      if (error) throw error;
+      setTeamPlayers(data || []);
+    } catch (error) {
+      console.error('Error fetching team players:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load team players",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -109,32 +146,68 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     setMetadata(prev => ({ ...prev, playerTags: tags }));
   };
 
+  const addPlayerTag = () => {
+    if (!selectedPlayerId) return;
+
+    const player = teamPlayers.find(p => p.id === selectedPlayerId);
+    if (!player) return;
+
+    // Check if player already tagged
+    if (metadata.playerTags.includes(player.full_name)) {
+      toast({
+        title: "Player Already Tagged",
+        description: `${player.full_name} is already tagged in this video`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setMetadata(prev => ({
+      ...prev,
+      playerTags: [...prev.playerTags, player.full_name]
+    }));
+
+    setSelectedPlayerId('');
+  };
+
+  const removePlayerTag = (playerName: string) => {
+    setMetadata(prev => ({
+      ...prev,
+      playerTags: prev.playerTags.filter(tag => tag !== playerName)
+    }));
+  };
+
   const compressVideo = async (file: File): Promise<File> => {
     setIsCompressing(true);
     setCompressionProgress(0);
 
+    // Simulate progress since the service doesn't have a callback
+    const progressInterval = setInterval(() => {
+      setCompressionProgress(prev => {
+        const newProgress = prev + Math.random() * 20;
+        if (newProgress >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return newProgress;
+      });
+    }, 200);
+
     try {
-      const result = await videoCompressionService.compressVideo(
-        file,
-        10, // Target 10MB
-        (progress) => setCompressionProgress(progress)
-      );
+      const result = await videoCompressionService.compressVideo(file, {
+        targetSizeMB: 10,
+        maxQuality: 'high',
+        generateThumbnail: true
+      });
+
+      clearInterval(progressInterval);
+      setCompressionProgress(100);
 
       setCompressionStats({
         originalSize: result.originalSizeMB,
         compressedSize: result.compressedSizeMB,
         ratio: result.compressionRatio
       });
-
-      // Log compression to database
-      await supabase
-        .from('video_compression_logs')
-        .insert({
-          original_size_mb: result.originalSizeMB,
-          compressed_size_mb: result.compressedSizeMB,
-          compression_ratio: result.compressionRatio,
-          compression_status: 'completed'
-        });
 
       toast({
         title: "Video Compressed Successfully",
@@ -143,6 +216,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
       return result.compressedFile;
     } catch (error) {
+      clearInterval(progressInterval);
       console.error('Compression error:', error);
       toast({
         title: "Compression Failed",
@@ -333,6 +407,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         }
       });
       setCompressionStats(null);
+      setSelectedPlayerId('');
       
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -472,20 +547,76 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           />
         </div>
 
-        {/* Player Tags */}
+                {/* Player Tags */}
         <div className="space-y-2">
           <Label htmlFor="player-tags" className="text-gray-300 flex items-center gap-1">
             <Users className="w-4 h-4" />
             Tagged Players
           </Label>
-          <Input
-            id="player-tags"
-            value={metadata.playerTags.join(', ')}
-            onChange={(e) => handlePlayerTagsChange(e.target.value)}
-            placeholder="Enter player names separated by commas..."
-            className="bg-gray-700 border-gray-600 text-white"
-            disabled={isProcessing}
-          />
+          {teamPlayers.length === 0 ? (
+            <div className="flex items-center gap-2 p-2 bg-gray-700 border border-gray-600 rounded-md">
+              {teamId ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  <span className="text-sm text-gray-400">Loading team players...</span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-400">No team players found</span>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 p-2 bg-gray-700 border border-gray-600 rounded-md">
+              {metadata.playerTags.map((tag, index) => (
+                <Badge
+                  key={index}
+                  variant="secondary"
+                  className="flex items-center gap-1 bg-bright-pink text-white text-xs"
+                >
+                  {tag}
+                  <X
+                    className="w-3 h-3 cursor-pointer hover:text-white"
+                    onClick={() => removePlayerTag(tag)}
+                  />
+                </Badge>
+              ))}
+              {teamPlayers.filter(player => !metadata.playerTags.includes(player.full_name)).length > 0 ? (
+                <>
+                                   <Select
+                   value={selectedPlayerId}
+                   onValueChange={setSelectedPlayerId}
+                 >
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Select Player" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamPlayers
+                        .filter(player => !metadata.playerTags.includes(player.full_name))
+                        .map((player) => (
+                          <SelectItem
+                            key={player.id}
+                            value={player.id}
+                          >
+                            {player.full_name}
+                            {player.jersey_number && ` (${player.jersey_number})`}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={addPlayerTag}
+                    disabled={!selectedPlayerId}
+                    className="h-8 bg-bright-pink hover:bg-bright-pink/90 text-white text-xs"
+                  >
+                    Add Player
+                  </Button>
+                </>
+              ) : (
+                <span className="text-sm text-gray-400 italic">
+                  All players have been tagged
+                </span>
+              )}
+            </div>
+          )}
           <p className="text-xs text-gray-500">
             Tag players to enable AI to check their presence and analyze their performance
           </p>

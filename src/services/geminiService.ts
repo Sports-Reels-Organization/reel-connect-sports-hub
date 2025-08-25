@@ -1,7 +1,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI('AIzaSyBnzqHsZWAFhqL6PH_KBNIDQqZyBBOXLfA');
+const genAI = new GoogleGenerativeAI('AIzaSyA2cd1hCSDn4TvWYiEBOcnxGb4g7Q3Dpns');
 
 export interface PlayerAnalysis {
   overallRating: number;
