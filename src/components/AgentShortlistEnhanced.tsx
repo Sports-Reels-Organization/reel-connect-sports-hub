@@ -299,6 +299,7 @@ const AgentShortlistEnhanced = () => {
   if (showVideoAnalysis && selectedVideo) {
     return (
       <EnhancedVideoAnalysis
+        videoId={selectedVideo.id}
         videoFile={new File([], selectedVideo.title)} // Mock file for now
         videoType="match"
         taggedPlayers={selectedVideo.tagged_players || []}

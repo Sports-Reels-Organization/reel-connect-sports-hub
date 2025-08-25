@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,9 +73,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({ teamI
     setCompressionProgress(0);
 
     try {
-      const compressed = await smartCompress(file, (progress) => {
-        setCompressionProgress(progress);
-      });
+      const compressed = await smartCompress(file);
 
       setCompressedFile(compressed);
       
@@ -338,7 +335,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({ teamI
             Tag Players (Optional)
           </label>
           <PlayerTagging
-            teamId={teamId}
             selectedPlayers={taggedPlayers}
             onPlayersChange={setTaggedPlayers}
           />
