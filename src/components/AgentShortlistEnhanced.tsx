@@ -856,15 +856,16 @@ const AgentShortlistEnhanced = () => {
             bio: modalPlayer.bio || '',
             citizenship: modalPlayer.citizenship || '',
             contract_expires: modalPlayer.contract_expires || '',
-            created_at: modalPlayer.date_of_birth || new Date().toISOString(),
+            created_at: modalPlayer.created_at || new Date().toISOString(),
             current_club: modalPlayer.current_club || '',
             date_of_birth: modalPlayer.date_of_birth || '',
             fifa_id: modalPlayer.fifa_id || '',
             foot: modalPlayer.foot || '',
             full_name: modalPlayer.full_name,
+            full_body_url: modalPlayer.full_body_url || null,
             gender: (modalPlayer.gender as "male" | "female" | "other") || 'male',
             headshot_url: modalPlayer.headshot_url || '',
-            height: typeof modalPlayer.height === 'string' ? parseFloat(modalPlayer.height) || 0 : 0,
+            height: typeof modalPlayer.height === 'string' ? parseFloat(modalPlayer.height) || 0 : modalPlayer.height || 0,
             id: modalPlayer.id,
             international_duty: modalPlayer.international_duty || null,
             jersey_number: modalPlayer.jersey_number || 0,
@@ -877,11 +878,11 @@ const AgentShortlistEnhanced = () => {
             player_agent: modalPlayer.player_agent || '',
             portrait_url: modalPlayer.portrait_url || '',
             position: modalPlayer.position || '',
-            team_id: '',
+            team_id: modalPlayer.team_id || '',
             titles_seasons: modalPlayer.titles_seasons || [],
             transfer_history: modalPlayer.transfer_history || null,
-            updated_at: new Date().toISOString(),
-            weight: typeof modalPlayer.weight === 'string' ? parseFloat(modalPlayer.weight) || 0 : 0
+            updated_at: modalPlayer.updated_at || new Date().toISOString(),
+            weight: typeof modalPlayer.weight === 'string' ? parseFloat(modalPlayer.weight) || 0 : modalPlayer.weight || 0
           }}
         />
       )}
