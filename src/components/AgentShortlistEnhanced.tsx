@@ -158,7 +158,7 @@ const AgentShortlistEnhanced = () => {
       // Process data to calculate age and handle tagged_videos
       const processedData: ShortlistItem[] = (data || []).map(item => ({
         ...item,
-        custom_tags: item.custom_tags || [],
+        custom_tags: (item.custom_tags as string[]) || [],
         player: {
           ...item.player,
           age: item.player.date_of_birth 
@@ -853,11 +853,37 @@ const AgentShortlistEnhanced = () => {
           isOpen={!!selectedPlayer}
           onClose={() => setSelectedPlayer(null)}
           player={{
-            ...modalPlayer,
+            age: modalPlayer.age || 0,
+            ai_analysis: modalPlayer.ai_analysis || null,
+            bio: modalPlayer.bio || '',
+            citizenship: modalPlayer.citizenship || '',
+            contract_expires: modalPlayer.contract_expires || '',
             created_at: modalPlayer.date_of_birth || new Date().toISOString(),
+            current_club: modalPlayer.current_club || '',
+            date_of_birth: modalPlayer.date_of_birth || '',
+            fifa_id: modalPlayer.fifa_id || '',
+            foot: modalPlayer.foot || '',
+            full_name: modalPlayer.full_name,
+            gender: modalPlayer.gender || '',
+            headshot_url: modalPlayer.headshot_url || '',
+            height: typeof modalPlayer.height === 'string' ? parseFloat(modalPlayer.height) || 0 : 0,
+            id: modalPlayer.id,
+            international_duty: modalPlayer.international_duty || null,
+            jersey_number: modalPlayer.jersey_number || 0,
+            joined_date: modalPlayer.joined_date || '',
+            leagues_participated: modalPlayer.leagues_participated || [],
+            market_value: modalPlayer.market_value || 0,
+            match_stats: modalPlayer.match_stats || null,
+            photo_url: modalPlayer.photo_url || '',
+            place_of_birth: modalPlayer.place_of_birth || '',
+            player_agent: modalPlayer.player_agent || '',
+            portrait_url: modalPlayer.portrait_url || '',
+            position: modalPlayer.position || '',
             team_id: '',
+            titles_seasons: modalPlayer.titles_seasons || [],
+            transfer_history: modalPlayer.transfer_history || null,
             updated_at: new Date().toISOString(),
-            ai_analysis: null
+            weight: typeof modalPlayer.weight === 'string' ? parseFloat(modalPlayer.weight) || 0 : 0
           }}
         />
       )}
