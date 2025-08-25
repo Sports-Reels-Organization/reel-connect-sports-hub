@@ -22,11 +22,11 @@ export interface AnalysisParams {
 // Use a simple string return type that matches what we store in the database
 export const analyzeVideoWithGemini = async (params: AnalysisParams): Promise<string> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // Create detailed prompt based on video type
     let analysisPrompt = '';
-    
+
     switch (params.videoType) {
       case 'match':
         analysisPrompt = `Analyze this football match video titled "${params.videoTitle}". ${params.videoDescription ? `Description: ${params.videoDescription}` : ''}

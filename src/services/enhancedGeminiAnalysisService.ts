@@ -21,7 +21,7 @@ export interface AnalysisParams {
 
 export const analyzeVideoWithAdvancedGemini = async (params: AnalysisParams): Promise<string> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // Create a comprehensive analysis prompt that will generate real insights
     let analysisPrompt = `You are an expert sports analyst with deep knowledge of football/soccer. Analyze this ${params.videoType} video comprehensively and provide detailed, specific insights.
@@ -241,7 +241,7 @@ IMPORTANT: Base your analysis on realistic football/soccer scenarios and provide
 
   } catch (error) {
     console.error('Error analyzing video with Advanced Gemini:', error);
-    
+
     // Provide a fallback that's still better than mock data
     const fallbackAnalysis = `## VIDEO ANALYSIS - ${params.videoType.toUpperCase()}
 

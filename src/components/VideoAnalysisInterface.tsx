@@ -5,10 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
   AlertTriangle,
   RefreshCw,
   FileText
@@ -71,7 +71,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
           analysis_status: videoData.ai_analysis_status || 'completed',
           video_type: analysis.video_type || 'video',
           analyzed_at: analysis.analyzed_at,
-          model_used: analysis.model_used || 'gemini-2.0-flash-exp'
+          model_used: analysis.model_used || 'gemini-2.5-flash'
         });
         return;
       }
@@ -94,7 +94,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
           analysis_status: matchVideoData.ai_analysis_status || 'completed',
           video_type: analysis.video_type || 'match',
           analyzed_at: analysis.analyzed_at,
-          model_used: analysis.model_used || 'gemini-2.0-flash-exp'
+          model_used: analysis.model_used || 'gemini-2.5-flash'
         });
         return;
       }
@@ -121,7 +121,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
       // Determine video type and prepare data
       const isMatchVideo = videoRecord.opposing_team !== undefined;
       const videoType = isMatchVideo ? 'match' : 'video';
-      
+
       const analysisData = {
         videoUrl: videoRecord.video_url,
         videoType: videoType as 'match' | 'interview' | 'training' | 'highlight',
@@ -141,7 +141,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         analysis: analysis,
         video_type: videoType,
         analyzed_at: new Date().toISOString(),
-        model_used: 'gemini-2.0-flash-exp'
+        model_used: 'gemini-2.5-flash'
       };
 
       const { error: updateError } = await supabase
@@ -162,13 +162,13 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         analysis_status: 'completed',
         video_type: videoType,
         analyzed_at: new Date().toISOString(),
-        model_used: 'gemini-2.0-flash-exp'
+        model_used: 'gemini-2.5-flash'
       });
 
     } catch (err: any) {
       console.error('Error analyzing video:', err);
       setError(err.message || 'Failed to analyze video');
-      
+
       // Update status to failed in database
       const isMatchVideo = videoRecord.opposing_team !== undefined;
       const tableName = isMatchVideo ? 'match_videos' : 'videos';
@@ -176,7 +176,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         .from(tableName)
         .update({ ai_analysis_status: 'failed' })
         .eq('id', videoId);
-        
+
     } finally {
       setAnalyzing(false);
     }
@@ -194,7 +194,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
     // Split by sections and format with proper styling
     const sections = text.split(/\*\*([^*]+)\*\*/g);
     const formattedSections = [];
-    
+
     for (let i = 0; i < sections.length; i++) {
       if (i % 2 === 1) {
         // This is a header
@@ -207,7 +207,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         // This is content
         const content = sections[i].trim();
         const lines = content.split('\n').filter(line => line.trim());
-        
+
         formattedSections.push(
           <div key={i} className="space-y-2 mb-4">
             {lines.map((line, lineIndex) => {
@@ -231,7 +231,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         );
       }
     }
-    
+
     return formattedSections;
   };
 
@@ -260,20 +260,19 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <Badge
                 variant="secondary"
-                className={`gap-2 ${
-                  analysisData.analysis_status === 'completed'
-                    ? 'bg-green-600 text-white'
-                    : analysisData.analysis_status === 'failed'
+                className={`gap-2 ${analysisData.analysis_status === 'completed'
+                  ? 'bg-green-600 text-white'
+                  : analysisData.analysis_status === 'failed'
                     ? 'bg-red-600 text-white'
                     : 'bg-yellow-600 text-white'
-                }`}
+                  }`}
               >
                 {analysisData.analysis_status === 'completed' && <CheckCircle className="w-4 h-4" />}
                 {analysisData.analysis_status === 'failed' && <XCircle className="w-4 h-4" />}
                 {analysisData.analysis_status === 'pending' && <Clock className="w-4 h-4" />}
                 {analysisData.analysis_status.toUpperCase()}
               </Badge>
-              
+
               {analysisData.model_used && (
                 <Badge variant="outline" className="text-xs">
                   {analysisData.model_used}
@@ -305,10 +304,10 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
             </AlertDescription>
           </Alert>
         )}
-        
+
         {(analysisData?.analysis_status === 'failed' || !analysisData) && (
-          <Button 
-            onClick={handleRetry} 
+          <Button
+            onClick={handleRetry}
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto"
             disabled={analyzing}
           >

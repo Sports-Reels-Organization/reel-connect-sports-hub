@@ -53,7 +53,7 @@ export interface VideoAnalysisResult {
 
 export const analyzeVideoWithGemini = async (params: VideoAnalysisParams): Promise<VideoAnalysisResult> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `
       Analyze this ${params.videoType} video with the following details:
@@ -105,7 +105,7 @@ export const analyzeVideoWithGemini = async (params: VideoAnalysisParams): Promi
 const parseAIResponse = (text: string, videoType: string) => {
   // Basic parsing - in a real implementation, you'd want more sophisticated parsing
   const sections = text.split('\n\n');
-  
+
   return {
     summary: sections[0] || 'Video analysis completed successfully.',
     keyHighlights: [
@@ -155,7 +155,7 @@ export const analyzePlayer = async (playerData: {
   bio?: string;
 }): Promise<PlayerAnalysis> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `
       Analyze this player profile:
@@ -202,7 +202,7 @@ export const analyzeTransferMarketTrends = async (
   targetLeague: string
 ): Promise<TransferMarketAnalysis> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `
       Analyze transfer market trends for:
@@ -259,7 +259,7 @@ export const analyzeTeamFit = async (
   targetLeague: string
 ): Promise<TeamFitAnalysis> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `
       Analyze team fit for:
