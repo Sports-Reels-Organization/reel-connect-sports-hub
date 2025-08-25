@@ -1,77 +1,102 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { 
   User, 
+  Calendar, 
   MapPin, 
   DollarSign, 
-  MessageSquare, 
   Eye, 
-  Play,
-  Building2,
-  Clock
+  MessageSquare,
+  Star,
+  Trophy,
+  Activity,
+  Target,
+  TrendingUp,
+  Users,
+  Heart,
+  Info
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import PlayerDetailModal from '@/components/PlayerDetailModal';
-import MessageModal from '@/components/MessageModal';
+import { PlayerDetailModal } from '@/components/PlayerDetailModal';
+import { MessagePlayerModal } from '@/components/MessagePlayerModal';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+interface TaggedPlayer {
+  id: string;
+  full_name: string;
+  position: string;
+  age: number;
+  citizenship: string;
+  market_value: number;
+  current_club: string;
+  contract_expires: string;
+  foot: string;
+  height: number;
+  weight: number;
+}
+
+interface TransferPitch {
+  id: string;
+  asking_price: number;
+  currency: string;
+  transfer_type: string;
+  expires_at: string;
+  tagged_videos: any[];
+}
 
 interface PlayerData {
   id: string;
   full_name: string;
   position: string;
+  age: number;
   citizenship: string;
   market_value: number;
-  portrait_url?: string;
+  current_club: string;
+  contract_expires: string;
+  foot: string;
+  height: number;
+  weight: number;
   team?: {
-    id?: string;
     team_name: string;
     country: string;
-  };
-  pitch?: {
-    id: string;
-    asking_price: number;
-    currency: string;
-    transfer_type: string;
-    expires_at: string;
-    tagged_videos: any[];
   };
 }
 
 interface TaggedPlayerCardProps {
   playerId: string;
+  requestId: string;
+  onUntag: (playerId: string) => void;
 }
 
-export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) => {
-  const { profile } = useAuth();
-  const [player, setPlayer] = useState<PlayerData | null>(null);
+const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({
+  playerId,
+  requestId,
+  onUntag
+}) => {
+  const { toast } = useToast();
+  const [player, setPlayer] = useState<TaggedPlayer | null>(null);
+  const [transferPitch, setTransferPitch] = useState<TransferPitch | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showPlayerDetail, setShowPlayerDetail] = useState(false);
+  const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
-  const [canMessage, setCanMessage] = useState(false);
 
   useEffect(() => {
     fetchPlayerData();
-    checkMessagingPermissions();
   }, [playerId]);
 
   const fetchPlayerData = async () => {
     try {
       setLoading(true);
-      
-      const { data: playerData, error } = await supabase
+
+      // Fetch player data
+      const { data: playerData, error: playerError } = await supabase
         .from('players')
         .select(`
-          id,
-          full_name,
-          position,
-          citizenship,
-          market_value,
-          portrait_url,
-          team:teams(
-            id,
+          *,
+          team:teams (
             team_name,
             country
           )
@@ -79,84 +104,69 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
         .eq('id', playerId)
         .single();
 
-      if (error) throw error;
+      if (playerError) throw playerError;
 
-      const { data: pitchData } = await supabase
-        .from('transfer_pitches')
-        .select(`
-          id,
-          asking_price,
-          currency,
-          transfer_type,
-          expires_at,
-          tagged_videos
-        `)
-        .eq('player_id', playerId)
-        .eq('status', 'active')
-        .gte('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      if (playerData) {
+        setPlayer({
+          id: playerData.id,
+          full_name: playerData.full_name,
+          position: playerData.position || 'Unknown',
+          age: playerData.age || 25,
+          citizenship: playerData.citizenship || 'Unknown',
+          market_value: playerData.market_value || 0,
+          current_club: playerData.current_club || 'Free Agent',
+          contract_expires: playerData.contract_expires || 'N/A',
+          foot: playerData.foot || 'Right',
+          height: playerData.height || 180,
+          weight: playerData.weight || 75
+        });
 
-      // Handle tagged_videos type conversion
-      const processedPitch = pitchData ? {
-        ...pitchData,
-        tagged_videos: Array.isArray(pitchData.tagged_videos) 
-          ? pitchData.tagged_videos 
-          : pitchData.tagged_videos ? [pitchData.tagged_videos] : []
-      } : undefined;
+        // Try to find associated transfer pitch
+        const { data: pitchData } = await supabase
+          .from('transfer_pitches')
+          .select('*')
+          .eq('player_id', playerId)
+          .eq('status', 'active')
+          .maybeSingle();
 
-      setPlayer({
-        ...playerData,
-        pitch: processedPitch
-      });
+        if (pitchData) {
+          setTransferPitch({
+            id: pitchData.id,
+            asking_price: pitchData.asking_price || 0,
+            currency: pitchData.currency || 'USD',
+            transfer_type: pitchData.transfer_type,
+            expires_at: pitchData.expires_at,
+            tagged_videos: Array.isArray(pitchData.tagged_videos) 
+              ? pitchData.tagged_videos 
+              : []
+          });
+        }
+      }
     } catch (error) {
       console.error('Error fetching player data:', error);
-      setPlayer(null);
+      toast({
+        title: "Error",
+        description: "Failed to load player information",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const checkMessagingPermissions = async () => {
-    if (!profile || profile.user_type !== 'agent') {
-      setCanMessage(false);
-      return;
-    }
-
-    try {
-      const { data } = await supabase
-        .from('agents')
-        .select('fifa_id, specialization')
-        .eq('profile_id', profile.id)
-        .single();
-
-      if (data?.specialization?.includes('football')) {
-        setCanMessage(!!data.fifa_id);
-      } else {
-        setCanMessage(true);
-      }
-    } catch (error) {
-      console.error('Error checking messaging permissions:', error);
-      setCanMessage(false);
-    }
-  };
-
   const handleViewPlayer = () => {
-    setShowPlayerDetail(true);
+    setShowPlayerModal(true);
   };
 
-  const handleMessage = () => {
-    if (!canMessage) return;
+  const handleMessagePlayer = () => {
     setShowMessageModal(true);
   };
 
   if (loading) {
     return (
-      <Card className="animate-pulse">
+      <Card className="animate-pulse bg-gray-800 border-gray-700">
         <CardContent className="p-4">
-          <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-          <div className="h-3 bg-muted rounded w-1/2"></div>
+          <div className="h-32 bg-gray-700 rounded"></div>
         </CardContent>
       </Card>
     );
@@ -164,9 +174,10 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
 
   if (!player) {
     return (
-      <Card>
-        <CardContent className="p-4 text-center text-muted-foreground">
-          Player not found
+      <Card className="bg-gray-800 border-gray-700">
+        <CardContent className="p-4 text-center">
+          <Info className="w-8 h-8 mx-auto mb-2 text-gray-500" />
+          <p className="text-gray-400">Player not found</p>
         </CardContent>
       </Card>
     );
@@ -174,149 +185,138 @@ export const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({ playerId }) 
 
   return (
     <>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer group">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-              {player.portrait_url ? (
-                <img
-                  src={player.portrait_url}
-                  alt={player.full_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <User className="w-6 h-6 text-muted-foreground" />
-              )}
+      <Card className="bg-gray-800 border-gray-700 hover:border-bright-pink/50 transition-colors">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-bright-pink to-rosegold rounded-full flex items-center justify-center">
+                <User className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-white text-lg">{player.full_name}</CardTitle>
+                <p className="text-gray-400 text-sm">{player.position}</p>
+              </div>
             </div>
-            
-            <div className="flex-1 min-w-0">
-              <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                {player.full_name}
-              </h4>
-              <p className="text-xs text-muted-foreground">{player.position}</p>
-            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onUntag(playerId)}
+              className="text-gray-400 hover:text-red-400"
+            >
+              ✕
+            </Button>
           </div>
+        </CardHeader>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <MapPin className="w-3 h-3" />
+        <CardContent className="space-y-4">
+          {/* Basic Info */}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="flex items-center gap-2 text-gray-300">
+              <Calendar className="w-4 h-4" />
+              <span>{player.age} years</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-300">
+              <MapPin className="w-4 h-4" />
               <span>{player.citizenship}</span>
             </div>
-            
-            {player.team && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Building2 className="w-3 h-3" />
-                <span>{player.team.team_name}, {player.team.country}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2 text-gray-300">
+              <Users className="w-4 h-4" />
+              <span>{player.current_club}</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-300">
+              <DollarSign className="w-4 h-4" />
+              <span>${(player.market_value / 1000000).toFixed(1)}M</span>
+            </div>
           </div>
 
-          {player.pitch && (
-            <div className="space-y-2 pt-2 border-t">
+          {/* Transfer Pitch Info */}
+          {transferPitch && (
+            <div className="bg-gray-700 rounded-lg p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <Badge variant="outline" className="text-xs">
-                  {player.pitch.transfer_type.replace('_', ' ').toUpperCase()}
-                </Badge>
-                
-                {player.pitch.tagged_videos && player.pitch.tagged_videos.length > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Play className="w-3 h-3" />
-                    {player.pitch.tagged_videos.length}
-                  </div>
-                )}
-              </div>
-
-              {player.pitch.asking_price && (
-                <div className="flex items-center gap-1 text-xs font-medium text-primary">
-                  <DollarSign className="w-3 h-3" />
+                <Badge variant="secondary">{transferPitch.transfer_type}</Badge>
+                <span className="text-bright-pink font-medium">
                   {new Intl.NumberFormat('en-US', {
                     style: 'currency',
-                    currency: player.pitch.currency || 'USD',
+                    currency: transferPitch.currency,
                     minimumFractionDigits: 0
-                  }).format(player.pitch.asking_price)}
+                  }).format(transferPitch.asking_price)}
+                </span>
+              </div>
+              
+              {transferPitch.tagged_videos && transferPitch.tagged_videos.length > 0 && (
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <Activity className="w-3 h-3" />
+                  <span>{transferPitch.tagged_videos.length} video{transferPitch.tagged_videos.length !== 1 ? 's' : ''} available</span>
                 </div>
               )}
-
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="w-3 h-3" />
-                Expires {formatDistanceToNow(new Date(player.pitch.expires_at), { addSuffix: true })}
-              </div>
             </div>
           )}
 
+          {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
             <Button 
               size="sm" 
               variant="outline" 
+              className="flex-1 text-xs"
               onClick={handleViewPlayer}
-              className="flex-1 text-xs h-8"
             >
               <Eye className="w-3 h-3 mr-1" />
-              View
+              View Profile
             </Button>
-            
-            {profile?.user_type === 'agent' && (
-              <Button 
-                size="sm" 
-                onClick={handleMessage}
-                disabled={!canMessage}
-                className="flex-1 text-xs h-8"
-              >
-                <MessageSquare className="w-3 h-3 mr-1" />
-                Message
-              </Button>
-            )}
+            <Button 
+              size="sm" 
+              className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white text-xs"
+              onClick={handleMessagePlayer}
+            >
+              <MessageSquare className="w-3 h-3 mr-1" />
+              Message
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {showPlayerDetail && player && (
+      {/* Modals */}
+      {showPlayerModal && player && (
         <PlayerDetailModal
+          isOpen={showPlayerModal}
+          onClose={() => setShowPlayerModal(false)}
+          player={{
+            age: player.age,
+            ai_analysis: null,
+            bio: `Professional ${player.position}`,
+            citizenship: player.citizenship,
+            contract_expires: player.contract_expires,
+            created_at: new Date().toISOString(),
+            current_club: player.current_club,
+            date_of_birth: new Date(Date.now() - player.age * 365 * 24 * 60 * 60 * 1000).toISOString(),
+            fifa_id: player.id,
+            foot: player.foot,
+            full_name: player.full_name,
+            height: player.height,
+            id: player.id,
+            market_value: player.market_value,
+            nationality: player.citizenship,
+            photo_url: null,
+            position: player.position,
+            second_nationality: null,
+            team_id: null,
+            updated_at: new Date().toISOString(),
+            weight: player.weight
+          }}
+          onMessagePlayer={handleMessagePlayer}
+        />
+      )}
+
+      {showMessageModal && player && (
+        <MessagePlayerModal
+          isOpen={showMessageModal}
+          onClose={() => setShowMessageModal(false)}
           player={{
             id: player.id,
             full_name: player.full_name,
             position: player.position,
-            citizenship: player.citizenship,
-            market_value: player.market_value,
-            portrait_url: player.portrait_url,
-            age: 0,
-            ai_analysis: {},
-            bio: '',
-            contract_expires: '',
-            created_at: '',
-            current_club: player.team?.team_name || '',
-            date_of_birth: '',
-            fifa_id: '',
-            foot: '',
-            height: 0,
-            jersey_number: 0,
-            join_date: '',
-            league: '',
-            nationality: player.citizenship,
-            previous_clubs: [],
-            profile_id: '',
-            sports_type: 'football',
-            stats: {},
-            tagged_players: [],
-            team_id: player.team?.id || '',
-            updated_at: '',
-            weight: 0
+            team: player.current_club
           }}
-          isOpen={showPlayerDetail}
-          onClose={() => setShowPlayerDetail(false)}
-        />
-      )}
-
-      {showMessageModal && player && player.pitch && (
-        <MessageModal
-          isOpen={showMessageModal}
-          onClose={() => setShowMessageModal(false)}
-          pitchId={player.pitch.id}
-          playerId={player.id}
-          teamId={player.team?.id || ''}
-          playerName={player.full_name}
-          teamName={player.team?.team_name || ''}
-          currentUserId={profile?.id || ''}
         />
       )}
     </>

@@ -15,7 +15,7 @@ import {
   Clock,
   Target
 } from 'lucide-react';
-import { AgentRequestsExplore } from './AgentRequestsExplore';
+import AgentRequestsExplore from './AgentRequestsExplore';
 import { AgentMarketInsights } from './AgentMarketInsights';
 import { AgentSavedViews } from './AgentSavedViews';
 import { AgentRequestAnalytics } from './AgentRequestAnalytics';
