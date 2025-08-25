@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -299,7 +298,20 @@ const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({
             position: player.position,
             team_id: null,
             updated_at: new Date().toISOString(),
-            weight: player.weight
+            weight: player.weight,
+            full_body_url: null,
+            gender: null,
+            headshot_url: null,
+            international_duty: null,
+            jersey_number: null,
+            joined_date: null,
+            leagues_participated: null,
+            match_stats: null,
+            place_of_birth: null,
+            player_agent: null,
+            portrait_url: null,
+            titles_seasons: null,
+            transfer_history: null
           }}
           onMessagePlayer={handleMessagePlayer}
         />
