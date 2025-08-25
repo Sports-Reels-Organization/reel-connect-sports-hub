@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,9 +65,57 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
     startAnalysis();
   }, []);
 
+  const createVideoRecord = async (): Promise<string> => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Create video record in database
+      const videoData = {
+        team_id: teamId,
+        title: videoTitle,
+        video_type: videoType,
+        duration: 300, // Default duration - could be calculated from video file
+        file_size: videoFile.size,
+        video_url: 'analyzing', // Temporary URL during analysis
+        thumbnail_url: null,
+        upload_status: 'analyzing' as const,
+        player_tags: taggedPlayers,
+        description: `AI Analysis for ${videoTitle}`,
+        analysis_status: 'processing' as const
+      };
+
+      const { data: insertedVideo, error: insertError } = await supabase
+        .from('videos')
+        .insert(videoData)
+        .select('id')
+        .single();
+
+      if (insertError) {
+        console.error('Error creating video record:', insertError);
+        throw new Error(`Failed to create video record: ${insertError.message}`);
+      }
+
+      return insertedVideo.id;
+    } catch (error) {
+      console.error('Failed to create video record:', error);
+      throw error;
+    }
+  };
+
   const startAnalysis = async () => {
     try {
       setAnalysisStage('initializing');
+      setProgress(5);
+      setCurrentStage('Creating video record...');
+
+      // Create video record first
+      const createdVideoId = await createVideoRecord();
+      setVideoId(createdVideoId);
+
       setProgress(10);
       setCurrentStage('Initializing analysis...');
 
@@ -86,12 +135,9 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
       setProgress(60);
       setCurrentStage('Running AI analysis...');
       
-      // Generate mock video ID for analysis
-      const mockVideoId = `video_${Date.now()}`;
-      
-      // Run AI analysis with correct arguments
+      // Run AI analysis with the created video ID
       const analysis = await aiService.analyzeVideo(
-        mockVideoId,
+        createdVideoId,
         {
           title: videoTitle,
           videoType: videoType,
@@ -119,11 +165,19 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
         await new Promise(resolve => setTimeout(resolve, 300));
       }
 
+      // Update video record as completed
+      await supabase
+        .from('videos')
+        .update({
+          upload_status: 'completed',
+          analysis_status: 'completed'
+        })
+        .eq('id', createdVideoId);
+
       setProgress(100);
       setAnalysisStage('completed');
       setCurrentStage('Analysis completed successfully!');
       setAnalysisData(analysis);
-      setVideoId(mockVideoId);
       
       onAnalysisComplete(analysis);
 
@@ -136,6 +190,17 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
       console.error('Analysis error:', error);
       setAnalysisStage('error');
       setCurrentStage('Analysis failed. Please try again.');
+      
+      // If we created a video record, mark it as failed
+      if (videoId) {
+        await supabase
+          .from('videos')
+          .update({
+            upload_status: 'error',
+            analysis_status: 'failed'
+          })
+          .eq('id', videoId);
+      }
       
       toast({
         title: "Analysis Failed",

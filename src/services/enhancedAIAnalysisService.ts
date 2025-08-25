@@ -68,14 +68,34 @@ export class EnhancedAIAnalysisService {
     try {
       onProgress?.(10, 'Initializing AI analysis...');
 
-      // Get video data
-      const { data: videoData } = await supabase
+      // Verify that the video exists and the user has access to it
+      const { data: videoData, error: videoError } = await supabase
         .from('videos')
-        .select('*')
+        .select(`
+          id,
+          title,
+          team_id,
+          teams!inner (
+            id,
+            name,
+            profiles!inner (
+              user_id
+            )
+          )
+        `)
         .eq('id', videoId)
         .single();
 
-      if (!videoData) throw new Error('Video not found');
+      if (videoError || !videoData) {
+        console.error('Video not found or access denied:', videoError);
+        throw new Error('Video not found or you do not have permission to analyze it');
+      }
+
+      // Verify user has access to this video
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || videoData.teams.profiles.user_id !== user.id) {
+        throw new Error('You do not have permission to analyze this video');
+      }
 
       onProgress?.(20, 'Analyzing video content with AI...');
 
@@ -100,7 +120,7 @@ export class EnhancedAIAnalysisService {
 
       onProgress?.(80, 'Saving analysis results...');
 
-      // Save to database
+      // Save to database with proper error handling
       await this.saveEnhancedAnalysis(videoId, enhancedResult);
 
       onProgress?.(100, 'Analysis complete!');
@@ -515,48 +535,70 @@ export class EnhancedAIAnalysisService {
 
   private async saveEnhancedAnalysis(videoId: string, result: EnhancedAnalysisResult): Promise<void> {
     console.log('Saving enhanced analysis for video:', videoId);
-    console.log('Analysis data:', JSON.stringify(result, null, 2));
 
     try {
-      const { error } = await supabase
-        .from('enhanced_video_analysis')
-        .upsert({
-          video_id: videoId,
-          analysis_status: 'completed',
-          tagged_player_present: Object.values(result.taggedPlayerAnalysis).some(p => p.present),
-          overview: result.overview,
-          key_events: result.keyEvents,
-          context_reasoning: result.contextReasoning,
-          explanations: result.explanations,
-          recommendations: result.recommendations,
-          visual_summary: result.visualSummary,
-          player_performance_radar: result.playerPerformanceRadar,
-          event_timeline: result.eventTimeline,
-          tagged_player_analysis: result.taggedPlayerAnalysis,
-          missing_players: result.missingPlayers,
-          analysis_metadata: {
-            generated_at: new Date().toISOString(),
-            analysis_version: '2.0',
-            video_metadata: {
-              duration: 1800,
-              player_count: Object.keys(result.taggedPlayerAnalysis).length
-            }
-          },
-          // Set game_context if it doesn't exist, otherwise keep existing
-          game_context: {
-            analysis_type: 'enhanced',
-            processing_date: new Date().toISOString()
+      // First, verify the video exists and we have access
+      const { data: videoCheck, error: checkError } = await supabase
+        .from('videos')
+        .select('id')
+        .eq('id', videoId)
+        .single();
+
+      if (checkError || !videoCheck) {
+        throw new Error(`Invalid video ID: ${videoId}`);
+      }
+
+      // Prepare the data for insertion
+      const analysisData = {
+        video_id: videoId,
+        analysis_status: 'completed' as const,
+        tagged_player_present: Object.values(result.taggedPlayerAnalysis).some(p => p.present),
+        overview: result.overview,
+        key_events: result.keyEvents,
+        context_reasoning: result.contextReasoning,
+        explanations: result.explanations,
+        recommendations: result.recommendations,
+        visual_summary: result.visualSummary,
+        player_performance_radar: result.playerPerformanceRadar,
+        event_timeline: result.eventTimeline,
+        tagged_player_analysis: result.taggedPlayerAnalysis,
+        missing_players: result.missingPlayers,
+        analysis_metadata: {
+          generated_at: new Date().toISOString(),
+          analysis_version: '2.0',
+          video_metadata: {
+            duration: 1800,
+            player_count: Object.keys(result.taggedPlayerAnalysis).length
           }
-        }, {
+        },
+        game_context: {
+          analysis_type: 'enhanced',
+          processing_date: new Date().toISOString()
+        }
+      };
+
+      console.log('Attempting to save analysis data:', analysisData);
+
+      // Use upsert to handle both insert and update cases
+      const { data, error } = await supabase
+        .from('enhanced_video_analysis')
+        .upsert(analysisData, {
           onConflict: 'video_id'
-        });
+        })
+        .select();
 
       if (error) {
         console.error('Error saving enhanced analysis:', error);
-        throw error;
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw new Error(`Failed to save analysis: ${error.message}`);
       }
 
-      console.log('Enhanced analysis saved successfully');
+      console.log('Enhanced analysis saved successfully:', data);
     } catch (error) {
       console.error('Failed to save enhanced analysis:', error);
       throw error;
