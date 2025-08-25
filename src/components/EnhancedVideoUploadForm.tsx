@@ -89,7 +89,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   const videoCompressionService = new EnhancedVideoCompressionService();
   const aiAnalysisService = new EnhancedAIAnalysisService();
 
-  // Fetch team players on component mount
+  // useEffect and fetchTeamPlayers function
   useEffect(() => {
     fetchTeamPlayers();
   }, [teamId]);
@@ -172,6 +172,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
   };
 
+  // handleFileSelect, handlePlayerTagsChange, addPlayerTag, removePlayerTag functions
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
