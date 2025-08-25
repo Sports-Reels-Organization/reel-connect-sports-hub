@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -93,6 +92,11 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   // useEffect and fetchTeamPlayers function
   useEffect(() => {
     fetchTeamPlayers();
+    
+    // Debug: Check video schema
+    import('../utils/debugVideoSchema').then(({ debugVideoSchema }) => {
+      debugVideoSchema();
+    });
   }, [teamId]);
 
   const fetchTeamPlayers = async () => {
@@ -347,29 +351,28 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     try {
       console.log('Starting video upload process...');
       
-      // Step 1: Create video record first to get ID
+      // Create a minimal video record first with only required fields
       const videoData = {
         team_id: teamId,
         title: metadata.title,
-        video_url: '', // Will be updated after upload
-        thumbnail_url: '', // Will be updated after upload
-        video_description: metadata.description || null, // Use video_description column
+        video_url: '',
         video_type: metadata.videoType,
-        tagged_players: metadata.playerTags, // Use tagged_players column
         duration: 0,
         file_size: selectedFile.size,
         ai_analysis_status: 'pending',
-        compression_status: 'pending', // Use new compression_status column
+        // Only add optional fields if they have values
+        ...(metadata.description && { video_description: metadata.description }),
+        ...(metadata.playerTags.length > 0 && { tagged_players: metadata.playerTags }),
         ...(metadata.videoType === 'match' && metadata.matchDetails && {
-          opposing_team: metadata.matchDetails.opposingTeam,
-          match_date: metadata.matchDetails.matchDate,
-          league: metadata.matchDetails.league,
-          home_or_away: metadata.matchDetails.homeOrAway,
-          final_score: metadata.matchDetails.finalScore
+          opposing_team: metadata.matchDetails.opposingTeam || '',
+          match_date: metadata.matchDetails.matchDate || null,
+          league: metadata.matchDetails.league || '',
+          home_or_away: metadata.matchDetails.homeOrAway || 'home',
+          final_score: metadata.matchDetails.finalScore || ''
         })
       };
 
-      console.log('Inserting video record:', videoData);
+      console.log('Video data to insert:', JSON.stringify(videoData, null, 2));
 
       const { data: videoRecord, error: videoError } = await supabase
         .from('videos')
@@ -378,14 +381,20 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         .single();
 
       if (videoError) {
-        console.error('Video record creation error:', videoError);
+        console.error('Detailed video record creation error:', {
+          error: videoError,
+          message: videoError.message,
+          details: videoError.details,
+          hint: videoError.hint,
+          code: videoError.code
+        });
         throw new Error(`Failed to create video record: ${videoError.message}`);
       }
 
       const videoId = videoRecord.id;
       console.log('Video record created with ID:', videoId);
 
-      // Step 2: Compress video with logging
+      // Step 2: Compress video
       const compressedFile = await compressVideo(selectedFile, videoId);
 
       // Step 3: Generate thumbnail
@@ -394,20 +403,23 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       // Step 4: Upload video
       const videoUrl = await uploadVideo(compressedFile);
 
-      // Step 5: Update video record with URLs and compression status
+      // Step 5: Update video record with URLs
       const updateData = {
         video_url: videoUrl,
-        thumbnail_url: thumbnailUrl,
-        compression_status: 'completed',
-        compressed_size_mb: compressedFile.size / (1024 * 1024) // Add compressed size
+        ...(thumbnailUrl && { thumbnail_url: thumbnailUrl })
       };
 
-      console.log('Updating video record:', updateData);
+      console.log('Updating video record with:', updateData);
 
-      await supabase
+      const { error: updateError } = await supabase
         .from('videos')
         .update(updateData)
         .eq('id', videoId);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw new Error(`Failed to update video: ${updateError.message}`);
+      }
 
       // Step 6: Perform AI analysis
       await performAIAnalysis(videoId);
@@ -442,7 +454,11 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       onUploadComplete?.(videoId);
 
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Upload error details:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       toast({
         title: "Upload Failed",
         description: error instanceof Error ? error.message : "An error occurred during upload",
