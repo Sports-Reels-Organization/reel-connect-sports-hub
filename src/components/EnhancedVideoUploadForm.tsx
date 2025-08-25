@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -123,14 +124,14 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     // Simulate progress since the service doesn't have a callback
     const progressInterval = setInterval(() => {
       setCompressionProgress(prev => {
-        const newProgress = prev + Math.random() * 20;
-        if (newProgress >= 90) {
+        const newProgress = prev + Math.random() * 15;
+        if (newProgress >= 85) {
           clearInterval(progressInterval);
-          return 90;
+          return 85;
         }
         return newProgress;
       });
-    }, 200);
+    }, 300);
 
     try {
       const result = await videoCompressionService.compressVideo(
@@ -138,9 +139,10 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         {
           targetSizeMB: 10,
           maxQuality: 'high',
+          maintainAspectRatio: true,
           generateThumbnail: true
         },
-        videoId // Pass video ID for logging
+        videoId
       );
 
       clearInterval(progressInterval);
@@ -154,7 +156,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
       toast({
         title: "Video Compressed Successfully",
-        description: `Reduced from ${result.originalSizeMB.toFixed(1)}MB to ${result.compressedSizeMB.toFixed(1)}MB`,
+        description: `Reduced from ${result.originalSizeMB.toFixed(1)}MB to ${result.compressedSizeMB.toFixed(1)}MB (${Math.round(result.compressionRatio * 100)}% reduction)`,
       });
 
       return result.compressedFile;
@@ -243,14 +245,14 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       // Create a simple progress simulator since Supabase doesn't support onUploadProgress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          const newProgress = prev + 10;
+          const newProgress = prev + 8;
           if (newProgress >= 90) {
             clearInterval(progressInterval);
             return 90;
           }
           return newProgress;
         });
-      }, 200);
+      }, 250);
 
       const { data, error } = await supabase.storage
         .from('match-videos')
@@ -343,19 +345,21 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
 
     try {
+      console.log('Starting video upload process...');
+      
       // Step 1: Create video record first to get ID
       const videoData = {
         team_id: teamId,
         title: metadata.title,
         video_url: '', // Will be updated after upload
         thumbnail_url: '', // Will be updated after upload
-        video_description: metadata.description,
+        video_description: metadata.description || null, // Use video_description column
         video_type: metadata.videoType,
-        tagged_players: metadata.playerTags, // Use tagged_players instead of player_tags
+        tagged_players: metadata.playerTags, // Use tagged_players column
         duration: 0,
         file_size: selectedFile.size,
         ai_analysis_status: 'pending',
-        compression_status: 'pending',
+        compression_status: 'pending', // Use new compression_status column
         ...(metadata.videoType === 'match' && metadata.matchDetails && {
           opposing_team: metadata.matchDetails.opposingTeam,
           match_date: metadata.matchDetails.matchDate,
@@ -365,15 +369,21 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         })
       };
 
+      console.log('Inserting video record:', videoData);
+
       const { data: videoRecord, error: videoError } = await supabase
         .from('videos')
         .insert(videoData)
         .select()
         .single();
 
-      if (videoError) throw videoError;
+      if (videoError) {
+        console.error('Video record creation error:', videoError);
+        throw new Error(`Failed to create video record: ${videoError.message}`);
+      }
 
       const videoId = videoRecord.id;
+      console.log('Video record created with ID:', videoId);
 
       // Step 2: Compress video with logging
       const compressedFile = await compressVideo(selectedFile, videoId);
@@ -385,13 +395,18 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       const videoUrl = await uploadVideo(compressedFile);
 
       // Step 5: Update video record with URLs and compression status
+      const updateData = {
+        video_url: videoUrl,
+        thumbnail_url: thumbnailUrl,
+        compression_status: 'completed',
+        compressed_size_mb: compressedFile.size / (1024 * 1024) // Add compressed size
+      };
+
+      console.log('Updating video record:', updateData);
+
       await supabase
         .from('videos')
-        .update({
-          video_url: videoUrl,
-          thumbnail_url: thumbnailUrl,
-          compression_status: 'completed'
-        })
+        .update(updateData)
         .eq('id', videoId);
 
       // Step 6: Perform AI analysis

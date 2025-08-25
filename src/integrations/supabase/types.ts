@@ -2870,7 +2870,9 @@ export type Database = {
         Row: {
           ai_analysis: Json | null
           ai_analysis_status: string | null
+          compressed_size_mb: number | null
           compressed_url: string | null
+          compression_status: string | null
           created_at: string | null
           description: string | null
           duration: number | null
@@ -2898,7 +2900,9 @@ export type Database = {
         Insert: {
           ai_analysis?: Json | null
           ai_analysis_status?: string | null
+          compressed_size_mb?: number | null
           compressed_url?: string | null
+          compression_status?: string | null
           created_at?: string | null
           description?: string | null
           duration?: number | null
@@ -2926,7 +2930,9 @@ export type Database = {
         Update: {
           ai_analysis?: Json | null
           ai_analysis_status?: string | null
+          compressed_size_mb?: number | null
           compressed_url?: string | null
+          compression_status?: string | null
           created_at?: string | null
           description?: string | null
           duration?: number | null

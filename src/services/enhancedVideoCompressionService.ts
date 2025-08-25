@@ -27,7 +27,7 @@ export class EnhancedVideoCompressionService {
   };
 
   /**
-   * Compress video to target size with quality optimization
+   * Compress video to target size with improved quality optimization
    */
   async compressVideo(
     file: File,
@@ -37,7 +37,7 @@ export class EnhancedVideoCompressionService {
     const startTime = Date.now();
     const finalOptions = { ...this.defaultOptions, ...options };
     
-    console.log(`Starting video compression for ${file.name}`);
+    console.log(`Starting enhanced video compression for ${file.name}`);
     console.log(`Target size: ${finalOptions.targetSizeMB}MB`);
     console.log(`Original size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
 
@@ -56,8 +56,8 @@ export class EnhancedVideoCompressionService {
         thumbnailBlob = await this.generateThumbnail(file);
       }
 
-      // Compress video with progressive quality reduction
-      const compressedFile = await this.compressWithQualityProgression(
+      // Compress video with improved quality preservation
+      const compressedFile = await this.compressWithImprovedQuality(
         file,
         finalOptions.targetSizeMB,
         finalOptions.maxQuality
@@ -83,7 +83,7 @@ export class EnhancedVideoCompressionService {
         await this.logCompressionComplete(logId, result);
       }
 
-      console.log(`Compression completed successfully:`);
+      console.log(`Enhanced compression completed successfully:`);
       console.log(`- Original: ${originalSizeMB.toFixed(2)}MB`);
       console.log(`- Compressed: ${compressedSizeMB.toFixed(2)}MB`);
       console.log(`- Ratio: ${(compressionRatio * 100).toFixed(1)}%`);
@@ -93,14 +93,14 @@ export class EnhancedVideoCompressionService {
       return result;
 
     } catch (error) {
-      console.error('Video compression failed:', error);
+      console.error('Enhanced video compression failed:', error);
       
       // Log compression error to database
       if (logId) {
         await this.logCompressionError(logId, error);
       }
       
-      throw new Error(`Video compression failed: ${error.message}`);
+      throw new Error(`Enhanced video compression failed: ${error.message}`);
     }
   }
 
@@ -109,6 +109,7 @@ export class EnhancedVideoCompressionService {
    */
   private async logCompressionStart(videoId: string, originalSizeMB: number, targetSizeMB: number): Promise<string | null> {
     try {
+      console.log('Logging compression start to database');
       const { data, error } = await supabase
         .from('video_compression_logs')
         .insert({
@@ -126,6 +127,7 @@ export class EnhancedVideoCompressionService {
         return null;
       }
 
+      console.log('Compression start logged with ID:', data.id);
       return data.id;
     } catch (error) {
       console.warn('Failed to log compression start:', error);
@@ -138,6 +140,7 @@ export class EnhancedVideoCompressionService {
    */
   private async logCompressionComplete(logId: string, result: CompressionResult): Promise<void> {
     try {
+      console.log('Logging compression completion to database');
       const { error } = await supabase
         .from('video_compression_logs')
         .update({
@@ -151,6 +154,8 @@ export class EnhancedVideoCompressionService {
 
       if (error) {
         console.warn('Failed to log compression completion:', error);
+      } else {
+        console.log('Compression completion logged successfully');
       }
     } catch (error) {
       console.warn('Failed to log compression completion:', error);
@@ -162,6 +167,7 @@ export class EnhancedVideoCompressionService {
    */
   private async logCompressionError(logId: string, error: any): Promise<void> {
     try {
+      console.log('Logging compression error to database');
       const { error: dbError } = await supabase
         .from('video_compression_logs')
         .update({
@@ -173,6 +179,8 @@ export class EnhancedVideoCompressionService {
 
       if (dbError) {
         console.warn('Failed to log compression error:', dbError);
+      } else {
+        console.log('Compression error logged successfully');
       }
     } catch (dbError) {
       console.warn('Failed to log compression error:', dbError);
@@ -180,9 +188,9 @@ export class EnhancedVideoCompressionService {
   }
 
   /**
-   * Progressive quality compression to achieve target size
+   * Improved compression with better quality preservation
    */
-  private async compressWithQualityProgression(
+  private async compressWithImprovedQuality(
     file: File,
     targetSizeMB: number,
     maxQuality: 'high' | 'medium' | 'low'
@@ -190,14 +198,14 @@ export class EnhancedVideoCompressionService {
     const targetSizeBytes = targetSizeMB * 1024 * 1024;
     
     try {
-      // Try advanced compression first
-      const qualityLevels = this.getQualityLevels(maxQuality);
+      // Use improved quality levels with better bitrate management
+      const qualityLevels = this.getImprovedQualityLevels(maxQuality);
       
       for (const quality of qualityLevels) {
         try {
-          console.log(`Attempting compression with quality: ${quality.name}`);
+          console.log(`Attempting improved compression with quality: ${quality.name}`);
           
-          const compressed = await this.compressWithSettings(file, quality);
+          const compressed = await this.compressWithImprovedSettings(file, quality);
           
           if (compressed.size <= targetSizeBytes) {
             console.log(`Target size achieved with quality: ${quality.name}`);
@@ -214,59 +222,76 @@ export class EnhancedVideoCompressionService {
 
       // If all quality levels fail, use the lowest quality as fallback
       console.log('Using fallback compression with lowest quality');
-      return await this.compressWithSettings(file, qualityLevels[qualityLevels.length - 1]);
+      return await this.compressWithImprovedSettings(file, qualityLevels[qualityLevels.length - 1]);
       
     } catch (error) {
-      console.warn('Advanced compression failed, using simple fallback:', error);
+      console.warn('Improved compression failed, using simple fallback:', error);
       return await this.simpleCompressionFallback(file, targetSizeMB);
     }
   }
 
   /**
-   * Compress video with specific quality settings
+   * Compress video with improved quality settings
    */
-  private async compressWithSettings(file: File, quality: any): Promise<File> {
+  private async compressWithImprovedSettings(file: File, quality: any): Promise<File> {
     return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
       
-      video.onloadedmetadata = () => {
-        // Calculate dimensions based on quality
-        const { width, height } = this.calculateDimensions(
-          video.videoWidth,
-          video.videoHeight,
-          quality.scale
-        );
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Set up video processing
-        video.currentTime = 0;
-        video.play();
-        
-        const frames: ImageData[] = [];
-        const frameRate = quality.frameRate || 30;
-        const duration = video.duration;
-        const totalFrames = Math.floor(duration * frameRate);
-        let currentFrame = 0;
-        
-        video.onseeked = () => {
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, width, height);
-            const imageData = ctx.getImageData(0, 0, width, height);
-            frames.push(imageData);
-            currentFrame++;
-            
-            if (currentFrame < totalFrames) {
-              video.currentTime = (currentFrame / frameRate);
-            } else {
-              // All frames captured, create compressed video
-              this.createCompressedVideo(frames, frameRate, quality, resolve, reject);
+      video.onloadedmetadata = async () => {
+        try {
+          // Calculate optimal dimensions with better aspect ratio handling
+          const { width, height } = this.calculateOptimalDimensions(
+            video.videoWidth,
+            video.videoHeight,
+            quality.scale
+          );
+          
+          // Use MediaRecorder with improved settings
+          const stream = await this.createVideoStream(video, width, height, quality.frameRate);
+          const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm;codecs=vp9',
+            videoBitsPerSecond: quality.bitrate * 1000,
+            audioBitsPerSecond: Math.min(128000, quality.bitrate * 100) // Better audio quality
+          });
+          
+          const chunks: Blob[] = [];
+          
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+              chunks.push(event.data);
             }
-          }
-        };
+          };
+          
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const compressedFile = new File([blob], 
+              file.name.replace(/\.[^/.]+$/, "_compressed.webm"), 
+              { type: 'video/webm' }
+            );
+            resolve(compressedFile);
+          };
+          
+          mediaRecorder.onerror = (event) => {
+            reject(new Error('MediaRecorder error: ' + event));
+          };
+          
+          mediaRecorder.start(1000); // Collect data every second for better quality
+          
+          // Play video for recording
+          video.currentTime = 0;
+          await video.play();
+          
+          // Stop recording when video ends
+          video.onended = () => {
+            mediaRecorder.stop();
+            stream.getTracks().forEach(track => track.stop());
+          };
+          
+        } catch (error) {
+          reject(error);
+        }
       };
       
       video.onerror = () => reject(new Error('Video loading failed'));
@@ -275,94 +300,96 @@ export class EnhancedVideoCompressionService {
   }
 
   /**
-   * Create compressed video from captured frames
+   * Create video stream with improved quality
    */
-  private async createCompressedVideo(
-    frames: ImageData[],
-    frameRate: number,
-    quality: any,
-    resolve: (file: File) => void,
-    reject: (error: Error) => void
-  ) {
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      
-      if (!ctx) {
-        reject(new Error('Canvas context not available'));
-        return;
-      }
-      
-      canvas.width = frames[0].width;
-      canvas.height = frames[0].height;
-      
-      // Create MediaRecorder for video creation
-      const stream = canvas.captureStream(frameRate);
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9',
-        videoBitsPerSecond: quality.bitrate * 1000
-      });
-      
-      const chunks: Blob[] = [];
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-      
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const file = new File([blob], 'compressed_video.webm', { type: 'video/webm' });
-        resolve(file);
-      };
-      
-      mediaRecorder.start();
-      
-      // Render frames
-      let frameIndex = 0;
-      const renderFrame = () => {
-        if (frameIndex < frames.length) {
-          ctx.putImageData(frames[frameIndex], 0, 0);
-          frameIndex++;
-          setTimeout(renderFrame, 1000 / frameRate);
-        } else {
-          mediaRecorder.stop();
-        }
-      };
-      
-      renderFrame();
-      
-    } catch (error) {
-      reject(new Error(`Video creation failed: ${error.message}`));
+  private async createVideoStream(video: HTMLVideoElement, width: number, height: number, frameRate: number): Promise<MediaStream> {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { 
+      willReadFrequently: false, // Improve performance
+      alpha: false // Better compression for videos without transparency
+    });
+    
+    if (!ctx) {
+      throw new Error('Canvas context not available');
     }
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    // Set up high-quality rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    
+    const drawFrame = () => {
+      ctx.drawImage(video, 0, 0, width, height);
+    };
+    
+    // Draw initial frame
+    drawFrame();
+    
+    // Create stream with specified frame rate
+    const stream = canvas.captureStream(frameRate);
+    
+    // Update canvas as video plays
+    const updateCanvas = () => {
+      if (!video.paused && !video.ended) {
+        drawFrame();
+        requestAnimationFrame(updateCanvas);
+      }
+    };
+    
+    video.onplay = () => updateCanvas();
+    
+    return stream;
   }
 
   /**
-   * Calculate optimal dimensions for compression
+   * Calculate optimal dimensions with better quality preservation
    */
-  private calculateDimensions(originalWidth: number, originalHeight: number, scale: number) {
+  private calculateOptimalDimensions(originalWidth: number, originalHeight: number, scale: number) {
     const aspectRatio = originalWidth / originalHeight;
-    const newWidth = Math.floor(originalWidth * scale);
-    const newHeight = Math.floor(newWidth / aspectRatio);
+    
+    // Ensure dimensions are even numbers for better encoding
+    let newWidth = Math.floor(originalWidth * scale);
+    let newHeight = Math.floor(newWidth / aspectRatio);
+    
+    // Make sure dimensions are even
+    if (newWidth % 2 !== 0) newWidth -= 1;
+    if (newHeight % 2 !== 0) newHeight -= 1;
+    
+    // Ensure minimum dimensions for quality
+    const minWidth = 320;
+    const minHeight = 240;
+    
+    if (newWidth < minWidth) {
+      newWidth = minWidth;
+      newHeight = Math.floor(minWidth / aspectRatio);
+      if (newHeight % 2 !== 0) newHeight -= 1;
+    }
+    
+    if (newHeight < minHeight) {
+      newHeight = minHeight;
+      newWidth = Math.floor(minHeight * aspectRatio);
+      if (newWidth % 2 !== 0) newWidth -= 1;
+    }
     
     return { width: newWidth, height: newHeight };
   }
 
   /**
-   * Get quality levels for progressive compression
+   * Get improved quality levels for better compression
    */
-  private getQualityLevels(maxQuality: 'high' | 'medium' | 'low') {
+  private getImprovedQualityLevels(maxQuality: 'high' | 'medium' | 'low') {
     const allLevels = [
-      { name: 'ultra', scale: 1.0, frameRate: 30, bitrate: 8000 },
-      { name: 'high', scale: 0.8, frameRate: 30, bitrate: 6000 },
-      { name: 'medium', scale: 0.6, frameRate: 25, bitrate: 4000 },
-      { name: 'low', scale: 0.4, frameRate: 20, bitrate: 2000 },
-      { name: 'minimum', scale: 0.3, frameRate: 15, bitrate: 1000 }
+      { name: 'ultra', scale: 1.0, frameRate: 30, bitrate: 5000 }, // Reduced for better quality/size balance
+      { name: 'high', scale: 0.85, frameRate: 30, bitrate: 3500 },
+      { name: 'medium', scale: 0.7, frameRate: 25, bitrate: 2500 },
+      { name: 'low', scale: 0.5, frameRate: 20, bitrate: 1500 },
+      { name: 'minimum', scale: 0.35, frameRate: 15, bitrate: 800 }
     ];
     
     const maxQualityIndex = allLevels.findIndex(level => level.name === maxQuality);
-    return allLevels.slice(maxQualityIndex);
+    return allLevels.slice(maxQualityIndex >= 0 ? maxQualityIndex : 1);
   }
 
   /**
