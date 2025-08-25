@@ -33,7 +33,7 @@ interface Video {
   thumbnail_url: string;
   created_at: string;
   ai_analysis_status: string;
-  tagged_players: string[] | null;
+  tagged_players: string[];
   file_size: number;
   duration: number;
 }
@@ -107,12 +107,12 @@ const EnhancedVideoManagement: React.FC = () => {
 
       if (error) throw error;
       
-      // Transform the data to match our Video interface
+      // Transform the data to match our Video interface with proper type handling
       const transformedVideos = (data || []).map(video => ({
         ...video,
         tagged_players: Array.isArray(video.tagged_players) 
-          ? video.tagged_players 
-          : video.tagged_players 
+          ? video.tagged_players.filter(p => typeof p === 'string') as string[]
+          : video.tagged_players && typeof video.tagged_players === 'string'
             ? [video.tagged_players as string] 
             : []
       }));
