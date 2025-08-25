@@ -351,7 +351,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         thumbnail_url: '', // Will be updated after upload
         video_description: metadata.description,
         video_type: metadata.videoType,
-        player_tags: metadata.playerTags,
+        tagged_players: metadata.playerTags, // Use tagged_players instead of player_tags
         duration: 0,
         file_size: selectedFile.size,
         ai_analysis_status: 'pending',
