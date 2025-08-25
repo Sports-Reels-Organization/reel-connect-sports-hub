@@ -2910,23 +2910,28 @@ export type Database = {
           description: string | null
           duration: number | null
           file_size: number | null
+          final_score: number
           final_score_away: number | null
           final_score_home: number | null
           home_or_away: string | null
           id: string
           is_public: boolean | null
+          league: Database["public"]["Enums"]["league_type"]
           league_id: string | null
           match_date: string | null
           opposing_team: string | null
           player_id: string | null
-          score: string | null
+          score_display: string | null
           tagged_players: Json | null
           tags: string[] | null
           team_id: string | null
+          team1_score: number | null
+          team2_score: number | null
           thumbnail_url: string | null
           title: string
           updated_at: string | null
           upload_status: string | null
+          video_description: string
           video_type: string | null
           video_url: string
         }
@@ -2940,23 +2945,28 @@ export type Database = {
           description?: string | null
           duration?: number | null
           file_size?: number | null
+          final_score?: number
           final_score_away?: number | null
           final_score_home?: number | null
           home_or_away?: string | null
           id?: string
           is_public?: boolean | null
+          league?: Database["public"]["Enums"]["league_type"]
           league_id?: string | null
           match_date?: string | null
           opposing_team?: string | null
           player_id?: string | null
-          score?: string | null
+          score_display?: string | null
           tagged_players?: Json | null
           tags?: string[] | null
           team_id?: string | null
+          team1_score?: number | null
+          team2_score?: number | null
           thumbnail_url?: string | null
           title: string
           updated_at?: string | null
           upload_status?: string | null
+          video_description?: string
           video_type?: string | null
           video_url: string
         }
@@ -2970,23 +2980,28 @@ export type Database = {
           description?: string | null
           duration?: number | null
           file_size?: number | null
+          final_score?: number
           final_score_away?: number | null
           final_score_home?: number | null
           home_or_away?: string | null
           id?: string
           is_public?: boolean | null
+          league?: Database["public"]["Enums"]["league_type"]
           league_id?: string | null
           match_date?: string | null
           opposing_team?: string | null
           player_id?: string | null
-          score?: string | null
+          score_display?: string | null
           tagged_players?: Json | null
           tags?: string[] | null
           team_id?: string | null
+          team1_score?: number | null
+          team2_score?: number | null
           thumbnail_url?: string | null
           title?: string
           updated_at?: string | null
           upload_status?: string | null
+          video_description?: string
           video_type?: string | null
           video_url?: string
         }
@@ -3162,6 +3177,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      set_basketball_score: {
+        Args: { p_score_text: string; p_video_id: number }
+        Returns: Json
+      }
       update_expired_pitches: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -3179,6 +3198,16 @@ export type Database = {
       app_role: "admin" | "user"
       gender: "male" | "female" | "other"
       gender_type: "male" | "female" | "other"
+      league_type:
+        | "amateur"
+        | "semi_professional"
+        | "professional"
+        | "youth"
+        | "collegiate"
+        | "international"
+        | "regional"
+        | "national"
+        | "local"
       message_status: "sent" | "delivered" | "read"
       sport_type: "football" | "basketball" | "volleyball" | "tennis" | "rugby"
       transfer_status: "active" | "expired" | "completed" | "cancelled"
@@ -3314,6 +3343,17 @@ export const Constants = {
       app_role: ["admin", "user"],
       gender: ["male", "female", "other"],
       gender_type: ["male", "female", "other"],
+      league_type: [
+        "amateur",
+        "semi_professional",
+        "professional",
+        "youth",
+        "collegiate",
+        "international",
+        "regional",
+        "national",
+        "local",
+      ],
       message_status: ["sent", "delivered", "read"],
       sport_type: ["football", "basketball", "volleyball", "tennis", "rugby"],
       transfer_status: ["active", "expired", "completed", "cancelled"],
