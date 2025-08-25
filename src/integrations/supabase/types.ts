@@ -261,6 +261,51 @@ export type Database = {
           },
         ]
       }
+      ai_analysis_reports: {
+        Row: {
+          generated_at: string | null
+          id: string
+          pdf_url: string | null
+          report_data: Json
+          report_type: string | null
+          team_id: string | null
+          video_id: string | null
+        }
+        Insert: {
+          generated_at?: string | null
+          id?: string
+          pdf_url?: string | null
+          report_data: Json
+          report_type?: string | null
+          team_id?: string | null
+          video_id?: string | null
+        }
+        Update: {
+          generated_at?: string | null
+          id?: string
+          pdf_url?: string | null
+          report_data?: Json
+          report_type?: string | null
+          team_id?: string | null
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_reports_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_analysis_reports_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_audit_log: {
         Row: {
           action: string
@@ -1909,6 +1954,51 @@ export type Database = {
           },
         ]
       }
+      player_video_references: {
+        Row: {
+          created_at: string | null
+          id: string
+          key_moments: Json | null
+          performance_rating: number | null
+          player_id: string | null
+          presence_confirmed: boolean | null
+          video_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          key_moments?: Json | null
+          performance_rating?: number | null
+          player_id?: string | null
+          presence_confirmed?: boolean | null
+          video_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          key_moments?: Json | null
+          performance_rating?: number | null
+          player_id?: string | null
+          presence_confirmed?: boolean | null
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_video_references_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_video_references_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       players: {
         Row: {
           age: number | null
@@ -2671,6 +2761,47 @@ export type Database = {
         }
         Relationships: []
       }
+      video_compression_logs: {
+        Row: {
+          compressed_size_mb: number | null
+          compression_method: string | null
+          compression_ratio: number | null
+          compression_status: string | null
+          created_at: string | null
+          id: string
+          original_size_mb: number | null
+          video_id: string | null
+        }
+        Insert: {
+          compressed_size_mb?: number | null
+          compression_method?: string | null
+          compression_ratio?: number | null
+          compression_status?: string | null
+          created_at?: string | null
+          id?: string
+          original_size_mb?: number | null
+          video_id?: string | null
+        }
+        Update: {
+          compressed_size_mb?: number | null
+          compression_method?: string | null
+          compression_ratio?: number | null
+          compression_status?: string | null
+          created_at?: string | null
+          id?: string
+          original_size_mb?: number | null
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_compression_logs_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_requirements: {
         Row: {
           id: string
@@ -2696,6 +2827,41 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: true
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_snapshots: {
+        Row: {
+          created_at: string | null
+          id: string
+          snapshot_type: string | null
+          snapshot_url: string
+          timestamp_seconds: number
+          video_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          snapshot_type?: string | null
+          snapshot_url: string
+          timestamp_seconds: number
+          video_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          snapshot_type?: string | null
+          snapshot_url?: string
+          timestamp_seconds?: number
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_snapshots_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
             referencedColumns: ["id"]
           },
         ]

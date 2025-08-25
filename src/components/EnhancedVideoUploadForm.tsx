@@ -1,552 +1,611 @@
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { PlayerTagging } from '@/components/PlayerTagging';
-import { 
-  Upload, 
-  Video, 
-  FileText, 
-  Users, 
+import {
+  Upload,
+  Video,
+  FileText,
+  Users,
   Calendar,
-  MapPin,
   Trophy,
-  X,
-  Play,
-  Pause,
-  RotateCcw,
-  Check,
+  Loader2,
+  CheckCircle,
   AlertCircle,
-  Info
+  Compress
 } from 'lucide-react';
-import { Tables } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
+import { VideoCompressionService } from '@/services/videoCompressionService';
+import { EnhancedAIAnalysisService } from '@/services/enhancedAIAnalysisService';
 
 interface VideoMetadata {
   title: string;
   description: string;
-  video_type: 'highlight' | 'full_game' | 'training' | 'other';
-  location: string;
-  date: string;
-  tags: string[];
-  players: string[];
+  videoType: 'match' | 'training' | 'interview' | 'highlight';
+  playerTags: string[];
+  matchDetails?: {
+    opposingTeam: string;
+    matchDate: string;
+    league: string;
+    homeOrAway: 'home' | 'away';
+    finalScore: string;
+  };
 }
 
-interface Player {
-  id: string;
-  full_name: string;
+interface EnhancedVideoUploadFormProps {
+  teamId: string;
+  onUploadComplete?: (videoId: string) => void;
 }
 
-const EnhancedVideoUploadForm = () => {
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
+const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
+  teamId,
+  onUploadComplete
+}) => {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [compressionProgress, setCompressionProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [compressionStats, setCompressionStats] = useState<{
+    originalSize: number;
+    compressedSize: number;
+    ratio: number;
+  } | null>(null);
+
   const [metadata, setMetadata] = useState<VideoMetadata>({
     title: '',
     description: '',
-    video_type: 'highlight',
-    location: '',
-    date: '',
-    tags: [],
-    players: [],
+    videoType: 'match',
+    playerTags: [],
+    matchDetails: {
+      opposingTeam: '',
+      matchDate: '',
+      league: '',
+      homeOrAway: 'home',
+      finalScore: ''
+    }
   });
-  const [uploading, setUploading] = useState(false);
-  const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
-  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
-  const [videoDuration, setVideoDuration] = useState<number>(0);
-  const [videoStatus, setVideoStatus] = useState<'idle' | 'playing' | 'paused'>('idle');
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const { profile } = useAuth();
-  const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchPlayers = async () => {
-      if (!profile?.id) return;
+  const videoCompressionService = new VideoCompressionService();
+  const aiAnalysisService = new EnhancedAIAnalysisService();
 
-      try {
-        const { data: team } = await supabase
-          .from('teams')
-          .select('id')
-          .eq('profile_id', profile.id)
-          .single();
-
-        if (team) {
-          const { data: players, error } = await supabase
-            .from('players')
-            .select('id, full_name')
-            .eq('team_id', team.id);
-
-          if (error) throw error;
-          setAvailablePlayers(players || []);
-        }
-      } catch (error) {
-        console.error('Error fetching players:', error);
-      }
-    };
-
-    fetchPlayers();
-  }, [profile?.id]);
-
-  const handleVideoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (file) {
+      if (!file.type.startsWith('video/')) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please select a valid video file",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    setVideoFile(file);
-    setUploading(false);
+      setSelectedFile(file);
+      
+      // Auto-populate title if empty
+      if (!metadata.title) {
+        setMetadata(prev => ({
+          ...prev,
+          title: file.name.replace(/\.[^/.]+$/, '')
+        }));
+      }
+    }
+  };
+
+  const handlePlayerTagsChange = (value: string) => {
+    const tags = value.split(',').map(tag => tag.trim()).filter(tag => tag);
+    setMetadata(prev => ({ ...prev, playerTags: tags }));
+  };
+
+  const compressVideo = async (file: File): Promise<File> => {
+    setIsCompressing(true);
+    setCompressionProgress(0);
+
+    try {
+      const result = await videoCompressionService.compressVideo(
+        file,
+        10, // Target 10MB
+        (progress) => setCompressionProgress(progress)
+      );
+
+      setCompressionStats({
+        originalSize: result.originalSizeMB,
+        compressedSize: result.compressedSizeMB,
+        ratio: result.compressionRatio
+      });
+
+      // Log compression to database
+      await supabase
+        .from('video_compression_logs')
+        .insert({
+          original_size_mb: result.originalSizeMB,
+          compressed_size_mb: result.compressedSizeMB,
+          compression_ratio: result.compressionRatio,
+          compression_status: 'completed'
+        });
+
+      toast({
+        title: "Video Compressed Successfully",
+        description: `Reduced from ${result.originalSizeMB.toFixed(1)}MB to ${result.compressedSizeMB.toFixed(1)}MB`,
+      });
+
+      return result.compressedFile;
+    } catch (error) {
+      console.error('Compression error:', error);
+      toast({
+        title: "Compression Failed",
+        description: "Using original file for upload",
+        variant: "destructive"
+      });
+      return file;
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
+  const uploadVideo = async (file: File): Promise<string> => {
+    setIsUploading(true);
     setUploadProgress(0);
 
-    const thumbnail = await generateThumbnail(file);
-    setThumbnailUrl(thumbnail);
+    const fileName = `${teamId}/${Date.now()}-${file.name}`;
 
-    const video = document.createElement('video');
-    video.src = URL.createObjectURL(file);
-    video.addEventListener('loadedmetadata', () => {
-      setVideoDuration(video.duration);
-    });
+    try {
+      const { data, error } = await supabase.storage
+        .from('match-videos')
+        .upload(fileName, file, {
+          onUploadProgress: (progress) => {
+            setUploadProgress(Math.round((progress.loaded / progress.total) * 100));
+          }
+        });
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('match-videos')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setMetadata(prev => ({ ...prev, [name]: value }));
+  const generateThumbnail = async (file: File): Promise<string> => {
+    try {
+      const thumbnailBlob = await videoCompressionService.generateThumbnail(file, 10);
+      const thumbnailFileName = `thumbnails/${teamId}/${Date.now()}-thumb.jpg`;
+
+      const { data, error } = await supabase.storage
+        .from('video-thumbnails')
+        .upload(thumbnailFileName, thumbnailBlob);
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('video-thumbnails')
+        .getPublicUrl(thumbnailFileName);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Thumbnail generation error:', error);
+      return '';
+    }
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setMetadata(prev => ({ ...prev, [name]: value }));
+  const saveVideoRecord = async (videoUrl: string, thumbnailUrl: string): Promise<string> => {
+    const videoData = {
+      team_id: teamId,
+      title: metadata.title,
+      video_url: videoUrl,
+      thumbnail_url: thumbnailUrl,
+      video_description: metadata.description,
+      video_type: metadata.videoType,
+      player_tags: metadata.playerTags,
+      duration: 0, // Will be updated after analysis
+      file_size: selectedFile?.size || 0,
+      ai_analysis_status: 'pending',
+      ...(metadata.videoType === 'match' && metadata.matchDetails && {
+        opposing_team: metadata.matchDetails.opposingTeam,
+        match_date: metadata.matchDetails.matchDate,
+        league: metadata.matchDetails.league,
+        home_or_away: metadata.matchDetails.homeOrAway,
+        final_score: metadata.matchDetails.finalScore
+      })
+    };
+
+    const { data, error } = await supabase
+      .from('videos')
+      .insert(videoData)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data.id;
   };
 
-  const handlePlayerTag = (playerId: string) => {
-    setSelectedPlayers(prev => {
-      if (prev.includes(playerId)) {
-        return prev.filter(id => id !== playerId);
-      } else {
-        return [...prev, playerId];
-      }
-    });
-    setMetadata(prev => ({
-      ...prev,
-      players: selectedPlayers
-    }));
+  const performAIAnalysis = async (videoId: string) => {
+    setIsAnalyzing(true);
+    setAnalysisProgress(0);
+
+    try {
+      await aiAnalysisService.analyzeVideo(
+        videoId,
+        {
+          title: metadata.title,
+          description: metadata.description,
+          videoType: metadata.videoType,
+          duration: 1800, // Default 30 minutes
+          playerTags: metadata.playerTags,
+          matchDetails: metadata.matchDetails
+        },
+        (progress, status) => {
+          setAnalysisProgress(progress);
+        }
+      );
+
+      // Update video status
+      await supabase
+        .from('videos')
+        .update({ ai_analysis_status: 'completed' })
+        .eq('id', videoId);
+
+    } catch (error) {
+      console.error('AI analysis error:', error);
+      await supabase
+        .from('videos')
+        .update({ ai_analysis_status: 'failed' })
+        .eq('id', videoId);
+      
+      throw error;
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
-  const handleUpload = async () => {
-    if (!videoFile || !profile?.id) {
+  const handleSubmit = async () => {
+    if (!selectedFile || !metadata.title) {
       toast({
-        title: "Error",
-        description: "Please select a video file.",
+        title: "Missing Information",
+        description: "Please select a video file and provide a title",
         variant: "destructive"
       });
       return;
     }
 
     try {
-      setUploading(true);
-      const { data: team } = await supabase
-        .from('teams')
-        .select('id')
-        .eq('profile_id', profile.id)
-        .single();
+      // Step 1: Compress video
+      const compressedFile = await compressVideo(selectedFile);
 
-      if (!team) {
-        toast({
-          title: "Error",
-          description: "Team not found for the logged-in user.",
-          variant: "destructive"
-        });
-        return;
-      }
+      // Step 2: Generate thumbnail
+      const thumbnailUrl = await generateThumbnail(compressedFile);
 
-      const videoFileName = `${Date.now()}-${videoFile.name}`;
-      const videoPath = `videos/${team.id}/${videoFileName}`;
+      // Step 3: Upload video
+      const videoUrl = await uploadVideo(compressedFile);
 
-      const { data, error } = await supabase.storage
-        .from('team-videos')
-        .upload(videoPath, videoFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Step 4: Save video record
+      const videoId = await saveVideoRecord(videoUrl, thumbnailUrl);
 
-      if (error) {
-        console.error('Error uploading video:', error);
-        toast({
-          title: "Error",
-          description: `Failed to upload video: ${error.message}`,
-          variant: "destructive"
-        });
-        setUploading(false);
-        return;
-      }
-
-      const thumbnailUrlFileName = `${Date.now()}-thumbnail.jpg`;
-      const thumbnailPath = `videos/${team.id}/thumbnails/${thumbnailUrlFileName}`;
-
-      // Convert the data URL to a Blob
-      const blob = await (await fetch(thumbnailUrl!)).blob();
-
-      const { data: thumbnailData, error: thumbnailError } = await supabase.storage
-        .from('team-videos')
-        .upload(thumbnailPath, blob, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: 'image/jpeg'
-        });
-
-      if (thumbnailError) {
-        console.error('Error uploading thumbnail:', thumbnailError);
-        toast({
-          title: "Error",
-          description: `Failed to upload thumbnail: ${thumbnailError.message}`,
-          variant: "destructive"
-        });
-        setUploading(false);
-        return;
-      }
-
-      const videoUrl = `${supabase.storage.from('team-videos').getPublicUrl(videoPath).data.publicUrl}`;
-      const finalThumbnailUrl = `${supabase.storage.from('team-videos').getPublicUrl(thumbnailPath).data.publicUrl}`;
-
-      const { error: dbError } = await supabase
-        .from('videos')
-        .insert({
-          team_id: team.id,
-          title: metadata.title,
-          description: metadata.description,
-          video_type: metadata.video_type,
-          video_url: videoUrl,
-          thumbnail_url: finalThumbnailUrl,
-          location: metadata.location,
-          date: metadata.date,
-          tags: metadata.tags,
-          players: metadata.players,
-          duration: videoDuration,
-        });
-
-      if (dbError) {
-        console.error('Error saving video metadata:', dbError);
-        toast({
-          title: "Error",
-          description: `Failed to save video metadata: ${dbError.message}`,
-          variant: "destructive"
-        });
-        setUploading(false);
-        return;
-      }
+      // Step 5: Perform AI analysis
+      await performAIAnalysis(videoId);
 
       toast({
-        title: "Success",
-        description: "Video uploaded successfully!",
-      });
-      resetForm();
-    } catch (err: any) {
-      console.error('Upload error:', err);
-      toast({
-        title: "Error",
-        description: `Upload failed: ${err.message}`,
-        variant: "destructive"
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setVideoFile(null);
-    setThumbnailUrl(null);
-    setUploadProgress(0);
-    setMetadata({
-      title: '',
-      description: '',
-      video_type: 'highlight',
-      location: '',
-      date: '',
-      tags: [],
-      players: [],
-    });
-    setSelectedPlayers([]);
-    setVideoDuration(0);
-    setVideoStatus('idle');
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
-  };
-
-  const togglePlay = () => {
-    if (!videoRef.current) return;
-
-    if (videoStatus === 'idle' || videoStatus === 'paused') {
-      videoRef.current.play();
-      setVideoStatus('playing');
-    } else {
-      videoRef.current.pause();
-      setVideoStatus('paused');
-    }
-  };
-
-  const handleVideoEnded = () => {
-    setVideoStatus('paused');
-  };
-
-  const handleRewind = () => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = 0;
-    setVideoStatus('paused');
-  };
-
-  const generateThumbnail = useCallback(async (videoFile: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      video.addEventListener('loadedmetadata', () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        video.currentTime = Math.min(5, video.duration / 4);
+        title: "Upload Complete",
+        description: "Video uploaded and analyzed successfully!",
       });
 
-      video.addEventListener('seeked', () => {
-        if (ctx) {
-          ctx.drawImage(video, 0, 0);
-          const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          resolve(thumbnailDataUrl);
+      // Reset form
+      setSelectedFile(null);
+      setMetadata({
+        title: '',
+        description: '',
+        videoType: 'match',
+        playerTags: [],
+        matchDetails: {
+          opposingTeam: '',
+          matchDate: '',
+          league: '',
+          homeOrAway: 'home',
+          finalScore: ''
         }
       });
+      setCompressionStats(null);
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
 
-      video.src = URL.createObjectURL(videoFile);
-    });
-  }, []);
+      onUploadComplete?.(videoId);
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "An error occurred during upload",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const isProcessing = isCompressing || isUploading || isAnalyzing;
 
   return (
     <Card className="bg-gray-800 border-gray-700">
       <CardHeader>
-        <CardTitle className="text-white font-polysans flex items-center gap-2">
-          <Upload className="h-5 w-5" />
-          Upload Video
+        <CardTitle className="text-white flex items-center gap-2">
+          <Upload className="w-5 h-5 text-bright-pink" />
+          Upload & Analyze Video
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Video Input */}
-        <div>
-          <Label htmlFor="video-upload" className="text-white">
+      <CardContent className="space-y-6">
+        {/* File Selection */}
+        <div className="space-y-2">
+          <Label htmlFor="video-file" className="text-gray-300">
             Select Video File
           </Label>
-          <Input
-            type="file"
-            accept="video/*"
-            onChange={handleVideoChange}
-            className="hidden"
-            id="video-upload"
-            disabled={uploading}
-          />
-          <div className="mt-2">
-            <label
-              htmlFor="video-upload"
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-gray-600 hover:border-rosegold/50 transition-colors cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-            >
-              <Video className="h-4 w-4" />
-              <span className="text-white">Choose Video</span>
-            </label>
-            {videoFile && (
-              <div className="mt-3 flex items-center gap-4">
-                {thumbnailUrl && (
-                  <div className="relative w-32 h-20 rounded-lg overflow-hidden">
-                    <img
-                      src={thumbnailUrl}
-                      alt="Video Thumbnail"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <Badge variant="secondary">{videoDuration ? `${videoDuration.toFixed(0)}s` : 'Loading...'}</Badge>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <p className="text-white font-semibold">{videoFile.name}</p>
-                  <p className="text-gray-400 text-sm">{videoFile.size > 1024 * 1024 ? `${(videoFile.size / (1024 * 1024)).toFixed(2)} MB` : `${(videoFile.size / 1024).toFixed(2)} KB`}</p>
-                </div>
-              </div>
+          <div className="flex items-center gap-4">
+            <Input
+              ref={fileInputRef}
+              id="video-file"
+              type="file"
+              accept="video/*"
+              onChange={handleFileSelect}
+              className="flex-1 bg-gray-700 border-gray-600 text-white"
+              disabled={isProcessing}
+            />
+            {selectedFile && (
+              <Badge variant="secondary" className="text-xs">
+                {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
+              </Badge>
             )}
           </div>
         </div>
 
-        {/* Video Preview */}
-        {videoFile && (
-          <div className="space-y-2">
-            <Label className="text-white">Video Preview</Label>
-            <div className="relative aspect-video bg-gray-700 rounded-lg overflow-hidden">
-              <video
-                ref={videoRef}
-                src={URL.createObjectURL(videoFile)}
-                className="w-full h-full object-contain"
-                onEnded={handleVideoEnded}
-                muted
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                {videoStatus === 'playing' ? (
-                  <Button variant="ghost" size="icon" onClick={togglePlay}>
-                    <Pause className="h-6 w-6 text-white" />
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="icon" onClick={togglePlay}>
-                    <Play className="h-6 w-6 text-white" />
-                  </Button>
-                )}
+        {/* Compression Status */}
+        {isCompressing && (
+          <Card className="bg-gray-700 border-gray-600">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Compress className="w-4 h-4 text-bright-pink animate-spin" />
+                <span className="text-white font-medium">Compressing Video</span>
               </div>
-              <div className="absolute bottom-2 right-2">
-                <Button variant="ghost" size="icon" onClick={handleRewind}>
-                  <RotateCcw className="h-5 w-5 text-white" />
-                </Button>
-              </div>
-            </div>
-          </div>
+              <Progress value={compressionProgress} className="h-2" />
+              <p className="text-sm text-gray-400 mt-2">
+                Optimizing video size to 10MB for faster upload and analysis
+              </p>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Metadata Inputs */}
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-gray-700">
-            <TabsTrigger value="details" className="text-white">Details</TabsTrigger>
-            <TabsTrigger value="tags" className="text-white">Tags & Players</TabsTrigger>
-          </TabsList>
-          <TabsContent value="details" className="space-y-4">
-            <div>
-              <Label htmlFor="title" className="text-white">
-                Title
-              </Label>
-              <Input
-                type="text"
-                id="title"
-                name="title"
-                value={metadata.title}
-                onChange={handleInputChange}
-                placeholder="Video Title"
-                disabled={uploading}
-              />
-            </div>
-            <div>
-              <Label htmlFor="description" className="text-white">
-                Description
-              </Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={metadata.description}
-                onChange={handleInputChange}
-                placeholder="Video Description"
-                disabled={uploading}
-              />
-            </div>
-            <div>
-              <Label htmlFor="video_type" className="text-white">
-                Video Type
-              </Label>
-              <Select onValueChange={(value) => handleSelectChange('video_type', value)} defaultValue={metadata.video_type}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select video type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="highlight">Highlight</SelectItem>
-                  <SelectItem value="full_game">Full Game</SelectItem>
-                  <SelectItem value="training">Training</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="location" className="text-white">
-                  Location
-                </Label>
-                <Input
-                  type="text"
-                  id="location"
-                  name="location"
-                  value={metadata.location}
-                  onChange={handleInputChange}
-                  placeholder="Location"
-                  disabled={uploading}
-                />
+        {compressionStats && (
+          <Card className="bg-green-900/20 border-green-700">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-white font-medium">Compression Complete</span>
               </div>
-              <div>
-                <Label htmlFor="date" className="text-white">
-                  Date
-                </Label>
-                <Input
-                  type="date"
-                  id="date"
-                  name="date"
-                  value={metadata.date}
-                  onChange={handleInputChange}
-                  disabled={uploading}
-                />
+              <div className="text-sm text-gray-300">
+                Original: {compressionStats.originalSize.toFixed(1)}MB → 
+                Compressed: {compressionStats.compressedSize.toFixed(1)}MB 
+                ({Math.round((1 - compressionStats.compressedSize / compressionStats.originalSize) * 100)}% reduction)
               </div>
-            </div>
-          </TabsContent>
-          <TabsContent value="tags" className="space-y-4">
-            <div>
-              <Label htmlFor="tags" className="text-white">
-                Tags
-              </Label>
-              <Input
-                type="text"
-                id="tags"
-                name="tags"
-                value={metadata.tags.join(', ')}
-                onChange={handleInputChange}
-                placeholder="Tags (comma separated)"
-                disabled={uploading}
-              />
-            </div>
-            <div>
-              <Label className="text-white">Players</Label>
-              {availablePlayers.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {availablePlayers.map((player) => (
-                    <Button
-                      key={player.id}
-                      variant={selectedPlayers.includes(player.id) ? 'default' : 'outline'}
-                      onClick={() => handlePlayerTag(player.id)}
-                      disabled={uploading}
-                    >
-                      {player.full_name}
-                      {selectedPlayers.includes(player.id) && <Check className="h-4 w-4 ml-1" />}
-                    </Button>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-gray-400">No players available.</div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Upload Button */}
-        <Button onClick={handleUpload} disabled={uploading} className="w-full">
-          {uploading ? (
+        {/* Basic Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-gray-300">
+              Video Title *
+            </Label>
+            <Input
+              id="title"
+              value={metadata.title}
+              onChange={(e) => setMetadata(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Enter video title..."
+              className="bg-gray-700 border-gray-600 text-white"
+              disabled={isProcessing}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="video-type" className="text-gray-300">
+              Video Type *
+            </Label>
+            <Select
+              value={metadata.videoType}
+              onValueChange={(value: 'match' | 'training' | 'interview' | 'highlight') =>
+                setMetadata(prev => ({ ...prev, videoType: value }))
+              }
+              disabled={isProcessing}
+            >
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="match">Match</SelectItem>
+                <SelectItem value="training">Training</SelectItem>
+                <SelectItem value="interview">Interview</SelectItem>
+                <SelectItem value="highlight">Highlight</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="space-y-2">
+          <Label htmlFor="description" className="text-gray-300">
+            Description
+          </Label>
+          <Textarea
+            id="description"
+            value={metadata.description}
+            onChange={(e) => setMetadata(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="Provide additional context about this video..."
+            className="bg-gray-700 border-gray-600 text-white"
+            rows={3}
+            disabled={isProcessing}
+          />
+        </div>
+
+        {/* Player Tags */}
+        <div className="space-y-2">
+          <Label htmlFor="player-tags" className="text-gray-300 flex items-center gap-1">
+            <Users className="w-4 h-4" />
+            Tagged Players
+          </Label>
+          <Input
+            id="player-tags"
+            value={metadata.playerTags.join(', ')}
+            onChange={(e) => handlePlayerTagsChange(e.target.value)}
+            placeholder="Enter player names separated by commas..."
+            className="bg-gray-700 border-gray-600 text-white"
+            disabled={isProcessing}
+          />
+          <p className="text-xs text-gray-500">
+            Tag players to enable AI to check their presence and analyze their performance
+          </p>
+        </div>
+
+        {/* Match Details (if match type) */}
+        {metadata.videoType === 'match' && (
+          <Card className="bg-gray-700 border-gray-600">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-bright-pink" />
+                Match Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Opposing Team</Label>
+                  <Input
+                    value={metadata.matchDetails?.opposingTeam || ''}
+                    onChange={(e) => setMetadata(prev => ({
+                      ...prev,
+                      matchDetails: { ...prev.matchDetails!, opposingTeam: e.target.value }
+                    }))}
+                    placeholder="Enter opposing team name"
+                    className="bg-gray-600 border-gray-500 text-white"
+                    disabled={isProcessing}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Match Date</Label>
+                  <Input
+                    type="date"
+                    value={metadata.matchDetails?.matchDate || ''}
+                    onChange={(e) => setMetadata(prev => ({
+                      ...prev,
+                      matchDetails: { ...prev.matchDetails!, matchDate: e.target.value }
+                    }))}
+                    className="bg-gray-600 border-gray-500 text-white"
+                    disabled={isProcessing}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-300">League/Competition</Label>
+                  <Input
+                    value={metadata.matchDetails?.league || ''}
+                    onChange={(e) => setMetadata(prev => ({
+                      ...prev,
+                      matchDetails: { ...prev.matchDetails!, league: e.target.value }
+                    }))}
+                    placeholder="Enter league name"
+                    className="bg-gray-600 border-gray-500 text-white"
+                    disabled={isProcessing}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Final Score</Label>
+                  <Input
+                    value={metadata.matchDetails?.finalScore || ''}
+                    onChange={(e) => setMetadata(prev => ({
+                      ...prev,
+                      matchDetails: { ...prev.matchDetails!, finalScore: e.target.value }
+                    }))}
+                    placeholder="e.g., 2-1"
+                    className="bg-gray-600 border-gray-500 text-white"
+                    disabled={isProcessing}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Upload Progress */}
+        {isUploading && (
+          <Card className="bg-gray-700 border-gray-600">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Video className="w-4 h-4 text-bright-pink animate-pulse" />
+                <span className="text-white font-medium">Uploading Video</span>
+              </div>
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="text-sm text-gray-400 mt-2">
+                Uploading to secure cloud storage
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Analysis Progress */}
+        {isAnalyzing && (
+          <Card className="bg-gray-700 border-gray-600">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-4 h-4 text-bright-pink animate-pulse" />
+                <span className="text-white font-medium">AI Analysis in Progress</span>
+              </div>
+              <Progress value={analysisProgress} className="h-2" />
+              <p className="text-sm text-gray-400 mt-2">
+                Generating comprehensive performance insights and recommendations
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Submit Button */}
+        <Button
+          onClick={handleSubmit}
+          disabled={!selectedFile || !metadata.title || isProcessing}
+          className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white"
+          size="lg"
+        >
+          {isProcessing ? (
             <>
-              Uploading...
-              <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Processing...
             </>
           ) : (
-            "Upload Video"
+            <>
+              <Upload className="w-4 h-4 mr-2" />
+              Upload & Analyze Video
+            </>
           )}
         </Button>
 
-        {/* Upload Progress */}
-        {uploading && (
-          <div>
-            <Progress value={uploadProgress} />
-            <p className="text-gray-400 text-sm mt-1">{uploadProgress}%</p>
+        {isProcessing && (
+          <div className="text-center text-sm text-gray-400">
+            This process may take several minutes depending on video size and complexity
           </div>
         )}
       </CardContent>
