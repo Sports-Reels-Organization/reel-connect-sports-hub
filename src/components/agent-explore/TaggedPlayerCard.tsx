@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -295,7 +294,6 @@ const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({
             height: player.height,
             id: player.id,
             market_value: player.market_value,
-            nationality: player.citizenship,
             photo_url: null,
             position: player.position,
             second_nationality: null,
@@ -314,8 +312,7 @@ const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({
           player={{
             id: player.id,
             full_name: player.full_name,
-            position: player.position,
-            team: player.current_club
+            position: player.position
           }}
         />
       )}
