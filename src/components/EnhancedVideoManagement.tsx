@@ -1,491 +1,398 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
+import { Play, User, Calendar, Tag, Video as VideoIcon, Star, Clock, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import EnhancedVideoUpload from './EnhancedVideoUpload';
-import VideoAnalysisResults from './VideoAnalysisResults';
-import {
-  Play,
-  Upload,
-  Brain,
-  Download,
-  Search,
-  Filter,
-  Calendar,
-  Users,
-  BarChart3,
-  FileText,
-  Eye,
-  Trash2
-} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import PlayerProfileWrapper from './PlayerProfileWrapper';
+import VideoModal from './VideoModal';
+import { usePlayerProfile } from '@/hooks/usePlayerProfile';
 
-interface Video {
+interface VideoData {
   id: string;
   title: string;
-  description: string;
-  video_type: string;
   video_url: string;
-  thumbnail_url: string;
-  created_at: string;
-  ai_analysis_status: string;
-  tagged_players: string[];
-  file_size: number;
-  duration: number;
+  thumbnail_url?: string;
+  match_date?: string;
+  opposing_team?: string;
+  score?: string;
+  tagged_players?: any;
+  tags?: string[];
+  description?: string;
+  created_at?: string;
+  team_id?: string;
+  duration?: number;
 }
 
-const EnhancedVideoManagement: React.FC = () => {
+export const EnhancedVideoManagement: React.FC = () => {
   const { profile } = useAuth();
-  const { toast } = useToast();
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [filteredVideos, setFilteredVideos] = useState<Video[]>([]);
+  const [videos, setVideos] = useState<VideoData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState('all');
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
-  const [showUpload, setShowUpload] = useState(false);
-  const [teamData, setTeamData] = useState<any>(null);
+  const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+
+  const {
+    selectedPlayerId,
+    selectedPlayerName,
+    isModalOpen: isPlayerModalOpen,
+    openPlayerProfile,
+    closePlayerProfile
+  } = usePlayerProfile();
 
   useEffect(() => {
-    if (profile?.user_type === 'team') {
-      fetchTeamData();
-      fetchVideos();
-    }
-  }, [profile]);
-
-  useEffect(() => {
-    filterVideos();
-  }, [videos, searchTerm, selectedType]);
-
-  const fetchTeamData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('profile_id', profile?.id)
-        .single();
-
-      if (error) throw error;
-      setTeamData(data);
-    } catch (error) {
-      console.error('Error fetching team data:', error);
-    }
-  };
+    fetchVideos();
+  }, []);
 
   const fetchVideos = async () => {
     try {
-      const { data: teamData } = await supabase
-        .from('teams')
-        .select('id')
-        .eq('profile_id', profile?.id)
-        .single();
+      setLoading(true);
 
-      if (!teamData) return;
-
+      // Fetch all public videos with better filtering
       const { data, error } = await supabase
         .from('videos')
         .select(`
-          id,
-          title,
-          description,
-          video_type,
-          video_url,
-          thumbnail_url,
-          created_at,
-          ai_analysis_status,
-          tagged_players,
-          file_size,
-          duration,
-          enhanced_video_analysis(*)
+          *,
+          teams!videos_team_id_fkey(
+            id,
+            team_name,
+            country,
+            logo_url
+          )
         `)
-        .eq('team_id', teamData.id)
-        .order('created_at', { ascending: false });
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      if (error) throw error;
-      
-      // Transform the data to match our Video interface with proper type handling
-      const transformedVideos = (data || []).map(video => ({
-        ...video,
-        tagged_players: Array.isArray(video.tagged_players) 
-          ? video.tagged_players.filter(p => typeof p === 'string') as string[]
-          : video.tagged_players && typeof video.tagged_players === 'string'
-            ? [video.tagged_players as string] 
-            : []
-      }));
-      
-      setVideos(transformedVideos);
+      if (error) {
+        console.error('Error fetching videos:', error);
+        return;
+      }
+
+      console.log('Fetched videos:', data);
+      setVideos(data || []);
     } catch (error) {
-      console.error('Error fetching videos:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load videos",
-        variant: "destructive"
-      });
+      console.error('Error in fetchVideos:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const filterVideos = () => {
-    let filtered = videos;
-
-    if (searchTerm) {
-      filtered = filtered.filter(video =>
-        video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        video.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (selectedType !== 'all') {
-      filtered = filtered.filter(video => video.video_type === selectedType);
-    }
-
-    setFilteredVideos(filtered);
+  const handleVideoClick = (video: VideoData) => {
+    setSelectedVideo(video);
+    setShowVideoModal(true);
   };
 
-  const handleVideoUploaded = (videoData: any) => {
-    setVideos(prev => [videoData, ...prev]);
-    setShowUpload(false);
-    toast({
-      title: "Video Uploaded",
-      description: "Video uploaded successfully and ready for analysis",
+  const handlePlayerTagClick = async (playerName: string) => {
+    try {
+      // Find player by name with more flexible matching
+      const { data, error } = await supabase
+        .from('players')
+        .select('id, full_name')
+        .ilike('full_name', `%${playerName.trim()}%`)
+        .limit(1);
+
+      if (error) {
+        console.error('Error finding player:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        openPlayerProfile(data[0].id, data[0].full_name);
+      } else {
+        console.log('Player not found:', playerName);
+      }
+    } catch (error) {
+      console.error('Error in handlePlayerTagClick:', error);
+    }
+  };
+
+  const extractPlayerTags = (taggedPlayers: any): string[] => {
+    if (!taggedPlayers) return [];
+
+    try {
+      if (Array.isArray(taggedPlayers)) {
+        return taggedPlayers.map(player => {
+          if (typeof player === 'string') return player;
+          if (typeof player === 'object' && player.name) return player.name;
+          if (typeof player === 'object' && player.full_name) return player.full_name;
+          return 'Unknown Player';
+        }).filter(Boolean);
+      }
+
+      if (typeof taggedPlayers === 'string') {
+        try {
+          const parsed = JSON.parse(taggedPlayers);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [taggedPlayers];
+        }
+      }
+    } catch (error) {
+      console.error('Error extracting player tags:', error);
+    }
+
+    return [];
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown date';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
-  const handleDeleteVideo = async (videoId: string) => {
-    if (!window.confirm('Are you sure you want to delete this video?')) return;
+  const formatTimeAgo = (dateString?: string) => {
+    if (!dateString) return '';
 
-    try {
-      const { error } = await supabase
-        .from('videos')
-        .delete()
-        .eq('id', videoId);
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-      if (error) throw error;
-
-      setVideos(prev => prev.filter(v => v.id !== videoId));
-      toast({
-        title: "Video Deleted",
-        description: "Video deleted successfully",
-      });
-    } catch (error) {
-      console.error('Error deleting video:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete video",
-        variant: "destructive"
-      });
-    }
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+    return `${Math.floor(diffDays / 365)} years ago`;
   };
 
-  const downloadAnalysisReport = async (video: Video) => {
-    try {
-      const { data: reports } = await supabase
-        .from('ai_analysis_reports')
-        .select('pdf_url')
-        .eq('video_id', video.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (reports && reports.length > 0) {
-        const link = document.createElement('a');
-        link.href = reports[0].pdf_url;
-        link.download = `${video.title}_Analysis_Report.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        toast({
-          title: "Report Downloaded",
-          description: "Analysis report downloaded successfully",
-        });
-      } else {
-        toast({
-          title: "No Report Available",
-          description: "Analysis report is not yet available for this video",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error downloading report:', error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to download analysis report",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getAnalysisStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500">Completed</Badge>;
-      case 'processing':
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500">Processing</Badge>;
-      case 'pending':
-        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500">Pending</Badge>;
-      case 'failed':
-        return <Badge className="bg-red-500/20 text-red-400 border-red-500">Failed</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-  };
-
-  const formatDuration = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  if (profile?.user_type !== 'team') {
-    return (
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-6 text-center">
-          <p className="text-gray-400">Video management is only available for team accounts.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (selectedVideo) {
+  if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => setSelectedVideo(null)}
-            className="border-gray-600 text-gray-300"
-          >
-            ← Back to Videos
-          </Button>
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white">{selectedVideo.title}</h2>
-            <p className="text-gray-400">
-              {selectedVideo.video_type.charAt(0).toUpperCase() + selectedVideo.video_type.slice(1)} • 
-              {new Date(selectedVideo.created_at).toLocaleDateString()}
+            <h1 className="text-3xl font-polysans font-bold text-white mb-2">
+              Featured Videos
+            </h1>
+            <p className="text-gray-400 font-poppins">
+              Loading player highlights with AI-powered analysis...
             </p>
           </div>
         </div>
-        
-        <VideoAnalysisResults
-          videoId={selectedVideo.id}
-          videoType={selectedVideo.video_type as any}
-          teamId={teamData?.id}
-        />
-      </div>
-    );
-  }
 
-  if (showUpload) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => setShowUpload(false)}
-            className="border-gray-600 text-gray-300"
-          >
-            ← Back to Videos
-          </Button>
-          <h2 className="text-2xl font-bold text-white">Upload New Video</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <Card key={i} className="bg-[#1a1a1a] border-[#d4af37]/20 animate-pulse">
+              <CardContent className="p-4">
+                <div className="h-48 bg-[#111111] rounded-lg mb-4"></div>
+                <div className="space-y-3">
+                  <div className="h-6 bg-[#111111] rounded"></div>
+                  <div className="h-4 bg-[#111111] rounded w-3/4"></div>
+                  <div className="flex gap-2">
+                    <div className="h-6 bg-[#111111] rounded w-16"></div>
+                    <div className="h-6 bg-[#111111] rounded w-20"></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-        
-        <EnhancedVideoUpload
-          teamId={teamData?.id}
-          onVideoUploaded={handleVideoUploaded}
-        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Video Management</h1>
-          <p className="text-gray-400 mt-1">
-            Upload, analyze, and manage your team's video content with AI insights
-          </p>
-        </div>
-        <Button
-          onClick={() => setShowUpload(true)}
-          className="bg-bright-pink hover:bg-bright-pink/90 text-white"
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          Upload Video
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search videos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              {['all', 'match', 'training', 'interview', 'highlight'].map((type) => (
-                <Button
-                  key={type}
-                  variant={selectedType === type ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedType(type)}
-                  className={selectedType === type ? 'bg-bright-pink' : 'border-gray-600 text-gray-300'}
-                >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </Button>
-              ))}
+    <>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-polysans font-bold text-white mb-2">
+              Featured Videos
+            </h1>
+            <p className="text-gray-400 font-poppins">
+              Watch player highlights with AI-powered analysis
+            </p>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-gray-400">
+            <div className="flex items-center gap-2">
+              <VideoIcon className="w-4 h-4 text-[#d4af37]" />
+              <span>{videos.length} videos available</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Videos Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="bg-gray-800 border-gray-700 animate-pulse">
-              <div className="aspect-video bg-gray-700 rounded-t-lg" />
-              <CardContent className="p-4">
-                <div className="h-4 bg-gray-700 rounded mb-2" />
-                <div className="h-3 bg-gray-700 rounded w-2/3" />
-              </CardContent>
-            </Card>
-          ))}
         </div>
-      ) : filteredVideos.length === 0 ? (
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-12 text-center">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-white mb-2">No Videos Found</h3>
-            <p className="text-gray-400 mb-6">
-              {videos.length === 0 
-                ? "Upload your first video to get started with AI analysis" 
-                : "No videos match your current filters"}
-            </p>
-            {videos.length === 0 && (
-              <Button
-                onClick={() => setShowUpload(true)}
-                className="bg-bright-pink hover:bg-bright-pink/90 text-white"
+
+        {videos.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {videos.map((video) => (
+              <Card
+                key={video.id}
+                className="bg-[#1a1a1a] border-[#d4af37]/20 hover:border-[#d4af37] transition-all duration-300 group cursor-pointer shadow-lg hover:shadow-xl"
+                onClick={() => handleVideoClick(video)}
               >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload First Video
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVideos.map((video) => (
-            <Card key={video.id} className="bg-gray-800 border-gray-700 hover:border-bright-pink/50 transition-all">
-              <div className="relative">
-                {video.thumbnail_url ? (
-                  <img
-                    src={video.thumbnail_url}
-                    alt={video.title}
-                    className="aspect-video object-cover rounded-t-lg w-full"
-                  />
-                ) : (
-                  <div className="aspect-video bg-gray-700 rounded-t-lg flex items-center justify-center">
-                    <Play className="w-12 h-12 text-gray-500" />
+                <CardContent className="p-0">
+                  {/* Thumbnail */}
+                  <div className="relative mb-4 overflow-hidden">
+                    {video.thumbnail_url ? (
+                      <img
+                        src={video.thumbnail_url}
+                        alt={video.title}
+                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gradient-to-br from-[#111111] to-[#1a1a1a] flex items-center justify-center">
+                        <VideoIcon className="w-16 h-16 text-[#d4af37]/50" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+                      <div className="absolute bottom-4 left-4 right-4">
+                        {video.duration && (
+                          <Badge className="bg-black/80 text-white text-xs">
+                            <Clock className="w-3 h-3 mr-1" />
+                            {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <div className="bg-[#d4af37] rounded-full p-4 transform scale-90 group-hover:scale-100 transition-transform duration-300">
+                        <Play className="w-8 h-8 text-black" />
+                      </div>
+                    </div>
                   </div>
-                )}
-                
-                <div className="absolute top-3 left-3">
-                  <Badge className="bg-black/70 text-white">
-                    {video.video_type.charAt(0).toUpperCase() + video.video_type.slice(1)}
-                  </Badge>
-                </div>
-                
-                <div className="absolute top-3 right-3">
-                  {getAnalysisStatusBadge(video.ai_analysis_status)}
-                </div>
 
-                {video.duration && (
-                  <div className="absolute bottom-3 right-3">
-                    <Badge className="bg-black/70 text-white">
-                      {formatDuration(video.duration)}
-                    </Badge>
-                  </div>
-                )}
-              </div>
+                  <div className="p-6 space-y-4">
+                    {/* Title */}
+                    <h3 className="font-polysans font-semibold text-white text-lg line-clamp-2 group-hover:text-[#d4af37] transition-colors">
+                      {video.title}
+                    </h3>
 
-              <CardContent className="p-4">
-                <h3 className="text-white font-semibold mb-2 line-clamp-2">{video.title}</h3>
-                
-                {video.description && (
-                  <p className="text-gray-400 text-sm mb-3 line-clamp-2">{video.description}</p>
-                )}
-                
-                <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-                  <Calendar className="w-3 h-3" />
-                  {new Date(video.created_at).toLocaleDateString()}
-                  <span>•</span>
-                  {formatFileSize(video.file_size)}
-                  {video.tagged_players && video.tagged_players.length > 0 && (
-                    <>
-                      <span>•</span>
-                      <Users className="w-3 h-3" />
-                      {video.tagged_players.length} tagged
-                    </>
-                  )}
-                </div>
+                    {/* Description */}
+                    {video.description && (
+                      <p className="text-gray-400 text-sm line-clamp-2 font-poppins">
+                        {video.description}
+                      </p>
+                    )}
 
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelectedVideo(video)}
-                    className="flex-1 border-gray-600 text-gray-300 hover:bg-bright-pink hover:border-bright-pink hover:text-white"
-                  >
-                    <Eye className="w-3 h-3 mr-1" />
-                    View Analysis
-                  </Button>
-                  
-                  {video.ai_analysis_status === 'completed' && (
+                    {/* Match Info */}
+                    <div className="space-y-2">
+                      {video.match_date && (
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <Calendar className="w-4 h-4 text-[#d4af37]" />
+                          <span>{formatDate(video.match_date)}</span>
+                          <span className="text-xs text-gray-500">
+                            ({formatTimeAgo(video.created_at)})
+                          </span>
+                        </div>
+                      )}
+
+                      {video.opposing_team && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">vs {video.opposing_team}</span>
+                          {video.score && (
+                            <Badge className="bg-pink-500/20 border-pink-500/50 text-pink-400 hover:bg-pink-500/30">
+                              {video.score}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tagged Players */}
+                    {extractPlayerTags(video.tagged_players).length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-white text-sm font-semibold flex items-center gap-2">
+                          <User className="w-4 h-4 text-[#d4af37]" />
+                          Featured Players:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {extractPlayerTags(video.tagged_players).slice(0, 3).map((player, index) => (
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="cursor-pointer hover:bg-[#d4af37] hover:text-black transition-all duration-200 text-xs bg-[#d4af37]/20 text-[#d4af37] border-[#d4af37]/30"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePlayerTagClick(player);
+                              }}
+                            >
+                              {player}
+                            </Badge>
+                          ))}
+                          {extractPlayerTags(video.tagged_players).length > 3 && (
+                            <Badge variant="outline" className="text-gray-400 border-gray-600 text-xs">
+                              +{extractPlayerTags(video.tagged_players).length - 3} more
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Video Tags */}
+                    {video.tags && video.tags.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-white text-sm font-semibold flex items-center gap-2">
+                          <Tag className="w-4 h-4 text-pink-400" />
+                          Tags:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {video.tags.slice(0, 4).map((tag, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="text-gray-400 border-gray-600 text-xs hover:border-pink-400 hover:text-pink-400 transition-colors"
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CTA Button */}
                     <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => downloadAnalysisReport(video)}
-                      className="border-gray-600 text-gray-300 hover:bg-green-600 hover:border-green-600"
+                      className="w-full bg-gradient-to-r from-[#d4af37] to-pink-400 hover:from-[#d4af37]/90 hover:to-pink-400/90 text-black font-poppins font-semibold shadow-lg"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleVideoClick(video);
+                      }}
                     >
-                      <Download className="w-3 h-3" />
+                      <Play className="w-4 h-4 mr-2" />
+                      Watch with AI Analysis
                     </Button>
-                  )}
-                  
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDeleteVideo(video.id)}
-                    className="border-gray-600 text-gray-300 hover:bg-red-600 hover:border-red-600"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="bg-[#1a1a1a] border-[#d4af37]/20">
+            <CardContent className="p-16 text-center">
+              <VideoIcon className="w-20 h-20 mx-auto mb-6 text-[#d4af37]/50" />
+              <h3 className="font-polysans text-2xl font-semibold text-white mb-3">
+                No Videos Available
+              </h3>
+              <p className="text-gray-400 mb-6 font-poppins text-lg max-w-md mx-auto">
+                No public videos are currently available for viewing. Check back later for new content.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Video Modal */}
+      <VideoModal
+        isOpen={showVideoModal}
+        onClose={() => {
+          setShowVideoModal(false);
+          setSelectedVideo(null);
+        }}
+        video={selectedVideo}
+        onPlayerTagClick={handlePlayerTagClick}
+      />
+
+      {/* Player Profile Modal */}
+      <PlayerProfileWrapper
+        isOpen={isPlayerModalOpen}
+        onClose={closePlayerProfile}
+        playerId={selectedPlayerId || ''}
+        playerName={selectedPlayerName || ''}
+      />
+    </>
   );
 };
 
