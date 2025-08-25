@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import EnhancedVideoUploadForm from './EnhancedVideoUploadForm';
-import VideoAnalysisResults from './VideoAnalysisResults';
+import { VideoAnalysisResults } from '@/components/VideoAnalysisResults';
 
 interface Video {
   id: string;

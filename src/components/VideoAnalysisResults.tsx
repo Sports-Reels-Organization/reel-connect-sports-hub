@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,7 @@ export const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
       setError(null);
 
       const { data, error } = await supabase
-        .from('video_analysis')
+        .from('ai_analysis')
         .select('*')
         .eq('video_id', videoId)
         .order('created_at', { ascending: false });
@@ -94,11 +95,11 @@ export const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
     // Fetch video data for the analysis
     const videoData = {
       video_id: videoId,
-      video_url: analysis.video_url || `https://example.com/video/${videoId}`, // Placeholder URL
+      video_url: analysis.video_url || `https://example.com/video/${videoId}`, 
       video_title: analysis.video_title || `Video Analysis ${analysis.id}`,
-      analysis_data: analysis.analysis_data,
+      analysis_data: analysis.metadata,
       tagged_players: analysis.tagged_players,
-      performance_metrics: analysis.performance_metrics
+      performance_metrics: analysis.metadata
     };
     
     setSelectedAnalysis(videoData);
@@ -152,7 +153,7 @@ export const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">
                       <Eye className="w-3 h-3 mr-1" />
-                      {analysis.view_count || 0} Views
+                      Analysis Complete
                     </Badge>
                     <Badge variant="outline">
                       <Users className="w-3 h-3 mr-1" />
@@ -192,7 +193,6 @@ export const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
         </div>
       )}
       
-      {/* Add the dialog at the end */}
       {showAnalysisDialog && selectedAnalysis && (
         <VideoAnalysisDialog
           isOpen={showAnalysisDialog}
@@ -206,3 +206,5 @@ export const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
     </div>
   );
 };
+
+export default VideoAnalysisResults;
