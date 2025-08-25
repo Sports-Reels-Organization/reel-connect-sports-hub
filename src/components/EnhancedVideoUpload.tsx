@@ -11,12 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { VideoCompressionService } from '@/services/videoCompressionService';
-import { EnhancedVideoAnalysis } from './EnhancedVideoAnalysis';
+import EnhancedVideoAnalysis from './EnhancedVideoAnalysis';
 import {
   Upload,
   FileVideo,
   Users,
-  Compress,
+  Archive,
   CheckCircle,
   AlertCircle,
   X
@@ -44,7 +44,7 @@ const EnhancedVideoUpload: React.FC<EnhancedVideoUploadProps> = ({
   const [videoTitle, setVideoTitle] = useState('');
   const [videoDescription, setVideoDescription] = useState('');
   const [videoType, setVideoType] = useState<'match' | 'training' | 'interview' | 'highlight'>('match');
-  const [taggedPlayers, setTaggedPlayers] = useState<string[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<string>('');
   const [players, setPlayers] = useState<Player[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -139,14 +139,6 @@ const EnhancedVideoUpload: React.FC<EnhancedVideoUploadProps> = ({
     }
   };
 
-  const handlePlayerToggle = (playerId: string) => {
-    setTaggedPlayers(prev => 
-      prev.includes(playerId)
-        ? prev.filter(id => id !== playerId)
-        : [...prev, playerId]
-    );
-  };
-
   const handleUpload = async () => {
     if (!videoFile || !videoTitle.trim()) {
       toast({
@@ -194,6 +186,9 @@ const EnhancedVideoUpload: React.FC<EnhancedVideoUploadProps> = ({
         .from('match-videos')
         .getPublicUrl(fileName);
 
+      // Get video duration
+      const duration = await compressionService.getVideoDuration(fileToUpload);
+
       // Create video record
       const videoData = {
         team_id: teamId,
@@ -203,9 +198,8 @@ const EnhancedVideoUpload: React.FC<EnhancedVideoUploadProps> = ({
         video_url: urlData.publicUrl,
         thumbnail_url: thumbnailUrl,
         file_size: fileToUpload.size,
-        duration: await compressionService.getVideoDuration ? 
-          await compressionService.getVideoDuration(fileToUpload) : 0,
-        tagged_players: taggedPlayers,
+        duration: duration,
+        tagged_players: selectedPlayer ? [selectedPlayer] : [],
         ai_analysis_status: 'pending'
       };
 
@@ -244,12 +238,12 @@ const EnhancedVideoUpload: React.FC<EnhancedVideoUploadProps> = ({
     setShowAnalysis(true);
   };
 
-  if (showAnalysis && uploadedVideoData && compressedFile) {
+  if (showAnalysis && uploadedVideoData && (compressedFile || videoFile)) {
     return (
       <EnhancedVideoAnalysis
-        videoFile={compressedFile}
+        videoFile={compressedFile || videoFile}
         videoType={videoType}
-        taggedPlayers={taggedPlayers}
+        taggedPlayers={selectedPlayer ? [selectedPlayer] : []}
         videoTitle={videoTitle}
         videoId={uploadedVideoData.id}
         teamId={teamId}
@@ -307,12 +301,12 @@ const EnhancedVideoUpload: React.FC<EnhancedVideoUploadProps> = ({
                   >
                     {isCompressing ? (
                       <>
-                        <Compress className="w-4 h-4 mr-2 animate-spin" />
+                        <Archive className="w-4 h-4 mr-2 animate-spin" />
                         Compressing...
                       </>
                     ) : (
                       <>
-                        <Compress className="w-4 h-4 mr-2" />
+                        <Archive className="w-4 h-4 mr-2" />
                         Compress Video
                       </>
                     )}
@@ -380,54 +374,44 @@ const EnhancedVideoUpload: React.FC<EnhancedVideoUploadProps> = ({
           <div className="space-y-3">
             <Label className="text-white flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Tagged Players
+              Tagged Player (Optional)
             </Label>
             
             {players.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto">
-                {players.map((player) => (
-                  <div
-                    key={player.id}
-                    onClick={() => handlePlayerToggle(player.id)}
-                    className={`p-3 rounded-lg cursor-pointer transition-all ${
-                      taggedPlayers.includes(player.id)
-                        ? 'bg-bright-pink/20 border-bright-pink border'
-                        : 'bg-gray-700 border-gray-600 border'
-                    } hover:bg-bright-pink/10`}
-                  >
-                    <div className="text-sm text-white font-medium">
-                      {player.full_name}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      #{player.jersey_number || 'N/A'} • {player.position}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                  <SelectValue placeholder="Select a player to tag (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No player selected</SelectItem>
+                  {players.map((player) => (
+                    <SelectItem key={player.id} value={player.id}>
+                      {player.full_name} (#{player.jersey_number || 'N/A'} • {player.position})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
               <div className="text-gray-400 text-sm">
                 No players found. Add players to your team first.
               </div>
             )}
 
-            {taggedPlayers.length > 0 && (
+            {selectedPlayer && (
               <div className="flex flex-wrap gap-2">
-                {taggedPlayers.map((playerId) => {
-                  const player = players.find(p => p.id === playerId);
+                {(() => {
+                  const player = players.find(p => p.id === selectedPlayer);
                   if (!player) return null;
                   return (
-                    <Badge
-                      key={playerId}
-                      className="bg-bright-pink/20 text-bright-pink border-bright-pink"
-                    >
+                    <Badge className="bg-bright-pink/20 text-bright-pink border-bright-pink">
                       {player.full_name}
                       <X
                         className="w-3 h-3 ml-1 cursor-pointer"
-                        onClick={() => handlePlayerToggle(playerId)}
+                        onClick={() => setSelectedPlayer('')}
                       />
                     </Badge>
                   );
-                })}
+                })()}
               </div>
             )}
           </div>

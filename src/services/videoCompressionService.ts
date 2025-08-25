@@ -83,7 +83,16 @@ export class VideoCompressionService {
     }
   }
 
-  private async getVideoDuration(file: File): Promise<number> {
+  // Legacy method name for compatibility
+  async compressVideo(
+    file: File,
+    onProgress?: (progress: number) => void
+  ): Promise<File> {
+    return this.compressVideoTo10MB(file, onProgress);
+  }
+
+  // Make this method public
+  async getVideoDuration(file: File): Promise<number> {
     return new Promise((resolve) => {
       const video = document.createElement('video');
       video.preload = 'metadata';

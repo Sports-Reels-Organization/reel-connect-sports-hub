@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +33,7 @@ interface Video {
   thumbnail_url: string;
   created_at: string;
   ai_analysis_status: string;
-  tagged_players: string[];
+  tagged_players: string[] | null;
   file_size: number;
   duration: number;
 }
@@ -90,14 +89,35 @@ const EnhancedVideoManagement: React.FC = () => {
       const { data, error } = await supabase
         .from('videos')
         .select(`
-          *,
+          id,
+          title,
+          description,
+          video_type,
+          video_url,
+          thumbnail_url,
+          created_at,
+          ai_analysis_status,
+          tagged_players,
+          file_size,
+          duration,
           enhanced_video_analysis(*)
         `)
         .eq('team_id', teamData.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setVideos(data || []);
+      
+      // Transform the data to match our Video interface
+      const transformedVideos = (data || []).map(video => ({
+        ...video,
+        tagged_players: Array.isArray(video.tagged_players) 
+          ? video.tagged_players 
+          : video.tagged_players 
+            ? [video.tagged_players as string] 
+            : []
+      }));
+      
+      setVideos(transformedVideos);
     } catch (error) {
       console.error('Error fetching videos:', error);
       toast({
@@ -420,7 +440,7 @@ const EnhancedVideoManagement: React.FC = () => {
                   {new Date(video.created_at).toLocaleDateString()}
                   <span>•</span>
                   {formatFileSize(video.file_size)}
-                  {video.tagged_players?.length > 0 && (
+                  {video.tagged_players && video.tagged_players.length > 0 && (
                     <>
                       <span>•</span>
                       <Users className="w-3 h-3" />
