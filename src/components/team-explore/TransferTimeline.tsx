@@ -5,9 +5,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Clock, MessageCircle, Eye, AlertCircle, TrendingUp } from 'lucide-react';
+import { 
+  Clock, MessageCircle, Eye, AlertCircle, TrendingUp, 
+  Search, Filter, Grid3X3, List, Edit, XCircle, Play,
+  Building2, User, MapPin, Calendar, DollarSign
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 interface TimelinePitch {
   id: string;
@@ -21,27 +28,89 @@ interface TimelinePitch {
   message_count: number;
   shortlist_count: number;
   is_international: boolean;
+  description: string;
+  tagged_videos: any; // Changed from string[] to any to match Json type
+  team_id: string;
   players: {
+    id: string;
     full_name: string;
     position: string;
     citizenship: string;
     photo_url?: string;
+    age?: number;
+    market_value?: number;
   };
   teams: {
+    id: string;
     team_name: string;
     logo_url?: string;
+    country: string;
+    sport_type?: string;
   };
 }
 
 const TransferTimeline = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [pitches, setPitches] = useState<TimelinePitch[]>([]);
+  const [filteredPitches, setFilteredPitches] = useState<TimelinePitch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [positionFilter, setPositionFilter] = useState('all');
+  const [transferTypeFilter, setTransferTypeFilter] = useState('all');
+  const [priceRangeFilter, setPriceRangeFilter] = useState('all');
+  const [dealStageFilter, setDealStageFilter] = useState('all');
+  const [sportTypeFilter, setSportTypeFilter] = useState('all');
+  const [teamSportType, setTeamSportType] = useState<string>('football');
+
+  const positions = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward', 'Striker', 'Winger'];
+  const transferTypes = ['permanent', 'loan'];
+  const dealStages = ['pitch', 'interest', 'discussion', 'expired'];
+  const sportTypes = ['football', 'basketball', 'volleyball', 'tennis', 'rugby'];
+  const priceRanges = [
+    { label: 'Under $100K', value: '0-100000' },
+    { label: '$100K - $500K', value: '100000-500000' },
+    { label: '$500K - $1M', value: '500000-1000000' },
+    { label: '$1M - $5M', value: '1000000-5000000' },
+    { label: 'Over $5M', value: '5000000-999999999' }
+  ];
 
   useEffect(() => {
     fetchTimelinePitches();
+    fetchTeamSportType();
   }, [profile]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [pitches, searchTerm, positionFilter, transferTypeFilter, priceRangeFilter, dealStageFilter, sportTypeFilter]);
+
+  const fetchTeamSportType = async () => {
+    if (!profile?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('sport_type')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching team sport type:', error);
+        return;
+      }
+
+      if (data?.sport_type) {
+        setTeamSportType(data.sport_type);
+        setSportTypeFilter(data.sport_type); // Set default filter to team's sport type
+      }
+    } catch (error) {
+      console.error('Error fetching team sport type:', error);
+    }
+  };
 
   const fetchTimelinePitches = async () => {
     try {
@@ -50,23 +119,40 @@ const TransferTimeline = () => {
         .select(`
           *,
           players!inner(
+            id,
             full_name,
             position,
             citizenship,
-            photo_url
+            photo_url,
+            date_of_birth,
+            market_value
           ),
           teams!inner(
+            id,
             team_name,
-            logo_url
+            logo_url,
+            country,
+            sport_type
           )
         `)
         .eq('status', 'active')
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (error) throw error;
-      setPitches(data || []);
+      
+      // Process data to add age calculation
+      const processedPitches = (data || []).map(pitch => ({
+        ...pitch,
+        players: {
+          ...pitch.players,
+          age: pitch.players.date_of_birth ? 
+            new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear() : undefined
+        }
+      }));
+      
+      setPitches(processedPitches);
     } catch (error) {
       console.error('Error fetching timeline pitches:', error);
       toast({
@@ -77,6 +163,50 @@ const TransferTimeline = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyFilters = () => {
+    let filtered = [...pitches];
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(pitch =>
+        pitch.players.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pitch.teams.team_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pitch.players.position.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Position filter
+    if (positionFilter !== 'all') {
+      filtered = filtered.filter(pitch => pitch.players.position === positionFilter);
+    }
+
+    // Transfer type filter
+    if (transferTypeFilter !== 'all') {
+      filtered = filtered.filter(pitch => pitch.transfer_type === transferTypeFilter);
+    }
+
+    // Deal stage filter
+    if (dealStageFilter !== 'all') {
+      filtered = filtered.filter(pitch => pitch.deal_stage === dealStageFilter);
+    }
+
+    // Sport type filter
+    if (sportTypeFilter !== 'all') {
+      filtered = filtered.filter(pitch => pitch.teams.sport_type === sportTypeFilter);
+    }
+
+    // Price range filter
+    if (priceRangeFilter !== 'all') {
+      const [min, max] = priceRangeFilter.split('-').map(Number);
+      filtered = filtered.filter(pitch => {
+        const price = pitch.asking_price || 0;
+        return price >= min && price <= max;
+      });
+    }
+
+    setFilteredPitches(filtered);
   };
 
   const getDealStageColor = (stage: string) => {
@@ -115,6 +245,54 @@ const TransferTimeline = () => {
     }).format(amount);
   };
 
+  const handleViewDetails = (pitch: TimelinePitch) => {
+    navigate(`/player-profile/${pitch.players.id}`, { 
+      state: { 
+        pitchId: pitch.id,
+        fromTransferTimeline: true 
+      }
+    });
+  };
+
+  const handleEditPitch = (pitch: TimelinePitch) => {
+    // Navigate to edit pitch page or open edit modal
+    navigate(`/edit-pitch/${pitch.id}`);
+  };
+
+  const handleDeletePitch = async (pitch: TimelinePitch) => {
+    if (!confirm('Are you sure you want to cancel this transfer pitch? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transfer_pitches')
+        .update({ status: 'cancelled' })
+        .eq('id', pitch.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Transfer pitch cancelled successfully",
+      });
+
+      // Refresh the list
+      fetchTimelinePitches();
+    } catch (error) {
+      console.error('Error deleting pitch:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete transfer pitch",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const canEditPitch = (pitch: TimelinePitch) => {
+    return profile?.user_type === 'team' && profile?.id === pitch.teams.id;
+  };
+
   if (loading) {
     return (
       <Card>
@@ -132,40 +310,176 @@ const TransferTimeline = () => {
   }
 
   return (
-    <div className="space-y-4 border-0">
-      <Card className='border-0'>
+    <div className="space-y-6">
+      {/* Header with Filters */}
+      <Card className="border-0">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <TrendingUp className="w-5 h-5" />
-            Transfer Timeline ({pitches.length})
-          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="flex items-center gap-2 text-white">
+              <TrendingUp className="w-5 h-5" />
+              Transfer Timeline ({filteredPitches.length})
+            </CardTitle>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewMode === 'card' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('card')}
+                className="bg-rosegold hover:bg-rosegold/90 text-white"
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="bg-rosegold hover:bg-rosegold/90 text-white"
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
         </CardHeader>
+        
         <CardContent>
-          {pitches.length === 0 ? (
-            <div className="text-center py-8">
+          {/* Search and Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search players or teams..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 text-white placeholder:text-gray-500"
+              />
+            </div>
+            
+            <Select value={sportTypeFilter} onValueChange={setSportTypeFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Sports" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Sports</SelectItem>
+                {sportTypes.map(sport => (
+                  <SelectItem key={sport} value={sport}>
+                    {sport.charAt(0).toUpperCase() + sport.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select value={positionFilter} onValueChange={setPositionFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Positions" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Positions</SelectItem>
+                {positions.map(position => (
+                  <SelectItem key={position} value={position}>
+                    {position}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Types</SelectItem>
+                {transferTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={dealStageFilter} onValueChange={setDealStageFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Stages" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Stages</SelectItem>
+                {dealStages.map(stage => (
+                  <SelectItem key={stage} value={stage}>
+                    {getDealStageText(stage)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={priceRangeFilter} onValueChange={setPriceRangeFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Prices" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Prices</SelectItem>
+                {priceRanges.map(range => (
+                  <SelectItem key={range.value} value={range.value}>
+                    {range.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchTerm('');
+                setPositionFilter('all');
+                setTransferTypeFilter('all');
+                setPriceRangeFilter('all');
+                setDealStageFilter('all');
+                setSportTypeFilter('all');
+              }}
+              className="text-white border-gray-600 hover:bg-gray-700"
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Clear
+            </Button>
+          </div>
+
+          {/* Results */}
+          {filteredPitches.length === 0 ? (
+            <div className="text-center py-12">
               <Clock className="w-16 h-16 mx-auto mb-4 text-gray-500" />
               <h3 className="text-xl font-semibold text-white mb-2">
-                No Active Pitches
+                {pitches.length === 0 ? 'No Active Pitches' : 'No Results Found'}
               </h3>
               <p className="text-gray-400">
-                No transfer pitches are currently active on the timeline.
+                {pitches.length === 0 
+                  ? 'No transfer pitches are currently active on the timeline.'
+                  : 'Try adjusting your filters to see more results.'
+                }
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {pitches.map((pitch) => (
-                <Card key={pitch.id} className={`border-gray-600 ${isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : 'hover:border-rosegold/50'
-                  } transition-colors`}>
+            <div className={viewMode === 'card' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+              {filteredPitches.map((pitch) => (
+                <Card 
+                  key={pitch.id} 
+                  className={`border-gray-600 transition-all duration-200 hover:border-rosegold/50 hover:shadow-lg ${
+                    isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : ''
+                  } ${viewMode === 'list' ? 'w-full' : ''}`}
+                >
                   <CardContent className="p-4">
                     <div className="space-y-3">
+                      {/* Player and Team Info */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          {pitch.players.photo_url && (
+                          {pitch.players.photo_url ? (
                             <img
                               src={pitch.players.photo_url}
                               alt={pitch.players.full_name}
                               className="w-12 h-12 rounded-full object-cover"
                             />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
+                              <User className="w-6 h-6 text-gray-400" />
+                            </div>
                           )}
                           <div>
                             <h3 className="font-semibold text-white">
@@ -173,10 +487,20 @@ const TransferTimeline = () => {
                             </h3>
                             <p className="text-sm text-gray-400">
                               {pitch.players.position} • {pitch.players.citizenship}
+                              {pitch.players.age && ` • ${pitch.players.age} years`}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              by {pitch.teams.team_name}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {pitch.teams.logo_url && (
+                                <img
+                                  src={pitch.teams.logo_url}
+                                  alt={pitch.teams.team_name}
+                                  className="w-4 h-4 rounded-sm object-contain"
+                                />
+                              )}
+                              <p className="text-xs text-gray-500">
+                                {pitch.teams.team_name} • {pitch.teams.country}
+                              </p>
+                            </div>
                           </div>
                         </div>
                         <div className="text-right">
@@ -189,8 +513,16 @@ const TransferTimeline = () => {
                         </div>
                       </div>
 
+                      {/* Description */}
+                      {pitch.description && (
+                        <p className="text-sm text-gray-300 line-clamp-2">
+                          {pitch.description}
+                        </p>
+                      )}
+
+                      {/* Tags and Status */}
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge
                             variant="outline"
                             className={`${getDealStageColor(pitch.deal_stage)} text-white border-none`}
@@ -200,6 +532,12 @@ const TransferTimeline = () => {
                           {pitch.is_international && (
                             <Badge variant="outline" className="text-blue-400 border-blue-400">
                               International
+                            </Badge>
+                          )}
+                          {pitch.tagged_videos && Array.isArray(pitch.tagged_videos) && pitch.tagged_videos.length > 0 && (
+                            <Badge variant="outline" className="text-green-400 border-green-400">
+                              <Play className="w-3 h-4 mr-1" />
+                              {pitch.tagged_videos.length} Videos
                             </Badge>
                           )}
                           {isExpiringSoon(pitch.expires_at) && (
@@ -214,6 +552,7 @@ const TransferTimeline = () => {
                         </div>
                       </div>
 
+                      {/* Stats */}
                       <div className="flex items-center gap-4 text-sm text-gray-400">
                         <div className="flex items-center gap-1">
                           <Eye className="w-4 h-4" />
@@ -229,20 +568,38 @@ const TransferTimeline = () => {
                         </div>
                       </div>
 
+                      {/* Actions */}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700 flex-1"
+                          onClick={() => handleViewDetails(pitch)}
                         >
+                          <Eye className="w-4 h-4 mr-2" />
                           View Details
                         </Button>
-                        <Button
-                          size="sm"
-                          className="bg-rosegold hover:bg-rosegold/90 text-white"
-                        >
-                          Send Message
-                        </Button>
+                        
+                        {canEditPitch(pitch) && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                              onClick={() => handleEditPitch(pitch)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-600 text-red-400 hover:bg-red-600/10"
+                              onClick={() => handleDeletePitch(pitch)}
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </CardContent>

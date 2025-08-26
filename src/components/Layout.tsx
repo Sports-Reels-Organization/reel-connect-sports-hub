@@ -55,14 +55,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (!profile?.user_id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('id')
-        .eq('user_id', profile.user_id)
-        .eq('is_read', false);
-
-      if (error) throw error;
-      setUnreadCount(data?.length || 0);
+      const { NotificationService } = await import('@/services/notificationService');
+      const count = await NotificationService.getUnreadCount(profile.user_id);
+      setUnreadCount(count);
     } catch (error) {
       console.error('Error fetching unread notifications:', error);
     }

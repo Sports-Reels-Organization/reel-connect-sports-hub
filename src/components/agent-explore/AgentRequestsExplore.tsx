@@ -10,12 +10,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Search, Clock, DollarSign, MapPin, User, Eye, MessageSquare, 
-  Heart, Filter, Bookmark, TrendingUp, AlertCircle, Star
+  Heart, Filter, Bookmark, TrendingUp, AlertCircle, Star,
+  Edit, XCircle, Play, Grid3X3, List, MessageCircle
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { AgentExploreFilters } from './AgentExploreFilters';
+import { useNavigate } from 'react-router-dom';
 import { ShortlistManager } from '@/components/ShortlistManager';
-import TaggedPlayerCard from './TaggedPlayerCard';
+import MessageModal from '@/components/MessageModal';
 
 interface TransferPitch {
   id: string;
@@ -30,7 +31,9 @@ interface TransferPitch {
   is_international: boolean;
   description: string;
   deal_stage: string;
+  status: string;
   tagged_videos: string[];
+  
   players: {
     id: string;
     full_name: string;
@@ -47,6 +50,7 @@ interface TransferPitch {
     team_name: string;
     country: string;
     logo_url?: string;
+    sport_type?: string;
   };
 }
 
@@ -57,21 +61,66 @@ interface AgentRequestsExploreProps {
 const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSearch = '' }) => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const [pitches, setPitches] = useState<TransferPitch[]>([]);
   const [filteredPitches, setFilteredPitches] = useState<TransferPitch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<any>({});
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedPitch, setSelectedPitch] = useState<TransferPitch | null>(null);
 
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [agentSportTypes, setAgentSportTypes] = useState<string[]>([]);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [selectedPitch, setSelectedPitch] = useState<TransferPitch | null>(null);
+  
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [positionFilter, setPositionFilter] = useState('all');
+  const [transferTypeFilter, setTransferTypeFilter] = useState('all');
+  const [priceRangeFilter, setPriceRangeFilter] = useState('all');
+  const [dealStageFilter, setDealStageFilter] = useState('all');
+  const [sportTypeFilter, setSportTypeFilter] = useState('all');
+  
+  // Filter options
+  const positions = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward', 'Striker', 'Winger'];
+  const transferTypes = ['permanent', 'loan'];
+  const dealStages = ['pitch', 'interest', 'discussion', 'expired'];
+  const sportTypes = ['football', 'basketball', 'volleyball', 'tennis', 'rugby'];
+  const priceRanges = [
+    { label: 'Under $100K', value: '0-100000' },
+    { label: '$100K - $500K', value: '100000-500000' },
+    { label: '$500K - $1M', value: '500000-1000000' },
+    { label: '$1M - $5M', value: '1000000-5000000' },
+    { label: 'Over $5M', value: '5000000-999999999' }
+  ];
+  
   useEffect(() => {
     fetchTransferPitches();
+    fetchAgentSportTypes();
   }, []);
-
+  
   useEffect(() => {
     applyFilters();
-  }, [pitches, filters]);
+  }, [pitches, searchTerm, positionFilter, transferTypeFilter, priceRangeFilter, dealStageFilter, sportTypeFilter, agentSportTypes]);
+
+  const fetchAgentSportTypes = async () => {
+    if (!profile?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('agents')
+        .select('specialization')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (error) throw error;
+      
+      if (data?.specialization) {
+        setAgentSportTypes(data.specialization);
+      }
+    } catch (error) {
+      console.error('Error fetching agent sport types:', error);
+    }
+  };
 
   const fetchTransferPitches = async () => {
     try {
@@ -80,7 +129,20 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
       const { data, error } = await supabase
         .from('transfer_pitches')
         .select(`
-          *,
+          id,
+          asking_price,
+          currency,
+          transfer_type,
+          deal_stage,
+          expires_at,
+          created_at,
+          view_count,
+          message_count,
+          shortlist_count,
+          is_international,
+          description,
+          tagged_videos,
+          status,
           players!inner(
             id,
             full_name,
@@ -95,7 +157,8 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
             id,
             team_name,
             country,
-            logo_url
+            logo_url,
+            sport_type
           )
         `)
         .eq('status', 'active')
@@ -107,6 +170,8 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
       const processedPitches = (data || []).map(pitch => ({
         ...pitch,
         asking_price: pitch.asking_price || null,
+        deal_stage: pitch.deal_stage || 'pitch',
+        is_international: pitch.is_international || false,
         tagged_videos: Array.isArray(pitch.tagged_videos) 
           ? pitch.tagged_videos.map((video: any) => String(video))
           : pitch.tagged_videos 
@@ -138,71 +203,56 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
   const applyFilters = () => {
     let filtered = [...pitches];
 
-    // Apply search filter
-    if (filters.searchTerm) {
-      const searchLower = filters.searchTerm.toLowerCase();
+    // Search filter
+    if (searchTerm) {
       filtered = filtered.filter(pitch =>
-        pitch.players.full_name.toLowerCase().includes(searchLower) ||
-        pitch.teams.team_name.toLowerCase().includes(searchLower) ||
-        pitch.players.position.toLowerCase().includes(searchLower) ||
-        pitch.description?.toLowerCase().includes(searchLower)
+        pitch.players.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pitch.teams.team_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pitch.players.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pitch.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Apply position filter
-    if (filters.position && filters.position !== 'all') {
+    // Position filter
+    if (positionFilter !== 'all') {
+      filtered = filtered.filter(pitch => pitch.players.position === positionFilter);
+    }
+
+    // Transfer type filter
+    if (transferTypeFilter !== 'all') {
+      filtered = filtered.filter(pitch => pitch.transfer_type === transferTypeFilter);
+    }
+
+    // Deal stage filter
+    if (dealStageFilter !== 'all') {
+      filtered = filtered.filter(pitch => pitch.deal_stage === dealStageFilter);
+    }
+
+    // Sport type filter (only show pitches matching agent's specialization)
+    if (sportTypeFilter !== 'all') {
       filtered = filtered.filter(pitch => 
-        pitch.players.position.toLowerCase() === filters.position.toLowerCase()
+        pitch.teams.sport_type === sportTypeFilter
       );
     }
 
-    // Apply nationality filter
-    if (filters.nationality && filters.nationality !== 'all') {
+    // Price range filter
+    if (priceRangeFilter !== 'all') {
+      const [min, max] = priceRangeFilter.split('-').map(Number);
+      filtered = filtered.filter(pitch => {
+        const price = pitch.asking_price || 0;
+        return price >= min && price <= max;
+      });
+    }
+
+    // Apply agent sport type filtering (automatic)
+    if (agentSportTypes.length > 0) {
       filtered = filtered.filter(pitch => 
-        pitch.players.citizenship === filters.nationality
+        pitch.teams.sport_type && agentSportTypes.includes(pitch.teams.sport_type)
       );
     }
 
-    // Apply transfer type filter
-    if (filters.transferType && filters.transferType !== 'all') {
-      filtered = filtered.filter(pitch => 
-        pitch.transfer_type === filters.transferType
-      );
-    }
-
-    // Apply age range filter
-    if (filters.ageRange) {
-      const [minAge, maxAge] = filters.ageRange;
-      filtered = filtered.filter(pitch => 
-        pitch.players.age >= minAge && pitch.players.age <= maxAge
-      );
-    }
-
-    // Apply price range filter
-    if (filters.priceRange && filters.asking_price) {
-      const [minPrice, maxPrice] = filters.priceRange;
-      filtered = filtered.filter(pitch => 
-        pitch.asking_price && pitch.asking_price >= minPrice && pitch.asking_price <= maxPrice
-      );
-    }
-
-    // Apply sorting
-    switch (filters.sortBy) {
-      case 'expiring':
-        filtered.sort((a, b) => new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime());
-        break;
-      case 'highest_value':
-        filtered.sort((a, b) => (b.asking_price || 0) - (a.asking_price || 0));
-        break;
-      case 'most_viewed':
-        filtered.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
-        break;
-      case 'most_shortlisted':
-        filtered.sort((a, b) => (b.shortlist_count || 0) - (a.shortlist_count || 0));
-        break;
-      default: // newest
-        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }
+    // Sort by newest first
+    filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     setFilteredPitches(filtered);
   };
@@ -240,13 +290,21 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
 
   const handleViewPlayer = (pitch: TransferPitch) => {
     updatePitchEngagement(pitch.id, 'view');
-    setSelectedPitch(pitch);
+    navigate(`/player-profile/${pitch.players.id}`, { 
+      state: { 
+        pitchId: pitch.id,
+        fromTransferTimeline: true 
+      }
+    });
   };
 
   const handleMessagePlayer = (pitch: TransferPitch) => {
     updatePitchEngagement(pitch.id, 'message');
-    // Navigate to messaging
+    setSelectedPitch(pitch);
+    setShowMessageModal(true);
   };
+
+
 
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('en-US', {
@@ -273,6 +331,34 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
     return expiryDate <= sevenDaysFromNow;
   };
 
+  const getDealStageText = (stage: string) => {
+    switch (stage) {
+      case 'pitch': return 'New Pitch';
+      case 'interest': return 'Interest Shown';
+      case 'discussion': return 'In Discussion';
+      case 'expired': return 'Expired';
+      default: return 'Unknown';
+    }
+  };
+
+  const handleWatchVideo = (pitch: TransferPitch) => {
+    if (pitch.tagged_videos && pitch.tagged_videos.length > 0) {
+      // Navigate to video player or open video modal
+      navigate(`/videos`, { 
+        state: { 
+          highlightVideoId: pitch.tagged_videos[0],
+          searchTerm: `${pitch.players.full_name} - ${pitch.teams.team_name}`
+        }
+      });
+    } else {
+      toast({
+        title: "No Videos Available",
+        description: "This player doesn't have any videos attached yet.",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -291,209 +377,326 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
     );
   }
 
-  return (
+    return (
     <div className="space-y-6">
-      {/* Filters */}
-      <AgentExploreFilters
-        onFiltersChange={setFilters}
-        initialFilters={{ searchTerm: initialSearch }}
-      />
-
-      {/* Results Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-semibold text-white">
-            Transfer Opportunities ({filteredPitches.length})
-          </h3>
-          <p className="text-gray-400 text-sm">
-            Active pitches from verified teams worldwide
-          </p>
-        </div>
+      {/* Header with Filters */}
+      <Card className="border-0">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="flex items-center gap-2 text-white">
+              <TrendingUp className="w-5 h-5" />
+              Agent Transfer Timeline ({filteredPitches.length})
+            </CardTitle>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="bg-rosegold hover:bg-rosegold/90 text-white"
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="bg-rosegold hover:bg-rosegold/90 text-white"
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
         
-        <div className="flex items-center gap-2">
-          <Select value={viewMode} onValueChange={(value: 'grid' | 'list') => setViewMode(value)}>
-            <SelectTrigger className="w-32 bg-gray-700 border-gray-600">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-gray-700 border-gray-600">
-              <SelectItem value="grid">Grid View</SelectItem>
-              <SelectItem value="list">List View</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchTransferPitches}
-            className="border-gray-600"
-          >
-            Refresh
-          </Button>
-        </div>
-      </div>
+        <CardContent>
+          {/* Search and Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search players or teams..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 text-white placeholder:text-gray-500"
+              />
+            </div>
+            
+            <Select value={sportTypeFilter} onValueChange={setSportTypeFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Sports" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Sports</SelectItem>
+                {sportTypes.map(sport => (
+                  <SelectItem key={sport} value={sport}>
+                    {sport.charAt(0).toUpperCase() + sport.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select value={positionFilter} onValueChange={setPositionFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Positions" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Positions</SelectItem>
+                {positions.map(position => (
+                  <SelectItem key={position} value={position}>
+                    {position}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-      {/* Results */}
-      {filteredPitches.length === 0 ? (
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-12 text-center">
-            <Search className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-            <h3 className="text-xl font-semibold text-white mb-2">
-              No Transfer Opportunities Found
-            </h3>
-            <p className="text-gray-400">
-              Try adjusting your filters or check back later for new pitches.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className={`grid gap-6 ${
-          viewMode === 'grid' 
-            ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-            : 'grid-cols-1'
-        }`}>
-          {filteredPitches.map((pitch) => (
-            <Card 
-              key={pitch.id} 
-              className={`bg-gray-800 border-gray-600 hover:border-bright-pink/50 transition-colors ${
-                isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : ''
-              }`}
+            <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Types</SelectItem>
+                {transferTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={dealStageFilter} onValueChange={setDealStageFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Stages" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Stages</SelectItem>
+                {dealStages.map(stage => (
+                  <SelectItem key={stage} value={stage}>
+                    {getDealStageText(stage)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={priceRangeFilter} onValueChange={setPriceRangeFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Prices" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Prices</SelectItem>
+                {priceRanges.map(range => (
+                  <SelectItem key={range.value} value={range.value}>
+                    {range.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchTerm('');
+                setPositionFilter('all');
+                setTransferTypeFilter('all');
+                setPriceRangeFilter('all');
+                setDealStageFilter('all');
+                setSportTypeFilter('all');
+              }}
+              className="text-white border-gray-600 hover:bg-gray-700"
             >
-              <CardContent className="p-0">
-                {/* Player Header */}
-                <div className="relative">
-                  <div className="h-32 bg-gradient-to-br from-gray-800 to-gray-900 p-4 flex items-center">
-                    <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 mr-4">
-                      {pitch.players.photo_url || pitch.players.headshot_url ? (
-                        <img
-                          src={pitch.players.photo_url || pitch.players.headshot_url}
-                          alt={pitch.players.full_name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <User className="w-8 h-8 text-gray-400" />
+              <Filter className="w-4 h-4 mr-2" />
+              Clear
+            </Button>
+          </div>
+
+          {/* Results */}
+          {filteredPitches.length === 0 ? (
+            <div className="text-center py-12">
+              <Search className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {pitches.length === 0 ? 'No Transfer Pitches Available' : 'No Results Found'}
+              </h3>
+              <p className="text-gray-400">
+                {pitches.length === 0 
+                  ? 'No transfer pitches are currently available on the timeline.'
+                  : 'Try adjusting your filters to see more results.'
+                }
+              </p>
+            </div>
+          ) : (
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+              {filteredPitches.map((pitch) => (
+                <Card 
+                  key={pitch.id} 
+                  className={`border-gray-600 transition-all duration-200 hover:border-rosegold/50 hover:shadow-lg ${
+                    isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : ''
+                  } ${viewMode === 'list' ? 'w-full' : ''}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      {/* Player and Team Info */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          {pitch.players.photo_url || pitch.players.headshot_url ? (
+                            <img
+                              src={pitch.players.photo_url || pitch.players.headshot_url}
+                              alt={pitch.players.full_name}
+                              className="w-12 h-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
+                              <User className="w-6 h-6 text-gray-400" />
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-semibold text-white">
+                              {pitch.players.full_name}
+                            </h3>
+                            <p className="text-sm text-gray-400">
+                              {pitch.players.position} • {pitch.players.citizenship}
+                              {pitch.players.age && ` • ${pitch.players.age} years`}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {pitch.teams.logo_url && (
+                                <img
+                                  src={pitch.teams.logo_url}
+                                  alt={pitch.teams.team_name}
+                                  className="w-4 h-4 rounded-sm object-contain"
+                                />
+                              )}
+                              <p className="text-xs text-gray-500">
+                                {pitch.teams.team_name} • {pitch.teams.country}
+                              </p>
+                            </div>
+                          </div>
                         </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-rosegold">
+                            {pitch.asking_price ? formatCurrency(pitch.asking_price, pitch.currency) : 'Price on request'}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {pitch.transfer_type.toUpperCase()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      {pitch.description && (
+                        <p className="text-sm text-gray-300 line-clamp-2">
+                          {pitch.description}
+                        </p>
                       )}
-                    </div>
-                    
-                    <div className="flex-1">
-                      <h3 className="font-bold text-white text-lg line-clamp-1">
-                        {pitch.players.full_name}
-                      </h3>
-                      <p className="text-gray-300 text-sm">
-                        {pitch.players.position} • Age {pitch.players.age}
-                      </p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <MapPin className="h-3 w-3 text-gray-400" />
-                        <span className="text-gray-400 text-xs">{pitch.players.citizenship}</span>
+
+                      {/* Tags and Status */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className={`${getDealStageColor(pitch.deal_stage)} text-white border-none`}
+                          >
+                            {getDealStageText(pitch.deal_stage)}
+                          </Badge>
+                          {pitch.is_international && (
+                            <Badge variant="outline" className="text-blue-400 border-blue-400">
+                              International
+                            </Badge>
+                          )}
+                          {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
+                            <Badge variant="outline" className="text-green-400 border-green-400">
+                              <Play className="w-3 h-4 mr-1" />
+                              {pitch.tagged_videos.length} Videos
+                            </Badge>
+                          )}
+                          {isExpiringSoon(pitch.expires_at) && (
+                            <Badge variant="outline" className="text-red-400 border-red-400 animate-pulse">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Expiring Soon
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Expires {formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}
+                        </div>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <Eye className="w-4 h-4" />
+                          {pitch.view_count || 0}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <MessageCircle className="w-4 h-4" />
+                          {pitch.message_count || 0}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart className="w-4 h-4" />
+                          {pitch.shortlist_count || 0} shortlisted
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700 flex-1"
+                          onClick={() => handleViewPlayer(pitch)}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Details
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                          onClick={() => handleMessagePlayer(pitch)}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </Button>
+
+                        <ShortlistManager
+                          pitchId={pitch.id}
+                          playerId={pitch.players.id}
+                          onShortlistChange={(isShortlisted) => {
+                            if (isShortlisted) {
+                              updatePitchEngagement(pitch.id, 'shortlist');
+                            }
+                          }}
+                        />
+
+                        {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-600 text-green-400 hover:bg-green-600/10"
+                            onClick={() => handleWatchVideo(pitch)}
+                          >
+                            <Play className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-                  {/* Expiring Badge */}
-                  {isExpiringSoon(pitch.expires_at) && (
-                    <Badge variant="destructive" className="absolute top-2 right-2 text-xs animate-pulse">
-                      <AlertCircle className="w-3 h-3 mr-1" />
-                      Expiring Soon
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="p-4 space-y-4">
-                  {/* Team & Transfer Info */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                      <span>{pitch.teams.team_name}, {pitch.teams.country}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <Badge 
-                        variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}
-                      >
-                        {pitch.transfer_type.toUpperCase()}
-                      </Badge>
-                      
-                      <div className="text-xs text-gray-400">
-                        <Clock className="h-3 w-3 inline mr-1" />
-                        {formatDistanceToNow(new Date(pitch.expires_at))} left
-                      </div>
-                    </div>
-
-                    {pitch.asking_price && (
-                      <div className="flex items-center gap-1 text-bright-pink font-bold text-lg">
-                        <DollarSign className="h-4 w-4" />
-                        {formatCurrency(pitch.asking_price, pitch.currency)}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Engagement Stats */}
-                  <div className="flex items-center gap-4 text-sm text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <Eye className="w-4 h-4" />
-                      {pitch.view_count || 0}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MessageSquare className="w-4 h-4" />
-                      {pitch.message_count || 0}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Heart className="w-4 h-4" />
-                      {pitch.shortlist_count || 0}
-                    </div>
-                    {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4" />
-                        {pitch.tagged_videos.length} videos
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Description */}
-                  {pitch.description && (
-                    <p className="text-gray-300 text-sm line-clamp-2">
-                      {pitch.description}
-                    </p>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 border-gray-600 text-xs"
-                      onClick={() => handleViewPlayer(pitch)}
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      View Profile
-                    </Button>
-                    
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white text-xs"
-                      onClick={() => handleMessagePlayer(pitch)}
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Message
-                    </Button>
-                    
-                    <div className="flex-shrink-0">
-                      <ShortlistManager
-                        pitchId={pitch.id}
-                        playerId={pitch.players.id}
-                        onShortlistChange={(isShortlisted) => {
-                          if (isShortlisted) {
-                            updatePitchEngagement(pitch.id, 'shortlist');
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      {/* Message Modal */}
+      {showMessageModal && selectedPitch && (
+        <MessageModal
+          isOpen={showMessageModal}
+          onClose={() => setShowMessageModal(false)}
+          receiverId={selectedPitch.players.id}
+          playerName={selectedPitch.players.full_name}
+          pitchId={selectedPitch.id}
+          currentUserId={profile?.id || ''}
+        />
       )}
     </div>
   );

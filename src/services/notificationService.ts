@@ -42,12 +42,21 @@ export class NotificationService {
         }
     }
 
-    // Create in-app notification (simplified for now)
+    // Create in-app notification
     static async createNotification(notification: InAppNotification): Promise<boolean> {
         try {
-            // For now, just log the notification
-            // Once migrations are deployed, this will work with the database
-            console.log('Creating notification:', notification);
+            const { error } = await supabase
+                .from('notifications')
+                .insert({
+                    user_id: notification.user_id,
+                    title: notification.title,
+                    message: notification.message,
+                    type: notification.type,
+                    metadata: notification.metadata || {},
+                    is_read: notification.is_read || false
+                });
+
+            if (error) throw error;
             return true;
         } catch (error) {
             console.error('Error creating notification:', error);
@@ -55,18 +64,40 @@ export class NotificationService {
         }
     }
 
-    // Get notification preferences (simplified for now)
+    // Get notification preferences
     static async getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
-        // Return default preferences until migrations are deployed
-        return {
-            email_notifications: true,
-            newsletter_subscription: false,
-            in_app_notifications: true,
-            transfer_updates: true,
-            message_notifications: true,
-            profile_changes: true,
-            login_notifications: false
-        };
+        try {
+            const { data, error } = await supabase
+                .from('notification_preferences')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error;
+
+            // Return default preferences if none exist
+            return data || {
+                email_notifications: true,
+                newsletter_subscription: false,
+                in_app_notifications: true,
+                transfer_updates: true,
+                message_notifications: true,
+                profile_changes: true,
+                login_notifications: false
+            };
+        } catch (error) {
+            console.error('Error fetching notification preferences:', error);
+            // Return default preferences on error
+            return {
+                email_notifications: true,
+                newsletter_subscription: false,
+                in_app_notifications: true,
+                transfer_updates: true,
+                message_notifications: true,
+                profile_changes: true,
+                login_notifications: false
+            };
+        }
     }
 
     // Update notification preferences (simplified for now)
@@ -85,10 +116,15 @@ export class NotificationService {
         }
     }
 
-    // Mark notification as read (simplified for now)
+    // Mark notification as read
     static async markAsRead(notificationId: string): Promise<boolean> {
         try {
-            console.log('Marking notification as read:', notificationId);
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('id', notificationId);
+
+            if (error) throw error;
             return true;
         } catch (error) {
             console.error('Error marking notification as read:', error);
@@ -96,10 +132,16 @@ export class NotificationService {
         }
     }
 
-    // Mark all notifications as read (simplified for now)
+    // Mark all notifications as read
     static async markAllAsRead(userId: string): Promise<boolean> {
         try {
-            console.log('Marking all notifications as read for user:', userId);
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('user_id', userId)
+                .eq('is_read', false);
+
+            if (error) throw error;
             return true;
         } catch (error) {
             console.error('Error marking all notifications as read:', error);
@@ -107,10 +149,32 @@ export class NotificationService {
         }
     }
 
-    // Delete notification (simplified for now)
+    // Get unread notification count
+    static async getUnreadCount(userId: string): Promise<number> {
+        try {
+            const { count, error } = await supabase
+                .from('notifications')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', userId)
+                .eq('is_read', false);
+
+            if (error) throw error;
+            return count || 0;
+        } catch (error) {
+            console.error('Error getting unread count:', error);
+            return 0;
+        }
+    }
+
+    // Delete notification
     static async deleteNotification(notificationId: string): Promise<boolean> {
         try {
-            console.log('Deleting notification:', notificationId);
+            const { error } = await supabase
+                .from('notifications')
+                .delete()
+                .eq('id', notificationId);
+
+            if (error) throw error;
             return true;
         } catch (error) {
             console.error('Error deleting notification:', error);
