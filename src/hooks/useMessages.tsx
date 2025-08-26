@@ -1,4 +1,5 @@
 
+
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -40,6 +41,23 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
   const phoneRegex = /(\+?[0-9]{1,4}[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}|[0-9]{10,15}/g;
   const emailRegex = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
+  // Helper function to transform database messages to our Message interface
+  const transformMessage = (dbMessage: any): Message => {
+    return {
+      id: dbMessage.id,
+      content: dbMessage.content,
+      sender_id: dbMessage.sender_id,
+      receiver_id: dbMessage.receiver_id,
+      pitch_id: dbMessage.pitch_id,
+      contract_file_url: dbMessage.contract_file_url,
+      created_at: dbMessage.created_at,
+      status: dbMessage.status as 'sent' | 'delivered' | 'read',
+      message_type: dbMessage.message_type as 'inquiry' | 'response' | 'contract' | 'general' | 'negotiation',
+      sender_profile: dbMessage.sender_profile,
+      receiver_profile: dbMessage.receiver_profile,
+    };
+  };
+
   // Real-time subscription for instant message delivery
   useEffect(() => {
     if (!currentUserId) return;
@@ -60,7 +78,7 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
           
           // Add new message to state with a smooth animation
           setMessages(prev => {
-            const newMessage = payload.new as Message;
+            const newMessage = transformMessage(payload.new);
             
             // Check if message already exists to avoid duplicates
             if (prev.some(msg => msg.id === newMessage.id)) {
@@ -102,7 +120,7 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
           // Update message status (read/delivered)
           setMessages(prev => 
             prev.map(msg => 
-              msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
+              msg.id === payload.new.id ? { ...msg, ...transformMessage(payload.new) } : msg
             )
           );
         }
@@ -156,7 +174,9 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
         return;
       }
 
-      setMessages(data || []);
+      // Transform the data to match our Message interface
+      const transformedMessages = (data || []).map(transformMessage);
+      setMessages(transformedMessages);
     } catch (error) {
       console.error('Error in fetchMessages:', error);
     } finally {
@@ -247,8 +267,9 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
         throw error;
       }
 
-      // Optimistically add the new message to the local state for instant feedback
-      setMessages((prevMessages) => [...prevMessages, { ...data, isOptimistic: true }]);
+      // Transform and optimistically add the new message to the local state for instant feedback
+      const transformedMessage = transformMessage(data);
+      setMessages((prevMessages) => [...prevMessages, { ...transformedMessage, isOptimistic: true }]);
 
       // Show success toast with animation
       toast({
@@ -257,7 +278,7 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
         duration: 2000,
       });
 
-      return data;
+      return transformedMessage;
     } catch (error) {
       console.error('Error in sendMessage:', error);
       throw error;
@@ -396,3 +417,4 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
     getMessageStats,
   };
 }
+
