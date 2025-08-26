@@ -24,7 +24,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import VideoPlayer from './VideoPlayer';
-import { VideoAnalysisResults } from './VideoAnalysisResults';
+import VideoAnalysisResults from './VideoAnalysisResults';
 
 interface EnhancedVideoAnalysisProps {
   videoId?: string;
@@ -163,7 +163,8 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
               {selectedVideoId ? (
                 <VideoAnalysisResults
                   videoId={selectedVideoId}
-                  teamId={teamId}
+                  videoType="match"
+                  teamId={teamId || ''}
                 />
               ) : (
                 <div className="text-center p-8">
