@@ -132,8 +132,8 @@ const TransferTimeline = () => {
   }
 
   return (
-    <div className="space-y-4">
-      <Card>
+    <div className="space-y-4 border-0">
+      <Card className='border-0'>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <TrendingUp className="w-5 h-5" />
@@ -154,9 +154,8 @@ const TransferTimeline = () => {
           ) : (
             <div className="space-y-4">
               {pitches.map((pitch) => (
-                <Card key={pitch.id} className={`border-gray-600 ${
-                  isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : 'hover:border-rosegold/50'
-                } transition-colors`}>
+                <Card key={pitch.id} className={`border-gray-600 ${isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : 'hover:border-rosegold/50'
+                  } transition-colors`}>
                   <CardContent className="p-4">
                     <div className="space-y-3">
                       <div className="flex items-start justify-between">
@@ -192,8 +191,8 @@ const TransferTimeline = () => {
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={`${getDealStageColor(pitch.deal_stage)} text-white border-none`}
                           >
                             {getDealStageText(pitch.deal_stage)}
@@ -231,14 +230,14 @@ const TransferTimeline = () => {
                       </div>
 
                       <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           className="border-gray-600 text-gray-300 hover:bg-gray-700"
                         >
                           View Details
                         </Button>
-                        <Button 
+                        <Button
                           size="sm"
                           className="bg-rosegold hover:bg-rosegold/90 text-white"
                         >

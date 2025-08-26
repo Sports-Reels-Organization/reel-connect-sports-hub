@@ -17,7 +17,7 @@ interface TeamExploreHubProps {
 
 export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-black to-black p-6">
+    <div className="min-h-screen  p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
@@ -32,38 +32,38 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
         </div>
 
         {/* Main Navigation Tabs */}
-        <Tabs defaultValue="timeline" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-black border-gray-600">
-            <TabsTrigger 
-              value="timeline" 
-              className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
+        <Tabs defaultValue="timeline" className="w-full border-0">
+          <TabsList className="grid w-full grid-cols-5 border-0">
+            <TabsTrigger
+              value="timeline"
+              className="flex items-center gap-2 border-0 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
-              <TrendingUp className="w-4 h-4" />
+              <TrendingUp className="w-4 h-4 border-0" />
               Transfer Timeline
             </TabsTrigger>
-            <TabsTrigger 
-              value="create" 
+            <TabsTrigger
+              value="create"
               className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
               <Users className="w-4 h-4" />
               Create Pitch
             </TabsTrigger>
-            <TabsTrigger 
-              value="explore" 
+            <TabsTrigger
+              value="explore"
               className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
               <Search className="w-4 h-4" />
               Explore Requests
             </TabsTrigger>
-            <TabsTrigger 
-              value="squad" 
+            <TabsTrigger
+              value="squad"
               className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
               <Settings className="w-4 h-4" />
               Squad Management
             </TabsTrigger>
-            <TabsTrigger 
-              value="analytics" 
+            <TabsTrigger
+              value="analytics"
               className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
               <BarChart3 className="w-4 h-4" />
@@ -71,12 +71,12 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="timeline" className="mt-6">
+          <TabsContent value="timeline" className="mt-6 ">
             <TransferTimeline />
           </TabsContent>
 
           <TabsContent value="create" className="mt-6">
-            <CreatePitchFlow onClose={() => {}} />
+            <CreatePitchFlow onClose={() => { }} />
           </TabsContent>
 
           <TabsContent value="explore" className="mt-6">
@@ -91,7 +91,7 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
           </TabsContent>
 
           <TabsContent value="analytics" className="mt-6">
-            <Card className="border-gray-600">
+            <Card className="border-0">
               <CardHeader>
                 <CardTitle className="text-white">Analytics Dashboard</CardTitle>
               </CardHeader>

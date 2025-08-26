@@ -432,8 +432,8 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-[#1a1a1a] border-gray-700">
+    <div className="fixed inset-0 border-0  flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-red-700   border-0">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-white font-polysans">Create Transfer Pitch</CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose}>
