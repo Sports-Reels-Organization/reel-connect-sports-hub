@@ -113,7 +113,13 @@ const TransferPitchDetails: React.FC = () => {
 
       if (error) throw error;
 
-      setPitch(data);
+      // Process tagged_videos to ensure it's an array
+      const processedData = {
+        ...data,
+        tagged_videos: Array.isArray(data.tagged_videos) ? data.tagged_videos : []
+      };
+
+      setPitch(processedData);
     } catch (error) {
       console.error('Error fetching pitch details:', error);
       toast({
@@ -130,10 +136,19 @@ const TransferPitchDetails: React.FC = () => {
     if (!profile || profile.user_type !== 'agent') return;
 
     try {
-      const { data, error } = await supabase
-        .from('agent_shortlist')
+      // Get agent ID first
+      const { data: agentData } = await supabase
+        .from('agents')
         .select('id')
-        .eq('agent_id', profile.id)
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (!agentData) return;
+
+      const { data, error } = await supabase
+        .from('shortlist')
+        .select('id')
+        .eq('agent_id', agentData.id)
         .eq('pitch_id', pitchId)
         .single();
 
@@ -146,7 +161,7 @@ const TransferPitchDetails: React.FC = () => {
 
   const incrementViewCount = async () => {
     try {
-      await supabase.rpc('increment_pitch_view_count', { pitch_id: pitchId });
+      await supabase.rpc('increment_pitch_view_count', { pitch_uuid: pitchId });
     } catch (error) {
       console.error('Error incrementing view count:', error);
     }
@@ -156,21 +171,31 @@ const TransferPitchDetails: React.FC = () => {
     if (!profile || profile.user_type !== 'agent') return;
 
     try {
+      // Get agent ID first
+      const { data: agentData } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (!agentData) return;
+
       if (isShortlisted) {
         await supabase
-          .from('agent_shortlist')
+          .from('shortlist')
           .delete()
-          .eq('agent_id', profile.id)
+          .eq('agent_id', agentData.id)
           .eq('pitch_id', pitchId);
         setIsShortlisted(false);
         toast({ title: "Removed from shortlist" });
       } else {
         await supabase
-          .from('agent_shortlist')
+          .from('shortlist')
           .insert({
-            agent_id: profile.id,
+            agent_id: agentData.id,
             pitch_id: pitchId,
-            player_id: pitch?.players.id
+            player_id: pitch?.players.id,
+            notes: ''
           });
         setIsShortlisted(true);
         toast({ title: "Added to shortlist" });

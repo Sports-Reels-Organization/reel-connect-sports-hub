@@ -1,33 +1,32 @@
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { 
-  Clock, 
-  MessageCircle, 
-  Eye, 
-  AlertCircle, 
-  Search,
-  Filter,
-  Grid3X3,
-  List,
-  Play,
+  Search, 
+  Filter, 
+  Heart, 
+  HeartOff, 
+  MessageSquare, 
+  Play, 
+  Eye,
   MapPin,
   DollarSign,
-  Heart,
-  Bell
+  Calendar,
+  User
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 interface TimelinePitch {
   id: string;
+  team_id: string;
+  player_id: string;
   asking_price: number;
   currency: string;
   transfer_type: string;
@@ -37,14 +36,14 @@ interface TimelinePitch {
   view_count: number;
   message_count: number;
   shortlist_count: number;
-  is_international: boolean;
-  description?: string;
   tagged_videos: any[];
+  description?: string;
   players: {
     id: string;
     full_name: string;
     position: string;
     citizenship: string;
+    headshot_url?: string;
     photo_url?: string;
     age?: number;
     market_value?: number;
@@ -52,8 +51,8 @@ interface TimelinePitch {
   teams: {
     id: string;
     team_name: string;
-    logo_url?: string;
     country: string;
+    logo_url?: string;
   };
 }
 
@@ -61,53 +60,50 @@ const EnhancedAgentTimeline: React.FC = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  
   const [pitches, setPitches] = useState<TimelinePitch[]>([]);
-  const [filteredPitches, setFilteredPitches] = useState<TimelinePitch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterPosition, setFilterPosition] = useState('');
-  const [filterStage, setFilterStage] = useState('all');
-  const [filterType, setFilterType] = useState('all');
-  const [sortBy, setSortBy] = useState('created_at_desc');
+  const [positionFilter, setPositionFilter] = useState('');
+  const [transferTypeFilter, setTransferTypeFilter] = useState('');
+  const [priceRangeFilter, setPriceRangeFilter] = useState('');
+  const [shortlistedPitches, setShortlistedPitches] = useState<Set<string>>(new Set());
+  const [agentId, setAgentId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTimelinePitches();
+    if (profile?.user_type === 'agent') {
+      fetchAgentId();
+    }
   }, [profile]);
 
   useEffect(() => {
-    filterPitches();
-  }, [pitches, searchTerm, filterPosition, filterStage, filterType, sortBy]);
+    fetchPitches();
+  }, []);
 
   useEffect(() => {
-    // Set up real-time subscription for new pitches
-    if (profile?.id) {
-      const subscription = supabase
-        .channel('new-pitches')
-        .on('postgres_changes', 
-          { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'transfer_pitches',
-            filter: 'status=eq.active'
-          }, 
-          (payload) => {
-            toast({
-              title: "New Transfer Pitch Available!",
-              description: "A new player has been pitched for transfer.",
-            });
-            fetchTimelinePitches(); // Refresh the list
-          }
-        )
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
+    if (agentId) {
+      fetchShortlistedPitches();
     }
-  }, [profile, toast]);
+  }, [agentId]);
 
-  const fetchTimelinePitches = async () => {
+  const fetchAgentId = async () => {
+    if (!profile) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (error) throw error;
+      setAgentId(data.id);
+    } catch (error) {
+      console.error('Error fetching agent ID:', error);
+    }
+  };
+
+  const fetchPitches = async () => {
     try {
       const { data, error } = await supabase
         .from('transfer_pitches')
@@ -118,6 +114,7 @@ const EnhancedAgentTimeline: React.FC = () => {
             full_name,
             position,
             citizenship,
+            headshot_url,
             photo_url,
             date_of_birth,
             market_value
@@ -125,8 +122,8 @@ const EnhancedAgentTimeline: React.FC = () => {
           teams!inner(
             id,
             team_name,
-            logo_url,
-            country
+            country,
+            logo_url
           )
         `)
         .eq('status', 'active')
@@ -135,45 +132,24 @@ const EnhancedAgentTimeline: React.FC = () => {
 
       if (error) throw error;
 
-      const transformedPitches: TimelinePitch[] = (data || []).map(pitch => ({
-        id: pitch.id,
-        asking_price: pitch.asking_price || 0,
-        currency: pitch.currency || 'USD',
-        transfer_type: pitch.transfer_type,
-        deal_stage: pitch.deal_stage || 'pitch',
-        expires_at: pitch.expires_at,
-        created_at: pitch.created_at,
-        view_count: pitch.view_count || 0,
-        message_count: pitch.message_count || 0,
-        shortlist_count: pitch.shortlist_count || 0,
-        is_international: pitch.is_international || false,
-        description: pitch.description,
-        tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
+      // Process data to add age calculation
+      const processedData = (data || []).map(item => ({
+        ...item,
+        tagged_videos: Array.isArray(item.tagged_videos) ? item.tagged_videos : [],
         players: {
-          id: pitch.players.id,
-          full_name: pitch.players.full_name,
-          position: pitch.players.position,
-          citizenship: pitch.players.citizenship,
-          photo_url: pitch.players.photo_url,
-          age: pitch.players.date_of_birth 
-            ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
-            : 0,
-          market_value: pitch.players.market_value
-        },
-        teams: {
-          id: pitch.teams.id,
-          team_name: pitch.teams.team_name,
-          logo_url: pitch.teams.logo_url,
-          country: pitch.teams.country
+          ...item.players,
+          age: item.players.date_of_birth
+            ? new Date().getFullYear() - new Date(item.players.date_of_birth).getFullYear()
+            : undefined
         }
       }));
 
-      setPitches(transformedPitches);
+      setPitches(processedData);
     } catch (error) {
-      console.error('Error fetching timeline pitches:', error);
+      console.error('Error fetching pitches:', error);
       toast({
         title: "Error",
-        description: "Failed to load transfer timeline",
+        description: "Failed to fetch transfer pitches",
         variant: "destructive"
       });
     } finally {
@@ -181,154 +157,107 @@ const EnhancedAgentTimeline: React.FC = () => {
     }
   };
 
-  const filterPitches = () => {
-    let filtered = [...pitches];
-
-    if (searchTerm) {
-      filtered = filtered.filter(pitch =>
-        pitch.players.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pitch.teams.team_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pitch.players.position.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filterPosition && filterPosition !== 'all') {
-      filtered = filtered.filter(pitch =>
-        pitch.players.position.toLowerCase().includes(filterPosition.toLowerCase())
-      );
-    }
-
-    if (filterStage && filterStage !== 'all') {
-      filtered = filtered.filter(pitch =>
-        pitch.deal_stage === filterStage
-      );
-    }
-
-    if (filterType && filterType !== 'all') {
-      filtered = filtered.filter(pitch =>
-        pitch.transfer_type === filterType
-      );
-    }
-
-    // Apply sorting
-    switch (sortBy) {
-      case 'name_asc':
-        filtered.sort((a, b) => a.players.full_name.localeCompare(b.players.full_name));
-        break;
-      case 'expires_asc':
-        filtered.sort((a, b) => new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime());
-        break;
-      case 'price_desc':
-        filtered.sort((a, b) => b.asking_price - a.asking_price);
-        break;
-      default: // created_at_desc
-        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }
-
-    setFilteredPitches(filtered);
-  };
-
-  const addToShortlist = async (pitchId: string) => {
-    if (!profile?.id) return;
+  const fetchShortlistedPitches = async () => {
+    if (!agentId) return;
 
     try {
-      // Get agent ID
-      const { data: agentData } = await supabase
-        .from('agents')
-        .select('id')
-        .eq('profile_id', profile.id)
-        .single();
-
-      if (!agentData) {
-        toast({
-          title: "Error",
-          description: "Agent profile not found",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('shortlist')
-        .insert({
-          agent_id: agentData.id,
-          pitch_id: pitchId,
-          notes: ''
-        });
+      const { data, error } = await supabase
+        .from('agent_shortlist')
+        .select('pitch_id')
+        .eq('agent_id', agentId);
 
       if (error) throw error;
 
-      toast({
-        title: "Added to Shortlist",
-        description: "Player has been added to your shortlist",
-      });
-
-      // Update shortlist count
-      fetchTimelinePitches();
+      const shortlistedIds = new Set((data || []).map(item => item.pitch_id));
+      setShortlistedPitches(shortlistedIds);
     } catch (error) {
-      console.error('Error adding to shortlist:', error);
+      console.error('Error fetching shortlisted pitches:', error);
+    }
+  };
+
+  const filteredPitches = pitches.filter(pitch => {
+    const matchesSearch = !searchTerm || 
+      pitch.players.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pitch.players.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pitch.teams.team_name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesPosition = !positionFilter || pitch.players.position === positionFilter;
+    const matchesTransferType = !transferTypeFilter || pitch.transfer_type === transferTypeFilter;
+    
+    let matchesPrice = true;
+    if (priceRangeFilter && pitch.asking_price) {
+      const [min, max] = priceRangeFilter.split('-').map(Number);
+      matchesPrice = pitch.asking_price >= min && pitch.asking_price <= max;
+    }
+
+    return matchesSearch && matchesPosition && matchesTransferType && matchesPrice;
+  });
+
+  const toggleShortlist = async (pitch: TimelinePitch) => {
+    if (!agentId) return;
+
+    try {
+      const isCurrentlyShortlisted = shortlistedPitches.has(pitch.id);
+
+      if (isCurrentlyShortlisted) {
+        // Remove from shortlist
+        const { error } = await supabase
+          .from('agent_shortlist')
+          .delete()
+          .eq('agent_id', agentId)
+          .eq('pitch_id', pitch.id);
+
+        if (error) throw error;
+
+        setShortlistedPitches(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(pitch.id);
+          return newSet;
+        });
+
+        toast({
+          title: "Removed from Shortlist",
+          description: `${pitch.players.full_name} removed from your shortlist`,
+        });
+      } else {
+        // Add to shortlist - include player_id which is required
+        const { error } = await supabase
+          .from('agent_shortlist')
+          .insert({
+            agent_id: agentId,
+            pitch_id: pitch.id,
+            player_id: pitch.player_id,
+            notes: ''
+          });
+
+        if (error) throw error;
+
+        setShortlistedPitches(prev => new Set([...prev, pitch.id]));
+
+        toast({
+          title: "Added to Shortlist",
+          description: `${pitch.players.full_name} added to your shortlist`,
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling shortlist:', error);
       toast({
         title: "Error",
-        description: "Failed to add to shortlist",
+        description: "Failed to update shortlist",
         variant: "destructive"
       });
     }
   };
 
-  const sendMessage = async (pitchId: string, playerId: string) => {
-    if (!profile?.id) return;
-
-    try {
-      // Get the pitch details first to get team information
-      const pitch = pitches.find(p => p.id === pitchId);
-      if (!pitch) return;
-
-      // Get team profile ID from teams table
-      const { data: teamData } = await supabase
-        .from('teams')
-        .select('profile_id')
-        .eq('id', pitch.teams.id)
-        .single();
-
-      if (!teamData) {
-        toast({
-          title: "Error",
-          description: "Team profile not found",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: profile.id,
-          receiver_id: teamData.profile_id,
-          player_id: playerId,
-          pitch_id: pitchId,
-          subject: `Inquiry about ${pitch.players.full_name}`,
-          content: `I'm interested in discussing the transfer of ${pitch.players.full_name}. Please let me know if we can arrange a conversation.`,
-          message_type: 'inquiry'
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Message Sent",
-        description: "Your inquiry has been sent to the team",
-      });
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleViewDetails = (pitch: TimelinePitch) => {
-    navigate(`/transfer-pitch/${pitch.id}`);
+  const sendMessage = async (pitch: TimelinePitch) => {
+    // Navigate to messages page with pre-filled data
+    navigate('/messages', { 
+      state: { 
+        recipientId: pitch.team_id, 
+        playerId: pitch.player_id,
+        playerName: pitch.players.full_name 
+      } 
+    });
   };
 
   const formatCurrency = (amount: number, currency: string) => {
@@ -336,293 +265,262 @@ const EnhancedAgentTimeline: React.FC = () => {
       style: 'currency',
       currency: currency || 'USD',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  const getDealStageColor = (stage: string) => {
-    switch (stage) {
-      case 'pitch': return 'bg-blue-500';
-      case 'interest': return 'bg-yellow-500';
-      case 'discussion': return 'bg-green-500';
-      case 'expired': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const isExpiringSoon = (expiresAt: string) => {
-    const expiryDate = new Date(expiresAt);
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-    return expiryDate <= sevenDaysFromNow;
+  const formatDaysLeft = (expiresAt: string) => {
+    const expires = new Date(expiresAt);
+    const now = new Date();
+    const diffInDays = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays <= 0) return 'Expired';
+    if (diffInDays === 1) return '1 day left';
+    return `${diffInDays} days left`;
   };
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-24 bg-gray-700 rounded"></div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <Card className="border-gray-700">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-64 bg-gray-700 rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
-  const renderPitchCard = (pitch: TimelinePitch) => (
-    <Card 
-      key={pitch.id} 
-      className={`border-gray-600 ${isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : 'hover:border-rosegold/50'} transition-colors`}
-    >
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          {/* Header with Player and Team Info */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              {pitch.players.photo_url && (
-                <img
-                  src={pitch.players.photo_url}
-                  alt={pitch.players.full_name}
-                  className="w-12 h-12 rounded-full object-cover"
-                />
-              )}
-              <div className="flex-1">
-                <h3 className="font-semibold text-white">
-                  {pitch.players.full_name}
-                </h3>
-                <p className="text-sm text-gray-400">
-                  {pitch.players.position} • {pitch.players.citizenship}
-                  {pitch.players.age && ` • ${pitch.players.age}y`}
-                </p>
-                
-                {/* Team Info with Logo */}
-                <div className="flex items-center gap-2 mt-1">
-                  {pitch.teams.logo_url && (
-                    <img
-                      src={pitch.teams.logo_url}
-                      alt={pitch.teams.team_name}
-                      className="w-4 h-4 rounded"
-                    />
-                  )}
-                  <p className="text-xs text-gray-500">
-                    {pitch.teams.team_name} • {pitch.teams.country}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="text-right">
-              <div className="text-lg font-bold text-rosegold">
-                {formatCurrency(pitch.asking_price, pitch.currency)}
-              </div>
-              <div className="text-xs text-gray-400">
-                {pitch.transfer_type.toUpperCase()}
-              </div>
-            </div>
-          </div>
-
-          {/* Status and Badges */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className={`${getDealStageColor(pitch.deal_stage)} text-white border-none`}
-              >
-                {pitch.deal_stage.toUpperCase()}
-              </Badge>
-              {pitch.is_international && (
-                <Badge variant="outline" className="text-blue-400 border-blue-400">
-                  International
-                </Badge>
-              )}
-              {isExpiringSoon(pitch.expires_at) && (
-                <Badge variant="outline" className="text-red-400 border-red-400 animate-pulse">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  Expiring Soon
-                </Badge>
-              )}
-              {pitch.tagged_videos.length > 0 && (
-                <Badge variant="outline" className="text-purple-400 border-purple-400">
-                  <Play className="w-3 h-3 mr-1" />
-                  {pitch.tagged_videos.length} Videos
-                </Badge>
-              )}
-            </div>
-            <div className="text-xs text-gray-400">
-              Expires {formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="flex items-center gap-4 text-sm text-gray-400">
-            <div className="flex items-center gap-1">
-              <Eye className="w-4 h-4" />
-              {pitch.view_count}
-            </div>
-            <div className="flex items-center gap-1">
-              <MessageCircle className="w-4 h-4" />
-              {pitch.message_count}
-            </div>
-            <div className="flex items-center gap-1">
-              <Heart className="w-4 h-4" />
-              {pitch.shortlist_count} shortlisted
-            </div>
-          </div>
-
-          {/* Description */}
-          {pitch.description && (
-            <p className="text-sm text-gray-300 line-clamp-2">
-              {pitch.description}
-            </p>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleViewDetails(pitch)}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              <Eye className="w-4 h-4 mr-1" />
-              View Details
-            </Button>
-            
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => addToShortlist(pitch.id)}
-              className="border-pink-600 text-pink-300 hover:bg-pink-700/20"
-            >
-              <Heart className="w-4 h-4 mr-1" />
-              Shortlist
-            </Button>
-            
-            <Button
-              size="sm"
-              className="bg-rosegold hover:bg-rosegold/90 text-white"
-              onClick={() => sendMessage(pitch.id, pitch.players.id)}
-            >
-              <MessageCircle className="w-4 h-4 mr-1" />
-              Message
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   return (
-    <div className="space-y-4">
-      <Card className='border-0'>
+    <div className="space-y-6">
+      {/* Filters */}
+      <Card className="border-gray-700">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Bell className="w-5 h-5" />
-              Agent Transfer Timeline ({filteredPitches.length})
-            </CardTitle>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-              >
-                <Grid3X3 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+          <CardTitle className="flex items-center gap-2 text-white font-polysans">
+            <Filter className="w-5 h-5" />
+            Filter Transfer Pitches
+          </CardTitle>
         </CardHeader>
-        
-        <CardContent>
-          {/* Filters */}
-          <div className="flex gap-4 mb-6">
-            <div className="relative flex-1">
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search players, teams, positions..."
+                placeholder="Search players, teams..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-gray-800 border-gray-600 text-white"
               />
             </div>
             
-            <Select value={filterPosition} onValueChange={setFilterPosition}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Positions" />
+            <Select value={positionFilter} onValueChange={setPositionFilter}>
+              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                <SelectValue placeholder="Position" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Positions</SelectItem>
-                <SelectItem value="forward">Forward</SelectItem>
-                <SelectItem value="midfielder">Midfielder</SelectItem>
-                <SelectItem value="defender">Defender</SelectItem>
-                <SelectItem value="goalkeeper">Goalkeeper</SelectItem>
+                <SelectItem value="">All Positions</SelectItem>
+                <SelectItem value="Goalkeeper">Goalkeeper</SelectItem>
+                <SelectItem value="Defender">Defender</SelectItem>
+                <SelectItem value="Midfielder">Midfielder</SelectItem>
+                <SelectItem value="Forward">Forward</SelectItem>
               </SelectContent>
             </Select>
-            
-            <Select value={filterStage} onValueChange={setFilterStage}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Stages" />
+
+            <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
+              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                <SelectValue placeholder="Transfer Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Stages</SelectItem>
-                <SelectItem value="pitch">New Pitch</SelectItem>
-                <SelectItem value="interest">Interest Shown</SelectItem>
-                <SelectItem value="discussion">In Discussion</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="">All Types</SelectItem>
                 <SelectItem value="permanent">Permanent</SelectItem>
                 <SelectItem value="loan">Loan</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
+            <Select value={priceRangeFilter} onValueChange={setPriceRangeFilter}>
+              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                <SelectValue placeholder="Price Range" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="created_at_desc">Latest Pitches</SelectItem>
-                <SelectItem value="expires_asc">Expiring Soon</SelectItem>
-                <SelectItem value="price_desc">Highest Price</SelectItem>
-                <SelectItem value="name_asc">Name A-Z</SelectItem>
+                <SelectItem value="">All Prices</SelectItem>
+                <SelectItem value="0-100000">Under $100K</SelectItem>
+                <SelectItem value="100000-500000">$100K - $500K</SelectItem>
+                <SelectItem value="500000-1000000">$500K - $1M</SelectItem>
+                <SelectItem value="1000000-5000000">$1M - $5M</SelectItem>
+                <SelectItem value="5000000-999999999">Above $5M</SelectItem>
               </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Timeline Content */}
+      {/* Results */}
+      <Card className="border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white font-polysans">
+            Transfer Pitches ({filteredPitches.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {filteredPitches.length === 0 ? (
-            <div className="text-center py-8">
-              <Clock className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-              <h3 className="text-xl font-semibold text-white mb-2">
-                No Active Pitches
+            <div className="text-center py-12">
+              <Search className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+              <h3 className="text-xl font-polysans font-semibold text-white mb-2">
+                No Pitches Found
               </h3>
-              <p className="text-gray-400">
-                {searchTerm || filterPosition !== 'all' || filterStage !== 'all' || filterType !== 'all'
-                  ? 'No pitches match your current filters.'
-                  : 'No transfer pitches are currently active on the timeline.'
-                }
+              <p className="text-gray-400 font-poppins">
+                Try adjusting your filters to see more results.
               </p>
             </div>
           ) : (
-            <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
-              {filteredPitches.map(pitch => renderPitchCard(pitch))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredPitches.map((pitch) => (
+                <Card key={pitch.id} className="border-gray-600 hover:border-rosegold/50 transition-colors">
+                  <CardContent className="p-4">
+                    <div className="space-y-4">
+                      {/* Player Header */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                          {pitch.players.headshot_url || pitch.players.photo_url ? (
+                            <img
+                              src={pitch.players.headshot_url || pitch.players.photo_url}
+                              alt={pitch.players.full_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <User className="w-8 h-8 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-polysans font-bold text-white text-lg truncate">
+                            {pitch.players.full_name}
+                          </h3>
+                          <p className="text-gray-300 font-poppins text-sm">
+                            {pitch.players.position} • {pitch.players.citizenship}
+                          </p>
+                          {pitch.players.age && (
+                            <p className="text-gray-400 text-xs">{pitch.players.age} years old</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Team Info */}
+                      <div className="flex items-center gap-2">
+                        {pitch.teams.logo_url && (
+                          <img
+                            src={pitch.teams.logo_url}
+                            alt={pitch.teams.team_name}
+                            className="w-6 h-6 rounded object-cover"
+                          />
+                        )}
+                        <div className="flex items-center gap-1 text-sm text-gray-400">
+                          <MapPin className="h-3 w-3" />
+                          <span>{pitch.teams.team_name}, {pitch.teams.country}</span>
+                        </div>
+                      </div>
+
+                      {/* Transfer Info */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Badge variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}>
+                            {pitch.transfer_type.toUpperCase()}
+                          </Badge>
+                          <div className="text-xs text-gray-400">
+                            <Calendar className="h-3 w-3 inline mr-1" />
+                            {formatDaysLeft(pitch.expires_at)}
+                          </div>
+                        </div>
+
+                        {pitch.asking_price && (
+                          <div className="flex items-center gap-1 text-bright-pink font-bold text-lg">
+                            <DollarSign className="h-5 w-5" />
+                            {formatCurrency(pitch.asking_price, pitch.currency)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Stats */}
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <Eye className="h-3 w-3" />
+                          {pitch.view_count}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <MessageSquare className="h-3 w-3" />
+                          {pitch.message_count}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart className="h-3 w-3" />
+                          {pitch.shortlist_count}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="space-y-2">
+                        <Button
+                          onClick={() => navigate(`/pitch/${pitch.id}`)}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                          size="sm"
+                        >
+                          View Details
+                        </Button>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => toggleShortlist(pitch)}
+                            variant={shortlistedPitches.has(pitch.id) ? "default" : "outline"}
+                            size="sm"
+                            className={`flex-1 ${shortlistedPitches.has(pitch.id) 
+                              ? "bg-rosegold hover:bg-rosegold/90 text-white" 
+                              : "border-gray-600 hover:bg-gray-700"
+                            } transition-colors`}
+                          >
+                            {shortlistedPitches.has(pitch.id) ? (
+                              <>
+                                <Heart className="w-4 h-4 mr-1 fill-current" />
+                                Saved
+                              </>
+                            ) : (
+                              <>
+                                <HeartOff className="w-4 h-4 mr-1" />
+                                Save
+                              </>
+                            )}
+                          </Button>
+                          
+                          <Button
+                            onClick={() => sendMessage(pitch)}
+                            size="sm"
+                            className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white"
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            Message
+                          </Button>
+                        </div>
+
+                        {pitch.tagged_videos.length > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-gray-600 hover:bg-gray-700"
+                          >
+                            <Play className="h-4 w-4 mr-1" />
+                            Watch Videos ({pitch.tagged_videos.length})
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </CardContent>
