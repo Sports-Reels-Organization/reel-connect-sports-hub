@@ -463,10 +463,6 @@ const AgentShortlistEnhanced = () => {
       <EnhancedVideoAnalysis
         videoId={selectedVideo.id}
         teamId={selectedVideo.team_id}
-        onAnalysisComplete={() => {
-          setShowVideoAnalysis(false);
-          setSelectedVideo(null);
-        }}
       />
     );
   }

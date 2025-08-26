@@ -88,7 +88,7 @@ const EnhancedTransferTimeline: React.FC = () => {
             position,
             citizenship,
             photo_url,
-            age,
+            date_of_birth,
             market_value
           ),
           teams!inner(
@@ -117,14 +117,16 @@ const EnhancedTransferTimeline: React.FC = () => {
         shortlist_count: pitch.shortlist_count || 0,
         is_international: pitch.is_international || false,
         description: pitch.description,
-        tagged_videos: pitch.tagged_videos || [],
+        tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
         players: {
           id: pitch.players.id,
           full_name: pitch.players.full_name,
           position: pitch.players.position,
           citizenship: pitch.players.citizenship,
           photo_url: pitch.players.photo_url,
-          age: pitch.players.age,
+          age: pitch.players.date_of_birth 
+            ? new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear()
+            : 0,
           market_value: pitch.players.market_value
         },
         teams: {
@@ -407,65 +409,6 @@ const EnhancedTransferTimeline: React.FC = () => {
     </Card>
   );
 
-  const renderListView = (pitch: TimelinePitch) => (
-    <Card key={pitch.id} className="border-gray-600 hover:border-rosegold/50 transition-colors">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
-            {pitch.players.photo_url && (
-              <img
-                src={pitch.players.photo_url}
-                alt={pitch.players.full_name}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-            )}
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-white">{pitch.players.full_name}</h3>
-                <Badge variant="outline" className="text-xs">
-                  {pitch.players.position}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                {pitch.teams.logo_url && (
-                  <img src={pitch.teams.logo_url} alt="" className="w-4 h-4 rounded" />
-                )}
-                <span>{pitch.teams.team_name}</span>
-                <span>•</span>
-                <span>{pitch.players.citizenship}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="font-bold text-rosegold">
-                {formatCurrency(pitch.asking_price, pitch.currency)}
-              </div>
-              <div className="text-xs text-gray-400">
-                {pitch.transfer_type}
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Badge className={`${getDealStageColor(pitch.deal_stage)} text-white border-none`}>
-                {getDealStageText(pitch.deal_stage)}
-              </Badge>
-              
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleViewDetails(pitch)}
-              >
-                View Details
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   return (
     <div className="space-y-4">
       <Card className='border-0'>
@@ -473,7 +416,7 @@ const EnhancedTransferTimeline: React.FC = () => {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-white">
               <TrendingUp className="w-5 h-5" />
-              Transfer Timeline ({filteredPitches.length})
+              Enhanced Transfer Timeline ({filteredPitches.length})
             </CardTitle>
             
             <div className="flex items-center gap-2">
@@ -548,9 +491,7 @@ const EnhancedTransferTimeline: React.FC = () => {
             </div>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
-              {filteredPitches.map(pitch => 
-                viewMode === 'grid' ? renderPitchCard(pitch) : renderListView(pitch)
-              )}
+              {filteredPitches.map(pitch => renderPitchCard(pitch))}
             </div>
           )}
         </CardContent>

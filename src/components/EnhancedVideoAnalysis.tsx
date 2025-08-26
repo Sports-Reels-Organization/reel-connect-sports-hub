@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { VideoAnalysisResults } from './VideoAnalysisResults';
+import VideoAnalysisResults from './VideoAnalysisResults';
 import {
   Play,
   Pause,
@@ -25,9 +25,14 @@ import {
 interface EnhancedVideoAnalysisProps {
   videoId: string;
   teamId: string;
+  onAnalysisComplete?: () => void;
 }
 
-const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({ videoId, teamId }) => {
+const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({ 
+  videoId, 
+  teamId, 
+  onAnalysisComplete 
+}) => {
   const { toast } = useToast();
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +64,9 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({ videoId, 
       if (error) throw error;
 
       setAnalysisData(data);
-      setAnalysisStatus(data.ai_analysis_status || 'pending');
+      if (data.ai_analysis_status === 'completed' || data.ai_analysis_status === 'processing' || data.ai_analysis_status === 'failed') {
+        setAnalysisStatus(data.ai_analysis_status as 'pending' | 'processing' | 'completed' | 'failed');
+      }
     } catch (error) {
       console.error('Error fetching analysis data:', error);
       toast({
@@ -92,6 +99,9 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({ videoId, 
       setTimeout(() => {
         setAnalysisStatus('completed');
         fetchAnalysisData();
+        if (onAnalysisComplete) {
+          onAnalysisComplete();
+        }
       }, 3000);
 
     } catch (error) {
