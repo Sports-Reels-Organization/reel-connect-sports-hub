@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,18 +44,11 @@ interface VideoData {
   match_result?: string;
   performance_rating?: number;
   tags: string[];
-  video_quality?: string;
   ai_analysis_status: string;
   created_at: string;
   opposing_team?: string;
   match_date?: string;
-  score?: string;
-}
-
-interface VideoTag {
-  id: string;
-  tag_name: string;
-  tag_type: string;
+  score_display?: string;
 }
 
 const EnhancedVideoManagement: React.FC = () => {
@@ -62,12 +56,10 @@ const EnhancedVideoManagement: React.FC = () => {
   const { toast } = useToast();
   
   const [videos, setVideos] = useState<VideoData[]>([]);
-  const [tags, setTags] = useState<VideoTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     type: '',
-    quality: '',
     result: '',
     rating: '',
     analysisStatus: '',
@@ -79,11 +71,9 @@ const EnhancedVideoManagement: React.FC = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null);
   const [isAnalysisDialogOpen, setIsAnalysisDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [newTag, setNewTag] = useState('');
 
   useEffect(() => {
     fetchVideos();
-    fetchTags();
   }, [profile, sortBy, filters]);
 
   const fetchVideos = async () => {
@@ -103,15 +93,12 @@ const EnhancedVideoManagement: React.FC = () => {
 
       let query = supabase
         .from('videos')
-        .select('*, video_quality')
+        .select('*')
         .eq('team_id', teamData.id);
 
       // Apply filters
       if (filters.type) {
         query = query.eq('video_type', filters.type);
-      }
-      if (filters.quality) {
-        query = query.eq('video_quality', filters.quality);
       }
       if (filters.result) {
         query = query.eq('match_result', filters.result);
@@ -166,13 +153,12 @@ const EnhancedVideoManagement: React.FC = () => {
         file_size: video.file_size,
         match_result: video.match_result,
         performance_rating: video.performance_rating,
-        tags: video.tags || [],
-        video_quality: video.video_quality || 'standard',
+        tags: video.tagged_players || [],
         ai_analysis_status: video.ai_analysis_status,
         created_at: video.created_at,
         opposing_team: video.opposing_team,
         match_date: video.match_date,
-        score: video.score
+        score_display: video.score_display
       }));
 
       setVideos(mappedVideos);
@@ -188,35 +174,6 @@ const EnhancedVideoManagement: React.FC = () => {
     }
   };
 
-  const fetchTags = async () => {
-    if (!profile) return;
-
-    try {
-      // For now, we'll create a simple tag system without the video_tags table
-      // until the database schema is updated
-      setTags([]);
-    } catch (error) {
-      console.error('Error fetching tags:', error);
-    }
-  };
-
-  const handleAddTag = async (videoId: string, tagName: string) => {
-    try {
-      // For now, just show a toast since video_tags table doesn't exist yet
-      toast({
-        title: "Tag Feature",
-        description: `Tag "${tagName}" would be added to video (feature pending database update)`,
-      });
-    } catch (error) {
-      console.error('Error adding tag:', error);
-      toast({
-        title: "Tag Error",
-        description: "Failed to add tag",
-        variant: "destructive"
-      });
-    }
-  };
-
   const handleUpdateVideo = async (videoData: Partial<VideoData>) => {
     if (!selectedVideo) return;
 
@@ -226,8 +183,7 @@ const EnhancedVideoManagement: React.FC = () => {
         .update({
           title: videoData.title,
           performance_rating: videoData.performance_rating,
-          match_result: videoData.match_result,
-          video_quality: videoData.video_quality
+          match_result: videoData.match_result
         })
         .eq('id', selectedVideo.id);
 
@@ -413,19 +369,6 @@ const EnhancedVideoManagement: React.FC = () => {
                   </SelectContent>
                 </Select>
 
-                <Select value={filters.quality} onValueChange={(value) => setFilters({ ...filters, quality: value })}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Quality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Quality</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="4k">4K</SelectItem>
-                  </SelectContent>
-                </Select>
-
                 <Select value={filters.result} onValueChange={(value) => setFilters({ ...filters, result: value })}>
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                     <SelectValue placeholder="Match Result" />
@@ -470,7 +413,7 @@ const EnhancedVideoManagement: React.FC = () => {
               </div>
 
               <Button
-                onClick={() => setFilters({ type: '', quality: '', result: '', rating: '', analysisStatus: '', dateFrom: '', dateTo: '' })}
+                onClick={() => setFilters({ type: '', result: '', rating: '', analysisStatus: '', dateFrom: '', dateTo: '' })}
                 variant="outline"
                 className="border-gray-600 text-gray-300 hover:bg-gray-700 mt-4"
               >
@@ -521,9 +464,6 @@ const EnhancedVideoManagement: React.FC = () => {
                         <div className="flex items-center gap-2 text-sm text-gray-400">
                           <Badge variant="outline" className="text-xs">
                             {video.video_type.toUpperCase()}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {(video.video_quality || 'STANDARD').toUpperCase()}
                           </Badge>
                           {video.performance_rating && (
                             <div className={`flex items-center gap-1 ${getRatingColor(video.performance_rating)}`}>
@@ -636,7 +576,7 @@ const EnhancedVideoManagement: React.FC = () => {
             <VideoAnalysisResults
               videoId={selectedVideo.id}
               videoType={selectedVideo.video_type as any}
-              teamId="team-id" // This should be passed from props or context
+              teamId="team-id"
             />
           </DialogContent>
         </Dialog>
@@ -657,18 +597,6 @@ const EnhancedVideoManagement: React.FC = () => {
               />
               
               <div className="grid grid-cols-2 gap-4">
-                <Select defaultValue={selectedVideo.video_quality || 'standard'}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Quality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="4k">4K</SelectItem>
-                  </SelectContent>
-                </Select>
-
                 <Select defaultValue={selectedVideo.match_result || ''}>
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                     <SelectValue placeholder="Match Result" />

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     matchDate: '',
     league: '',
     homeOrAway: 'home',
-    finalScore: '', // Keep as string
+    finalScore: '',
     taggedPlayers: [] as string[]
   });
   const [newPlayerTag, setNewPlayerTag] = useState('');
@@ -130,11 +131,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       const fileName = `${currentTeamId}/${Date.now()}-${selectedFile.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('match-videos')
-        .upload(fileName, selectedFile, {
-          onUploadProgress: (progress) => {
-            setUploadProgress((progress.loaded / progress.total) * 100);
-          }
-        });
+        .upload(fileName, selectedFile);
 
       if (uploadError) throw uploadError;
 
@@ -156,7 +153,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           match_date: formData.matchDate,
           league: formData.league,
           home_or_away: formData.homeOrAway,
-          score_display: formData.finalScore, // Use score_display field
+          score_display: formData.finalScore,
           tagged_players: formData.taggedPlayers,
           file_size: selectedFile.size,
           ai_analysis_status: 'pending'
