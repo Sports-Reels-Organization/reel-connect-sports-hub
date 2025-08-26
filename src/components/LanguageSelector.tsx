@@ -38,12 +38,14 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         );
     }
 
-    // Filter out any languages with empty codes and ensure we have valid options
+    // Filter out any languages with invalid codes and ensure we have valid options
     const validLanguages = availableLanguages.filter(lang => 
         lang.code && 
         lang.code.trim() !== '' && 
         lang.name && 
-        lang.name.trim() !== ''
+        lang.name.trim() !== '' &&
+        lang.code !== null &&
+        lang.code !== undefined
     );
 
     // If no valid languages, don't render anything

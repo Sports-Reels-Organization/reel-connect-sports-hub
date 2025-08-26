@@ -122,19 +122,29 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
           countries.forEach((country: any) => {
             if (country?.languages && typeof country.languages === 'object') {
               Object.entries(country.languages).forEach(([code, name]) => {
-                if (typeof name === 'string' && !languageMap.has(code)) {
+                // Ensure code and name are valid strings and not empty
+                if (typeof name === 'string' && 
+                    typeof code === 'string' && 
+                    code.trim() !== '' && 
+                    name.trim() !== '' &&
+                    code !== null &&
+                    code !== undefined &&
+                    !languageMap.has(code)) {
                   languageMap.set(code, {
-                    code,
-                    name,
+                    code: code.trim(),
+                    name: name.trim(),
                     flag: country.flag || '🏳️',
-                    nativeName: name
+                    nativeName: name.trim()
                   });
                 }
               });
             }
           });
 
-          const processedLanguages = Array.from(languageMap.values()).slice(0, 20);
+          const processedLanguages = Array.from(languageMap.values())
+            .filter(lang => lang.code && lang.code.trim() !== '' && lang.name && lang.name.trim() !== '')
+            .slice(0, 20);
+          
           setAvailableLanguages(processedLanguages.length > 0 ? processedLanguages : fallbackLanguages);
         } else {
           console.warn('Countries data not available, using fallback languages');
@@ -157,8 +167,11 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [countries, countriesError]);
 
   const setLanguage = (lang: string) => {
-    setCurrentLanguage(lang);
-    localStorage.setItem('preferred-language', lang);
+    // Ensure we're not setting an empty language code
+    if (lang && lang.trim() !== '') {
+      setCurrentLanguage(lang.trim());
+      localStorage.setItem('preferred-language', lang.trim());
+    }
   };
 
   const t = (key: string, params?: Record<string, string>): string => {
@@ -177,8 +190,8 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Load saved language preference
   useEffect(() => {
     const savedLanguage = localStorage.getItem('preferred-language');
-    if (savedLanguage) {
-      setCurrentLanguage(savedLanguage);
+    if (savedLanguage && savedLanguage.trim() !== '') {
+      setCurrentLanguage(savedLanguage.trim());
     }
   }, []);
 
