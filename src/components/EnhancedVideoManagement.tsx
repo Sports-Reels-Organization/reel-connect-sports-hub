@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,15 +95,9 @@ const EnhancedVideoManagement: React.FC = () => {
         .select('*')
         .eq('team_id', teamData.id);
 
-      // Apply filters
+      // Apply filters conditionally
       if (filters.type) {
         query = query.eq('video_type', filters.type);
-      }
-      if (filters.result) {
-        query = query.eq('match_result', filters.result);
-      }
-      if (filters.rating) {
-        query = query.eq('performance_rating', parseInt(filters.rating));
       }
       if (filters.analysisStatus) {
         query = query.eq('ai_analysis_status', filters.analysisStatus);
@@ -130,9 +123,6 @@ const EnhancedVideoManagement: React.FC = () => {
         case 'duration_short':
           query = query.order('duration', { ascending: true });
           break;
-        case 'rating_high':
-          query = query.order('performance_rating', { ascending: false });
-          break;
         case 'title_az':
           query = query.order('title', { ascending: true });
           break;
@@ -151,9 +141,11 @@ const EnhancedVideoManagement: React.FC = () => {
         video_type: video.video_type,
         duration: video.duration,
         file_size: video.file_size,
-        match_result: video.match_result,
-        performance_rating: video.performance_rating,
-        tags: video.tagged_players || [],
+        match_result: video.match_result || undefined,
+        performance_rating: video.performance_rating || undefined,
+        tags: Array.isArray(video.tagged_players) ? 
+          video.tagged_players.map((tag: any) => typeof tag === 'string' ? tag : String(tag)) : 
+          [],
         ai_analysis_status: video.ai_analysis_status,
         created_at: video.created_at,
         opposing_team: video.opposing_team,
@@ -348,7 +340,6 @@ const EnhancedVideoManagement: React.FC = () => {
                     <SelectItem value="oldest">Oldest First</SelectItem>
                     <SelectItem value="duration_long">Longest Duration</SelectItem>
                     <SelectItem value="duration_short">Shortest Duration</SelectItem>
-                    <SelectItem value="rating_high">Highest Rated</SelectItem>
                     <SelectItem value="title_az">Title A-Z</SelectItem>
                   </SelectContent>
                 </Select>

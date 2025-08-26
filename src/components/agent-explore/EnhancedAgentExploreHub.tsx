@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,29 +5,29 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import {
   Search,
   Filter,
   Plus,
-  Edit2,
-  Trash2,
-  MessageSquare,
-  Users,
-  DollarSign,
-  Calendar,
-  Globe,
-  TrendingUp,
   Eye,
-  Heart,
-  Clock,
+  MessageSquare,
+  Calendar,
+  DollarSign,
+  MapPin,
+  Users,
+  TrendingUp,
   Star,
-  Send
+  Clock,
+  Globe,
+  Target,
+  Award,
+  BarChart3
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AgentRequest {
   id: string;
@@ -41,14 +40,12 @@ interface AgentRequest {
   sport_type: string;
   transfer_type: string;
   expires_at: string;
-  is_public: boolean;
   created_at: string;
+  is_public: boolean;
   tagged_players: string[];
   agent: {
-    profile: {
-      full_name: string;
-      country: string;
-    };
+    full_name: string;
+    country: string;
   };
 }
 
@@ -68,40 +65,36 @@ const EnhancedAgentExploreHub: React.FC = () => {
   const { toast } = useToast();
   
   const [requests, setRequests] = useState<AgentRequest[]>([]);
-  const [comments, setComments] = useState<{ [key: string]: RequestComment[] }>({});
+  const [comments, setComments] = useState<RequestComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
-    sport: '',
+    sport_type: '',
+    transfer_type: '',
+    budget_range: '',
     position: '',
-    budget: '',
-    transferType: '',
-    dateRange: ''
+    location: ''
   });
   const [sortBy, setSortBy] = useState('newest');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<AgentRequest | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [newComment, setNewComment] = useState('');
-  const [taggedPlayer, setTaggedPlayer] = useState('');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [newRequest, setNewRequest] = useState({
     title: '',
     description: '',
     position: '',
+    budget_min: '',
+    budget_max: '',
+    currency: 'USD',
     sport_type: 'football',
     transfer_type: 'permanent',
-    budget_min: 0,
-    budget_max: 0,
-    currency: 'USD',
-    expires_at: '',
-    is_public: true
+    expires_at: ''
   });
 
   useEffect(() => {
-    if (profile) {
-      fetchRequests();
-    }
-  }, [profile, sortBy, filters]);
+    fetchRequests();
+    fetchComments();
+  }, []);
 
   const fetchRequests = async () => {
     try {
@@ -111,24 +104,16 @@ const EnhancedAgentExploreHub: React.FC = () => {
         .from('agent_requests')
         .select(`
           *,
-          agent:agents!inner(
-            profile:profiles!inner(
-              full_name,
-              country
-            )
-          )
+          agent:profiles!agent_requests_agent_id_fkey(full_name, country)
         `)
         .eq('is_public', true);
 
       // Apply filters
-      if (filters.sport) {
-        query = query.eq('sport_type', filters.sport);
+      if (filters.sport_type) {
+        query = query.eq('sport_type', filters.sport_type as any);
       }
-      if (filters.position) {
-        query = query.eq('position', filters.position);
-      }
-      if (filters.transferType) {
-        query = query.eq('transfer_type', filters.transferType);
+      if (filters.transfer_type) {
+        query = query.eq('transfer_type', filters.transfer_type as any);
       }
 
       // Apply sorting
@@ -154,36 +139,30 @@ const EnhancedAgentExploreHub: React.FC = () => {
 
       if (error) throw error;
 
-      // Transform data to match interface
-      const transformedRequests: AgentRequest[] = (data || []).map(item => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        position: item.position,
-        budget_min: item.budget_min,
-        budget_max: item.budget_max,
-        currency: item.currency,
-        sport_type: item.sport_type,
-        transfer_type: item.transfer_type,
-        expires_at: item.expires_at,
-        is_public: item.is_public,
-        created_at: item.created_at,
-        tagged_players: Array.isArray(item.tagged_players) ? item.tagged_players : [],
+      // Map the data to ensure proper typing
+      const mappedRequests: AgentRequest[] = (data || []).map(request => ({
+        id: request.id,
+        title: request.title,
+        description: request.description,
+        position: request.position,
+        budget_min: request.budget_min,
+        budget_max: request.budget_max,
+        currency: request.currency,
+        sport_type: request.sport_type,
+        transfer_type: request.transfer_type,
+        expires_at: request.expires_at,
+        created_at: request.created_at,
+        is_public: request.is_public,
+        tagged_players: Array.isArray(request.tagged_players) ? 
+          request.tagged_players.map((player: any) => typeof player === 'string' ? player : String(player)) : 
+          [],
         agent: {
-          profile: {
-            full_name: item.agent?.profile?.full_name || 'Unknown Agent',
-            country: item.agent?.profile?.country || 'Unknown'
-          }
+          full_name: request.agent?.full_name || 'Unknown',
+          country: request.agent?.country || 'Unknown'
         }
       }));
 
-      setRequests(transformedRequests);
-
-      // Fetch comments for each request
-      for (const request of transformedRequests) {
-        await fetchCommentsForRequest(request.id);
-      }
-
+      setRequests(mappedRequests);
     } catch (error) {
       console.error('Error fetching requests:', error);
       toast({
@@ -196,34 +175,33 @@ const EnhancedAgentExploreHub: React.FC = () => {
     }
   };
 
-  const fetchCommentsForRequest = async (requestId: string) => {
+  const fetchComments = async () => {
     try {
       const { data, error } = await supabase
         .from('agent_request_comments')
         .select(`
           *,
-          profile:profiles(full_name)
+          profile:profiles!agent_request_comments_profile_id_fkey(full_name)
         `)
-        .eq('request_id', requestId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const transformedComments: RequestComment[] = (data || []).map(comment => ({
+      // Map comments with proper typing
+      const mappedComments: RequestComment[] = (data || []).map(comment => ({
         id: comment.id,
         content: comment.content,
         created_at: comment.created_at,
         profile_id: comment.profile_id,
-        tagged_players: Array.isArray(comment.tagged_players) ? comment.tagged_players : [],
+        tagged_players: Array.isArray(comment.tagged_players) ? 
+          comment.tagged_players.map((player: any) => typeof player === 'string' ? player : String(player)) : 
+          [],
         profile: {
-          full_name: comment.profile?.full_name || 'Unknown User'
+          full_name: comment.profile?.full_name || 'Unknown'
         }
       }));
 
-      setComments(prev => ({
-        ...prev,
-        [requestId]: transformedComments
-      }));
+      setComments(mappedComments);
     } catch (error) {
       console.error('Error fetching comments:', error);
     }
@@ -233,7 +211,6 @@ const EnhancedAgentExploreHub: React.FC = () => {
     if (!profile) return;
 
     try {
-      // Get agent ID
       const { data: agentData } = await supabase
         .from('agents')
         .select('id')
@@ -242,8 +219,8 @@ const EnhancedAgentExploreHub: React.FC = () => {
 
       if (!agentData) {
         toast({
-          title: "Error",
-          description: "Agent profile not found",
+          title: "Agent Profile Required",
+          description: "Please complete your agent profile first",
           variant: "destructive"
         });
         return;
@@ -256,118 +233,53 @@ const EnhancedAgentExploreHub: React.FC = () => {
           title: newRequest.title,
           description: newRequest.description,
           position: newRequest.position,
-          sport_type: newRequest.sport_type,
-          transfer_type: newRequest.transfer_type,
-          budget_min: newRequest.budget_min,
-          budget_max: newRequest.budget_max,
+          budget_min: parseInt(newRequest.budget_min),
+          budget_max: parseInt(newRequest.budget_max),
           currency: newRequest.currency,
+          sport_type: newRequest.sport_type as any,
+          transfer_type: newRequest.transfer_type as any,
           expires_at: newRequest.expires_at,
-          is_public: newRequest.is_public
+          is_public: true
         });
 
       if (error) throw error;
 
       toast({
         title: "Request Created",
-        description: "Your agent request has been created successfully"
+        description: "Your player request has been created successfully"
       });
 
-      setIsCreateModalOpen(false);
+      setIsCreateDialogOpen(false);
       setNewRequest({
         title: '',
         description: '',
         position: '',
+        budget_min: '',
+        budget_max: '',
+        currency: 'USD',
         sport_type: 'football',
         transfer_type: 'permanent',
-        budget_min: 0,
-        budget_max: 0,
-        currency: 'USD',
-        expires_at: '',
-        is_public: true
+        expires_at: ''
       });
       fetchRequests();
     } catch (error) {
       console.error('Error creating request:', error);
       toast({
         title: "Creation Failed",
-        description: "Failed to create agent request",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteRequest = async (requestId: string) => {
-    try {
-      const { error } = await supabase
-        .from('agent_requests')
-        .delete()
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Request Deleted",
-        description: "Agent request has been deleted successfully"
-      });
-
-      fetchRequests();
-    } catch (error) {
-      console.error('Error deleting request:', error);
-      toast({
-        title: "Delete Failed", 
-        description: "Failed to delete agent request",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleAddComment = async (requestId: string) => {
-    if (!profile || !newComment.trim()) return;
-
-    try {
-      const taggedPlayers = taggedPlayer ? [taggedPlayer] : [];
-      
-      const { error } = await supabase
-        .from('agent_request_comments')
-        .insert({
-          request_id: requestId,
-          profile_id: profile.id,
-          content: newComment,
-          tagged_players: taggedPlayers
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Comment Added",
-        description: "Your comment has been added successfully"
-      });
-
-      setNewComment('');
-      setTaggedPlayer('');
-      fetchCommentsForRequest(requestId);
-    } catch (error) {
-      console.error('Error adding comment:', error);
-      toast({
-        title: "Comment Failed",
-        description: "Failed to add comment",
+        description: "Failed to create request",
         variant: "destructive"
       });
     }
   };
 
   const formatBudget = (min: number, max: number, currency: string) => {
-    const formatter = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    });
+    const formatNumber = (num: number) => {
+      if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+      if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
+      return num.toString();
+    };
     
-    if (min === max) {
-      return formatter.format(min);
-    }
-    return `${formatter.format(min)} - ${formatter.format(max)}`;
+    return `${currency} ${formatNumber(min)} - ${formatNumber(max)}`;
   };
 
   const getDaysUntilExpiry = (expiryDate: string) => {
@@ -379,7 +291,7 @@ const EnhancedAgentExploreHub: React.FC = () => {
     request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     request.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    request.agent.profile.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+    request.agent.full_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -391,16 +303,16 @@ const EnhancedAgentExploreHub: React.FC = () => {
             <div>
               <CardTitle className="text-white text-2xl font-bold flex items-center gap-3">
                 <div className="p-2 bg-bright-pink/20 rounded-lg">
-                  <Users className="w-6 h-6 text-bright-pink" />
+                  <Target className="w-6 h-6 text-bright-pink" />
                 </div>
-                Enhanced Agent Explore Hub
+                Agent Requests Hub
               </CardTitle>
               <p className="text-gray-300 mt-2">
-                Discover and connect with agent requests from around the world
+                Discover player requests from agents worldwide
               </p>
             </div>
             <Button
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => setIsCreateDialogOpen(true)}
               className="bg-bright-pink hover:bg-bright-pink/90 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -410,23 +322,23 @@ const EnhancedAgentExploreHub: React.FC = () => {
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="explore" className="space-y-6">
+      <Tabs defaultValue="requests" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 bg-gray-800 p-1">
-          <TabsTrigger value="explore" className="flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            Explore Requests ({requests.length})
+          <TabsTrigger value="requests" className="flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            All Requests ({requests.length})
           </TabsTrigger>
           <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" />
             Market Analytics
           </TabsTrigger>
-          <TabsTrigger value="saved" className="flex items-center gap-2">
-            <Heart className="w-4 h-4" />
-            Saved & Following
+          <TabsTrigger value="insights" className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Insights
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="explore" className="space-y-6">
+        <TabsContent value="requests" className="space-y-6">
           {/* Search and Filters */}
           <Card className="bg-gray-800 border-gray-700">
             <CardContent className="p-6">
@@ -435,7 +347,7 @@ const EnhancedAgentExploreHub: React.FC = () => {
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Search requests, positions, agents..."
+                      placeholder="Search requests..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 bg-gray-700 border-gray-600 text-white"
@@ -458,27 +370,21 @@ const EnhancedAgentExploreHub: React.FC = () => {
 
               {/* Advanced Filters */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Select value={filters.sport} onValueChange={(value) => setFilters({ ...filters, sport: value })}>
+                <Select value={filters.sport_type} onValueChange={(value) => setFilters({ ...filters, sport_type: value })}>
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Sport" />
+                    <SelectValue placeholder="Sport Type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">All Sports</SelectItem>
                     <SelectItem value="football">Football</SelectItem>
                     <SelectItem value="basketball">Basketball</SelectItem>
+                    <SelectItem value="volleyball">Volleyball</SelectItem>
                     <SelectItem value="tennis">Tennis</SelectItem>
                     <SelectItem value="rugby">Rugby</SelectItem>
                   </SelectContent>
                 </Select>
 
-                <Input
-                  placeholder="Position"
-                  value={filters.position}
-                  onChange={(e) => setFilters({ ...filters, position: e.target.value })}
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-
-                <Select value={filters.transferType} onValueChange={(value) => setFilters({ ...filters, transferType: value })}>
+                <Select value={filters.transfer_type} onValueChange={(value) => setFilters({ ...filters, transfer_type: value })}>
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                     <SelectValue placeholder="Transfer Type" />
                   </SelectTrigger>
@@ -490,15 +396,22 @@ const EnhancedAgentExploreHub: React.FC = () => {
                 </Select>
 
                 <Input
-                  placeholder="Budget Range"
-                  value={filters.budget}
-                  onChange={(e) => setFilters({ ...filters, budget: e.target.value })}
+                  placeholder="Position"
+                  value={filters.position}
+                  onChange={(e) => setFilters({ ...filters, position: e.target.value })}
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
+
+                <Input
+                  placeholder="Location"
+                  value={filters.location}
+                  onChange={(e) => setFilters({ ...filters, location: e.target.value })}
                   className="bg-gray-700 border-gray-600 text-white"
                 />
               </div>
 
               <Button
-                onClick={() => setFilters({ sport: '', position: '', budget: '', transferType: '', dateRange: '' })}
+                onClick={() => setFilters({ sport_type: '', transfer_type: '', budget_range: '', position: '', location: '' })}
                 variant="outline"
                 className="border-gray-600 text-gray-300 hover:bg-gray-700 mt-4"
               >
@@ -507,181 +420,89 @@ const EnhancedAgentExploreHub: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Request List */}
-          <div className="grid gap-4">
+          {/* Requests List */}
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {loading ? (
-              <div className="flex justify-center py-8">
+              <div className="col-span-full flex justify-center py-8">
                 <div className="animate-spin w-8 h-8 border-2 border-bright-pink border-t-transparent rounded-full" />
               </div>
             ) : filteredRequests.length === 0 ? (
-              <Card className="bg-gray-800 border-gray-700">
+              <Card className="col-span-full bg-gray-800 border-gray-700">
                 <CardContent className="p-8 text-center">
-                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-white font-medium mb-2">No Requests Found</h3>
-                  <p className="text-gray-400">Try adjusting your search filters or create a new request</p>
+                  <p className="text-gray-400">Try adjusting your search filters</p>
                 </CardContent>
               </Card>
             ) : (
-              filteredRequests.map((request) => (
-                <Card key={request.id} className="bg-gray-800 border-gray-700 hover:border-bright-pink/50 transition-colors">
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      {/* Header */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-white font-semibold text-lg">{request.title}</h3>
-                            <Badge variant="outline" className="text-xs">
-                              {request.sport_type.toUpperCase()}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {request.transfer_type.toUpperCase()}
-                            </Badge>
+              filteredRequests.map((request) => {
+                const daysUntilExpiry = getDaysUntilExpiry(request.expires_at);
+                return (
+                  <Card key={request.id} className="bg-gray-800 border-gray-700 hover:border-bright-pink/50 transition-colors">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="text-white font-semibold text-lg mb-1 line-clamp-1">{request.title}</h3>
+                            <p className="text-gray-400 text-sm line-clamp-2">{request.description}</p>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <span className="flex items-center gap-1">
-                              <Users className="w-4 h-4" />
-                              {request.agent.profile.full_name}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Globe className="w-4 h-4" />
-                              {request.agent.profile.country}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {new Date(request.created_at).toLocaleDateString()}
-                            </span>
+                          <Badge className={`text-xs ${
+                            daysUntilExpiry <= 7 ? 'bg-red-500' : 
+                            daysUntilExpiry <= 14 ? 'bg-yellow-500' : 'bg-green-500'
+                          } text-white`}>
+                            {daysUntilExpiry}d left
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm">
+                          <Badge variant="outline" className="text-xs">
+                            {request.sport_type.toUpperCase()}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {request.transfer_type.toUpperCase()}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {request.position}
+                          </Badge>
+                        </div>
+
+                        <div className="text-sm text-gray-300">
+                          <div className="flex items-center gap-1 mb-1">
+                            <DollarSign className="w-3 h-3" />
+                            <span>{formatBudget(request.budget_min, request.budget_max, request.currency)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            <span>{request.agent.full_name} • {request.agent.country}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+
+                        <div className="flex gap-2">
                           <Button
                             size="sm"
-                            variant="outline"
+                            className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white"
                             onClick={() => {
                               setSelectedRequest(request);
-                              setIsEditModalOpen(true);
+                              setIsViewDialogOpen(true);
                             }}
-                            className="border-gray-600 text-gray-300 hover:bg-gray-700"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Eye className="w-4 h-4 mr-1" />
+                            View Details
                           </Button>
+                          
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteRequest(request.id)}
-                            className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                            className="border-gray-600 text-gray-300 hover:bg-gray-700"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <MessageSquare className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
-
-                      {/* Content */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-2">
-                          <p className="text-gray-300 mb-3">{request.description}</p>
-                          
-                          <div className="flex items-center gap-4 text-sm">
-                            <span className="flex items-center gap-1 text-bright-pink">
-                              <DollarSign className="w-4 h-4" />
-                              {formatBudget(request.budget_min, request.budget_max, request.currency)}
-                            </span>
-                            <span className="text-gray-400">Position: {request.position}</span>
-                            {getDaysUntilExpiry(request.expires_at) > 0 ? (
-                              <span className="flex items-center gap-1 text-yellow-400">
-                                <Clock className="w-4 h-4" />
-                                {getDaysUntilExpiry(request.expires_at)} days left
-                              </span>
-                            ) : (
-                              <span className="text-red-400">Expired</span>
-                            )}
-                          </div>
-
-                          {request.tagged_players.length > 0 && (
-                            <div className="mt-3">
-                              <div className="flex flex-wrap gap-2">
-                                {request.tagged_players.map((player, index) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {player}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="space-y-3">
-                          <Button className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white">
-                            <MessageSquare className="w-4 h-4 mr-2" />
-                            Contact Agent
-                          </Button>
-                          
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="flex-1 border-gray-600 text-gray-300">
-                              <Heart className="w-4 h-4 mr-1" />
-                              Save
-                            </Button>
-                            <Button variant="outline" size="sm" className="flex-1 border-gray-600 text-gray-300">
-                              <Eye className="w-4 h-4 mr-1" />
-                              View
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Comments Section */}
-                      <div className="border-t border-gray-700 pt-4">
-                        <div className="space-y-3">
-                          {comments[request.id]?.slice(0, 3).map((comment) => (
-                            <div key={comment.id} className="bg-gray-700/50 rounded-lg p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-white">
-                                  {comment.profile.full_name}
-                                </span>
-                                <span className="text-xs text-gray-400">
-                                  {new Date(comment.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-300">{comment.content}</p>
-                              {comment.tagged_players.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                  {comment.tagged_players.map((player, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs">
-                                      @{player}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          
-                          {/* Add Comment */}
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Add a comment..."
-                              value={newComment}
-                              onChange={(e) => setNewComment(e.target.value)}
-                              className="flex-1 bg-gray-700 border-gray-600 text-white"
-                            />
-                            <Input
-                              placeholder="Tag player (optional)"
-                              value={taggedPlayer}
-                              onChange={(e) => setTaggedPlayer(e.target.value)}
-                              className="w-32 bg-gray-700 border-gray-600 text-white"
-                            />
-                            <Button
-                              onClick={() => handleAddComment(request.id)}
-                              className="bg-bright-pink hover:bg-bright-pink/90 text-white"
-                            >
-                              <Send className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                );
+              })
             )}
           </div>
         </TabsContent>
@@ -689,90 +510,101 @@ const EnhancedAgentExploreHub: React.FC = () => {
         <TabsContent value="analytics">
           <Card className="bg-gray-800 border-gray-700">
             <CardContent className="p-8 text-center">
-              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-white font-medium mb-2">Market Analytics</h3>
-              <p className="text-gray-400">Insights and trends in the agent request market</p>
+              <p className="text-gray-400">Detailed analytics and insights about the agent request market</p>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="saved">
+        <TabsContent value="insights">
           <Card className="bg-gray-800 border-gray-700">
             <CardContent className="p-8 text-center">
-              <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-white font-medium mb-2">Saved & Following</h3>
-              <p className="text-gray-400">Your saved requests and followed agents</p>
+              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-white font-medium mb-2">Trends & Insights</h3>
+              <p className="text-gray-400">Actionable insights and trends in player requests</p>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Create Request Modal */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+      {/* Create Request Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="bg-gray-800 border-gray-700 max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-white">Create New Agent Request</DialogTitle>
+            <DialogTitle className="text-white">Create Player Request</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Input
               placeholder="Request Title"
               value={newRequest.title}
-              onChange={(e) => setNewRequest({ ...newRequest, title: e.target.value })}
+              onChange={(e) => setNewRequest(prev => ({ ...prev, title: e.target.value }))}
               className="bg-gray-700 border-gray-600 text-white"
             />
             
             <Textarea
-              placeholder="Request Description"
+              placeholder="Detailed Description"
               value={newRequest.description}
-              onChange={(e) => setNewRequest({ ...newRequest, description: e.target.value })}
-              className="bg-gray-700 border-gray-600 text-white"
-              rows={4}
+              onChange={(e) => setNewRequest(prev => ({ ...prev, description: e.target.value }))}
+              className="bg-gray-700 border-gray-600 text-white min-h-[100px]"
             />
 
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                placeholder="Position"
-                value={newRequest.position}
-                onChange={(e) => setNewRequest({ ...newRequest, position: e.target.value })}
-                className="bg-gray-700 border-gray-600 text-white"
-              />
-              
               <Select 
-                value={newRequest.sport_type}
-                onValueChange={(value) => setNewRequest({ ...newRequest, sport_type: value })}
+                value={newRequest.sport_type} 
+                onValueChange={(value) => setNewRequest(prev => ({ ...prev, sport_type: value }))}
               >
                 <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                  <SelectValue />
+                  <SelectValue placeholder="Sport Type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="football">Football</SelectItem>
                   <SelectItem value="basketball">Basketball</SelectItem>
+                  <SelectItem value="volleyball">Volleyball</SelectItem>
                   <SelectItem value="tennis">Tennis</SelectItem>
                   <SelectItem value="rugby">Rugby</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select 
+                value={newRequest.transfer_type} 
+                onValueChange={(value) => setNewRequest(prev => ({ ...prev, transfer_type: value }))}
+              >
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                  <SelectValue placeholder="Transfer Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="permanent">Permanent</SelectItem>
+                  <SelectItem value="loan">Loan</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            <Input
+              placeholder="Position Required"
+              value={newRequest.position}
+              onChange={(e) => setNewRequest(prev => ({ ...prev, position: e.target.value }))}
+              className="bg-gray-700 border-gray-600 text-white"
+            />
 
             <div className="grid grid-cols-3 gap-4">
               <Input
                 type="number"
                 placeholder="Min Budget"
                 value={newRequest.budget_min}
-                onChange={(e) => setNewRequest({ ...newRequest, budget_min: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setNewRequest(prev => ({ ...prev, budget_min: e.target.value }))}
                 className="bg-gray-700 border-gray-600 text-white"
               />
-              
               <Input
                 type="number"
                 placeholder="Max Budget"
                 value={newRequest.budget_max}
-                onChange={(e) => setNewRequest({ ...newRequest, budget_max: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setNewRequest(prev => ({ ...prev, budget_max: e.target.value }))}
                 className="bg-gray-700 border-gray-600 text-white"
               />
-              
               <Select 
-                value={newRequest.currency}
-                onValueChange={(value) => setNewRequest({ ...newRequest, currency: value })}
+                value={newRequest.currency} 
+                onValueChange={(value) => setNewRequest(prev => ({ ...prev, currency: value }))}
               >
                 <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                   <SelectValue />
@@ -785,28 +617,13 @@ const EnhancedAgentExploreHub: React.FC = () => {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Select 
-                value={newRequest.transfer_type}
-                onValueChange={(value) => setNewRequest({ ...newRequest, transfer_type: value })}
-              >
-                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="permanent">Permanent</SelectItem>
-                  <SelectItem value="loan">Loan</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Input
-                type="date"
-                placeholder="Expires At"
-                value={newRequest.expires_at}
-                onChange={(e) => setNewRequest({ ...newRequest, expires_at: e.target.value })}
-                className="bg-gray-700 border-gray-600 text-white"
-              />
-            </div>
+            <Input
+              type="date"
+              placeholder="Expires At"
+              value={newRequest.expires_at}
+              onChange={(e) => setNewRequest(prev => ({ ...prev, expires_at: e.target.value }))}
+              className="bg-gray-700 border-gray-600 text-white"
+            />
 
             <div className="flex gap-2">
               <Button
@@ -816,7 +633,7 @@ const EnhancedAgentExploreHub: React.FC = () => {
                 Create Request
               </Button>
               <Button
-                onClick={() => setIsCreateModalOpen(false)}
+                onClick={() => setIsCreateDialogOpen(false)}
                 variant="outline"
                 className="border-gray-600 text-gray-300 hover:bg-gray-700"
               >
@@ -826,6 +643,44 @@ const EnhancedAgentExploreHub: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* View Request Dialog */}
+      {selectedRequest && (
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="bg-gray-800 border-gray-700 max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-white">{selectedRequest.title}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-white font-medium mb-2">Description</h3>
+                <p className="text-gray-300">{selectedRequest.description}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-white font-medium mb-2">Request Details</h3>
+                  <div className="space-y-2 text-sm text-gray-300">
+                    <div>Sport: {selectedRequest.sport_type}</div>
+                    <div>Transfer Type: {selectedRequest.transfer_type}</div>
+                    <div>Position: {selectedRequest.position}</div>
+                    <div>Budget: {formatBudget(selectedRequest.budget_min, selectedRequest.budget_max, selectedRequest.currency)}</div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-white font-medium mb-2">Agent Information</h3>
+                  <div className="space-y-2 text-sm text-gray-300">
+                    <div>Name: {selectedRequest.agent.full_name}</div>
+                    <div>Country: {selectedRequest.agent.country}</div>
+                    <div>Expires: {new Date(selectedRequest.expires_at).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
