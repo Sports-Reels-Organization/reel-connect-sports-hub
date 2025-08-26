@@ -38,6 +38,9 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         );
     }
 
+    // Filter out any languages with empty codes
+    const validLanguages = availableLanguages.filter(lang => lang.code && lang.code.trim() !== '');
+
     if (variant === 'select') {
         return (
             <Select value={currentLanguage} onValueChange={handleLanguageChange}>
@@ -52,7 +55,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                     </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a1a1a] border-gray-600">
-                    {availableLanguages.map((language) => (
+                    {validLanguages.map((language) => (
                         <SelectItem
                             key={language.code}
                             value={language.code}
@@ -88,7 +91,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                 </PopoverTrigger>
                 <PopoverContent className="w-48 bg-[#1a1a1a] border-gray-600 p-2">
                     <div className="space-y-1">
-                        {availableLanguages.map((language) => (
+                        {validLanguages.map((language) => (
                             <Button
                                 key={language.code}
                                 variant="ghost"
@@ -130,7 +133,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                 </SelectValue>
             </SelectTrigger>
             <SelectContent className="bg-[#1a1a1a] border-gray-600">
-                {availableLanguages.map((language) => (
+                {validLanguages.map((language) => (
                     <SelectItem
                         key={language.code}
                         value={language.code}

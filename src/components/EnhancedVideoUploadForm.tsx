@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -400,7 +399,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                 <div>
                   <Label htmlFor="home_away" className="text-white">Home/Away</Label>
                   <Select 
-                    value={uploadData.home_or_away} 
+                    value={uploadData.home_or_away || 'home'} 
                     onValueChange={(value: 'home' | 'away') => setUploadData(prev => ({ ...prev, home_or_away: value }))}
                   >
                     <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
