@@ -161,25 +161,18 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       const videoUrl = await uploadFile(selectedFile);
       setUploadProgress(60);
 
-      // Map video_type to valid enum values
-      const validVideoTypes = ['match', 'training', 'highlight', 'interview'];
-      const videoType = validVideoTypes.includes(uploadData.video_type) ? uploadData.video_type : 'match';
-
-      // Insert video record into the videos table
+      // Insert video record into the match_videos table
       const { error } = await supabase
-        .from('videos')
+        .from('match_videos')
         .insert({
           team_id: teamId,
           title: uploadData.title,
-          description: uploadData.description,
           video_url: videoUrl,
-          video_type: videoType as any,
           opposing_team: uploadData.opposing_team || null,
           match_date: uploadData.match_date || null,
           league: uploadData.league || null,
           home_or_away: uploadData.home_or_away || null,
-          score_display: uploadData.final_score || null,
-          tagged_players: uploadData.tagged_players,
+          final_score: uploadData.final_score || null,
           ai_analysis_status: 'pending',
           duration: 0,
           file_size: selectedFile.size
@@ -354,17 +347,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div>
-              <Label htmlFor="description" className="text-white">Description</Label>
-              <Textarea
-                id="description"
-                value={uploadData.description}
-                onChange={(e) => setUploadData(prev => ({ ...prev, description: e.target.value }))}
-                className="bg-gray-700 border-gray-600 text-white min-h-[100px]"
-                placeholder="Enter video description..."
-              />
             </div>
           </CardContent>
         </Card>
