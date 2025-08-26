@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +12,7 @@ export interface Message {
   contract_file_url?: string;
   created_at: string;
   status?: 'sent' | 'delivered' | 'read';
+  message_type?: 'inquiry' | 'response' | 'contract' | 'general' | 'negotiation';
   sender_profile?: {
     full_name: string;
     user_type: string;
@@ -167,7 +169,8 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
     content: string, 
     receiverId: string, 
     pitchId?: string,
-    contractFileUrl?: string
+    contractFileUrl?: string,
+    messageType: 'inquiry' | 'response' | 'contract' | 'general' | 'negotiation' = 'general'
   ) => {
     try {
       setSending(true);
@@ -218,7 +221,8 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
           sender_id: currentUserId,
           receiver_id: receiverId,
           pitch_id: pitchId,
-          // contract_file_url: contractFileUrl, // Temporarily commented out - add back after database migration
+          message_type: messageType,
+          contract_file_url: contractFileUrl,
         })
         .select(`
           *,
@@ -391,4 +395,4 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
     markAsRead,
     getMessageStats,
   };
-} 
+}

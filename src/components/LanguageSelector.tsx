@@ -38,8 +38,18 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         );
     }
 
-    // Filter out any languages with empty codes
-    const validLanguages = availableLanguages.filter(lang => lang.code && lang.code.trim() !== '');
+    // Filter out any languages with empty codes and ensure we have valid options
+    const validLanguages = availableLanguages.filter(lang => 
+        lang.code && 
+        lang.code.trim() !== '' && 
+        lang.name && 
+        lang.name.trim() !== ''
+    );
+
+    // If no valid languages, don't render anything
+    if (validLanguages.length === 0) {
+        return null;
+    }
 
     if (variant === 'select') {
         return (
