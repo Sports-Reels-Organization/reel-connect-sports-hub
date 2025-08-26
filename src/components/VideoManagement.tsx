@@ -1,68 +1,98 @@
-
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Video,
+  Plus,
+  Eye,
+  Download,
+  Search,
+  Filter,
+  Calendar,
+  Clock,
+  Users,
+  Brain,
+  FileText,
+  Trash2,
+  MoreVertical
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import EnhancedVideoUploadForm from './EnhancedVideoUploadForm';
 import VideoAnalysisResults from './VideoAnalysisResults';
-import { 
-  Play, 
-  Upload, 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  Edit, 
-  Trash2, 
-  Eye,
-  Clock,
-  FileVideo,
-  Loader2,
-  CheckCircle,
-  AlertCircle
-} from 'lucide-react';
 
 interface Video {
   id: string;
   title: string;
-  description: string;
   video_url: string;
-  thumbnail_url?: string;
-  duration: number;
-  file_size: number;
+  thumbnail_url: string;
   video_type: string;
-  upload_status: string;
   ai_analysis_status: string;
-  compression_status: string;
   created_at: string;
-  match_date?: string;
+  duration: number;
   opposing_team?: string;
-  final_score: string;
-  tags?: string[];
+  final_score?: string;
+  league?: string;
 }
 
-interface VideoManagementProps {
-  teamId: string;
-}
-
-const VideoManagement: React.FC<VideoManagementProps> = ({ teamId }) => {
+const VideoManagement: React.FC = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [filteredVideos, setFilteredVideos] = useState<Video[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
-  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchVideos();
+    if (profile?.user_type === 'team') {
+      loadTeamData();
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (teamId) {
+      loadVideos();
+    }
   }, [teamId]);
 
-  const fetchVideos = async () => {
+  useEffect(() => {
+    applyFilters();
+  }, [videos, searchTerm, filterType, filterStatus]);
+
+  const loadTeamData = async () => {
+    try {
+      const { data: teamData, error } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('profile_id', profile?.id)
+        .single();
+
+      if (error) throw error;
+      setTeamId(teamData.id);
+    } catch (error) {
+      console.error('Error loading team data:', error);
+      toast({
+        title: "Loading Error",
+        description: "Failed to load team information",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadVideos = async () => {
+    if (!teamId) return;
+
+    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('videos')
@@ -71,27 +101,62 @@ const VideoManagement: React.FC<VideoManagementProps> = ({ teamId }) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-
-      const processedVideos = (data || []).map(video => ({
-        ...video,
-        final_score: video.final_score?.toString() || '0'
+      
+      const transformedVideos = (data || []).map(video => ({
+        id: video.id,
+        title: video.title,
+        video_url: video.video_url,
+        thumbnail_url: video.thumbnail_url || '',
+        video_type: video.video_type,
+        ai_analysis_status: video.ai_analysis_status,
+        created_at: video.created_at,
+        duration: video.duration || 0,
+        opposing_team: video.opposing_team || undefined,
+        final_score: video.final_score_home && video.final_score_away 
+          ? `${video.final_score_home}-${video.final_score_away}`
+          : undefined,
+        league: undefined,
       }));
-
-      setVideos(processedVideos);
+      
+      setVideos(transformedVideos);
     } catch (error) {
-      console.error('Error fetching videos:', error);
+      console.error('Error loading videos:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch videos",
+        title: "Loading Error",
+        description: "Failed to load videos",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  const applyFilters = () => {
+    let filtered = videos;
+
+    if (searchTerm) {
+      filtered = filtered.filter(video =>
+        video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        video.opposing_team?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        video.league?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (filterType !== 'all') {
+      filtered = filtered.filter(video => video.video_type === filterType);
+    }
+
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(video => video.ai_analysis_status === filterStatus);
+    }
+
+    setFilteredVideos(filtered);
+  };
+
   const deleteVideo = async (videoId: string) => {
-    if (!confirm('Are you sure you want to delete this video?')) return;
+    if (!confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -101,296 +166,331 @@ const VideoManagement: React.FC<VideoManagementProps> = ({ teamId }) => {
 
       if (error) throw error;
 
-      setVideos(prev => prev.filter(v => v.id !== videoId));
-      
       toast({
-        title: "Success",
-        description: "Video deleted successfully",
+        title: "Video Deleted",
+        description: "Video has been successfully deleted",
       });
+
+      loadVideos();
     } catch (error) {
       console.error('Error deleting video:', error);
       toast({
-        title: "Error",
+        title: "Delete Error",
         description: "Failed to delete video",
         variant: "destructive"
       });
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const formatDuration = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'processing': return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
-      case 'pending': return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'failed': return <AlertCircle className="w-4 h-4 text-red-500" />;
-      default: return <FileVideo className="w-4 h-4 text-gray-500" />;
+      case 'completed':
+        return <Badge className="bg-green-500 text-white">Analyzed</Badge>;
+      case 'analyzing':
+        return <Badge className="bg-yellow-500 text-white">Analyzing</Badge>;
+      case 'failed':
+        return <Badge className="bg-red-500 text-white">Failed</Badge>;
+      default:
+        return <Badge className="bg-gray-500 text-white">Pending</Badge>;
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const filteredVideos = videos.filter(video =>
-    video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    video.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    video.opposing_team?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (loading) {
+  const getTypeBadge = (type: string) => {
+    const colors = {
+      match: 'bg-blue-500',
+      training: 'bg-green-500',
+      interview: 'bg-purple-500',
+      highlight: 'bg-orange-500'
+    };
+    
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold"></div>
-      </div>
+      <Badge className={`${colors[type as keyof typeof colors]} text-white`}>
+        {type.charAt(0).toUpperCase() + type.slice(1)}
+      </Badge>
+    );
+  };
+
+  if (profile?.user_type !== 'team') {
+    return (
+      <Card className="bg-gray-800 border-gray-700">
+        <CardContent className="p-6 text-center">
+          <Video className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-white font-medium mb-2">Team Access Only</h3>
+          <p className="text-gray-400">This feature is only available for team accounts.</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <Card className="border-gray-700">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-white font-polysans">
-              Video Management ({videos.length})
-            </CardTitle>
-            <Button
-              onClick={() => setShowUploadForm(!showUploadForm)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {showUploadForm ? 'Hide Upload' : 'Upload Videos'}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Video Management</h1>
+          <p className="text-gray-400">Upload, analyze, and manage your team's video content</p>
+        </div>
+
+        <Dialog open={showUploadForm} onOpenChange={setShowUploadForm}>
+          <DialogTrigger asChild>
+            <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
+              <Plus className="w-4 h-4 mr-2" />
+              Upload Video
             </Button>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Upload Form */}
-      {showUploadForm && (
-        <EnhancedVideoUploadForm
-          teamId={teamId}
-          onUploadComplete={() => {
-            fetchVideos();
-            setShowUploadForm(false);
-          }}
-        />
-      )}
-
-      {/* Search and Filters */}
-      <Card className="border-gray-700">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search videos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-800 border-gray-600 text-white"
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Upload New Video</DialogTitle>
+            </DialogHeader>
+            {teamId && (
+              <EnhancedVideoUploadForm
+                teamId={teamId}
+                onUploadComplete={() => {
+                  setShowUploadForm(false);
+                  loadVideos();
+                }}
               />
-            </div>
-            <Button variant="outline" size="sm" className="border-gray-600 text-gray-300">
-              <Filter className="w-4 h-4 mr-2" />
-              Filters
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
 
-      {/* Videos Grid */}
-      <Card className="border-gray-700">
-        <CardContent className="p-6">
-          {filteredVideos.length === 0 ? (
-            <div className="text-center py-12">
-              <FileVideo className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-              <h3 className="text-xl font-polysans font-semibold text-white mb-2">
-                {searchTerm ? 'No Videos Found' : 'No Videos Uploaded'}
-              </h3>
-              <p className="text-gray-400 font-poppins mb-4">
-                {searchTerm 
-                  ? 'Try adjusting your search terms'
-                  : 'Start by uploading your first video'
-                }
-              </p>
-              {!searchTerm && (
-                <Button
-                  onClick={() => setShowUploadForm(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Video
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredVideos.map((video) => (
-                <Card key={video.id} className="border-gray-600 hover:border-rosegold/50 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      {/* Video Thumbnail */}
-                      <div className="aspect-video bg-gray-800 rounded-lg overflow-hidden relative group">
-                        {video.thumbnail_url ? (
-                          <img
-                            src={video.thumbnail_url}
-                            alt={video.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <FileVideo className="w-12 h-12 text-gray-400" />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Button
-                            size="sm"
-                            className="bg-white/20 hover:bg-white/30 backdrop-blur-sm"
-                            onClick={() => window.open(video.video_url, '_blank')}
-                          >
-                            <Play className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        
-                        {/* Duration Badge */}
-                        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-                          {formatDuration(video.duration)}
-                        </div>
-                      </div>
-
-                      {/* Video Info */}
-                      <div>
-                        <h3 className="font-polysans font-bold text-white text-sm truncate">
-                          {video.title}
-                        </h3>
-                        {video.description && (
-                          <p className="text-gray-400 text-xs mt-1 line-clamp-2">
-                            {video.description}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Video Details */}
-                      <div className="space-y-2 text-xs text-gray-400">
-                        <div className="flex items-center justify-between">
-                          <span>Type: {video.video_type}</span>
-                          <span>{formatFileSize(video.file_size)}</span>
-                        </div>
-                        
-                        {video.opposing_team && (
-                          <div>vs {video.opposing_team}</div>
-                        )}
-                        
-                        {video.match_date && (
-                          <div>{new Date(video.match_date).toLocaleDateString()}</div>
-                        )}
-                      </div>
-
-                      {/* Status Indicators */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          {getStatusIcon(video.upload_status)}
-                          <span className="text-xs text-gray-400">Upload</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {getStatusIcon(video.ai_analysis_status)}
-                          <span className="text-xs text-gray-400">Analysis</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {getStatusIcon(video.compression_status)}
-                          <span className="text-xs text-gray-400">Compress</span>
-                        </div>
-                      </div>
-
-                      {/* Tags */}
-                      {video.tags && video.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {video.tags.slice(0, 3).map((tag, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {video.tags.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{video.tags.length - 3}
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
-                          onClick={() => {
-                            setSelectedVideo(video);
-                            setShowAnalysis(true);
-                          }}
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          Analysis
-                        </Button>
-                        
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-red-600 text-red-400 hover:bg-red-900/20"
-                          onClick={() => deleteVideo(video.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Analysis Modal */}
-      {showAnalysis && selectedVideo && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-polysans font-bold text-white">
-                  Video Analysis - {selectedVideo.title}
-                </h2>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setShowAnalysis(false);
-                    setSelectedVideo(null);
-                  }}
-                >
-                  ×
-                </Button>
+      <Card className="bg-gray-800 border-gray-700">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search videos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-700 border-gray-600 text-white"
+                />
               </div>
-              
-              <VideoAnalysisResults videoId={selectedVideo.id} />
             </div>
+
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[150px] bg-gray-700 border-gray-600 text-white">
+                <SelectValue placeholder="Video Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="match">Match</SelectItem>
+                <SelectItem value="training">Training</SelectItem>
+                <SelectItem value="interview">Interview</SelectItem>
+                <SelectItem value="highlight">Highlight</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[150px] bg-gray-700 border-gray-600 text-white">
+                <SelectValue placeholder="Analysis Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="completed">Analyzed</SelectItem>
+                <SelectItem value="analyzing">Analyzing</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, index) => (
+            <Card key={index} className="bg-gray-800 border-gray-700 animate-pulse">
+              <div className="aspect-video bg-gray-700 rounded-t-lg" />
+              <CardContent className="p-4">
+                <div className="h-4 bg-gray-700 rounded mb-2" />
+                <div className="h-3 bg-gray-700 rounded w-2/3" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filteredVideos.length === 0 ? (
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-12 text-center">
+            <Video className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">
+              {videos.length === 0 ? 'No Videos Yet' : 'No Matching Videos'}
+            </h3>
+            <p className="text-gray-400 mb-6">
+              {videos.length === 0 
+                ? 'Upload your first video to get started with AI analysis'
+                : 'Try adjusting your filters to see more videos'
+              }
+            </p>
+            {videos.length === 0 && (
+              <Button
+                onClick={() => setShowUploadForm(true)}
+                className="bg-bright-pink hover:bg-bright-pink/90 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Upload Your First Video
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredVideos.map((video) => (
+            <Card key={video.id} className="bg-gray-800 border-gray-700 overflow-hidden hover:border-bright-pink/50 transition-colors">
+              <div className="relative aspect-video bg-gray-900">
+                {video.thumbnail_url ? (
+                  <img
+                    src={video.thumbnail_url}
+                    alt={video.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Video className="w-12 h-12 text-gray-600" />
+                  </div>
+                )}
+                
+                {video.duration > 0 && (
+                  <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-white text-xs">
+                    {formatDuration(video.duration)}
+                  </div>
+                )}
+                
+                <div className="absolute top-2 left-2">
+                  {getStatusBadge(video.ai_analysis_status)}
+                </div>
+              </div>
+
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-white font-medium line-clamp-2 flex-1">
+                    {video.title}
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteVideo(video.id)}
+                    className="text-gray-400 hover:text-red-500"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2 mb-3">
+                  {getTypeBadge(video.video_type)}
+                </div>
+
+                {video.video_type === 'match' && video.opposing_team && (
+                  <div className="text-sm text-gray-400 mb-2">
+                    vs {video.opposing_team}
+                    {video.final_score && (
+                      <span className="ml-2 text-white">({video.final_score})</span>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center text-xs text-gray-500 mb-4">
+                  <Calendar className="w-3 h-3 mr-1" />
+                  {new Date(video.created_at).toLocaleDateString()}
+                </div>
+
+                <div className="flex gap-2">
+                  {video.ai_analysis_status === 'completed' ? (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          size="sm"
+                          className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white"
+                        >
+                          <Brain className="w-4 h-4 mr-1" />
+                          View Analysis
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>{video.title} - AI Analysis</DialogTitle>
+                        </DialogHeader>
+                        {teamId && (
+                          <VideoAnalysisResults
+                            videoId={video.id}
+                            teamId={teamId}
+                          />
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                  ) : (
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 border-gray-600 text-gray-400"
+                      disabled
+                    >
+                      {video.ai_analysis_status === 'analyzing' ? (
+                        <>
+                          <div className="animate-spin w-3 h-3 mr-1 border border-current border-t-transparent rounded-full" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        'Analysis Pending'
+                      )}
+                    </Button>
+                  )}
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-gray-600 text-gray-400 hover:text-white"
+                    onClick={() => window.open(video.video_url, '_blank')}
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
+
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white">Video Statistics</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-bright-pink">
+                {videos.length}
+              </div>
+              <div className="text-gray-400 text-sm">Total Videos</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-500">
+                {videos.filter(v => v.ai_analysis_status === 'completed').length}
+              </div>
+              <div className="text-gray-400 text-sm">Analyzed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-500">
+                {videos.filter(v => v.ai_analysis_status === 'analyzing').length}
+              </div>
+              <div className="text-gray-400 text-sm">Processing</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-500">
+                {videos.filter(v => v.video_type === 'match').length}
+              </div>
+              <div className="text-gray-400 text-sm">Match Videos</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -167,65 +167,6 @@ export type Database = {
           },
         ]
       }
-      agent_shortlist: {
-        Row: {
-          agent_id: string
-          created_at: string
-          id: string
-          notes: string | null
-          pitch_id: string
-          player_id: string
-          priority_level: string | null
-        }
-        Insert: {
-          agent_id: string
-          created_at?: string
-          id?: string
-          notes?: string | null
-          pitch_id: string
-          player_id: string
-          priority_level?: string | null
-        }
-        Update: {
-          agent_id?: string
-          created_at?: string
-          id?: string
-          notes?: string | null
-          pitch_id?: string
-          player_id?: string
-          priority_level?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agent_shortlist_pitch_id_fkey"
-            columns: ["pitch_id"]
-            isOneToOne: false
-            referencedRelation: "active_pitches_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agent_shortlist_pitch_id_fkey"
-            columns: ["pitch_id"]
-            isOneToOne: false
-            referencedRelation: "pitch_statistics_view"
-            referencedColumns: ["pitch_id"]
-          },
-          {
-            foreignKeyName: "agent_shortlist_pitch_id_fkey"
-            columns: ["pitch_id"]
-            isOneToOne: false
-            referencedRelation: "transfer_pitches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agent_shortlist_player_id_fkey"
-            columns: ["player_id"]
-            isOneToOne: false
-            referencedRelation: "players"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       agents: {
         Row: {
           agency_name: string
@@ -3215,10 +3156,6 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
-      }
-      increment_pitch_view_count: {
-        Args: { pitch_uuid: string }
-        Returns: undefined
       }
       is_admin: {
         Args: Record<PropertyKey, never>
