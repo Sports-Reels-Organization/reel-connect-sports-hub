@@ -34,7 +34,7 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
     budget_min: '',
     budget_max: '',
     currency: 'USD',
-    passport_requirement: '',
+    passport_requirement: 'all',
     league_level: '',
     country: '',
     category: 'elite'
@@ -83,7 +83,7 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
         budget_min: formData.budget_min ? parseFloat(formData.budget_min) : null,
         budget_max: formData.budget_max ? parseFloat(formData.budget_max) : null,
         currency: formData.currency,
-        passport_requirement: formData.passport_requirement || null,
+        passport_requirement: formData.passport_requirement === 'all' ? null : formData.passport_requirement,
         league_level: formData.league_level || null,
         country: formData.country || null,
         category: formData.category
@@ -110,7 +110,7 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
         budget_min: '',
         budget_max: '',
         currency: 'USD',
-        passport_requirement: '',
+        passport_requirement: 'all',
         league_level: '',
         country: '',
         category: 'elite'
@@ -297,7 +297,7 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
                   <SelectValue placeholder="Select passport type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Passports</SelectItem>
+                  <SelectItem value="all">All Passports</SelectItem>
                   <SelectItem value="EU">EU Passport</SelectItem>
                   <SelectItem value="African">African Passport</SelectItem>
                   <SelectItem value="Asian">Asian Passport</SelectItem>

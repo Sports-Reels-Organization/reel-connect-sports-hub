@@ -58,10 +58,10 @@ const EnhancedVideoManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
-    type: '',
+    type: 'all',
     result: '',
     rating: '',
-    analysisStatus: '',
+    analysisStatus: 'all',
     dateFrom: '',
     dateTo: ''
   });
@@ -96,10 +96,10 @@ const EnhancedVideoManagement: React.FC = () => {
         .eq('team_id', teamData.id);
 
       // Apply filters conditionally
-      if (filters.type) {
+      if (filters.type && filters.type !== 'all') {
         query = query.eq('video_type', filters.type);
       }
-      if (filters.analysisStatus) {
+      if (filters.analysisStatus && filters.analysisStatus !== 'all') {
         query = query.eq('ai_analysis_status', filters.analysisStatus);
       }
       if (filters.dateFrom) {
@@ -343,7 +343,7 @@ const EnhancedVideoManagement: React.FC = () => {
                     <SelectValue placeholder="Video Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Types</SelectItem>
+                    <SelectItem value="all">All Types</SelectItem>
                     <SelectItem value="match">Match</SelectItem>
                     <SelectItem value="training">Training</SelectItem>
                     <SelectItem value="highlight">Highlight</SelectItem>
@@ -356,7 +356,7 @@ const EnhancedVideoManagement: React.FC = () => {
                     <SelectValue placeholder="Analysis Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Status</SelectItem>
+                    <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="processing">Processing</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
@@ -383,7 +383,7 @@ const EnhancedVideoManagement: React.FC = () => {
               </div>
 
               <Button
-                onClick={() => setFilters({ type: '', result: '', rating: '', analysisStatus: '', dateFrom: '', dateTo: '' })}
+                onClick={() => setFilters({ type: 'all', result: '', rating: '', analysisStatus: 'all', dateFrom: '', dateTo: '' })}
                 variant="outline"
                 className="border-gray-600 text-gray-300 hover:bg-gray-700 mt-4"
               >

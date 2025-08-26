@@ -27,8 +27,8 @@ export const LeagueManagement: React.FC = () => {
   const [filteredLeagues, setFilteredLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [countryFilter, setCountryFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  const [countryFilter, setCountryFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
 
   useEffect(() => {
     fetchLeagues();
@@ -70,11 +70,11 @@ export const LeagueManagement: React.FC = () => {
       );
     }
 
-    if (countryFilter) {
+    if (countryFilter && countryFilter !== 'all') {
       filtered = filtered.filter(league => league.country === countryFilter);
     }
 
-    if (typeFilter) {
+    if (typeFilter && typeFilter !== 'all') {
       filtered = filtered.filter(league => league.type === typeFilter);
     }
 
@@ -160,7 +160,7 @@ export const LeagueManagement: React.FC = () => {
                   <SelectValue placeholder="All Countries" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Countries</SelectItem>
+                  <SelectItem value="all">All Countries</SelectItem>
                   {getUniqueCountries().map(country => (
                     <SelectItem key={country} value={country}>{country}</SelectItem>
                   ))}
@@ -174,7 +174,7 @@ export const LeagueManagement: React.FC = () => {
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="league">League</SelectItem>
                   <SelectItem value="cup">Cup</SelectItem>
                   <SelectItem value="tournament">Tournament</SelectItem>

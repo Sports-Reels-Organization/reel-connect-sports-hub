@@ -163,8 +163,7 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
               {selectedVideoId ? (
                 <VideoAnalysisResults
                   videoId={selectedVideoId}
-                  videoType="match"
-                  teamId={teamId || ''}
+                  teamId={teamId}
                 />
               ) : (
                 <div className="text-center p-8">

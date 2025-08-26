@@ -71,10 +71,10 @@ const EnhancedAgentExploreHub: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
-    position: '',
-    sport: '',
+    position: 'all',
+    sport: 'all',
     budget: '',
-    transferType: '',
+    transferType: 'all',
     location: ''
   });
   
@@ -112,19 +112,15 @@ const EnhancedAgentExploreHub: React.FC = () => {
         `)
         .eq('is_public', true);
 
-      if (filters.sport && filters.sport !== 'football' && filters.sport !== 'basketball' && filters.sport !== 'volleyball' && filters.sport !== 'tennis' && filters.sport !== 'rugby') {
-        query = query.eq('sport_type', 'football' as any);
-      } else if (filters.sport) {
+      if (filters.sport && filters.sport !== 'all') {
         query = query.eq('sport_type', filters.sport as any);
       }
 
-      if (filters.transferType && filters.transferType !== 'loan' && filters.transferType !== 'permanent') {
-        query = query.eq('transfer_type', 'permanent' as any);
-      } else if (filters.transferType) {
+      if (filters.transferType && filters.transferType !== 'all') {
         query = query.eq('transfer_type', filters.transferType as any);
       }
 
-      if (filters.position) {
+      if (filters.position && filters.position !== 'all') {
         query = query.ilike('position', `%${filters.position}%`);
       }
 
@@ -340,7 +336,7 @@ const EnhancedAgentExploreHub: React.FC = () => {
                 <SelectValue placeholder="Position" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Positions</SelectItem>
+                <SelectItem value="all">All Positions</SelectItem>
                 <SelectItem value="goalkeeper">Goalkeeper</SelectItem>
                 <SelectItem value="defender">Defender</SelectItem>
                 <SelectItem value="midfielder">Midfielder</SelectItem>
@@ -353,7 +349,7 @@ const EnhancedAgentExploreHub: React.FC = () => {
                 <SelectValue placeholder="Sport" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Sports</SelectItem>
+                <SelectItem value="all">All Sports</SelectItem>
                 <SelectItem value="football">Football</SelectItem>
                 <SelectItem value="basketball">Basketball</SelectItem>
                 <SelectItem value="volleyball">Volleyball</SelectItem>
@@ -367,14 +363,14 @@ const EnhancedAgentExploreHub: React.FC = () => {
                 <SelectValue placeholder="Transfer Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="permanent">Permanent</SelectItem>
                 <SelectItem value="loan">Loan</SelectItem>
               </SelectContent>
             </Select>
 
             <Button
-              onClick={() => setFilters({ position: '', sport: '', budget: '', transferType: '', location: '' })}
+              onClick={() => setFilters({ position: 'all', sport: 'all', budget: '', transferType: 'all', location: '' })}
               variant="outline"
               className="border-gray-600 text-gray-300 hover:bg-gray-700"
             >
