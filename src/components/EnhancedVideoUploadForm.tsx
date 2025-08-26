@@ -161,7 +161,11 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       const videoUrl = await uploadFile(selectedFile);
       setUploadProgress(60);
 
-      // Insert video record
+      // Map video_type to valid enum values
+      const validVideoTypes = ['match', 'training', 'highlight', 'interview'];
+      const videoType = validVideoTypes.includes(uploadData.video_type) ? uploadData.video_type : 'match';
+
+      // Insert video record into the videos table
       const { error } = await supabase
         .from('videos')
         .insert({
@@ -169,7 +173,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           title: uploadData.title,
           description: uploadData.description,
           video_url: videoUrl,
-          video_type: uploadData.video_type as any,
+          video_type: videoType as any,
           opposing_team: uploadData.opposing_team || null,
           match_date: uploadData.match_date || null,
           league: uploadData.league || null,
