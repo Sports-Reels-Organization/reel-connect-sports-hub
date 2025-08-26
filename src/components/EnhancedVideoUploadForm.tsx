@@ -38,7 +38,15 @@ interface VideoUploadData {
   tagged_players: string[];
 }
 
-const EnhancedVideoUploadForm: React.FC = () => {
+interface EnhancedVideoUploadFormProps {
+  teamId?: string;
+  onUploadComplete?: () => void;
+}
+
+const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({ 
+  teamId: propTeamId, 
+  onUploadComplete 
+}) => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -134,14 +142,18 @@ const EnhancedVideoUploadForm: React.FC = () => {
       setUploadProgress(0);
 
       // Get team ID
-      const { data: teamData } = await supabase
-        .from('teams')
-        .select('id')
-        .eq('profile_id', profile.id)
-        .single();
+      let teamId = propTeamId;
+      if (!teamId) {
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('profile_id', profile.id)
+          .single();
 
-      if (!teamData) {
-        throw new Error('Team not found');
+        if (!teamData) {
+          throw new Error('Team not found');
+        }
+        teamId = teamData.id;
       }
 
       // Upload file
@@ -153,11 +165,11 @@ const EnhancedVideoUploadForm: React.FC = () => {
       const { error } = await supabase
         .from('videos')
         .insert({
-          team_id: teamData.id,
+          team_id: teamId,
           title: uploadData.title,
           description: uploadData.description,
           video_url: videoUrl,
-          video_type: uploadData.video_type,
+          video_type: uploadData.video_type as any,
           opposing_team: uploadData.opposing_team || null,
           match_date: uploadData.match_date || null,
           league: uploadData.league || null,
@@ -192,6 +204,10 @@ const EnhancedVideoUploadForm: React.FC = () => {
         tagged_players: []
       });
       setUploadProgress(0);
+
+      if (onUploadComplete) {
+        onUploadComplete();
+      }
 
     } catch (error) {
       console.error('Upload error:', error);

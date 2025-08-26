@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,14 +41,13 @@ interface VideoData {
   video_type: string;
   duration?: number;
   file_size?: number;
-  match_result?: string;
-  performance_rating?: number;
   tags: string[];
   ai_analysis_status: string;
   created_at: string;
   opposing_team?: string;
   match_date?: string;
   score_display?: string;
+  description?: string;
 }
 
 const EnhancedVideoManagement: React.FC = () => {
@@ -141,8 +141,6 @@ const EnhancedVideoManagement: React.FC = () => {
         video_type: video.video_type,
         duration: video.duration,
         file_size: video.file_size,
-        match_result: video.match_result || undefined,
-        performance_rating: video.performance_rating || undefined,
         tags: Array.isArray(video.tagged_players) ? 
           video.tagged_players.map((tag: any) => typeof tag === 'string' ? tag : String(tag)) : 
           [],
@@ -150,7 +148,8 @@ const EnhancedVideoManagement: React.FC = () => {
         created_at: video.created_at,
         opposing_team: video.opposing_team,
         match_date: video.match_date,
-        score_display: video.score_display
+        score_display: video.score_display,
+        description: video.description
       }));
 
       setVideos(mappedVideos);
@@ -174,8 +173,7 @@ const EnhancedVideoManagement: React.FC = () => {
         .from('videos')
         .update({
           title: videoData.title,
-          performance_rating: videoData.performance_rating,
-          match_result: videoData.match_result
+          description: videoData.description
         })
         .eq('id', selectedVideo.id);
 
@@ -243,13 +241,6 @@ const EnhancedVideoManagement: React.FC = () => {
       case 'failed': return 'bg-red-500';
       default: return 'bg-gray-500';
     }
-  };
-
-  const getRatingColor = (rating?: number) => {
-    if (!rating) return 'text-gray-400';
-    if (rating >= 8) return 'text-green-500';
-    if (rating >= 6) return 'text-yellow-500';
-    return 'text-red-500';
   };
 
   const filteredVideos = videos.filter(video =>
@@ -360,18 +351,6 @@ const EnhancedVideoManagement: React.FC = () => {
                   </SelectContent>
                 </Select>
 
-                <Select value={filters.result} onValueChange={(value) => setFilters({ ...filters, result: value })}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Match Result" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Results</SelectItem>
-                    <SelectItem value="win">Win</SelectItem>
-                    <SelectItem value="loss">Loss</SelectItem>
-                    <SelectItem value="draw">Draw</SelectItem>
-                  </SelectContent>
-                </Select>
-
                 <Select value={filters.analysisStatus} onValueChange={(value) => setFilters({ ...filters, analysisStatus: value })}>
                   <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                     <SelectValue placeholder="Analysis Status" />
@@ -456,26 +435,12 @@ const EnhancedVideoManagement: React.FC = () => {
                           <Badge variant="outline" className="text-xs">
                             {video.video_type.toUpperCase()}
                           </Badge>
-                          {video.performance_rating && (
-                            <div className={`flex items-center gap-1 ${getRatingColor(video.performance_rating)}`}>
-                              <Star className="w-3 h-3" />
-                              <span className="text-xs font-medium">{video.performance_rating}/10</span>
-                            </div>
-                          )}
                         </div>
                       </div>
 
                       {video.opposing_team && (
                         <div className="text-sm text-gray-300">
                           vs {video.opposing_team}
-                          {video.match_result && (
-                            <Badge className={`ml-2 text-xs ${
-                              video.match_result === 'win' ? 'bg-green-500' :
-                              video.match_result === 'loss' ? 'bg-red-500' : 'bg-yellow-500'
-                            } text-white`}>
-                              {video.match_result.toUpperCase()}
-                            </Badge>
-                          )}
                         </div>
                       )}
 
@@ -587,30 +552,11 @@ const EnhancedVideoManagement: React.FC = () => {
                 className="bg-gray-700 border-gray-600 text-white"
               />
               
-              <div className="grid grid-cols-2 gap-4">
-                <Select defaultValue={selectedVideo.match_result || ''}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Match Result" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No Result</SelectItem>
-                    <SelectItem value="win">Win</SelectItem>
-                    <SelectItem value="loss">Loss</SelectItem>
-                    <SelectItem value="draw">Draw</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-white text-sm mb-2 block">Performance Rating (1-10)</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="10"
-                  defaultValue={selectedVideo.performance_rating}
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
+              <Textarea
+                placeholder="Description"
+                defaultValue={selectedVideo.description || ''}
+                className="bg-gray-700 border-gray-600 text-white"
+              />
 
               <div className="flex gap-2">
                 <Button

@@ -3,50 +3,38 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Brain,
-  Download,
-  Clock,
-  TrendingUp,
-  Users,
-  FileText,
-  BarChart3,
-  Target,
-  AlertCircle,
-  CheckCircle,
-  Eye,
-  ArrowRight,
-  Sparkles,
   Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Settings
+  Download,
+  Share,
+  BarChart3,
+  Clock,
+  Users,
+  Target,
+  TrendingUp,
+  Activity,
+  Eye,
+  Star,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { PDFReportService } from '@/services/pdfReportService';
+import PDFReportService from '@/services/pdfReportService';
 
 interface VideoAnalysisResultsProps {
   videoId: string;
-  videoType: 'match' | 'training' | 'interview' | 'highlight';
+  videoType: 'match' | 'training' | 'highlight' | 'interview';
   teamId: string;
 }
 
 interface AnalysisData {
-  overview?: string;
-  key_events?: any[];
-  recommendations?: string[];
-  tagged_player_analysis?: Record<string, any>;
-  event_timeline?: any[];
-  visual_summary?: any;
-  context_reasoning?: string;
-  explanations?: string;
-  created_at?: string;
+  playerActions: any[];
+  keyMoments: any[];
+  summary: string;
+  insights: string[];
+  performanceRating: number;
 }
 
 const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
@@ -55,592 +43,383 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
   teamId
 }) => {
   const { toast } = useToast();
-  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [videoData, setVideoData] = useState<any>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-
-  const pdfService = new PDFReportService();
 
   useEffect(() => {
-    loadAnalysisData();
+    fetchVideoData();
+    fetchAnalysisData();
   }, [videoId]);
 
-  const loadAnalysisData = async () => {
+  const fetchVideoData = async () => {
     try {
-      // Load AI analysis from ai_analysis table first
-      const { data: aiAnalysis, error: aiAnalysisError } = await supabase
-        .from('ai_analysis')
-        .select('*')
-        .eq('video_id', videoId)
-        .order('created_at', { ascending: false });
-
-      // Load video data
-      const { data: video, error: videoError } = await supabase
+      const { data, error } = await supabase
         .from('videos')
         .select('*')
         .eq('id', videoId)
         .single();
 
-      if (videoError) throw videoError;
+      if (error) throw error;
+      setVideoData(data);
+    } catch (error) {
+      console.error('Error fetching video data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load video data",
+        variant: "destructive"
+      });
+    }
+  };
 
-      setVideoData(video);
+  const fetchAnalysisData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch AI analysis data
+      const { data: analysisResults, error } = await supabase
+        .from('ai_analysis')
+        .select('*')
+        .eq('video_id', videoId);
 
-      // If we have AI analysis data, format it properly
-      if (aiAnalysis && aiAnalysis.length > 0) {
-        const formattedAnalysis: AnalysisData = {
-          overview: "AI analysis completed with detailed insights into player performance and match dynamics.",
-          key_events: aiAnalysis.map(item => ({
-            timestamp: item.analysis_timestamp,
-            event: item.event_type,
-            description: item.description,
-            importance: item.confidence_score > 0.9 ? 'high' : item.confidence_score > 0.7 ? 'medium' : 'low'
+      if (error) throw error;
+
+      // Process and structure the analysis data
+      if (analysisResults && analysisResults.length > 0) {
+        const processedData: AnalysisData = {
+          playerActions: analysisResults.map(result => ({
+            timestamp: result.analysis_timestamp,
+            action: result.event_type,
+            description: result.description,
+            confidence: result.confidence_score,
+            players: result.tagged_players || []
           })),
-          recommendations: [
-            "Continue focusing on technical skill development",
-            "Maintain consistent performance levels throughout matches",
-            "Work on tactical awareness and positioning"
+          keyMoments: analysisResults
+            .filter(result => result.confidence_score > 0.8)
+            .map(result => ({
+              timestamp: result.analysis_timestamp,
+              type: result.event_type,
+              description: result.description,
+              importance: 'high'
+            })),
+          summary: `Analysis complete for ${videoType} video. Found ${analysisResults.length} events.`,
+          insights: [
+            `${analysisResults.length} events detected`,
+            `${analysisResults.filter(r => r.confidence_score > 0.8).length} high-confidence events`,
+            'AI analysis completed successfully'
           ],
-          tagged_player_analysis: {},
-          context_reasoning: "The analysis shows consistent performance with notable technical abilities and tactical understanding.",
-          explanations: "The AI system detected multiple key moments showcasing technical proficiency and match intelligence.",
-          created_at: aiAnalysis[0]?.created_at
+          performanceRating: analysisResults.length > 0 ? 
+            Math.round(analysisResults.reduce((sum, r) => sum + r.confidence_score, 0) / analysisResults.length * 10) : 
+            0
         };
 
-        // Process tagged players if available
-        const taggedPlayers = [...new Set(aiAnalysis.flatMap(item => item.tagged_players || []))];
-        taggedPlayers.forEach(playerId => {
-          if (playerId) {
-            formattedAnalysis.tagged_player_analysis![playerId] = {
-              present: true,
-              performanceRating: Math.floor(Math.random() * 3) + 7, // 7-9 rating
-              involvement: "Strong performance with consistent contributions throughout the analysis period.",
-              keyMoments: aiAnalysis
-                .filter(item => item.tagged_players?.includes(playerId))
-                .slice(0, 3)
-                .map(item => ({
-                  timestamp: item.analysis_timestamp,
-                  action: item.event_type,
-                  impact: "Positive contribution to team performance"
-                }))
-            };
-          }
-        });
-
-        setAnalysisData(formattedAnalysis);
+        setAnalysisData(processedData);
       } else {
-        // Fallback to mock data if no analysis exists
+        // No analysis data available
         setAnalysisData({
-          overview: "Analysis data is being processed. Please check back later for detailed insights.",
-          key_events: [],
-          recommendations: [],
-          tagged_player_analysis: {},
-          context_reasoning: "Analysis pending completion.",
-          explanations: "Video analysis will be available once processing is complete."
+          playerActions: [],
+          keyMoments: [],
+          summary: 'No analysis data available for this video.',
+          insights: ['Analysis pending or not started'],
+          performanceRating: 0
         });
       }
     } catch (error) {
-      console.error('Error loading analysis data:', error);
+      console.error('Error fetching analysis data:', error);
       toast({
-        title: "Loading Error",
-        description: "Failed to load analysis results",
+        title: "Error",
+        description: "Failed to load analysis data",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const generatePDFReport = async () => {
-    if (!analysisData || !videoData) return;
-
-    setIsGeneratingPDF(true);
-    
+  const handleDownloadReport = async () => {
     try {
-      // Get video snapshots
-      const { data: snapshots } = await supabase
-        .from('video_snapshots')
-        .select('snapshot_url')
-        .eq('video_id', videoId);
-
-      const snapshotUrls = snapshots?.map(s => s.snapshot_url) || [];
-
-      const reportData = {
-        videoTitle: videoData.title,
-        videoType: videoData.video_type,
-        analysisDate: new Date(analysisData.created_at || new Date()).toLocaleDateString(),
-        overview: analysisData.overview || '',
-        keyEvents: analysisData.key_events || [],
-        recommendations: analysisData.recommendations || [],
-        taggedPlayerAnalysis: analysisData.tagged_player_analysis || {},
-        eventTimeline: analysisData.event_timeline || [],
-        visualSummary: analysisData.visual_summary || {},
-        snapshotUrls
-      };
-
-      const pdfUrl = await pdfService.generateComprehensiveReport(
-        reportData,
-        videoId,
-        teamId
-      );
-
-      // Download the PDF
+      if (!videoData || !analysisData) return;
+      
+      const reportBlob = PDFReportService.generateComprehensiveReport(videoData, analysisData);
+      const url = URL.createObjectURL(reportBlob);
       const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = `${videoData.title}-analysis-report.pdf`;
+      link.href = url;
+      link.download = `video-analysis-${videoData.title || 'report'}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
       toast({
-        title: "Report Generated",
-        description: "PDF report downloaded successfully!",
+        title: "Report Downloaded",
+        description: "Analysis report has been downloaded successfully"
       });
-
     } catch (error) {
-      console.error('PDF generation error:', error);
+      console.error('Error generating report:', error);
       toast({
-        title: "Generation Failed",
-        description: "Failed to generate PDF report",
+        title: "Download Failed",
+        description: "Failed to generate report",
         variant: "destructive"
       });
-    } finally {
-      setIsGeneratingPDF(false);
     }
   };
 
-  const navigateToPlayerVideos = (playerId: string) => {
-    // This would navigate to a filtered view of videos for this player
-    toast({
-      title: "Navigation Feature",
-      description: `Would navigate to videos for Player ${playerId}`,
-    });
-  };
-
-  const formatTimestamp = (seconds: number): string => {
+  const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const togglePlayPause = () => {
-    const video = document.querySelector('video') as HTMLVideoElement;
-    if (video) {
-      if (isPlaying) {
-        video.pause();
-      } else {
-        video.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
+  const jumpToTimestamp = (timestamp: number) => {
+    setCurrentTime(timestamp);
+    // Here you would implement actual video seeking functionality
+    toast({
+      title: "Jumped to timestamp",
+      description: `Moved to ${formatTime(timestamp)}`
+    });
   };
 
-  const toggleMute = () => {
-    const video = document.querySelector('video') as HTMLVideoElement;
-    if (video) {
-      video.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-6 text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-bright-pink border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-400">Loading analysis results...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!analysisData) {
-    return (
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-6 text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">No Analysis Available</h3>
-          <p className="text-gray-400">Analysis data not found for this video.</p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin w-8 h-8 border-2 border-bright-pink border-t-transparent rounded-full" />
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with PDF Download */}
-      <Card className="bg-gradient-to-r from-gray-900 to-gray-800 border-gray-700">
-        <CardHeader>
+      {/* Video Player Section */}
+      <Card className="bg-gray-800 border-gray-700">
+        <CardContent className="p-6">
+          <div className="aspect-video bg-black rounded-lg mb-4 flex items-center justify-center">
+            {videoData?.video_url ? (
+              <video 
+                src={videoData.video_url} 
+                controls 
+                className="w-full h-full rounded-lg"
+                onTimeUpdate={(e) => setCurrentTime((e.target as HTMLVideoElement).currentTime)}
+              />
+            ) : (
+              <div className="text-gray-400 flex flex-col items-center">
+                <Play className="w-16 h-16 mb-2" />
+                <span>Video not available</span>
+              </div>
+            )}
+          </div>
+          
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-white text-2xl font-bold flex items-center gap-3">
-                <div className="p-2 bg-bright-pink/20 rounded-lg">
-                  <Brain className="w-6 h-6 text-bright-pink" />
-                </div>
-                AI Analysis Results
-              </CardTitle>
-              <p className="text-gray-300 mt-2">
-                Comprehensive {videoType} analysis with detailed insights
-              </p>
+              <h3 className="text-white font-semibold text-lg">{videoData?.title || 'Untitled Video'}</h3>
+              <p className="text-gray-400">{videoType.charAt(0).toUpperCase() + videoType.slice(1)} Video</p>
             </div>
             
-            <Button
-              onClick={generatePDFReport}
-              disabled={isGeneratingPDF}
-              className="bg-bright-pink hover:bg-bright-pink/90 text-white"
-            >
-              {isGeneratingPDF ? (
-                <>
-                  <div className="animate-spin w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download PDF Report
-                </>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleDownloadReport}
+                variant="outline"
+                className="border-bright-pink text-bright-pink hover:bg-bright-pink hover:text-white"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download Report
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              >
+                <Share className="w-4 h-4 mr-2" />
+                Share
+              </Button>
+            </div>
           </div>
-        </CardHeader>
+        </CardContent>
       </Card>
 
-      <Tabs defaultValue="video" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 bg-gray-800 p-1">
-          <TabsTrigger value="video" className="flex items-center gap-2">
-            <Play className="w-4 h-4" />
-            Video
-          </TabsTrigger>
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <Eye className="w-4 h-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="events" className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            Timeline
-          </TabsTrigger>
-          <TabsTrigger value="players" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Players
-          </TabsTrigger>
-          <TabsTrigger value="insights" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Insights
-          </TabsTrigger>
-          <TabsTrigger value="recommendations" className="flex items-center gap-2">
-            <Target className="w-4 h-4" />
-            Actions
-          </TabsTrigger>
+      {/* Analysis Results */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4 bg-gray-800">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="actions">Player Actions</TabsTrigger>
+          <TabsTrigger value="moments">Key Moments</TabsTrigger>
+          <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="video" className="space-y-4">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              {videoData?.video_url ? (
-                <div className="space-y-4">
-                  <div className="relative bg-black rounded-lg overflow-hidden">
-                    <video
-                      src={videoData.video_url}
-                      className="w-full h-auto max-h-96"
-                      controls
-                      onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                      onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-                      onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-white">
-                    <h3 className="text-lg font-semibold">{videoData.title}</h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                      <Badge variant="outline">{videoData.video_type?.toUpperCase()}</Badge>
-                      <span>{formatTimestamp(currentTime)} / {formatTimestamp(duration)}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-center gap-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={togglePlayPause}
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                    >
-                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={toggleMute}
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                    >
-                      {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-white font-medium mb-2">Video Not Available</h3>
-                  <p className="text-gray-400">The video file could not be loaded.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="overview" className="space-y-4">
-          {/* Analysis Status */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <CheckCircle className="w-6 h-6 text-green-500" />
-                <span className="text-white font-semibold text-lg">Analysis Complete</span>
-                <Badge className="bg-bright-pink text-white">
-                  {Object.keys(analysisData.tagged_player_analysis || {}).length > 0 ? 'Tagged Players Found' : 'Standard Analysis'}
-                </Badge>
-              </div>
-              
-              <div className="text-gray-300 leading-relaxed">
-                {analysisData.overview}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <Activity className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Total Events</p>
+                    <p className="text-white text-2xl font-bold">
+                      {analysisData?.playerActions.length || 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Visual Summary */}
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-yellow-500/20 rounded-lg">
+                    <Target className="w-5 h-5 text-yellow-400" />
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Key Moments</p>
+                    <p className="text-white text-2xl font-bold">
+                      {analysisData?.keyMoments.length || 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/20 rounded-lg">
+                    <Star className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Performance</p>
+                    <p className="text-white text-2xl font-bold">
+                      {analysisData?.performanceRating || 0}/10
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-bright-pink" />
-                Performance Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-white font-medium mb-2">Game Flow</h4>
-                  <p className="text-gray-300 text-sm">
-                    {analysisData.visual_summary?.gameFlow || 'Performance maintained throughout the analysis period'}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-white font-medium mb-2">Pressure Map</h4>
-                  <p className="text-gray-300 text-sm">
-                    {analysisData.visual_summary?.pressureMap || 'Consistent performance under various pressure levels'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="events" className="space-y-4">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-bright-pink" />
-                Event Timeline
+                <BarChart3 className="w-5 h-5" />
+                Analysis Summary
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <p className="text-gray-300 leading-relaxed">
+                {analysisData?.summary || 'No summary available'}
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="actions" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Player Actions Detected</CardTitle>
+            </CardHeader>
+            <CardContent>
               <ScrollArea className="h-96">
-                <div className="space-y-4">
-                  {analysisData.key_events?.map((event: any, index: number) => (
-                    <div key={index} className="flex items-start gap-4 p-4 bg-gray-700 rounded-lg">
-                      <div className="text-center min-w-[60px]">
-                        <Badge variant="outline" className="text-bright-pink border-bright-pink">
-                          {formatTimestamp(event.timestamp)}
-                        </Badge>
-                        <div className={`mt-2 w-2 h-2 rounded-full mx-auto ${
-                          event.importance === 'high' ? 'bg-red-500' :
-                          event.importance === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                        }`} />
+                {analysisData?.playerActions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-400">No player actions detected</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {analysisData?.playerActions.map((action, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 bg-gray-700 rounded-lg hover:bg-gray-600 cursor-pointer transition-colors"
+                        onClick={() => jumpToTimestamp(action.timestamp)}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs">
+                              {action.action}
+                            </Badge>
+                            <span className="text-xs text-gray-400">
+                              {formatTime(action.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-white text-sm">{action.description}</p>
+                        </div>
+                        
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Confidence</p>
+                          <p className="text-white font-semibold">
+                            {Math.round(action.confidence * 100)}%
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-white font-medium mb-1">{event.event}</h4>
-                        <p className="text-gray-300 text-sm">{event.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {(!analysisData.key_events || analysisData.key_events.length === 0) && (
-                    <div className="text-center py-8">
-                      <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-400">No timeline events available yet.</p>
-                    </div>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                )}
               </ScrollArea>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="players" className="space-y-4">
-          {Object.entries(analysisData.tagged_player_analysis || {}).map(([playerId, analysis]: [string, any]) => (
-            <Card key={playerId} className={`${
-              analysis.present ? 'bg-gray-800 border-gray-700' : 'bg-red-900/20 border-red-700'
-            }`}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Users className="w-5 h-5 text-bright-pink" />
-                    Player {playerId}
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {analysis.present ? (
-                      <Badge className="bg-green-500 text-white">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Present
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-red-500 text-white">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Not Found
-                      </Badge>
-                    )}
+        <TabsContent value="moments" className="space-y-4">
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white">Key Moments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-96">
+                {analysisData?.keyMoments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-400">No key moments identified</p>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {analysis.present ? (
-                  <>
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-bright-pink">
-                          {analysis.performanceRating}
-                        </div>
-                        <div className="text-xs text-gray-400">Rating</div>
-                      </div>
-                      <div className="flex-1">
-                        <Progress 
-                          value={analysis.performanceRating * 10} 
-                          className="h-3"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-white font-medium mb-2">Performance Analysis</h4>
-                      <p className="text-gray-300 text-sm">{analysis.involvement}</p>
-                    </div>
-
-                    {analysis.keyMoments && analysis.keyMoments.length > 0 && (
-                      <div>
-                        <h4 className="text-white font-medium mb-2">Key Moments</h4>
-                        <div className="space-y-2">
-                          {analysis.keyMoments.map((moment: any, index: number) => (
-                            <div key={index} className="flex items-center gap-3 text-sm">
-                              <Badge variant="outline" className="text-bright-pink border-bright-pink">
-                                {formatTimestamp(moment.timestamp)}
-                              </Badge>
-                              <span className="text-gray-300">{moment.action}</span>
-                              <span className="text-gray-500">•</span>
-                              <span className="text-gray-400">{moment.impact}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
                 ) : (
-                  <div className="text-center py-4">
-                    <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-                    <p className="text-gray-300 mb-3">
-                      Player {playerId} was not detected in this video
-                    </p>
-                    <Button
-                      onClick={() => navigateToPlayerVideos(playerId)}
-                      variant="outline"
-                      className="border-bright-pink text-bright-pink hover:bg-bright-pink hover:text-white"
-                    >
-                      View Other Videos
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
+                  <div className="space-y-3">
+                    {analysisData?.keyMoments.map((moment, index) => (
+                      <div
+                        key={index}
+                        className="p-4 bg-gray-700 rounded-lg hover:bg-gray-600 cursor-pointer transition-colors"
+                        onClick={() => jumpToTimestamp(moment.timestamp)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge className="bg-bright-pink text-white">
+                            {moment.type}
+                          </Badge>
+                          <span className="text-xs text-gray-400">
+                            {formatTime(moment.timestamp)}
+                          </span>
+                        </div>
+                        <p className="text-white">{moment.description}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          ))}
-
-          {(!analysisData.tagged_player_analysis || Object.keys(analysisData.tagged_player_analysis).length === 0) && (
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6 text-center">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-white font-medium mb-2">No Tagged Players</h3>
-                <p className="text-gray-400">No players were tagged for analysis in this video.</p>
-              </CardContent>
-            </Card>
-          )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="insights" className="space-y-4">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-bright-pink" />
-                Context & Reasoning
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-300 leading-relaxed">
-                {analysisData.context_reasoning}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <FileText className="w-5 h-5 text-bright-pink" />
-                Technical Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-300 leading-relaxed">
-                {analysisData.explanations}
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="recommendations" className="space-y-4">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Target className="w-5 h-5 text-bright-pink" />
-                AI Recommendations
+                <TrendingUp className="w-5 h-5" />
+                Performance Insights
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {analysisData.recommendations?.map((recommendation: string, index: number) => (
-                  <div key={index} className="flex items-start gap-3 p-4 bg-gray-700 rounded-lg">
-                    <div className="w-6 h-6 bg-bright-pink rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                      {index + 1}
-                    </div>
-                    <p className="text-gray-300">{recommendation}</p>
+                {analysisData?.insights.length === 0 ? (
+                  <div className="text-center py-8">
+                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-400">No insights available</p>
                   </div>
-                ))}
+                ) : (
+                  analysisData?.insights.map((insight, index) => (
+                    <div key={index} className="p-4 bg-gray-700 rounded-lg">
+                      <p className="text-white">{insight}</p>
+                    </div>
+                  ))
+                )}
               </div>
-
-              {(!analysisData.recommendations || analysisData.recommendations.length === 0) && (
-                <div className="text-center py-8">
-                  <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-400">No specific recommendations generated for this video.</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
