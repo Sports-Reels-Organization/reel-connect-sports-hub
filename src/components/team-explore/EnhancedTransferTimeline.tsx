@@ -1,14 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Edit, Trash2, Calendar, DollarSign, MapPin, Users, Eye, Save, X } from 'lucide-react';
+import { MessageCircle, Edit, Trash2, Calendar, DollarSign, MapPin, Users, Eye, EyeOff } from 'lucide-react';
 import MessageModal from '../MessageModal';
 import { useEnhancedMessaging } from '@/hooks/useEnhancedMessaging';
 
@@ -50,10 +47,6 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
   const [selectedPitch, setSelectedPitch] = useState<TransferPitch | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [editingPitch, setEditingPitch] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({
-    description: '',
-    asking_price: 0
-  });
 
   const fetchPitches = async () => {
     try {
@@ -111,7 +104,7 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
   };
 
   const handleDeletePitch = async (pitchId: string) => {
-    if (!confirm('Are you sure you want to delete this pitch? This action cannot be undone.')) return;
+    if (!confirm('Are you sure you want to delete this pitch?')) return;
 
     try {
       const { error } = await supabase
@@ -136,27 +129,12 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
     }
   };
 
-  const handleEditStart = (pitch: TransferPitch) => {
-    setEditingPitch(pitch.id);
-    setEditForm({
-      description: pitch.description || '',
-      asking_price: pitch.asking_price
-    });
-  };
-
-  const handleEditCancel = () => {
-    setEditingPitch(null);
-    setEditForm({ description: '', asking_price: 0 });
-  };
-
-  const handleEditSave = async (pitchId: string) => {
+  const handleEditPitch = async (pitchId: string, updates: {
+    description?: string;
+    asking_price?: number;
+    status?: 'active' | 'expired' | 'completed' | 'cancelled';
+  }) => {
     try {
-      const updates = {
-        description: editForm.description,
-        asking_price: editForm.asking_price,
-        updated_at: new Date().toISOString()
-      };
-
       const { error } = await supabase
         .from('transfer_pitches')
         .update(updates)
@@ -169,8 +147,6 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
       ));
       
       setEditingPitch(null);
-      setEditForm({ description: '', asking_price: 0 });
-      
       toast({
         title: "Success",  
         description: "Transfer pitch updated successfully",
@@ -278,7 +254,6 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
             {pitches.map((pitch) => {
               const daysLeft = getDaysUntilExpiry(pitch.expires_at);
               const isOwner = userType === 'team' && pitch.teams.profile_id === profile?.user_id;
-              const isEditing = editingPitch === pitch.id;
               
               return (
                 <Card key={pitch.id} className="border-gray-700 bg-gray-800/50 hover:bg-gray-800/70 transition-colors">
@@ -324,18 +299,9 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
                       
                       <div className="space-y-2">
                         <div className="text-sm text-gray-400">Asking Price</div>
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            value={editForm.asking_price}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, asking_price: parseFloat(e.target.value) || 0 }))}
-                            className="bg-gray-700 border-gray-600 text-white"
-                          />
-                        ) : (
-                          <div className="text-rosegold font-bold text-lg">
-                            {formatCurrency(pitch.asking_price, pitch.currency)}
-                          </div>
-                        )}
+                        <div className="text-rosegold font-bold text-lg">
+                          {formatCurrency(pitch.asking_price, pitch.currency)}
+                        </div>
                       </div>
                       
                       <div className="space-y-2">
@@ -346,22 +312,35 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <div className="text-sm text-gray-400">Description</div>
-                      {isEditing ? (
-                        <Textarea
-                          value={editForm.description}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                          className="bg-gray-700 border-gray-600 text-white"
-                          rows={3}
-                          placeholder="Enter pitch description..."
-                        />
-                      ) : (
+                    {pitch.description && (
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-400">Description</div>
                         <div className="text-white text-sm">
-                          {pitch.description || 'No description provided.'}
+                          {editingPitch === pitch.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                className="w-full p-2 rounded bg-gray-700 text-white"
+                                defaultValue={pitch.description}
+                                rows={3}
+                                onBlur={(e) => {
+                                  if (e.target.value !== pitch.description) {
+                                    handleEditPitch(pitch.id, { description: e.target.value });
+                                  }
+                                }}
+                              />
+                              <Button 
+                                size="sm" 
+                                onClick={() => setEditingPitch(null)}
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          ) : (
+                            pitch.description
+                          )}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between pt-4 border-t border-gray-700">
                       <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -393,44 +372,22 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
                         
                         {isOwner && (
                           <>
-                            {isEditing ? (
-                              <div className="flex gap-2">
-                                <Button
-                                  onClick={() => handleEditSave(pitch.id)}
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700"
-                                >
-                                  <Save className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  onClick={handleEditCancel}
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <Button
-                                  onClick={() => handleEditStart(pitch)}
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  onClick={() => handleDeletePitch(pitch.id)}
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </>
-                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingPitch(pitch.id)}
+                              className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeletePitch(pitch.id)}
+                              className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </>
                         )}
                       </div>
