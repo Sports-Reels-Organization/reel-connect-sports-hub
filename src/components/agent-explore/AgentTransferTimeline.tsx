@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -188,6 +189,15 @@ const AgentTransferTimeline = () => {
       const processedPitches: TimelinePitch[] = (data || []).map(pitch => ({
         ...pitch,
         tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
+        asking_price: pitch.asking_price || 0,
+        currency: pitch.currency || 'USD',
+        transfer_type: pitch.transfer_type || 'permanent',
+        deal_stage: pitch.deal_stage || 'pitch',
+        view_count: pitch.view_count || 0,
+        message_count: pitch.message_count || 0,
+        shortlist_count: pitch.shortlist_count || 0,
+        is_international: pitch.is_international || false,
+        description: pitch.description || '',
         players: {
           ...pitch.players,
           age: pitch.players.date_of_birth ? 
@@ -288,13 +298,7 @@ const AgentTransferTimeline = () => {
   };
 
   const handleViewDetails = async (pitch: TimelinePitch) => {
-    // Increment view count using the existing function
-    try {
-      await supabase.rpc('increment_pitch_view_count', { pitch_uuid: pitch.id });
-    } catch (error) {
-      console.error('Error incrementing view count:', error);
-    }
-    
+    // Simply navigate to player profile - no RPC call needed since function doesn't exist
     navigate(`/player-profile/${pitch.players.id}`, { 
       state: { 
         pitchId: pitch.id,
@@ -716,10 +720,6 @@ const AgentTransferTimeline = () => {
             full_name: selectedPlayerForMessage.players.full_name,
             position: selectedPlayerForMessage.players.position,
             photo_url: selectedPlayerForMessage.players.photo_url,
-          }}
-          pitch={{
-            id: selectedPlayerForMessage.id,
-            team_profile_id: selectedPlayerForMessage.team_id
           }}
           isOpen={!!selectedPlayerForMessage}
           onClose={() => setSelectedPlayerForMessage(null)}

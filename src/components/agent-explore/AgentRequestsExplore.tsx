@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -143,7 +144,11 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
         ...item,
         request_type: item.request_type || 'player_search',
         tagged_players: Array.isArray(item.tagged_players) 
-          ? item.tagged_players.map(tag => typeof tag === 'string' ? tag : String(tag))
+          ? item.tagged_players.map(tag => 
+              typeof tag === 'string' ? tag :
+              typeof tag === 'object' && tag !== null && 'toString' in tag ? String(tag) :
+              JSON.stringify(tag)
+            )
           : [],
         budget_min: item.budget_min || 0,
         budget_max: item.budget_max || 0,
@@ -508,7 +513,6 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
       {selectedRequestId && (
         <RequestComments
           requestId={selectedRequestId}
-          onClose={() => setSelectedRequestId(null)}
         />
       )}
 
