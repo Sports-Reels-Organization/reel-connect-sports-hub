@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,10 +10,21 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Clock, MessageCircle, Eye, AlertCircle, TrendingUp, 
   Search, Filter, Grid3X3, List, Edit, XCircle, Play,
-  Building2, User, MapPin, Calendar, DollarSign
+  Building2, User, MapPin, Calendar, DollarSign, Trash2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { useSportData } from '@/hooks/useSportData';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface TimelinePitch {
   id: string;
@@ -29,7 +39,7 @@ interface TimelinePitch {
   shortlist_count: number;
   is_international: boolean;
   description: string;
-  tagged_videos: any; // Changed from string[] to any to match Json type
+  tagged_videos: any;
   team_id: string;
   players: {
     id: string;
@@ -57,6 +67,9 @@ const TransferTimeline = () => {
   const [filteredPitches, setFilteredPitches] = useState<TimelinePitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [teamSportType, setTeamSportType] = useState<string>('football');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pitchToDelete, setPitchToDelete] = useState<TimelinePitch | null>(null);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,13 +77,12 @@ const TransferTimeline = () => {
   const [transferTypeFilter, setTransferTypeFilter] = useState('all');
   const [priceRangeFilter, setPriceRangeFilter] = useState('all');
   const [dealStageFilter, setDealStageFilter] = useState('all');
-  const [sportTypeFilter, setSportTypeFilter] = useState('all');
-  const [teamSportType, setTeamSportType] = useState<string>('football');
+  const [teamFilter, setTeamFilter] = useState('all');
 
-  const positions = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward', 'Striker', 'Winger'];
+  // Get sport-specific data
+  const { positions } = useSportData(teamSportType);
   const transferTypes = ['permanent', 'loan'];
   const dealStages = ['pitch', 'interest', 'discussion', 'expired'];
-  const sportTypes = ['football', 'basketball', 'volleyball', 'tennis', 'rugby'];
   const priceRanges = [
     { label: 'Under $100K', value: '0-100000' },
     { label: '$100K - $500K', value: '100000-500000' },
@@ -79,14 +91,22 @@ const TransferTimeline = () => {
     { label: 'Over $5M', value: '5000000-999999999' }
   ];
 
+  // Get unique teams for filtering
+  const [availableTeams, setAvailableTeams] = useState<string[]>([]);
+
   useEffect(() => {
-    fetchTimelinePitches();
     fetchTeamSportType();
   }, [profile]);
 
   useEffect(() => {
+    if (teamSportType) {
+      fetchTimelinePitches();
+    }
+  }, [teamSportType]);
+
+  useEffect(() => {
     applyFilters();
-  }, [pitches, searchTerm, positionFilter, transferTypeFilter, priceRangeFilter, dealStageFilter, sportTypeFilter]);
+  }, [pitches, searchTerm, positionFilter, transferTypeFilter, priceRangeFilter, dealStageFilter, teamFilter]);
 
   const fetchTeamSportType = async () => {
     if (!profile?.id) return;
@@ -105,7 +125,6 @@ const TransferTimeline = () => {
 
       if (data?.sport_type) {
         setTeamSportType(data.sport_type);
-        setSportTypeFilter(data.sport_type); // Set default filter to team's sport type
       }
     } catch (error) {
       console.error('Error fetching team sport type:', error);
@@ -136,6 +155,7 @@ const TransferTimeline = () => {
           )
         `)
         .eq('status', 'active')
+        .eq('teams.sport_type', teamSportType)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(50);
@@ -153,6 +173,11 @@ const TransferTimeline = () => {
       }));
       
       setPitches(processedPitches);
+
+      // Extract unique teams for filtering
+      const teams = [...new Set(processedPitches.map(p => p.teams.team_name))].sort();
+      setAvailableTeams(teams);
+      
     } catch (error) {
       console.error('Error fetching timeline pitches:', error);
       toast({
@@ -192,9 +217,9 @@ const TransferTimeline = () => {
       filtered = filtered.filter(pitch => pitch.deal_stage === dealStageFilter);
     }
 
-    // Sport type filter
-    if (sportTypeFilter !== 'all') {
-      filtered = filtered.filter(pitch => pitch.teams.sport_type === sportTypeFilter);
+    // Team filter
+    if (teamFilter !== 'all') {
+      filtered = filtered.filter(pitch => pitch.teams.team_name === teamFilter);
     }
 
     // Price range filter
@@ -255,30 +280,34 @@ const TransferTimeline = () => {
   };
 
   const handleEditPitch = (pitch: TimelinePitch) => {
-    // Navigate to edit pitch page or open edit modal
     navigate(`/edit-pitch/${pitch.id}`);
   };
 
-  const handleDeletePitch = async (pitch: TimelinePitch) => {
-    if (!confirm('Are you sure you want to cancel this transfer pitch? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeletePitchDialog = (pitch: TimelinePitch) => {
+    setPitchToDelete(pitch);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeletePitch = async () => {
+    if (!pitchToDelete) return;
 
     try {
       const { error } = await supabase
         .from('transfer_pitches')
         .update({ status: 'cancelled' })
-        .eq('id', pitch.id);
+        .eq('id', pitchToDelete.id);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Transfer pitch cancelled successfully",
+        description: "Transfer pitch deleted successfully",
       });
 
       // Refresh the list
       fetchTimelinePitches();
+      setDeleteDialogOpen(false);
+      setPitchToDelete(null);
     } catch (error) {
       console.error('Error deleting pitch:', error);
       toast({
@@ -315,10 +344,17 @@ const TransferTimeline = () => {
       <Card className="border-0">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="flex items-center gap-2 text-white">
-              <TrendingUp className="w-5 h-5" />
-              Transfer Timeline ({filteredPitches.length})
-            </CardTitle>
+            <div className="flex items-center gap-3">
+              <CardTitle className="flex items-center gap-2 text-white">
+                <TrendingUp className="w-5 h-5" />
+                Transfer Timeline ({filteredPitches.length})
+              </CardTitle>
+              {filteredPitches.length > 0 && (
+                <Badge variant="outline" className="text-rosegold border-rosegold">
+                  {teamSportType.charAt(0).toUpperCase() + teamSportType.slice(1)}
+                </Badge>
+              )}
+            </div>
             
             <div className="flex items-center gap-2">
               <Button
@@ -354,20 +390,6 @@ const TransferTimeline = () => {
               />
             </div>
             
-            <Select value={sportTypeFilter} onValueChange={setSportTypeFilter}>
-              <SelectTrigger className="text-white">
-                <SelectValue placeholder="All Sports" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="all">All Sports</SelectItem>
-                {sportTypes.map(sport => (
-                  <SelectItem key={sport} value={sport}>
-                    {sport.charAt(0).toUpperCase() + sport.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
             <Select value={positionFilter} onValueChange={setPositionFilter}>
               <SelectTrigger className="text-white">
                 <SelectValue placeholder="All Positions" />
@@ -377,6 +399,20 @@ const TransferTimeline = () => {
                 {positions.map(position => (
                   <SelectItem key={position} value={position}>
                     {position}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={teamFilter} onValueChange={setTeamFilter}>
+              <SelectTrigger className="text-white">
+                <SelectValue placeholder="All Teams" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all">All Teams</SelectItem>
+                {availableTeams.map(team => (
+                  <SelectItem key={team} value={team}>
+                    {team}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -433,7 +469,7 @@ const TransferTimeline = () => {
                 setTransferTypeFilter('all');
                 setPriceRangeFilter('all');
                 setDealStageFilter('all');
-                setSportTypeFilter('all');
+                setTeamFilter('all');
               }}
               className="text-white border-gray-600 hover:bg-gray-700"
             >
@@ -451,7 +487,7 @@ const TransferTimeline = () => {
               </h3>
               <p className="text-gray-400">
                 {pitches.length === 0 
-                  ? 'No transfer pitches are currently active on the timeline.'
+                  ? `No transfer pitches are currently active for ${teamSportType}.`
                   : 'Try adjusting your filters to see more results.'
                 }
               </p>
@@ -594,9 +630,9 @@ const TransferTimeline = () => {
                               size="sm"
                               variant="outline"
                               className="border-red-600 text-red-400 hover:bg-red-600/10"
-                              onClick={() => handleDeletePitch(pitch)}
+                              onClick={() => handleDeletePitchDialog(pitch)}
                             >
-                              <XCircle className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </>
                         )}
@@ -609,6 +645,28 @@ const TransferTimeline = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transfer Pitch</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this transfer pitch for {pitchToDelete?.players.full_name}? 
+              This action cannot be undone and will remove the pitch from the timeline.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeletePitch}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
