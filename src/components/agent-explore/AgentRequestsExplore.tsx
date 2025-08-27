@@ -38,7 +38,6 @@ interface AgentRequest {
   expires_at: string;
   created_at: string;
   is_public: boolean;
-  request_type: string;
   tagged_players: string[];
   agents: {
     id: string;
@@ -69,11 +68,9 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
   
   // Filters
   const [searchTerm, setSearchTerm] = useState(initialSearch || '');
-  const [typeFilter, setTypeFilter] = useState('all');
   const [budgetFilter, setBudgetFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const requestTypes = ['player_search', 'team_recommendation', 'market_analysis', 'contract_negotiation'];
   const budgetRanges = [
     { label: 'Under $10K', value: '0-10000' },
     { label: '$10K - $50K', value: '10000-50000' },
@@ -93,7 +90,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
 
   useEffect(() => {
     applyFilters();
-  }, [requests, searchTerm, typeFilter, budgetFilter, statusFilter]);
+  }, [requests, searchTerm, budgetFilter, statusFilter]);
 
   const fetchAgentSportType = async () => {
     if (!profile?.id) return;
@@ -144,13 +141,14 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
       // Transform data to ensure all required properties are present and properly typed
       const transformedData: AgentRequest[] = (data || []).map(item => ({
         ...item,
-        request_type: item.request_type || 'player_search',
         tagged_players: Array.isArray(item.tagged_players) 
-          ? item.tagged_players.map(tag => 
-              typeof tag === 'string' ? tag :
-              typeof tag === 'object' && tag !== null && 'toString' in tag ? String(tag) :
-              JSON.stringify(tag)
-            )
+          ? item.tagged_players.map(tag => {
+              if (typeof tag === 'string') return tag;
+              if (typeof tag === 'object' && tag !== null) {
+                return JSON.stringify(tag);
+              }
+              return String(tag);
+            })
           : [],
         budget_min: item.budget_min || 0,
         budget_max: item.budget_max || 0,
@@ -182,11 +180,6 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
         request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         request.agents.agency_name.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    }
-
-    // Type filter
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(request => request.request_type === typeFilter);
     }
 
     // Budget filter
@@ -316,7 +309,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
       {/* Filters */}
       <Card className="border-0">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
@@ -326,20 +319,6 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
                 className="pl-10 text-white placeholder:text-gray-500"
               />
             </div>
-            
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="text-white">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="all">All Types</SelectItem>
-                {requestTypes.map(type => (
-                  <SelectItem key={type} value={type}>
-                    {type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
 
             <Select value={budgetFilter} onValueChange={setBudgetFilter}>
               <SelectTrigger className="text-white">
@@ -369,7 +348,6 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
               variant="outline"
               onClick={() => {
                 setSearchTerm('');
-                setTypeFilter('all');
                 setBudgetFilter('all');
                 setStatusFilter('all');
               }}
@@ -444,9 +422,6 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
                   {/* Tags and Status */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="text-blue-400 border-blue-400">
-                        {request.request_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </Badge>
                       {request.tagged_players.length > 0 && (
                         <Badge variant="outline" className="text-green-400 border-green-400">
                           <Users className="w-3 h-3 mr-1" />
