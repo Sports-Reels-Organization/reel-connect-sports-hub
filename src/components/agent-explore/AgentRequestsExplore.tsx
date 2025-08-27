@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -139,11 +138,18 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
 
       if (error) throw error;
       
-      // Transform data to ensure all required properties are present
+      // Transform data to ensure all required properties are present and properly typed
       const transformedData: AgentRequest[] = (data || []).map(item => ({
         ...item,
         request_type: item.request_type || 'player_search',
-        tagged_players: Array.isArray(item.tagged_players) ? item.tagged_players : []
+        tagged_players: Array.isArray(item.tagged_players) 
+          ? item.tagged_players.map(tag => typeof tag === 'string' ? tag : String(tag))
+          : [],
+        budget_min: item.budget_min || 0,
+        budget_max: item.budget_max || 0,
+        currency: item.currency || 'USD',
+        created_at: item.created_at || new Date().toISOString(),
+        expires_at: item.expires_at || new Date().toISOString()
       }));
       
       setRequests(transformedData);
@@ -215,11 +221,10 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
   };
 
   const canEditRequest = (request: AgentRequest) => {
-    return profile?.user_type === 'agent' && profile?.id === request.agents.profiles.full_name; // This needs to be adjusted based on your data structure
+    return profile?.user_type === 'agent' && profile?.id === request.agents.profiles.full_name;
   };
 
   const handleEditRequest = (request: AgentRequest) => {
-    // Navigate to edit request page or open edit modal
     console.log('Edit request:', request.id);
     toast({
       title: "Coming Soon",
@@ -248,7 +253,6 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
         description: "Request deleted successfully",
       });
 
-      // Refresh the list
       fetchRequests();
       setDeleteDialogOpen(false);
       setRequestToDelete(null);
@@ -504,7 +508,6 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
       {selectedRequestId && (
         <RequestComments
           requestId={selectedRequestId}
-          isOpen={!!selectedRequestId}
           onClose={() => setSelectedRequestId(null)}
         />
       )}

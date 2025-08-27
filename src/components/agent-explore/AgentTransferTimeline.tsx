@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,13 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { 
   Clock, MessageCircle, Eye, AlertCircle, TrendingUp, 
-  Search, Filter, Grid3X3, List, Heart, HeartOff,
-  Building2, User, MapPin, Calendar, DollarSign, Play
+  Search, Filter, Grid3X3, List, Play, Building2, User, MapPin, Calendar, DollarSign, Heart, HeartOff
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useSportData } from '@/hooks/useSportData';
-import { AppNotificationService } from '@/services/appNotificationService';
+import MessagePlayerModal from '../MessagePlayerModal';
 
 interface TimelinePitch {
   id: string;
@@ -39,7 +37,6 @@ interface TimelinePitch {
     position: string;
     citizenship: string;
     photo_url?: string;
-    headshot_url?: string;
     age?: number;
     market_value?: number;
   };
@@ -61,8 +58,8 @@ const AgentTransferTimeline = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [agentSportType, setAgentSportType] = useState<'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby'>('football');
-  const [shortlistedItems, setShortlistedItems] = useState<Set<string>>(new Set());
-  const [currentAgentId, setCurrentAgentId] = useState<string | null>(null);
+  const [shortlistedPitches, setShortlistedPitches] = useState<Set<string>>(new Set());
+  const [selectedPlayerForMessage, setSelectedPlayerForMessage] = useState<TimelinePitch | null>(null);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,44 +85,71 @@ const AgentTransferTimeline = () => {
   const [availableTeams, setAvailableTeams] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchAgentData();
+    fetchAgentSportType();
   }, [profile]);
 
   useEffect(() => {
-    if (agentSportType && currentAgentId) {
+    if (agentSportType) {
       fetchTimelinePitches();
-      fetchShortlistedItems();
+      fetchShortlistedPitches();
     }
-  }, [agentSportType, currentAgentId]);
+  }, [agentSportType]);
 
   useEffect(() => {
     applyFilters();
   }, [pitches, searchTerm, positionFilter, transferTypeFilter, priceRangeFilter, dealStageFilter, teamFilter]);
 
-  const fetchAgentData = async () => {
+  const fetchAgentSportType = async () => {
     if (!profile?.id) return;
     
     try {
       const { data, error } = await supabase
         .from('agents')
-        .select('id, specialization')
+        .select('specialization')
         .eq('profile_id', profile.id)
         .single();
 
       if (error) {
-        console.error('Error fetching agent data:', error);
+        console.error('Error fetching agent sport type:', error);
         return;
       }
 
-      if (data) {
-        setCurrentAgentId(data.id);
-        if (data.specialization && Array.isArray(data.specialization) && data.specialization.length > 0) {
-          const sportType = data.specialization[0] as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby';
-          setAgentSportType(sportType);
-        }
+      if (data?.specialization && Array.isArray(data.specialization) && data.specialization.length > 0) {
+        const sportType = data.specialization[0] as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby';
+        setAgentSportType(sportType);
       }
     } catch (error) {
-      console.error('Error fetching agent data:', error);
+      console.error('Error fetching agent sport type:', error);
+    }
+  };
+
+  const fetchShortlistedPitches = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data: agentData } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (!agentData) return;
+
+      // Use the correct table name from the database schema
+      const { data, error } = await supabase
+        .from('shortlist')
+        .select('pitch_id')
+        .eq('agent_id', agentData.id);
+
+      if (error) {
+        console.error('Error fetching shortlisted pitches:', error);
+        return;
+      }
+
+      const shortlistedIds = new Set(data.map(item => item.pitch_id));
+      setShortlistedPitches(shortlistedIds);
+    } catch (error) {
+      console.error('Error fetching shortlisted pitches:', error);
     }
   };
 
@@ -141,7 +165,6 @@ const AgentTransferTimeline = () => {
             position,
             citizenship,
             photo_url,
-            headshot_url,
             date_of_birth,
             market_value
           ),
@@ -190,28 +213,9 @@ const AgentTransferTimeline = () => {
     }
   };
 
-  const fetchShortlistedItems = async () => {
-    if (!currentAgentId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('agent_shortlist')
-        .select('pitch_id')
-        .eq('agent_id', currentAgentId);
-
-      if (error) throw error;
-
-      const shortlisted = new Set(data.map(item => item.pitch_id));
-      setShortlistedItems(shortlisted);
-    } catch (error) {
-      console.error('Error fetching shortlisted items:', error);
-    }
-  };
-
   const applyFilters = () => {
     let filtered = [...pitches];
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(pitch =>
         pitch.players.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -220,27 +224,22 @@ const AgentTransferTimeline = () => {
       );
     }
 
-    // Position filter
     if (positionFilter !== 'all') {
       filtered = filtered.filter(pitch => pitch.players.position === positionFilter);
     }
 
-    // Transfer type filter
     if (transferTypeFilter !== 'all') {
       filtered = filtered.filter(pitch => pitch.transfer_type === transferTypeFilter);
     }
 
-    // Deal stage filter
     if (dealStageFilter !== 'all') {
       filtered = filtered.filter(pitch => pitch.deal_stage === dealStageFilter);
     }
 
-    // Team filter
     if (teamFilter !== 'all') {
       filtered = filtered.filter(pitch => pitch.teams.team_name === teamFilter);
     }
 
-    // Price range filter
     if (priceRangeFilter !== 'all') {
       const [min, max] = priceRangeFilter.split('-').map(Number);
       filtered = filtered.filter(pitch => {
@@ -288,9 +287,13 @@ const AgentTransferTimeline = () => {
     }).format(amount);
   };
 
-  const handleViewDetails = (pitch: TimelinePitch) => {
-    // Increment view count
-    supabase.rpc('increment_pitch_view_count', { pitch_uuid: pitch.id });
+  const handleViewDetails = async (pitch: TimelinePitch) => {
+    // Increment view count using the existing function
+    try {
+      await supabase.rpc('increment_pitch_view_count', { pitch_uuid: pitch.id });
+    } catch (error) {
+      console.error('Error incrementing view count:', error);
+    }
     
     navigate(`/player-profile/${pitch.players.id}`, { 
       state: { 
@@ -300,53 +303,69 @@ const AgentTransferTimeline = () => {
     });
   };
 
-  const handleShortlist = async (pitch: TimelinePitch) => {
-    if (!currentAgentId) return;
+  const handleToggleShortlist = async (pitch: TimelinePitch) => {
+    if (!profile?.id) return;
 
     try {
-      const isShortlisted = shortlistedItems.has(pitch.id);
-      
+      const { data: agentData } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('profile_id', profile.id)
+        .single();
+
+      if (!agentData) {
+        toast({
+          title: "Error",
+          description: "Agent profile not found",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const isShortlisted = shortlistedPitches.has(pitch.id);
+
       if (isShortlisted) {
         // Remove from shortlist
         const { error } = await supabase
-          .from('agent_shortlist')
+          .from('shortlist')
           .delete()
-          .eq('agent_id', currentAgentId)
+          .eq('agent_id', agentData.id)
           .eq('pitch_id', pitch.id);
 
         if (error) throw error;
 
-        setShortlistedItems(prev => {
+        setShortlistedPitches(prev => {
           const newSet = new Set(prev);
           newSet.delete(pitch.id);
           return newSet;
         });
 
         toast({
-          title: "Removed from shortlist",
-          description: `${pitch.players.full_name} has been removed from your shortlist`,
+          title: "Removed",
+          description: `${pitch.players.full_name} removed from shortlist`,
         });
       } else {
         // Add to shortlist
         const { error } = await supabase
-          .from('agent_shortlist')
+          .from('shortlist')
           .insert({
-            agent_id: currentAgentId,
+            agent_id: agentData.id,
             pitch_id: pitch.id,
-            player_id: pitch.players.id
+            player_id: pitch.players.id,
+            priority_level: 'medium'
           });
 
         if (error) throw error;
 
-        setShortlistedItems(prev => new Set([...prev, pitch.id]));
+        setShortlistedPitches(prev => new Set([...prev, pitch.id]));
 
         toast({
-          title: "Added to shortlist",
-          description: `${pitch.players.full_name} has been added to your shortlist`,
+          title: "Added",
+          description: `${pitch.players.full_name} added to shortlist`,
         });
       }
     } catch (error) {
-      console.error('Error updating shortlist:', error);
+      console.error('Error toggling shortlist:', error);
       toast({
         title: "Error",
         description: "Failed to update shortlist",
@@ -355,15 +374,8 @@ const AgentTransferTimeline = () => {
     }
   };
 
-  const handleSendMessage = (pitch: TimelinePitch) => {
-    navigate('/messages', { 
-      state: { 
-        recipientId: pitch.team_id,
-        playerId: pitch.players.id,
-        playerName: pitch.players.full_name,
-        pitchId: pitch.id
-      }
-    });
+  const handleMessagePlayer = (pitch: TimelinePitch) => {
+    setSelectedPlayerForMessage(pitch);
   };
 
   if (loading) {
@@ -550,9 +562,9 @@ const AgentTransferTimeline = () => {
                       {/* Player and Team Info */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          {pitch.players.photo_url || pitch.players.headshot_url ? (
+                          {pitch.players.photo_url ? (
                             <img
-                              src={pitch.players.photo_url || pitch.players.headshot_url}
+                              src={pitch.players.photo_url}
                               alt={pitch.players.full_name}
                               className="w-12 h-12 rounded-full object-cover"
                             />
@@ -653,7 +665,7 @@ const AgentTransferTimeline = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-700 flex-1"
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700"
                           onClick={() => handleViewDetails(pitch)}
                         >
                           <Eye className="w-4 h-4 mr-2" />
@@ -663,27 +675,28 @@ const AgentTransferTimeline = () => {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                          onClick={() => handleMessagePlayer(pitch)}
+                        >
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Message
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
                           className={`border-gray-600 hover:bg-gray-700 ${
-                            shortlistedItems.has(pitch.id) 
+                            shortlistedPitches.has(pitch.id) 
                               ? 'text-red-400 border-red-400' 
                               : 'text-gray-300'
                           }`}
-                          onClick={() => handleShortlist(pitch)}
+                          onClick={() => handleToggleShortlist(pitch)}
                         >
-                          {shortlistedItems.has(pitch.id) ? (
+                          {shortlistedPitches.has(pitch.id) ? (
                             <HeartOff className="w-4 h-4" />
                           ) : (
                             <Heart className="w-4 h-4" />
                           )}
-                        </Button>
-                        
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
-                          onClick={() => handleSendMessage(pitch)}
-                        >
-                          <MessageCircle className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
@@ -694,6 +707,24 @@ const AgentTransferTimeline = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Message Player Modal */}
+      {selectedPlayerForMessage && (
+        <MessagePlayerModal
+          player={{
+            id: selectedPlayerForMessage.players.id,
+            full_name: selectedPlayerForMessage.players.full_name,
+            position: selectedPlayerForMessage.players.position,
+            photo_url: selectedPlayerForMessage.players.photo_url,
+          }}
+          pitch={{
+            id: selectedPlayerForMessage.id,
+            team_profile_id: selectedPlayerForMessage.team_id
+          }}
+          isOpen={!!selectedPlayerForMessage}
+          onClose={() => setSelectedPlayerForMessage(null)}
+        />
+      )}
     </div>
   );
 };
