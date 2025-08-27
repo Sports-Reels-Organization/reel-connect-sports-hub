@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,6 +62,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<AgentRequest | null>(null);
   const [agentSportType, setAgentSportType] = useState<string>('football');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<AgentRequest | null>(null);
@@ -271,6 +273,11 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
     }
   };
 
+  const handleViewDetails = (request: AgentRequest) => {
+    setSelectedRequest(request);
+    setSelectedRequestId(request.id);
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -464,7 +471,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
                       size="sm"
                       variant="outline"
                       className="border-gray-600 text-gray-300 hover:bg-gray-700 flex-1"
-                      onClick={() => setSelectedRequestId(request.id)}
+                      onClick={() => handleViewDetails(request)}
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       View Details
@@ -510,9 +517,10 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
         />
       )}
 
-      {selectedRequestId && (
+      {selectedRequestId && selectedRequest && (
         <RequestComments
           requestId={selectedRequestId}
+          isPublic={selectedRequest.is_public}
         />
       )}
 
@@ -542,3 +550,4 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
 };
 
 export default AgentRequestsExplore;
+
