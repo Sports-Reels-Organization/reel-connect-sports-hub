@@ -89,14 +89,8 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   const videoCompressionService = new EnhancedVideoCompressionService();
   const aiAnalysisService = new EnhancedAIAnalysisService();
 
-  // useEffect and fetchTeamPlayers function
   useEffect(() => {
     fetchTeamPlayers();
-    
-    // Debug: Check video schema
-    import('../utils/debugVideoSchema').then(({ debugVideoSchema }) => {
-      debugVideoSchema();
-    });
   }, [teamId]);
 
   const fetchTeamPlayers = async () => {
@@ -125,7 +119,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     setIsCompressing(true);
     setCompressionProgress(0);
 
-    // Simulate progress since the service doesn't have a callback
     const progressInterval = setInterval(() => {
       setCompressionProgress(prev => {
         const newProgress = prev + Math.random() * 15;
@@ -178,7 +171,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
   };
 
-  // handleFileSelect, handlePlayerTagsChange, addPlayerTag, removePlayerTag functions
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -193,7 +185,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
       setSelectedFile(file);
       
-      // Auto-populate title if empty
       if (!metadata.title) {
         setMetadata(prev => ({
           ...prev,
@@ -203,18 +194,12 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
   };
 
-  const handlePlayerTagsChange = (value: string) => {
-    const tags = value.split(',').map(tag => tag.trim()).filter(tag => tag);
-    setMetadata(prev => ({ ...prev, playerTags: tags }));
-  };
-
   const addPlayerTag = () => {
     if (!selectedPlayerId) return;
 
     const player = teamPlayers.find(p => p.id === selectedPlayerId);
     if (!player) return;
 
-    // Check if player already tagged
     if (metadata.playerTags.includes(player.full_name)) {
       toast({
         title: "Player Already Tagged",
@@ -246,7 +231,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     const fileName = `${teamId}/${Date.now()}-${file.name}`;
 
     try {
-      // Create a simple progress simulator since Supabase doesn't support onUploadProgress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           const newProgress = prev + 8;
@@ -310,7 +294,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           title: metadata.title,
           description: metadata.description,
           videoType: metadata.videoType,
-          duration: 1800, // Default 30 minutes
+          duration: 1800,
           playerTags: metadata.playerTags,
           matchDetails: metadata.matchDetails
         },
@@ -319,7 +303,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         }
       );
 
-      // Update video status
       await supabase
         .from('videos')
         .update({ ai_analysis_status: 'completed' })
@@ -351,7 +334,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     try {
       console.log('Starting video upload process...');
       
-      // Create a minimal video record first with only required fields
+      // Create video record
       const videoData = {
         team_id: teamId,
         title: metadata.title,
@@ -360,15 +343,14 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         duration: 0,
         file_size: selectedFile.size,
         ai_analysis_status: 'pending',
-        // Only add optional fields if they have values
-        ...(metadata.description && { video_description: metadata.description }),
-        ...(metadata.playerTags.length > 0 && { tagged_players: metadata.playerTags }),
+        video_description: metadata.description || '',
+        tagged_players: metadata.playerTags,
         ...(metadata.videoType === 'match' && metadata.matchDetails && {
           opposing_team: metadata.matchDetails.opposingTeam || '',
           match_date: metadata.matchDetails.matchDate || null,
-          league: metadata.matchDetails.league || '',
           home_or_away: metadata.matchDetails.homeOrAway || 'home',
-          final_score: metadata.matchDetails.finalScore ? parseFloat(metadata.matchDetails.finalScore) || 0 : null
+          final_score_home: metadata.matchDetails.finalScore ? parseInt(metadata.matchDetails.finalScore.split('-')[0]) || 0 : 0,
+          final_score_away: metadata.matchDetails.finalScore ? parseInt(metadata.matchDetails.finalScore.split('-')[1]) || 0 : 0
         })
       };
 
@@ -381,29 +363,17 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         .single();
 
       if (videoError) {
-        console.error('Detailed video record creation error:', {
-          error: videoError,
-          message: videoError.message,
-          details: videoError.details,
-          hint: videoError.hint,
-          code: videoError.code
-        });
+        console.error('Video record creation error:', videoError);
         throw new Error(`Failed to create video record: ${videoError.message}`);
       }
 
       const videoId = videoRecord.id;
       console.log('Video record created with ID:', videoId);
 
-      // Step 2: Compress video
       const compressedFile = await compressVideo(selectedFile, videoId);
-
-      // Step 3: Generate thumbnail
       const thumbnailUrl = await generateThumbnail(compressedFile);
-
-      // Step 4: Upload video
       const videoUrl = await uploadVideo(compressedFile);
 
-      // Step 5: Update video record with URLs
       const updateData = {
         video_url: videoUrl,
         ...(thumbnailUrl && { thumbnail_url: thumbnailUrl })
@@ -421,7 +391,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         throw new Error(`Failed to update video: ${updateError.message}`);
       }
 
-      // Step 6: Perform AI analysis
       await performAIAnalysis(videoId);
 
       toast({
@@ -454,11 +423,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       onUploadComplete?.(videoId);
 
     } catch (error) {
-      console.error('Upload error details:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      console.error('Upload error details:', error);
       toast({
         title: "Upload Failed",
         description: error instanceof Error ? error.message : "An error occurred during upload",
@@ -501,7 +466,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           </div>
         </div>
 
-        {/* Compression Status */}
         {isCompressing && (
           <Card className="bg-gray-700 border-gray-600">
             <CardContent className="p-4">
@@ -735,7 +699,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           </Card>
         )}
 
-        {/* Upload Progress */}
         {isUploading && (
           <Card className="bg-gray-700 border-gray-600">
             <CardContent className="p-4">
@@ -751,7 +714,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           </Card>
         )}
 
-        {/* Analysis Progress */}
         {isAnalyzing && (
           <Card className="bg-gray-700 border-gray-600">
             <CardContent className="p-4">

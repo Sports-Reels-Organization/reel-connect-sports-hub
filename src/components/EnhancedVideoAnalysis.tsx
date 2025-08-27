@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,22 +72,51 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
   const handleAnalysisRequest = async (videoId: string) => {
     try {
       setLoading(true);
-      // Simulate analysis process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Update analysis status to processing
+      const { error: updateError } = await supabase
+        .from('videos')
+        .update({ ai_analysis_status: 'analyzing' })
+        .eq('id', videoId);
+
+      if (updateError) throw updateError;
+
+      // Call the analyze-video edge function
+      const { data, error } = await supabase.functions.invoke('analyze-video', {
+        body: { 
+          videoId: videoId,
+          videoUrl: videos.find(v => v.id === videoId)?.video_url,
+          videoType: videos.find(v => v.id === videoId)?.video_type || 'match',
+          videoTitle: videos.find(v => v.id === videoId)?.title,
+          videoDescription: videos.find(v => v.id === videoId)?.description
+        }
+      });
+
+      if (error) throw error;
       
       toast({
-        title: "Analysis Started",
-        description: "Video analysis has been queued for processing",
+        title: "Analysis Complete",
+        description: "Video analysis has been completed successfully",
       });
+      
+      // Reload videos to get updated analysis status
+      loadTeamVideos();
       
       if (onAnalysisComplete) {
         onAnalysisComplete({ videoId, status: 'completed' });
       }
     } catch (error) {
       console.error('Error starting analysis:', error);
+      
+      // Update status to failed
+      await supabase
+        .from('videos')
+        .update({ ai_analysis_status: 'failed' })
+        .eq('id', videoId);
+      
       toast({
         title: "Analysis Failed",
-        description: "Failed to start video analysis",
+        description: "Failed to complete video analysis",
         variant: "destructive"
       });
     } finally {
@@ -164,6 +194,7 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
                 <VideoAnalysisResults
                   videoId={selectedVideoId}
                   teamId={teamId}
+                  videoType="match"
                 />
               ) : (
                 <div className="text-center p-8">

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,7 @@ const VideoManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
 
@@ -236,29 +237,36 @@ const VideoManagement: React.FC = () => {
           <p className="text-gray-400">Upload, analyze, and manage your team's video content</p>
         </div>
 
-        <Dialog open={showUploadForm} onOpenChange={setShowUploadForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              Upload Video
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Upload New Video</DialogTitle>
-            </DialogHeader>
-            {teamId && (
-              <EnhancedVideoUploadForm
-                teamId={teamId}
-                onUploadComplete={() => {
-                  setShowUploadForm(false);
-                  loadVideos();
-                }}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
+        <Button 
+          onClick={() => setShowUploadDialog(true)}
+          className="bg-bright-pink hover:bg-bright-pink/90 text-white"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Upload Video
+        </Button>
       </div>
+
+      {/* Upload Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Upload New Video</DialogTitle>
+          </DialogHeader>
+          {teamId && (
+            <EnhancedVideoUploadForm
+              teamId={teamId}
+              onUploadComplete={() => {
+                setShowUploadDialog(false);
+                loadVideos();
+                toast({
+                  title: "Upload Complete",
+                  description: "Video uploaded successfully!",
+                });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Card className="bg-gray-800 border-gray-700">
         <CardContent className="p-4">
@@ -331,7 +339,7 @@ const VideoManagement: React.FC = () => {
             </p>
             {videos.length === 0 && (
               <Button
-                onClick={() => setShowUploadForm(true)}
+                onClick={() => setShowUploadDialog(true)}
                 className="bg-bright-pink hover:bg-bright-pink/90 text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -421,6 +429,7 @@ const VideoManagement: React.FC = () => {
                           <VideoAnalysisResults
                             videoId={video.id}
                             teamId={teamId}
+                            videoType={video.video_type}
                           />
                         )}
                       </DialogContent>
