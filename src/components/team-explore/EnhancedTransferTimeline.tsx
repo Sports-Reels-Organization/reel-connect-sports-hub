@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ interface TransferPitch {
   transfer_type: string;
   asking_price: number;
   currency: string;
-  status: string;
+  status: 'active' | 'expired' | 'completed' | 'cancelled';
   expires_at: string;
   created_at: string;
   view_count: number;
@@ -130,7 +129,11 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
     }
   };
 
-  const handleEditPitch = async (pitchId: string, updates: Partial<TransferPitch>) => {
+  const handleEditPitch = async (pitchId: string, updates: {
+    description?: string;
+    asking_price?: number;
+    status?: 'active' | 'expired' | 'completed' | 'cancelled';
+  }) => {
     try {
       const { error } = await supabase
         .from('transfer_pitches')

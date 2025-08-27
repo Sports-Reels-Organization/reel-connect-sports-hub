@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -93,15 +92,21 @@ export const useEnhancedMessaging = (pitchId?: string) => {
         .update({ is_flagged: true })
         .eq('id', messageId);
 
-      // Record violation
-      await supabase
+      // Record violation with correct structure
+      const violationData = {
+        message_id: messageId,
+        user_id: profile.user_id,
+        violation_type: violations.map(v => v.type).join(', '),
+        violation_content: JSON.stringify(violations)
+      };
+
+      const { error: violationError } = await supabase
         .from('message_violations')
-        .insert({
-          message_id: messageId,
-          user_id: profile.user_id,
-          violation_type: violations.map(v => v.type).join(', '),
-          violation_content: violations
-        });
+        .insert(violationData);
+
+      if (violationError) {
+        console.error('Error recording violation:', violationError);
+      }
 
       // Update user warning count
       const { data: currentProfile } = await supabase
