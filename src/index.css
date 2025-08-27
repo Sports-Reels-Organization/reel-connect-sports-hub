@@ -85,9 +85,14 @@
 }
 
 @layer base {
+
   /* * {
     @apply border-0;
   } */
+  [class*="bg-gray-"] {
+    /* background-color: #1a1a1a !important; */
+    /* force dark background */
+  }
 
   body {
     @apply bg-background text-foreground font-poppins;

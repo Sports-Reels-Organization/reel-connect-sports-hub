@@ -75,7 +75,7 @@ const PlayerProfilePage: React.FC = () => {
   const { playerId } = useParams<{ playerId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [player, setPlayer] = useState<PlayerData | null>(null);
   const [videos, setVideos] = useState<PlayerVideo[]>([]);
   const [stats, setStats] = useState<PlayerStats[]>([]);
@@ -244,7 +244,7 @@ const PlayerProfilePage: React.FC = () => {
         </div>
 
         {/* Player Header */}
-        <Card className="bg-gradient-to-r from-gray-900 to-gray-800 border-gray-700">
+        <Card className="border-0">
           <CardContent className="p-8">
             <div className="flex flex-col lg:flex-row gap-8">
               {/* Player Photo */}
@@ -288,7 +288,7 @@ const PlayerProfilePage: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   {player.market_value && (
                     <div className="text-right">
                       <div className="text-3xl font-bold text-bright-pink">{formatMarketValue(player.market_value)}</div>
@@ -308,7 +308,7 @@ const PlayerProfilePage: React.FC = () => {
                       <div className="text-gray-400 text-sm">Years Old</div>
                     </div>
                   )}
-                  
+
                   {player.height && (
                     <div className="text-center">
                       <div className="flex items-center justify-center mb-2">
@@ -318,7 +318,7 @@ const PlayerProfilePage: React.FC = () => {
                       <div className="text-gray-400 text-sm">Height</div>
                     </div>
                   )}
-                  
+
                   {player.weight && (
                     <div className="text-center">
                       <div className="flex items-center justify-center mb-2">
@@ -328,7 +328,7 @@ const PlayerProfilePage: React.FC = () => {
                       <div className="text-gray-400 text-sm">Weight</div>
                     </div>
                   )}
-                  
+
                   <div className="text-center">
                     <div className="flex items-center justify-center mb-2">
                       <Target className="w-5 h-5 text-bright-pink" />
@@ -436,7 +436,7 @@ const PlayerProfilePage: React.FC = () => {
                         {video.duration ? `${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}` : 'Unknown'}
                       </div>
                     </div>
-                    
+
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         <div>
@@ -445,10 +445,9 @@ const PlayerProfilePage: React.FC = () => {
                             <Badge variant="outline" className="text-xs">
                               {video.video_type.toUpperCase()}
                             </Badge>
-                            <Badge className={`text-xs ${
-                              video.ai_analysis_status === 'completed' ? 'bg-green-500' :
+                            <Badge className={`text-xs ${video.ai_analysis_status === 'completed' ? 'bg-green-500' :
                               video.ai_analysis_status === 'processing' ? 'bg-yellow-500' : 'bg-gray-500'
-                            } text-white`}>
+                              } text-white`}>
                               {video.ai_analysis_status}
                             </Badge>
                           </div>
