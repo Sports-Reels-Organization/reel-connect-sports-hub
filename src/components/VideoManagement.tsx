@@ -32,7 +32,7 @@ interface Video {
   title: string;
   video_url: string;
   thumbnail_url: string;
-  video_type: string;
+  video_type: 'match' | 'training' | 'highlight' | 'interview';
   ai_analysis_status: string;
   created_at: string;
   duration: number;
@@ -108,7 +108,7 @@ const VideoManagement: React.FC = () => {
         title: video.title,
         video_url: video.video_url,
         thumbnail_url: video.thumbnail_url || '',
-        video_type: video.video_type,
+        video_type: video.video_type as 'match' | 'training' | 'highlight' | 'interview',
         ai_analysis_status: video.ai_analysis_status,
         created_at: video.created_at,
         duration: video.duration || 0,
@@ -237,36 +237,33 @@ const VideoManagement: React.FC = () => {
           <p className="text-gray-400">Upload, analyze, and manage your team's video content</p>
         </div>
 
-        <Button 
-          onClick={() => setShowUploadDialog(true)}
-          className="bg-bright-pink hover:bg-bright-pink/90 text-white"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Upload Video
-        </Button>
+        <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+          <DialogTrigger asChild>
+            <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
+              <Plus className="w-4 h-4 mr-2" />
+              Upload Video
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Upload New Video</DialogTitle>
+            </DialogHeader>
+            {teamId && (
+              <EnhancedVideoUploadForm
+                teamId={teamId}
+                onUploadComplete={() => {
+                  setShowUploadDialog(false);
+                  loadVideos();
+                  toast({
+                    title: "Upload Complete",
+                    description: "Video uploaded successfully!",
+                  });
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {/* Upload Dialog */}
-      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Upload New Video</DialogTitle>
-          </DialogHeader>
-          {teamId && (
-            <EnhancedVideoUploadForm
-              teamId={teamId}
-              onUploadComplete={() => {
-                setShowUploadDialog(false);
-                loadVideos();
-                toast({
-                  title: "Upload Complete",
-                  description: "Video uploaded successfully!",
-                });
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       <Card className="bg-gray-800 border-gray-700">
         <CardContent className="p-4">
@@ -338,13 +335,32 @@ const VideoManagement: React.FC = () => {
               }
             </p>
             {videos.length === 0 && (
-              <Button
-                onClick={() => setShowUploadDialog(true)}
-                className="bg-bright-pink hover:bg-bright-pink/90 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Upload Your First Video
-              </Button>
+              <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+                <DialogTrigger asChild>
+                  <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Upload Your First Video
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Upload New Video</DialogTitle>
+                  </DialogHeader>
+                  {teamId && (
+                    <EnhancedVideoUploadForm
+                      teamId={teamId}
+                      onUploadComplete={() => {
+                        setShowUploadDialog(false);
+                        loadVideos();
+                        toast({
+                          title: "Upload Complete",
+                          description: "Video uploaded successfully!",
+                        });
+                      }}
+                    />
+                  )}
+                </DialogContent>
+              </Dialog>
             )}
           </CardContent>
         </Card>
