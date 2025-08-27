@@ -60,7 +60,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
   const [filteredRequests, setFilteredRequests] = useState<AgentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<AgentRequest | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [agentSportType, setAgentSportType] = useState<string>('football');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<AgentRequest | null>(null);
@@ -138,7 +138,15 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setRequests(data || []);
+      
+      // Transform data to ensure all required properties are present
+      const transformedData: AgentRequest[] = (data || []).map(item => ({
+        ...item,
+        request_type: item.request_type || 'player_search',
+        tagged_players: Array.isArray(item.tagged_players) ? item.tagged_players : []
+      }));
+      
+      setRequests(transformedData);
     } catch (error) {
       console.error('Error fetching requests:', error);
       toast({
@@ -447,7 +455,7 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
                       size="sm"
                       variant="outline"
                       className="border-gray-600 text-gray-300 hover:bg-gray-700 flex-1"
-                      onClick={() => setSelectedRequest(request)}
+                      onClick={() => setSelectedRequestId(request.id)}
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       View Details
@@ -486,18 +494,18 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
         <CreateAgentRequestModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
+          onRequestCreated={() => {
             setShowCreateModal(false);
             fetchRequests();
           }}
         />
       )}
 
-      {selectedRequest && (
+      {selectedRequestId && (
         <RequestComments
-          request={selectedRequest}
-          isOpen={!!selectedRequest}
-          onClose={() => setSelectedRequest(null)}
+          requestId={selectedRequestId}
+          isOpen={!!selectedRequestId}
+          onClose={() => setSelectedRequestId(null)}
         />
       )}
 

@@ -39,7 +39,7 @@ interface TimelinePitch {
   shortlist_count: number;
   is_international: boolean;
   description: string;
-  tagged_videos: any;
+  tagged_videos: any[];
   team_id: string;
   players: {
     id: string;
@@ -67,7 +67,7 @@ const TransferTimeline = () => {
   const [filteredPitches, setFilteredPitches] = useState<TimelinePitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
-  const [teamSportType, setTeamSportType] = useState<string>('football');
+  const [teamSportType, setTeamSportType] = useState<'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby'>('football');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pitchToDelete, setPitchToDelete] = useState<TimelinePitch | null>(null);
   
@@ -124,7 +124,8 @@ const TransferTimeline = () => {
       }
 
       if (data?.sport_type) {
-        setTeamSportType(data.sport_type);
+        const sportType = data.sport_type as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby';
+        setTeamSportType(sportType);
       }
     } catch (error) {
       console.error('Error fetching team sport type:', error);
@@ -162,9 +163,10 @@ const TransferTimeline = () => {
 
       if (error) throw error;
       
-      // Process data to add age calculation
-      const processedPitches = (data || []).map(pitch => ({
+      // Process data to add age calculation and ensure proper typing
+      const processedPitches: TimelinePitch[] = (data || []).map(pitch => ({
         ...pitch,
+        tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
         players: {
           ...pitch.players,
           age: pitch.players.date_of_birth ? 
@@ -570,7 +572,7 @@ const TransferTimeline = () => {
                               International
                             </Badge>
                           )}
-                          {pitch.tagged_videos && Array.isArray(pitch.tagged_videos) && pitch.tagged_videos.length > 0 && (
+                          {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
                             <Badge variant="outline" className="text-green-400 border-green-400">
                               <Play className="w-3 h-4 mr-1" />
                               {pitch.tagged_videos.length} Videos

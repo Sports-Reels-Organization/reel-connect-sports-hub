@@ -10,21 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { 
   Clock, MessageCircle, Eye, AlertCircle, TrendingUp, 
-  Search, Filter, Grid3X3, List, Play, User, MapPin, Building2,
-  Heart, HeartIcon, Bell, BellRing, Star
+  Search, Filter, Grid3X3, List, Heart, HeartOff,
+  Building2, User, MapPin, Calendar, DollarSign, Play
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { ShortlistManager } from '../ShortlistManager';
-import MessageModal from '../MessageModal';
-import PlayerDetailModal from '../PlayerDetailModal';
 import { useSportData } from '@/hooks/useSportData';
+import { AppNotificationService } from '@/services/appNotificationService';
 
 interface TimelinePitch {
   id: string;
   asking_price: number;
   currency: string;
   transfer_type: string;
+  deal_stage: string;
   expires_at: string;
   created_at: string;
   view_count: number;
@@ -34,7 +33,6 @@ interface TimelinePitch {
   description: string;
   tagged_videos: any[];
   team_id: string;
-  deal_stage: string;
   players: {
     id: string;
     full_name: string;
@@ -50,7 +48,7 @@ interface TimelinePitch {
     team_name: string;
     logo_url?: string;
     country: string;
-    sport_type: string;
+    sport_type?: string;
   };
 }
 
@@ -62,11 +60,9 @@ const AgentTransferTimeline = () => {
   const [filteredPitches, setFilteredPitches] = useState<TimelinePitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
-  const [agentSportType, setAgentSportType] = useState<string>('football');
-  const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
-  const [showMessageModal, setShowMessageModal] = useState(false);
-  const [messagePlayerData, setMessagePlayerData] = useState<any>(null);
-  const [canMessage, setCanMessage] = useState(false);
+  const [agentSportType, setAgentSportType] = useState<'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby'>('football');
+  const [shortlistedItems, setShortlistedItems] = useState<Set<string>>(new Set());
+  const [currentAgentId, setCurrentAgentId] = useState<string | null>(null);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,7 +71,6 @@ const AgentTransferTimeline = () => {
   const [priceRangeFilter, setPriceRangeFilter] = useState('all');
   const [dealStageFilter, setDealStageFilter] = useState('all');
   const [teamFilter, setTeamFilter] = useState('all');
-  const [countryFilter, setCountryFilter] = useState('all');
 
   // Get sport-specific data
   const { positions } = useSportData(agentSportType);
@@ -89,77 +84,53 @@ const AgentTransferTimeline = () => {
     { label: 'Over $5M', value: '5000000-999999999' }
   ];
 
-  // Get unique teams and countries for filtering
+  // Get unique teams for filtering
   const [availableTeams, setAvailableTeams] = useState<string[]>([]);
-  const [availableCountries, setAvailableCountries] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchAgentSportType();
-    checkMessagingPermissions();
+    fetchAgentData();
   }, [profile]);
 
   useEffect(() => {
-    if (agentSportType) {
+    if (agentSportType && currentAgentId) {
       fetchTimelinePitches();
+      fetchShortlistedItems();
     }
-  }, [agentSportType]);
+  }, [agentSportType, currentAgentId]);
 
   useEffect(() => {
     applyFilters();
-  }, [pitches, searchTerm, positionFilter, transferTypeFilter, priceRangeFilter, dealStageFilter, teamFilter, countryFilter]);
+  }, [pitches, searchTerm, positionFilter, transferTypeFilter, priceRangeFilter, dealStageFilter, teamFilter]);
 
-  const fetchAgentSportType = async () => {
+  const fetchAgentData = async () => {
     if (!profile?.id) return;
     
     try {
       const { data, error } = await supabase
         .from('agents')
-        .select('specialization')
+        .select('id, specialization')
         .eq('profile_id', profile.id)
         .single();
 
       if (error) {
-        console.error('Error fetching agent sport type:', error);
+        console.error('Error fetching agent data:', error);
         return;
       }
 
-      if (data?.specialization && Array.isArray(data.specialization) && data.specialization.length > 0) {
-        setAgentSportType(data.specialization[0]);
+      if (data) {
+        setCurrentAgentId(data.id);
+        if (data.specialization && Array.isArray(data.specialization) && data.specialization.length > 0) {
+          const sportType = data.specialization[0] as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby';
+          setAgentSportType(sportType);
+        }
       }
     } catch (error) {
-      console.error('Error fetching agent sport type:', error);
-    }
-  };
-
-  const checkMessagingPermissions = async () => {
-    if (!profile || profile.user_type !== 'agent') {
-      setCanMessage(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('agents')
-        .select('fifa_id, specialization')
-        .eq('profile_id', profile.id)
-        .single();
-
-      if (error) throw error;
-
-      if (data.specialization?.includes('football')) {
-        setCanMessage(!!data.fifa_id);
-      } else {
-        setCanMessage(true);
-      }
-    } catch (error) {
-      console.error('Error checking messaging permissions:', error);
-      setCanMessage(false);
+      console.error('Error fetching agent data:', error);
     }
   };
 
   const fetchTimelinePitches = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('transfer_pitches')
         .select(`
@@ -185,13 +156,15 @@ const AgentTransferTimeline = () => {
         .eq('status', 'active')
         .eq('teams.sport_type', agentSportType)
         .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (error) throw error;
       
-      // Process data to add age calculation
-      const processedPitches = (data || []).map(pitch => ({
+      // Process data to add age calculation and ensure proper typing
+      const processedPitches: TimelinePitch[] = (data || []).map(pitch => ({
         ...pitch,
+        tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
         players: {
           ...pitch.players,
           age: pitch.players.date_of_birth ? 
@@ -201,12 +174,10 @@ const AgentTransferTimeline = () => {
       
       setPitches(processedPitches);
 
-      // Extract unique teams and countries for filtering
+      // Extract unique teams for filtering
       const teams = [...new Set(processedPitches.map(p => p.teams.team_name))].sort();
-      const countries = [...new Set(processedPitches.map(p => p.teams.country))].sort();
       setAvailableTeams(teams);
-      setAvailableCountries(countries);
-
+      
     } catch (error) {
       console.error('Error fetching timeline pitches:', error);
       toast({
@@ -216,6 +187,24 @@ const AgentTransferTimeline = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchShortlistedItems = async () => {
+    if (!currentAgentId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('agent_shortlist')
+        .select('pitch_id')
+        .eq('agent_id', currentAgentId);
+
+      if (error) throw error;
+
+      const shortlisted = new Set(data.map(item => item.pitch_id));
+      setShortlistedItems(shortlisted);
+    } catch (error) {
+      console.error('Error fetching shortlisted items:', error);
     }
   };
 
@@ -233,9 +222,7 @@ const AgentTransferTimeline = () => {
 
     // Position filter
     if (positionFilter !== 'all') {
-      filtered = filtered.filter(pitch => 
-        pitch.players.position.toLowerCase().includes(positionFilter.toLowerCase())
-      );
+      filtered = filtered.filter(pitch => pitch.players.position === positionFilter);
     }
 
     // Transfer type filter
@@ -251,11 +238,6 @@ const AgentTransferTimeline = () => {
     // Team filter
     if (teamFilter !== 'all') {
       filtered = filtered.filter(pitch => pitch.teams.team_name === teamFilter);
-    }
-
-    // Country filter
-    if (countryFilter !== 'all') {
-      filtered = filtered.filter(pitch => pitch.teams.country === countryFilter);
     }
 
     // Price range filter
@@ -306,57 +288,82 @@ const AgentTransferTimeline = () => {
     }).format(amount);
   };
 
-  const handleViewDetails = async (pitch: TimelinePitch) => {
-    try {
-      const { data, error } = await supabase
-        .from('players')
-        .select(`
-          *,
-          teams(*)
-        `)
-        .eq('id', pitch.players.id)
-        .single();
+  const handleViewDetails = (pitch: TimelinePitch) => {
+    // Increment view count
+    supabase.rpc('increment_pitch_view_count', { pitch_uuid: pitch.id });
+    
+    navigate(`/player-profile/${pitch.players.id}`, { 
+      state: { 
+        pitchId: pitch.id,
+        fromTransferTimeline: true 
+      }
+    });
+  };
 
-      if (error) throw error;
-      setSelectedPlayer(data);
+  const handleShortlist = async (pitch: TimelinePitch) => {
+    if (!currentAgentId) return;
+
+    try {
+      const isShortlisted = shortlistedItems.has(pitch.id);
+      
+      if (isShortlisted) {
+        // Remove from shortlist
+        const { error } = await supabase
+          .from('agent_shortlist')
+          .delete()
+          .eq('agent_id', currentAgentId)
+          .eq('pitch_id', pitch.id);
+
+        if (error) throw error;
+
+        setShortlistedItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(pitch.id);
+          return newSet;
+        });
+
+        toast({
+          title: "Removed from shortlist",
+          description: `${pitch.players.full_name} has been removed from your shortlist`,
+        });
+      } else {
+        // Add to shortlist
+        const { error } = await supabase
+          .from('agent_shortlist')
+          .insert({
+            agent_id: currentAgentId,
+            pitch_id: pitch.id,
+            player_id: pitch.players.id
+          });
+
+        if (error) throw error;
+
+        setShortlistedItems(prev => new Set([...prev, pitch.id]));
+
+        toast({
+          title: "Added to shortlist",
+          description: `${pitch.players.full_name} has been added to your shortlist`,
+        });
+      }
     } catch (error) {
-      console.error('Error fetching player details:', error);
+      console.error('Error updating shortlist:', error);
       toast({
         title: "Error",
-        description: "Failed to load player details",
+        description: "Failed to update shortlist",
         variant: "destructive"
       });
     }
   };
 
-  const handleMessagePlayer = (pitch: TimelinePitch) => {
-    if (!canMessage) {
-      toast({
-        title: "FIFA ID Required",
-        description: "You need a FIFA ID to message football players",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setMessagePlayerData({
-      pitchId: pitch.id,
-      playerId: pitch.players.id,
-      teamId: pitch.team_id,
-      playerName: pitch.players.full_name,
-      teamName: pitch.teams.team_name
+  const handleSendMessage = (pitch: TimelinePitch) => {
+    navigate('/messages', { 
+      state: { 
+        recipientId: pitch.team_id,
+        playerId: pitch.players.id,
+        playerName: pitch.players.full_name,
+        pitchId: pitch.id
+      }
     });
-    setShowMessageModal(true);
-  };
-
-  const clearAllFilters = () => {
-    setSearchTerm('');
-    setPositionFilter('all');
-    setTransferTypeFilter('all');
-    setPriceRangeFilter('all');
-    setDealStageFilter('all');
-    setTeamFilter('all');
-    setCountryFilter('all');
   };
 
   if (loading) {
@@ -416,7 +423,7 @@ const AgentTransferTimeline = () => {
         
         <CardContent>
           {/* Search and Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
@@ -450,20 +457,6 @@ const AgentTransferTimeline = () => {
                 {availableTeams.map(team => (
                   <SelectItem key={team} value={team}>
                     {team}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={countryFilter} onValueChange={setCountryFilter}>
-              <SelectTrigger className="text-white">
-                <SelectValue placeholder="All Countries" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="all">All Countries</SelectItem>
-                {availableCountries.map(country => (
-                  <SelectItem key={country} value={country}>
-                    {country}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -514,7 +507,14 @@ const AgentTransferTimeline = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={clearAllFilters}
+              onClick={() => {
+                setSearchTerm('');
+                setPositionFilter('all');
+                setTransferTypeFilter('all');
+                setPriceRangeFilter('all');
+                setDealStageFilter('all');
+                setTeamFilter('all');
+              }}
               className="text-white border-gray-600 hover:bg-gray-700"
             >
               <Filter className="w-4 h-4 mr-2" />
@@ -546,13 +546,13 @@ const AgentTransferTimeline = () => {
                   } ${viewMode === 'list' ? 'w-full' : ''}`}
                 >
                   <CardContent className="p-4">
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {/* Player and Team Info */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          {(pitch.players.headshot_url || pitch.players.photo_url) ? (
+                          {pitch.players.photo_url || pitch.players.headshot_url ? (
                             <img
-                              src={pitch.players.headshot_url || pitch.players.photo_url}
+                              src={pitch.players.photo_url || pitch.players.headshot_url}
                               alt={pitch.players.full_name}
                               className="w-12 h-12 rounded-full object-cover"
                             />
@@ -616,7 +616,7 @@ const AgentTransferTimeline = () => {
                           )}
                           {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
                             <Badge variant="outline" className="text-green-400 border-green-400">
-                              <Play className="w-3 h-3 mr-1" />
+                              <Play className="w-3 h-4 mr-1" />
                               {pitch.tagged_videos.length} Videos
                             </Badge>
                           )}
@@ -627,11 +627,9 @@ const AgentTransferTimeline = () => {
                             </Badge>
                           )}
                         </div>
-                      </div>
-
-                      {/* Expiry Info */}
-                      <div className="text-xs text-gray-400">
-                        Expires {formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}
+                        <div className="text-xs text-gray-400">
+                          Expires {formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}
+                        </div>
                       </div>
 
                       {/* Stats */}
@@ -645,7 +643,7 @@ const AgentTransferTimeline = () => {
                           {pitch.message_count}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4" />
+                          <TrendingUp className="w-4 h-4" />
                           {pitch.shortlist_count} shortlisted
                         </div>
                       </div>
@@ -664,27 +662,30 @@ const AgentTransferTimeline = () => {
                         
                         <Button
                           size="sm"
-                          variant={canMessage ? "default" : "secondary"}
-                          onClick={() => handleMessagePlayer(pitch)}
-                          disabled={!canMessage}
-                          className={canMessage ? "bg-rosegold hover:bg-rosegold/90 text-white" : ""}
+                          variant="outline"
+                          className={`border-gray-600 hover:bg-gray-700 ${
+                            shortlistedItems.has(pitch.id) 
+                              ? 'text-red-400 border-red-400' 
+                              : 'text-gray-300'
+                          }`}
+                          onClick={() => handleShortlist(pitch)}
+                        >
+                          {shortlistedItems.has(pitch.id) ? (
+                            <HeartOff className="w-4 h-4" />
+                          ) : (
+                            <Heart className="w-4 h-4" />
+                          )}
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
+                          onClick={() => handleSendMessage(pitch)}
                         >
                           <MessageCircle className="w-4 h-4" />
                         </Button>
-
-                        <ShortlistManager
-                          pitchId={pitch.id}
-                          playerId={pitch.players.id}
-                        />
                       </div>
-
-                      {!canMessage && (
-                        <div className="text-center">
-                          <Badge variant="secondary" className="text-xs">
-                            FIFA ID required for messaging
-                          </Badge>
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -693,24 +694,6 @@ const AgentTransferTimeline = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Modals */}
-      {selectedPlayer && (
-        <PlayerDetailModal
-          player={selectedPlayer}
-          isOpen={!!selectedPlayer}
-          onClose={() => setSelectedPlayer(null)}
-        />
-      )}
-
-      {showMessageModal && messagePlayerData && (
-        <MessageModal
-          isOpen={showMessageModal}
-          onClose={() => setShowMessageModal(false)}
-          {...messagePlayerData}
-          currentUserId={profile?.id || ''}
-        />
-      )}
     </div>
   );
 };
