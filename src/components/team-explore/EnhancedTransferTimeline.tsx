@@ -19,7 +19,7 @@ interface TransferPitch {
     status: string;
     created_at: string;
     expires_at: string;
-    tagged_videos: string[];
+    tagged_videos: string[] | any;
     sign_on_bonus: number;
     performance_bonus: number;
     player_salary: number;
@@ -30,7 +30,7 @@ interface TransferPitch {
     is_international: boolean;
     service_charge_rate: number;
     team_id: string;
-    team_profile_id?: string; // Added for messaging
+    team_profile_id?: string;
     players: {
         id: string;
         full_name: string;
@@ -50,6 +50,7 @@ interface TransferPitch {
         country: string;
         logo_url: string;
         member_association: string;
+        profile_id?: string;
     };
     tagged_video_details?: {
         id: string;
@@ -80,15 +81,24 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
         .from('transfer_pitches')
         .select(`
           *,
-          teams!inner(*),
+          teams!inner(*, profile_id),
           players!inner(*),
           messages(count)
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (userType === 'team' && profile?.team_profile?.id) {
-        query = query.eq('team_id', profile.team_profile.id);
+      // For teams, get their own pitches
+      if (userType === 'team') {
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('profile_id', profile?.id)
+          .single();
+
+        if (teamData) {
+          query = query.eq('team_id', teamData.id);
+        }
       }
 
       const { data, error } = await query;
@@ -105,8 +115,10 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
 
       const enrichedPitches = data?.map(pitch => ({
         ...pitch,
+        tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
         message_count: pitch.messages ? pitch.messages[0]?.count : 0,
-        view_count: Math.floor(Math.random() * 50) // Mock view count
+        view_count: Math.floor(Math.random() * 50), // Mock view count
+        team_profile_id: pitch.teams?.profile_id
       })) || [];
 
       setPitches(enrichedPitches);
@@ -135,7 +147,7 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
 
   useEffect(() => {
     fetchPitches();
-  }, [userType, profile?.team_profile?.id]);
+  }, [userType, profile?.id]);
 
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('en-US', {
@@ -146,7 +158,7 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
 
   const getReceiverId = (pitch: TransferPitch) => {
     if (userType === 'agent') {
-      return pitch.team_profile_id || pitch.team_id;
+      return pitch.team_profile_id || pitch.teams?.profile_id || pitch.team_id;
     } else {
       // For teams, we need to get the agent's profile ID
       // This should be handled in the MessageModal component

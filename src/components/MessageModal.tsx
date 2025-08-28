@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -5,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, FileText, Upload, Loader2 } from 'lucide-react';
+import { Send, FileText, Upload, Loader2, MessageCircle } from 'lucide-react';
 import { FileUpload } from './FileUpload';
 import { MessageBubble } from './MessageBubble';
 import { ContractGenerationModal } from './ContractGenerationModal';
@@ -92,15 +93,12 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUploaded = async (fileUrl: string, fileName: string, fileSize: number, fileType: string) => {
     if (!receiverId) return;
 
     try {
-      // Here you would upload the file and get its URL
-      const fileUrl = 'uploaded-file-url'; // This would be the actual uploaded file URL
-      
       await sendMessage(
-        `📎 Sent a file: ${file.name}`,
+        `📎 Sent a file: ${fileName}`,
         receiverId,
         {
           pitchId,
@@ -133,19 +131,9 @@ export const MessageModal: React.FC<MessageModalProps> = ({
               <span>Message about {playerName}</span>
               <div className="flex gap-2">
                 <FileUpload
-                  onUploadComplete={handleFileUpload}
-                  accept=".pdf,.doc,.docx"
-                  maxSize={10 * 1024 * 1024} // 10MB
-                >
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload File
-                  </Button>
-                </FileUpload>
+                  onFileUploaded={handleFileUploaded}
+                  disabled={contractGenerating}
+                />
                 
                 <Button
                   onClick={() => setShowContractGen(true)}
