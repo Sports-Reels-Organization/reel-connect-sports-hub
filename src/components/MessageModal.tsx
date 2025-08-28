@@ -133,20 +133,20 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             <DialogTitle className="flex items-center justify-between">
               <span>Message about {playerName}</span>
               <div className="flex gap-2">
-                <FileUpload
-                  onUploadComplete={handleFileUploadComplete}
-                  accept=".pdf,.doc,.docx"
-                  maxSize={10 * 1024 * 1024}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                  onClick={() => document.getElementById('file-upload-input')?.click()}
                 >
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Contract
-                  </Button>
-                </FileUpload>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Contract
+                </Button>
+                
+                <FileUpload
+                  onFileUploaded={handleFileUploadComplete}
+                  disabled={false}
+                />
                 
                 <Button
                   onClick={() => setShowContractGen(true)}
