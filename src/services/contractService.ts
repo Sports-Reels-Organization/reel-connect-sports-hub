@@ -103,30 +103,5 @@ export const contractService = {
       console.error('Error testing bucket access:', error);
       return false;
     }
-  },
-
-  async saveGeneratedContract(contractData: any): Promise<string> {
-    try {
-      const { data, error } = await supabase
-        .from('generated_contracts')
-        .insert({
-          template_id: null,
-          pitch_id: contractData.pitchId,
-          sender_id: contractData.senderId,
-          receiver_id: contractData.receiverId,
-          player_id: contractData.playerId,
-          contract_content: contractData.contractHtml,
-          contract_data: contractData,
-          status: 'draft'
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data.id;
-    } catch (error) {
-      console.error('Error saving contract:', error);
-      throw error;
-    }
   }
 };

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, FileText, Upload, Loader2, MessageCircle } from 'lucide-react';
+import { Send, FileText, Upload, Loader2 } from 'lucide-react';
 import { FileUpload } from './FileUpload';
 import { MessageBubble } from './MessageBubble';
 import { ContractGenerationModal } from './ContractGenerationModal';
@@ -62,15 +62,12 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUploadComplete = async (fileUrl: string, fileName: string, fileSize: number, fileType: string) => {
     if (!receiverId) return;
     
     try {
-      // Here you would upload the file to storage and get the URL
-      const fileUrl = 'https://example.com/contract.pdf'; // This would be the actual uploaded file URL
-      
       await sendMessage(
-        `📄 Contract document uploaded: ${file.name}`,
+        `📄 Contract document uploaded: ${fileName}`,
         receiverId,
         {
           pitchId,
@@ -137,7 +134,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
               <span>Message about {playerName}</span>
               <div className="flex gap-2">
                 <FileUpload
-                  onFileUploaded={handleFileUpload}
+                  onUploadComplete={handleFileUploadComplete}
                   accept=".pdf,.doc,.docx"
                   maxSize={10 * 1024 * 1024}
                 >
