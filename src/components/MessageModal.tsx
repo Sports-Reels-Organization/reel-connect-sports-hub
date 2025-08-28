@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -64,17 +63,14 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     setContractGenerating(true);
     
     try {
-      // Here you would convert HTML to PDF and upload it
-      // For now, we'll simulate the contract generation
-      const contractUrl = 'https://example.com/contract.pdf'; // This would be the actual PDF URL
-      
+      // Send contract as message
       await sendMessage(
         `📄 Contract generated for ${playerName}`,
         receiverId,
         {
           pitchId,
           playerId,
-          contractFileUrl: contractUrl,
+          contractFileUrl: 'contract-generated', // This would be actual PDF URL in production
           messageType: 'contract'
         }
       );
@@ -96,6 +92,38 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    if (!receiverId) return;
+
+    try {
+      // Here you would upload the file and get its URL
+      const fileUrl = 'uploaded-file-url'; // This would be the actual uploaded file URL
+      
+      await sendMessage(
+        `📎 Sent a file: ${file.name}`,
+        receiverId,
+        {
+          pitchId,
+          playerId,
+          contractFileUrl: fileUrl,
+          messageType: 'attachment'
+        }
+      );
+      
+      toast({
+        title: "File Sent",
+        description: "File has been uploaded and sent successfully",
+      });
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload file",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -104,6 +132,21 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             <DialogTitle className="flex items-center justify-between">
               <span>Message about {playerName}</span>
               <div className="flex gap-2">
+                <FileUpload
+                  onUploadComplete={handleFileUpload}
+                  accept=".pdf,.doc,.docx"
+                  maxSize={10 * 1024 * 1024} // 10MB
+                >
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload File
+                  </Button>
+                </FileUpload>
+                
                 <Button
                   onClick={() => setShowContractGen(true)}
                   disabled={contractGenerating}
@@ -131,10 +174,12 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             <div className="space-y-2">
               {loading ? (
                 <div className="text-center text-gray-400 py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto mb-2"></div>
                   <p>Loading messages...</p>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="text-center text-gray-400 py-8">
+                  <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-600" />
                   <p>No messages yet. Start the conversation!</p>
                 </div>
               ) : (
@@ -164,7 +209,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                       handleSendMessage();
                     }
                   }}
-                  className="resize-none bg-gray-800 border-gray-600"
+                  className="resize-none bg-gray-800 border-gray-600 text-white placeholder-gray-400"
                   rows={2}
                 />
               </div>
@@ -172,7 +217,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 onClick={handleSendMessage}
                 disabled={sending || !newMessage.trim()}
                 size="sm"
-                className="bg-rosegold hover:bg-rosegold/90"
+                className="bg-rosegold hover:bg-rosegold/90 disabled:opacity-50"
               >
                 {sending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
