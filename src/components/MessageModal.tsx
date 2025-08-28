@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, FileText, Upload, Loader2 } from 'lucide-react';
+import { Send, FileText, Upload, Loader2, MessageCircle } from 'lucide-react';
 import { FileUpload } from './FileUpload';
 import { MessageBubble } from './MessageBubble';
 import { ContractGenerationModal } from './ContractGenerationModal';
 import { useEnhancedMessaging } from '@/hooks/useEnhancedMessaging';
+import { useContractNotifications } from '@/hooks/useContractNotifications';
 
 interface MessageModalProps {
   isOpen: boolean;
@@ -42,6 +43,9 @@ export const MessageModal: React.FC<MessageModalProps> = ({
   const [contractGenerating, setContractGenerating] = useState(false);
   
   const { messages, loading, sending, sendMessage } = useEnhancedMessaging(pitchId);
+  
+  // Enable contract notifications
+  useContractNotifications();
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !receiverId) return;
@@ -58,23 +62,51 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    if (!receiverId) return;
+    
+    try {
+      // Here you would upload the file to storage and get the URL
+      const fileUrl = 'https://example.com/contract.pdf'; // This would be the actual uploaded file URL
+      
+      await sendMessage(
+        `📄 Contract document uploaded: ${file.name}`,
+        receiverId,
+        {
+          pitchId,
+          playerId,
+          contractFileUrl: fileUrl,
+          messageType: 'contract'
+        }
+      );
+      
+      toast({
+        title: "File Uploaded",
+        description: "Contract document has been uploaded and sent",
+      });
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload file",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleContractGenerated = async (contractHtml: string) => {
     if (!receiverId) return;
     
     setContractGenerating(true);
     
     try {
-      // Here you would convert HTML to PDF and upload it
-      // For now, we'll simulate the contract generation
-      const contractUrl = 'https://example.com/contract.pdf'; // This would be the actual PDF URL
-      
       await sendMessage(
         `📄 Contract generated for ${playerName}`,
         receiverId,
         {
           pitchId,
           playerId,
-          contractFileUrl: contractUrl,
+          contractFileUrl: 'generated-contract',
           messageType: 'contract'
         }
       );
@@ -104,6 +136,21 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             <DialogTitle className="flex items-center justify-between">
               <span>Message about {playerName}</span>
               <div className="flex gap-2">
+                <FileUpload
+                  onFileUploaded={handleFileUpload}
+                  accept=".pdf,.doc,.docx"
+                  maxSize={10 * 1024 * 1024}
+                >
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Contract
+                  </Button>
+                </FileUpload>
+                
                 <Button
                   onClick={() => setShowContractGen(true)}
                   disabled={contractGenerating}

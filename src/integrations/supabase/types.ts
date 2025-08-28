@@ -441,6 +441,42 @@ export type Database = {
           },
         ]
       }
+      contract_messages: {
+        Row: {
+          contract_id: string
+          created_at: string | null
+          id: string
+          message_id: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string | null
+          id?: string
+          message_id: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string | null
+          id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_messages_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_messages_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_metrics: {
         Row: {
           contract_id: string | null
@@ -517,8 +553,12 @@ export type Database = {
           is_active: boolean | null
           language_code: string
           name: string
+          sport_type: string
+          template_content: string
+          template_name: string
           template_type: string
           updated_at: string | null
+          variables: Json
         }
         Insert: {
           content: string
@@ -528,8 +568,12 @@ export type Database = {
           is_active?: boolean | null
           language_code?: string
           name: string
+          sport_type?: string
+          template_content: string
+          template_name?: string
           template_type: string
           updated_at?: string | null
+          variables?: Json
         }
         Update: {
           content?: string
@@ -539,8 +583,12 @@ export type Database = {
           is_active?: boolean | null
           language_code?: string
           name?: string
+          sport_type?: string
+          template_content?: string
+          template_name?: string
           template_type?: string
           updated_at?: string | null
+          variables?: Json
         }
         Relationships: []
       }
@@ -590,6 +638,7 @@ export type Database = {
           contract_type: string
           contract_value: number | null
           created_at: string | null
+          created_by: string | null
           currency: string | null
           deal_stage: string | null
           digital_signature_status: Json | null
@@ -617,6 +666,7 @@ export type Database = {
           contract_type: string
           contract_value?: number | null
           created_at?: string | null
+          created_by?: string | null
           currency?: string | null
           deal_stage?: string | null
           digital_signature_status?: Json | null
@@ -644,6 +694,7 @@ export type Database = {
           contract_type?: string
           contract_value?: number | null
           created_at?: string | null
+          created_by?: string | null
           currency?: string | null
           deal_stage?: string | null
           digital_signature_status?: Json | null
@@ -740,6 +791,189 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enhanced_messages: {
+        Row: {
+          auto_flag_contact: boolean | null
+          content: string
+          contract_file_name: string | null
+          contract_file_size: number | null
+          contract_file_type: string | null
+          contract_file_url: string | null
+          contract_status: string | null
+          created_at: string | null
+          flag_reason: string | null
+          id: string
+          is_flagged: boolean | null
+          message_type: string
+          pitch_id: string | null
+          player_id: string | null
+          read_at: string | null
+          receiver_id: string
+          requires_response: boolean | null
+          responded_at: string | null
+          response_deadline: string | null
+          sender_id: string
+          subject: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_flag_contact?: boolean | null
+          content: string
+          contract_file_name?: string | null
+          contract_file_size?: number | null
+          contract_file_type?: string | null
+          contract_file_url?: string | null
+          contract_status?: string | null
+          created_at?: string | null
+          flag_reason?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          message_type?: string
+          pitch_id?: string | null
+          player_id?: string | null
+          read_at?: string | null
+          receiver_id: string
+          requires_response?: boolean | null
+          responded_at?: string | null
+          response_deadline?: string | null
+          sender_id: string
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_flag_contact?: boolean | null
+          content?: string
+          contract_file_name?: string | null
+          contract_file_size?: number | null
+          contract_file_type?: string | null
+          contract_file_url?: string | null
+          contract_status?: string | null
+          created_at?: string | null
+          flag_reason?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          message_type?: string
+          pitch_id?: string | null
+          player_id?: string | null
+          read_at?: string | null
+          receiver_id?: string
+          requires_response?: boolean | null
+          responded_at?: string | null
+          response_deadline?: string | null
+          sender_id?: string
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enhanced_messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enhanced_messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
+          {
+            foreignKeyName: "enhanced_messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enhanced_messages_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enhanced_messages_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enhanced_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enhanced_notifications: {
+        Row: {
+          action_text: string | null
+          action_url: string | null
+          actioned_at: string | null
+          category: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_actionable: boolean | null
+          is_read: boolean | null
+          message: string
+          metadata: Json | null
+          priority: string | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_text?: string | null
+          action_url?: string | null
+          actioned_at?: string | null
+          category?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_actionable?: boolean | null
+          is_read?: boolean | null
+          message: string
+          metadata?: Json | null
+          priority?: string | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          action_text?: string | null
+          action_url?: string | null
+          actioned_at?: string | null
+          category?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_actionable?: boolean | null
+          is_read?: boolean | null
+          message?: string
+          metadata?: Json | null
+          priority?: string | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enhanced_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1053,6 +1287,44 @@ export type Database = {
           },
         ]
       }
+      message_attachments: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id: string
+          message_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id?: string
+          message_id: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "enhanced_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_stages: {
         Row: {
           agent_id: string | null
@@ -1112,6 +1384,68 @@ export type Database = {
           },
         ]
       }
+      message_threads: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_message_at: string | null
+          pitch_id: string | null
+          player_id: string | null
+          thread_type: string
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          pitch_id?: string | null
+          player_id?: string | null
+          thread_type: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          pitch_id?: string | null
+          player_id?: string | null
+          thread_type?: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_threads_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_threads_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
+          {
+            foreignKeyName: "message_threads_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_threads_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_violations: {
         Row: {
           action_taken: string | null
@@ -1164,20 +1498,28 @@ export type Database = {
           attachment_urls: Json | null
           auto_flag_contact: boolean | null
           content: string
+          contract_file_name: string | null
+          contract_file_size: number | null
+          contract_file_type: string | null
           contract_file_url: string | null
+          contract_status: string | null
           created_at: string | null
           file_name: string | null
           file_size: number | null
           file_type: string | null
+          flag_reason: string | null
           id: string
           is_flagged: boolean | null
+          is_read: boolean
           message_thread_id: string | null
           message_type: string | null
           pitch_context: boolean | null
           pitch_id: string | null
           player_id: string | null
+          read_at: string | null
           receiver_id: string
           requires_response: boolean | null
+          responded_at: string | null
           response_deadline: string | null
           sender_id: string
           status: Database["public"]["Enums"]["message_status"] | null
@@ -1189,20 +1531,28 @@ export type Database = {
           attachment_urls?: Json | null
           auto_flag_contact?: boolean | null
           content: string
+          contract_file_name?: string | null
+          contract_file_size?: number | null
+          contract_file_type?: string | null
           contract_file_url?: string | null
+          contract_status?: string | null
           created_at?: string | null
           file_name?: string | null
           file_size?: number | null
           file_type?: string | null
+          flag_reason?: string | null
           id?: string
           is_flagged?: boolean | null
+          is_read?: boolean
           message_thread_id?: string | null
           message_type?: string | null
           pitch_context?: boolean | null
           pitch_id?: string | null
           player_id?: string | null
+          read_at?: string | null
           receiver_id: string
           requires_response?: boolean | null
+          responded_at?: string | null
           response_deadline?: string | null
           sender_id: string
           status?: Database["public"]["Enums"]["message_status"] | null
@@ -1214,20 +1564,28 @@ export type Database = {
           attachment_urls?: Json | null
           auto_flag_contact?: boolean | null
           content?: string
+          contract_file_name?: string | null
+          contract_file_size?: number | null
+          contract_file_type?: string | null
           contract_file_url?: string | null
+          contract_status?: string | null
           created_at?: string | null
           file_name?: string | null
           file_size?: number | null
           file_type?: string | null
+          flag_reason?: string | null
           id?: string
           is_flagged?: boolean | null
+          is_read?: boolean
           message_thread_id?: string | null
           message_type?: string | null
           pitch_context?: boolean | null
           pitch_id?: string | null
           player_id?: string | null
+          read_at?: string | null
           receiver_id?: string
           requires_response?: boolean | null
+          responded_at?: string | null
           response_deadline?: string | null
           sender_id?: string
           status?: Database["public"]["Enums"]["message_status"] | null
@@ -1345,6 +1703,8 @@ export type Database = {
       }
       notifications: {
         Row: {
+          action_text: string | null
+          action_url: string | null
           created_at: string | null
           id: string
           is_read: boolean | null
@@ -1355,6 +1715,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          action_text?: string | null
+          action_url?: string | null
           created_at?: string | null
           id?: string
           is_read?: boolean | null
@@ -1365,6 +1727,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          action_text?: string | null
+          action_url?: string | null
           created_at?: string | null
           id?: string
           is_read?: boolean | null
@@ -1673,7 +2037,104 @@ export type Database = {
           },
         ]
       }
-      // player_messages table has been consolidated into messages table
+      player_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_flagged: boolean | null
+          is_read: boolean | null
+          message_type: string | null
+          pitch_id: string | null
+          player_id: string | null
+          receiver_id: string
+          request_id: string | null
+          sender_id: string
+          subject: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          is_read?: boolean | null
+          message_type?: string | null
+          pitch_id?: string | null
+          player_id?: string | null
+          receiver_id: string
+          request_id?: string | null
+          sender_id: string
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          is_read?: boolean | null
+          message_type?: string | null
+          pitch_id?: string | null
+          player_id?: string | null
+          receiver_id?: string
+          request_id?: string | null
+          sender_id?: string
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "active_pitches_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_statistics_view"
+            referencedColumns: ["pitch_id"]
+          },
+          {
+            foreignKeyName: "player_messages_pitch_id_fkey"
+            columns: ["pitch_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pitches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_performance: {
         Row: {
           assists: number | null
@@ -2440,6 +2901,51 @@ export type Database = {
           },
         ]
       }
+      thread_participants: {
+        Row: {
+          id: string
+          is_active: boolean | null
+          joined_at: string | null
+          left_at: string | null
+          profile_id: string
+          role: string | null
+          thread_id: string
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean | null
+          joined_at?: string | null
+          left_at?: string | null
+          profile_id: string
+          role?: string | null
+          thread_id: string
+        }
+        Update: {
+          id?: string
+          is_active?: boolean | null
+          joined_at?: string | null
+          left_at?: string | null
+          profile_id?: string
+          role?: string | null
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_participants_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "message_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       timeline_comments: {
         Row: {
           content: string
@@ -2716,6 +3222,51 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          reason: string | null
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reason?: string | null
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
