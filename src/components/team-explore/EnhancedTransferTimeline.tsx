@@ -1,99 +1,85 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CalendarDays, MapPin, Users, MessageCircle, Clock, DollarSign, Filter, FileText } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageModal } from '@/components/MessageModal';
-import { useAuth } from '@/contexts/AuthContext';
+import { MessageCircle, Edit, Trash2, Calendar, DollarSign, MapPin, Users, Eye, EyeOff } from 'lucide-react';
+import MessageModal from '../MessageModal';
+import { useEnhancedMessaging } from '@/hooks/useEnhancedMessaging';
 
 interface TransferPitch {
-    player_id: any;
+  id: string;
+  transfer_type: string;
+  asking_price: number;
+  currency: string;
+  status: 'active' | 'expired' | 'completed' | 'cancelled';
+  expires_at: string;
+  created_at: string;
+  view_count: number;
+  message_count: number;
+  description?: string;
+  players: {
     id: string;
-    description: string;
-    asking_price: number;
-    currency: string;
-    transfer_type: string;
-    status: string;
-    created_at: string;
-    expires_at: string;
-    tagged_videos: string[] | any;
-    sign_on_bonus: number;
-    performance_bonus: number;
-    player_salary: number;
-    relocation_support: number;
-    loan_fee: number;
-    loan_with_option: boolean;
-    loan_with_obligation: boolean;
-    is_international: boolean;
-    service_charge_rate: number;
-    team_id: string;
-    team_profile_id?: string;
-    players: {
-        id: string;
-        full_name: string;
-        position: string;
-        citizenship: string;
-        headshot_url: string;
-        photo_url: string;
-        jersey_number: number;
-        age?: number;
-        bio: string;
-        market_value: number;
-        height: number;
-        weight: number;
-    };
-    teams: {
-        team_name: string;
-        country: string;
-        logo_url: string;
-        member_association: string;
-        profile_id?: string;
-    };
-    tagged_video_details?: {
-        id: string;
-        title: string;
-        thumbnail_url: string;
-        duration: number;
-    }[];
-    message_count?: number;
-    view_count?: number;
+    full_name: string;
+    position: string;
+    citizenship: string;
+    market_value: number;
+  };
+  teams: {
+    id: string;
+    team_name: string;
+    country: string;
+    profile_id: string;
+  };
 }
 
 interface EnhancedTransferTimelineProps {
-  userType: 'agent' | 'team';
+  userType: 'team' | 'agent';
 }
 
 const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ userType }) => {
+  const { profile } = useAuth();
+  const { toast } = useToast();
   const [pitches, setPitches] = useState<TransferPitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPitch, setSelectedPitch] = useState<TransferPitch | null>(null);
-  const [messageModalOpen, setMessageModalOpen] = useState(false);
-  const { profile } = useAuth();
-  const { toast } = useToast();
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [editingPitch, setEditingPitch] = useState<string | null>(null);
 
   const fetchPitches = async () => {
     try {
       setLoading(true);
+      
       let query = supabase
         .from('transfer_pitches')
         .select(`
           *,
-          teams!inner(*, profile_id),
-          players!inner(*),
-          messages(count)
+          players:players!inner(
+            id,
+            full_name,
+            position,
+            citizenship,
+            market_value
+          ),
+          teams:teams!inner(
+            id,
+            team_name,
+            country,
+            profile_id
+          )
         `)
         .eq('status', 'active')
+        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
-      // For teams, get their own pitches
-      if (userType === 'team') {
+      // For teams, show only their own pitches
+      if (userType === 'team' && profile?.user_id) {
         const { data: teamData } = await supabase
           .from('teams')
           .select('id')
-          .eq('profile_id', profile?.id)
+          .eq('profile_id', profile.user_id)
           .single();
 
         if (teamData) {
@@ -103,30 +89,13 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
 
       const { data, error } = await query;
 
-      if (error) {
-        console.error('Error fetching transfer pitches:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load transfer opportunities",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const enrichedPitches = data?.map(pitch => ({
-        ...pitch,
-        tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
-        message_count: pitch.messages ? pitch.messages[0]?.count : 0,
-        view_count: Math.floor(Math.random() * 50), // Mock view count
-        team_profile_id: pitch.teams?.profile_id
-      })) || [];
-
-      setPitches(enrichedPitches);
+      if (error) throw error;
+      setPitches(data || []);
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('Error fetching pitches:', error);
       toast({
-        title: "Unexpected Error",
-        description: "An unexpected error occurred while loading data.",
+        title: "Error",
+        description: "Failed to load transfer pitches",
         variant: "destructive"
       });
     } finally {
@@ -134,231 +103,321 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
     }
   };
 
+  const handleDeletePitch = async (pitchId: string) => {
+    if (!confirm('Are you sure you want to delete this pitch?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('transfer_pitches')
+        .delete()
+        .eq('id', pitchId);
+
+      if (error) throw error;
+
+      setPitches(prev => prev.filter(p => p.id !== pitchId));
+      toast({
+        title: "Success",
+        description: "Transfer pitch deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting pitch:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete transfer pitch",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditPitch = async (pitchId: string, updates: {
+    description?: string;
+    asking_price?: number;
+    status?: 'active' | 'expired' | 'completed' | 'cancelled';
+  }) => {
+    try {
+      const { error } = await supabase
+        .from('transfer_pitches')
+        .update(updates)
+        .eq('id', pitchId);
+
+      if (error) throw error;
+
+      setPitches(prev => prev.map(p => 
+        p.id === pitchId ? { ...p, ...updates } : p
+      ));
+      
+      setEditingPitch(null);
+      toast({
+        title: "Success",  
+        description: "Transfer pitch updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating pitch:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update transfer pitch",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleMessageClick = (pitch: TransferPitch) => {
-    console.log('Opening message modal for pitch:', pitch.id);
     setSelectedPitch(pitch);
-    setMessageModalOpen(true);
+    setShowMessageModal(true);
   };
-
-  const closeMessageModal = () => {
-    setSelectedPitch(null);
-    setMessageModalOpen(false);
-  };
-
-  useEffect(() => {
-    fetchPitches();
-  }, [userType, profile?.id]);
 
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency || 'USD'
+      currency: currency || 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  const getReceiverId = (pitch: TransferPitch) => {
-    if (userType === 'agent') {
-      return pitch.team_profile_id || pitch.teams?.profile_id || pitch.team_id;
-    } else {
-      // For teams, we need to get the agent's profile ID
-      // This should be handled in the MessageModal component
-      return pitch.team_id; // Placeholder
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const getDaysUntilExpiry = (expiryDate: string) => {
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    const diffTime = expiry.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-600';
+      case 'expired': return 'bg-red-600';
+      case 'completed': return 'bg-blue-600';
+      default: return 'bg-gray-600';
     }
   };
 
+  useEffect(() => {
+    fetchPitches();
+  }, [userType, profile]);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rosegold"></div>
+      <div className="space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i} className="border-gray-700">
+            <CardContent className="p-6">
+              <div className="animate-pulse space-y-4">
+                <div className="h-6 bg-gray-700 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                <div className="h-16 bg-gray-700 rounded"></div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-polysans font-bold text-white">
-            {userType === 'agent' ? 'Available Transfer Opportunities' : 'Your Transfer Pitches'}
+    <>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-polysans font-bold text-white">
+            {userType === 'team' ? 'My Transfer Pitches' : 'Available Transfer Pitches'}
           </h2>
-          <p className="text-gray-400 font-poppins">
-            {userType === 'agent' 
-              ? 'Explore and connect with teams looking for players'
-              : 'Manage your player transfer listings and track interest'
-            }
-          </p>
+          <Badge variant="outline" className="text-white border-white">
+            {pitches.length} Active Pitches
+          </Badge>
         </div>
-        <Button size="sm" variant="outline" className="border-gray-600">
-          <Filter className="w-4 h-4 mr-2" />
-          Filter
-        </Button>
-      </div>
 
-      {pitches.length === 0 ? (
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="py-12 text-center">
-            <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-            <h3 className="text-xl font-polysans text-white mb-2">
-              {userType === 'agent' ? 'No Transfer Opportunities' : 'No Transfer Pitches'}
-            </h3>
-            <p className="text-gray-400">
-              {userType === 'agent' 
-                ? 'Check back later for new transfer opportunities from teams.'
-                : 'Start by creating your first transfer pitch to showcase your players.'
-              }
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-6">
-          {pitches.map((pitch) => (
-            <Card key={pitch.id} className="bg-gray-800 border-gray-700 hover:border-gray-600 transition-colors">
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="w-16 h-16">
-                      <AvatarImage 
-                        src={pitch.players?.photo_url || pitch.players?.headshot_url} 
-                        alt={pitch.players?.full_name}
-                      />
-                      <AvatarFallback className="bg-rosegold text-white text-lg font-polysans">
-                        {pitch.players?.full_name?.split(' ').map(n => n[0]).join('') || 'P'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-white font-polysans text-xl">
-                        {pitch.players?.full_name || 'Unknown Player'}
-                      </CardTitle>
-                      <div className="flex items-center gap-2 text-gray-400 text-sm mt-1">
-                        <span>{pitch.players?.position}</span>
-                        <span>•</span>
-                        <span>{pitch.players?.citizenship}</span>
-                        {pitch.players?.age && (
+        {pitches.length === 0 ? (
+          <Card className="border-gray-700">
+            <CardContent className="p-12 text-center">
+              <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+              <h3 className="text-xl font-semibold text-white mb-2">
+                No Transfer Pitches
+              </h3>
+              <p className="text-gray-400">
+                {userType === 'team' 
+                  ? "You haven't created any transfer pitches yet."
+                  : "No active transfer pitches available at the moment."
+                }
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-6">
+            {pitches.map((pitch) => {
+              const daysLeft = getDaysUntilExpiry(pitch.expires_at);
+              const isOwner = userType === 'team' && pitch.teams.profile_id === profile?.user_id;
+              
+              return (
+                <Card key={pitch.id} className="border-gray-700 bg-gray-800/50 hover:bg-gray-800/70 transition-colors">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <CardTitle className="text-xl text-white font-polysans">
+                          {pitch.players.full_name}
+                        </CardTitle>
+                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4" />
+                            {pitch.players.position} • {pitch.players.citizenship}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="w-4 h-4" />
+                            Market Value: {formatCurrency(pitch.players.market_value, pitch.currency)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${getStatusColor(pitch.status)} text-white`}>
+                          {pitch.status.toUpperCase()}
+                        </Badge>
+                        {daysLeft <= 7 && (
+                          <Badge variant="destructive">
+                            {daysLeft} days left
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-400">Transfer Type</div>
+                        <div className="text-white font-semibold capitalize">
+                          {pitch.transfer_type.replace('_', ' ')}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-400">Asking Price</div>
+                        <div className="text-rosegold font-bold text-lg">
+                          {formatCurrency(pitch.asking_price, pitch.currency)}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-400">Team</div>
+                        <div className="text-white font-semibold">
+                          {pitch.teams.team_name} ({pitch.teams.country})
+                        </div>
+                      </div>
+                    </div>
+
+                    {pitch.description && (
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-400">Description</div>
+                        <div className="text-white text-sm">
+                          {editingPitch === pitch.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                className="w-full p-2 rounded bg-gray-700 text-white"
+                                defaultValue={pitch.description}
+                                rows={3}
+                                onBlur={(e) => {
+                                  if (e.target.value !== pitch.description) {
+                                    handleEditPitch(pitch.id, { description: e.target.value });
+                                  }
+                                }}
+                              />
+                              <Button 
+                                size="sm" 
+                                onClick={() => setEditingPitch(null)}
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          ) : (
+                            pitch.description
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <Eye className="w-4 h-4" />
+                          {pitch.view_count} views
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <MessageCircle className="w-4 h-4" />
+                          {pitch.message_count} messages
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          Created {formatDate(pitch.created_at)}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {userType === 'agent' && (
+                          <Button
+                            onClick={() => handleMessageClick(pitch)}
+                            size="sm"
+                            className="bg-rosegold hover:bg-rosegold/90"
+                          >
+                            <MessageCircle className="w-4 h-4 mr-2" />
+                            Message
+                          </Button>
+                        )}
+                        
+                        {isOwner && (
                           <>
-                            <span>•</span>
-                            <span>{pitch.players.age} years</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingPitch(pitch.id)}
+                              className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeletePitch(pitch.id)}
+                              className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <MapPin className="w-4 h-4 text-gray-500" />
-                        <span className="text-gray-400 text-sm">
-                          {pitch.teams?.team_name} • {pitch.teams?.country}
-                        </span>
-                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Badge 
-                      variant={pitch.status === 'active' ? 'default' : 'secondary'}
-                      className={`${
-                        pitch.status === 'active' 
-                          ? 'bg-green-500/20 text-green-400 border-green-500/30' 
-                          : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
-                      }`}
-                    >
-                      {pitch.status}
-                    </Badge>
-                    <Badge variant="outline" className="border-rosegold/30 text-rosegold">
-                      {pitch.transfer_type}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-              <CardContent className="space-y-4">
-                <p className="text-gray-300 font-poppins leading-relaxed">
-                  {pitch.description}
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-rosegold" />
-                    <span className="text-white font-semibold">
-                      {formatCurrency(pitch.asking_price, pitch.currency)}
-                    </span>
-                  </div>
-                  
-                  {pitch.player_salary > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-400 text-sm">Salary:</span>
-                      <span className="text-white">
-                        {formatCurrency(pitch.player_salary, pitch.currency)}/month
-                      </span>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-400 text-sm">
-                      Expires {new Date(pitch.expires_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-
-                {(pitch.sign_on_bonus > 0 || pitch.performance_bonus > 0) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-700">
-                    {pitch.sign_on_bonus > 0 && (
-                      <div className="text-sm">
-                        <span className="text-gray-400">Sign-on Bonus:</span>
-                        <span className="text-white ml-2">
-                          {formatCurrency(pitch.sign_on_bonus, pitch.currency)}
-                        </span>
-                      </div>
-                    )}
-                    {pitch.performance_bonus > 0 && (
-                      <div className="text-sm">
-                        <span className="text-gray-400">Performance Bonus:</span>
-                        <span className="text-white ml-2">
-                          {formatCurrency(pitch.performance_bonus, pitch.currency)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-700">
-                  <div className="flex items-center gap-4 text-sm text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <MessageCircle className="w-4 h-4" />
-                      {pitch.message_count || 0} messages
-                    </span>
-                    <span>{pitch.view_count || 0} views</span>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => handleMessageClick(pitch)}
-                      size="sm"
-                      className="bg-rosegold hover:bg-rosegold/90 text-white"
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      {userType === 'agent' ? 'Express Interest' : 'View Messages'}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Message Modal with Contract Generation */}
+      {/* Message Modal */}
       {selectedPitch && (
         <MessageModal
-          isOpen={messageModalOpen}
-          onClose={closeMessageModal}
+          isOpen={showMessageModal}
+          onClose={() => {
+            setShowMessageModal(false);
+            setSelectedPitch(null);
+          }}
           pitchId={selectedPitch.id}
-          playerId={selectedPitch.player_id}
-          teamId={selectedPitch.team_id}
-          receiverId={getReceiverId(selectedPitch)}
-          currentUserId={profile?.id || ''}
-          playerName={selectedPitch.players?.full_name || 'Unknown Player'}
-          teamName={selectedPitch.teams?.team_name}
+          playerId={selectedPitch.players.id}
+          teamId={selectedPitch.teams.id}
+          receiverId={selectedPitch.teams.profile_id}
+          currentUserId={profile?.user_id || ''}
+          playerName={selectedPitch.players.full_name}
+          teamName={selectedPitch.teams.team_name}
         />
       )}
-    </div>
+    </>
   );
 };
 

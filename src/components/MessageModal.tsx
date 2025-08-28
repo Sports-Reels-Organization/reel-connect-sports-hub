@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, FileText, Upload, Loader2, MessageCircle } from 'lucide-react';
+import { Send, FileText, Upload, Loader2 } from 'lucide-react';
 import { FileUpload } from './FileUpload';
 import { MessageBubble } from './MessageBubble';
 import { ContractGenerationModal } from './ContractGenerationModal';
@@ -64,14 +64,17 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     setContractGenerating(true);
     
     try {
-      // Send contract as message
+      // Here you would convert HTML to PDF and upload it
+      // For now, we'll simulate the contract generation
+      const contractUrl = 'https://example.com/contract.pdf'; // This would be the actual PDF URL
+      
       await sendMessage(
         `📄 Contract generated for ${playerName}`,
         receiverId,
         {
           pitchId,
           playerId,
-          contractFileUrl: 'contract-generated', // This would be actual PDF URL in production
+          contractFileUrl: contractUrl,
           messageType: 'contract'
         }
       );
@@ -93,35 +96,6 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     }
   };
 
-  const handleFileUploaded = async (fileUrl: string, fileName: string, fileSize: number, fileType: string) => {
-    if (!receiverId) return;
-
-    try {
-      await sendMessage(
-        `📎 Sent a file: ${fileName}`,
-        receiverId,
-        {
-          pitchId,
-          playerId,
-          contractFileUrl: fileUrl,
-          messageType: 'attachment'
-        }
-      );
-      
-      toast({
-        title: "File Sent",
-        description: "File has been uploaded and sent successfully",
-      });
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload file",
-        variant: "destructive"
-      });
-    }
-  };
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -130,11 +104,6 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             <DialogTitle className="flex items-center justify-between">
               <span>Message about {playerName}</span>
               <div className="flex gap-2">
-                <FileUpload
-                  onFileUploaded={handleFileUploaded}
-                  disabled={contractGenerating}
-                />
-                
                 <Button
                   onClick={() => setShowContractGen(true)}
                   disabled={contractGenerating}
@@ -162,12 +131,10 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             <div className="space-y-2">
               {loading ? (
                 <div className="text-center text-gray-400 py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto mb-2"></div>
                   <p>Loading messages...</p>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="text-center text-gray-400 py-8">
-                  <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-600" />
                   <p>No messages yet. Start the conversation!</p>
                 </div>
               ) : (
@@ -197,7 +164,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                       handleSendMessage();
                     }
                   }}
-                  className="resize-none bg-gray-800 border-gray-600 text-white placeholder-gray-400"
+                  className="resize-none bg-gray-800 border-gray-600"
                   rows={2}
                 />
               </div>
@@ -205,7 +172,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 onClick={handleSendMessage}
                 disabled={sending || !newMessage.trim()}
                 size="sm"
-                className="bg-rosegold hover:bg-rosegold/90 disabled:opacity-50"
+                className="bg-rosegold hover:bg-rosegold/90"
               >
                 {sending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
