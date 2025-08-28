@@ -28,23 +28,23 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-800 border-gray-700">
-            <TabsTrigger 
-              value="timeline" 
+          <TabsList className="grid w-full grid-cols-3 border-0">
+            <TabsTrigger
+              value="timeline"
               className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
               <TrendingUp className="w-4 h-4" />
               Transfer Timeline
             </TabsTrigger>
-            <TabsTrigger 
-              value="requests" 
+            <TabsTrigger
+              value="requests"
               className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
               <FileText className="w-4 h-4" />
               Agent Requests
             </TabsTrigger>
-            <TabsTrigger 
-              value="insights" 
+            <TabsTrigger
+              value="insights"
               className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
               <Search className="w-4 h-4" />
