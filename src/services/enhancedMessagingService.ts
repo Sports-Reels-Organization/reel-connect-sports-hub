@@ -1,5 +1,5 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 export interface EnhancedMessage {
   id: string;
@@ -49,25 +49,6 @@ export interface ContractTemplate {
   updated_at: string;
 }
 
-export interface GeneratedContract {
-  id: string;
-  template_id?: string;
-  pitch_id?: string;
-  sender_id: string;
-  receiver_id: string;
-  player_id?: string;
-  contract_content: string;
-  contract_data: Record<string, any>;
-  status: string;
-  file_url?: string;
-  sent_at?: string;
-  reviewed_at?: string;
-  signed_at?: string;
-  expires_at?: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export class EnhancedMessagingService {
   // Fetch messages for a specific pitch or player
   static async getMessages(pitchId?: string, playerId?: string, limit = 50): Promise<EnhancedMessage[]> {
@@ -78,13 +59,11 @@ export class EnhancedMessagingService {
           *,
           sender_profile:profiles!messages_sender_id_fkey(
             full_name,
-            user_type,
-            logo_url
+            user_type
           ),
           receiver_profile:profiles!messages_receiver_id_fkey(
             full_name,
-            user_type,
-            logo_url
+            user_type
           )
         `)
         .order('created_at', { ascending: false })
@@ -100,7 +79,30 @@ export class EnhancedMessagingService {
       const { data, error } = await query;
       if (error) throw error;
 
-      return data || [];
+      return (data || []).map(msg => ({
+        id: msg.id,
+        sender_id: msg.sender_id,
+        receiver_id: msg.receiver_id,
+        pitch_id: msg.pitch_id,
+        player_id: msg.player_id,
+        content: msg.content,
+        message_type: msg.message_type || 'general',
+        subject: msg.subject,
+        contract_file_url: msg.contract_file_url,
+        created_at: msg.created_at,
+        status: 'sent' as const,
+        is_flagged: msg.is_flagged || false,
+        sender_profile: msg.sender_profile ? {
+          full_name: msg.sender_profile.full_name || 'Unknown',
+          user_type: msg.sender_profile.user_type || 'user',
+          logo_url: undefined
+        } : undefined,
+        receiver_profile: msg.receiver_profile ? {
+          full_name: msg.receiver_profile.full_name || 'Unknown',
+          user_type: msg.receiver_profile.user_type || 'user',
+          logo_url: undefined
+        } : undefined
+      }));
     } catch (error) {
       console.error('Error fetching messages:', error);
       throw error;
@@ -131,11 +133,16 @@ export class EnhancedMessagingService {
       if (!profile) throw new Error('Profile not found');
 
       const messagePayload = {
-        ...messageData,
         sender_id: profile.id,
+        receiver_id: messageData.receiver_id,
+        pitch_id: messageData.pitch_id,
+        player_id: messageData.player_id,
+        content: messageData.content,
         message_type: messageData.message_type || 'general',
-        created_at: new Date().toISOString(),
-        status: 'sent'
+        subject: messageData.subject,
+        contract_file_url: messageData.contract_file_url,
+        is_contract_message: messageData.message_type === 'contract',
+        created_at: new Date().toISOString()
       };
 
       const { data, error } = await supabase
@@ -145,19 +152,41 @@ export class EnhancedMessagingService {
           *,
           sender_profile:profiles!messages_sender_id_fkey(
             full_name,
-            user_type,
-            logo_url
+            user_type
           ),
           receiver_profile:profiles!messages_receiver_id_fkey(
             full_name,
-            user_type,
-            logo_url
+            user_type
           )
         `)
         .single();
 
       if (error) throw error;
-      return data;
+      
+      return {
+        id: data.id,
+        sender_id: data.sender_id,
+        receiver_id: data.receiver_id,
+        pitch_id: data.pitch_id,
+        player_id: data.player_id,
+        content: data.content,
+        message_type: data.message_type || 'general',
+        subject: data.subject,
+        contract_file_url: data.contract_file_url,
+        created_at: data.created_at,
+        status: 'sent' as const,
+        is_flagged: data.is_flagged || false,
+        sender_profile: data.sender_profile ? {
+          full_name: data.sender_profile.full_name || 'Unknown',
+          user_type: data.sender_profile.user_type || 'user',
+          logo_url: undefined
+        } : undefined,
+        receiver_profile: data.receiver_profile ? {
+          full_name: data.receiver_profile.full_name || 'Unknown',
+          user_type: data.receiver_profile.user_type || 'user',
+          logo_url: undefined
+        } : undefined
+      };
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
@@ -190,7 +219,7 @@ export class EnhancedMessagingService {
         .from('contract_templates')
         .select('*')
         .eq('is_active', true)
-        .order('template_name');
+        .order('name');
 
       if (sportType) {
         query = query.eq('sport_type', sportType);
@@ -199,336 +228,20 @@ export class EnhancedMessagingService {
       const { data, error } = await query;
       if (error) throw error;
 
-      return data || [];
+      return (data || []).map(template => ({
+        id: template.id,
+        template_name: template.name,
+        template_type: template.template_type,
+        sport_type: template.sport_type || 'unspecified',
+        template_content: template.template_content || template.content,
+        variables: typeof template.variables === 'string' ? JSON.parse(template.variables) : (template.variables || {}),
+        is_active: template.is_active,
+        created_by: template.created_by || '',
+        created_at: template.created_at || '',
+        updated_at: template.updated_at || ''
+      }));
     } catch (error) {
       console.error('Error fetching contract templates:', error);
-      throw error;
-    }
-  }
-
-  // Generate contract from template
-  static async generateContract(templateId: string, variables: Record<string, string>, receiverId: string, pitchId?: string, playerId?: string): Promise<GeneratedContract> {
-    try {
-      // Get current user profile
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile) throw new Error('Profile not found');
-
-      // Get template
-      const { data: template } = await supabase
-        .from('contract_templates')
-        .select('*')
-        .eq('id', templateId)
-        .single();
-
-      if (!template) throw new Error('Template not found');
-
-      // Replace variables in template content
-      let contractContent = template.template_content;
-      Object.entries(variables).forEach(([key, value]) => {
-        contractContent = contractContent.replace(new RegExp(`{${key}}`, 'g'), value);
-      });
-
-      const contractPayload = {
-        template_id: templateId,
-        pitch_id: pitchId,
-        sender_id: profile.id,
-        receiver_id: receiverId,
-        player_id: playerId,
-        contract_content: contractContent,
-        contract_data: variables,
-        status: 'draft',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      const { data, error } = await supabase
-        .from('generated_contracts')
-        .insert(contractPayload)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error generating contract:', error);
-      throw error;
-    }
-  }
-
-  // Send contract
-  static async sendContract(contractId: string): Promise<boolean> {
-    try {
-      const { error } = await supabase
-        .from('generated_contracts')
-        .update({ 
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', contractId);
-
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Error sending contract:', error);
-      return false;
-    }
-  }
-
-  // Update contract status
-  static async updateContractStatus(contractId: string, status: string, notes?: string): Promise<boolean> {
-    try {
-      const updateData: any = { 
-        status,
-        updated_at: new Date().toISOString()
-      };
-
-      if (status === 'reviewed') {
-        updateData.reviewed_at = new Date().toISOString();
-      } else if (status === 'signed') {
-        updateData.signed_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('generated_contracts')
-        .update(updateData)
-        .eq('id', contractId);
-
-      if (error) throw error;
-
-      // Record negotiation action
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
-
-        if (profile) {
-          await supabase
-            .from('contract_negotiations')
-            .insert({
-              contract_id: contractId,
-              negotiator_id: profile.id,
-              action_type: status === 'signed' ? 'accept' : 'modify',
-              action_details: { status, notes },
-              created_at: new Date().toISOString()
-            });
-        }
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error updating contract status:', error);
-      return false;
-    }
-  }
-
-  // Upload contract file
-  static async uploadContractFile(file: File, contractId: string): Promise<string> {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${contractId}_${Date.now()}.${fileExt}`;
-      const filePath = `contracts/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('contracts')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('contracts')
-        .getPublicUrl(filePath);
-
-      // Update contract with file URL
-      await supabase
-        .from('generated_contracts')
-        .update({ 
-          file_url: publicUrl,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', contractId);
-
-      return publicUrl;
-    } catch (error) {
-      console.error('Error uploading contract file:', error);
-      throw error;
-    }
-  }
-
-  // Get user's contracts
-  static async getUserContracts(userId: string, status?: string): Promise<GeneratedContract[]> {
-    try {
-      let query = supabase
-        .from('generated_contracts')
-        .select('*')
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-        .order('created_at', { ascending: false });
-
-      if (status) {
-        query = query.eq('status', status);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching user contracts:', error);
-      throw error;
-    }
-  }
-
-  // Block user
-  static async blockUser(blockedUserId: string, reason?: string): Promise<boolean> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile) throw new Error('Profile not found');
-
-      const { error } = await supabase
-        .from('user_blocks')
-        .insert({
-          blocker_id: profile.id,
-          blocked_id: blockedUserId,
-          reason,
-          created_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Error blocking user:', error);
-      return false;
-    }
-  }
-
-  // Check if user is blocked
-  static async isUserBlocked(userId1: string, userId2: string): Promise<boolean> {
-    try {
-      const { data, error } = await supabase
-        .from('user_blocks')
-        .select('id')
-        .or(`and(blocker_id.eq.${userId1},blocked_id.eq.${userId2}),and(blocker_id.eq.${userId2},blocked_id.eq.${userId1})`)
-        .eq('is_active', true)
-        .limit(1);
-
-      if (error) throw error;
-      return (data && data.length > 0);
-    } catch (error) {
-      console.error('Error checking user block status:', error);
-      return false;
-    }
-  }
-
-  // Get team profile
-  static async getTeamProfile(teamId: string): Promise<any> {
-    try {
-      const { data, error } = await supabase
-        .from('teams')
-        .select('id, profile_id')
-        .eq('id', teamId)
-        .single();
-
-      if (error) throw error;
-      return { data };
-    } catch (error) {
-      console.error('Error fetching team profile:', error);
-      throw error;
-    }
-  }
-
-  // Get message threads
-  static async getMessageThreads(userId: string): Promise<any[]> {
-    try {
-      const { data, error } = await supabase
-        .from('message_threads')
-        .select(`
-          *,
-          thread_participants!inner(
-            profile_id
-          )
-        `)
-        .eq('thread_participants.profile_id', userId)
-        .order('last_message_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching message threads:', error);
-      throw error;
-    }
-  }
-
-  // Create message thread
-  static async createMessageThread(threadData: {
-    thread_type: string;
-    pitch_id?: string;
-    player_id?: string;
-    title?: string;
-    participants: string[];
-  }): Promise<string> {
-    try {
-      // Get current user profile
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile) throw new Error('Profile not found');
-
-      // Create thread
-      const { data: thread, error: threadError } = await supabase
-        .from('message_threads')
-        .insert({
-          ...threadData,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (threadError) throw threadError;
-
-      // Add participants
-      const participants = [profile.id, ...threadData.participants];
-      const participantData = participants.map(participantId => ({
-        thread_id: thread.id,
-        profile_id: participantId,
-        role: participantId === profile.id ? 'initiator' : 'participant',
-        joined_at: new Date().toISOString()
-      }));
-
-      const { error: participantError } = await supabase
-        .from('thread_participants')
-        .insert(participantData);
-
-      if (participantError) throw participantError;
-
-      return thread.id;
-    } catch (error) {
-      console.error('Error creating message thread:', error);
       throw error;
     }
   }
@@ -562,7 +275,7 @@ export class EnhancedMessagingService {
       return true;
     } catch (error) {
       console.error('Error deleting message:', error);
-      return false
+      return false;
     }
   }
 

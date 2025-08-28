@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -15,8 +16,7 @@ export const useEnhancedNotifications = () => {
   const [stats, setStats] = useState({
     total: 0,
     unread: 0,
-    by_type: {} as Record<string, number>,
-    by_category: {} as Record<string, number>
+    by_type: {} as Record<string, number>
   });
 
   // Fetch notifications
@@ -74,7 +74,7 @@ export const useEnhancedNotifications = () => {
         setNotifications(prev =>
           prev.map(notif =>
             notif.id === notificationId
-              ? { ...notif, is_read: true, read_at: new Date().toISOString() }
+              ? { ...notif, is_read: true }
               : notif
           )
         );
@@ -96,7 +96,7 @@ export const useEnhancedNotifications = () => {
     try {
       const success = await EnhancedNotificationService.markAllAsRead(profile.user_id);
       if (success) {
-        setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
         setUnreadCount(0);
         setStats(prev => ({ ...prev, unread: 0 }));
       }
@@ -122,10 +122,6 @@ export const useEnhancedNotifications = () => {
             by_type: {
               ...prev.by_type,
               [deletedNotification.type]: Math.max(0, (prev.by_type[deletedNotification.type] || 0) - 1)
-            },
-            by_category: {
-              ...prev.by_category,
-              [deletedNotification.category]: Math.max(0, (prev.by_category[deletedNotification.category] || 0) - 1)
             }
           }));
           
@@ -138,24 +134,6 @@ export const useEnhancedNotifications = () => {
       console.error('Error deleting notification:', error);
     }
   }, [notifications]);
-
-  // Mark notification as actioned
-  const markAsActioned = useCallback(async (notificationId: string) => {
-    try {
-      const success = await EnhancedNotificationService.markAsActioned(notificationId);
-      if (success) {
-        setNotifications(prev =>
-          prev.map(notif =>
-            notif.id === notificationId
-              ? { ...notif, actioned_at: new Date().toISOString() }
-              : notif
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error marking notification as actioned:', error);
-    }
-  }, []);
 
   // Update notification preferences
   const updatePreferences = useCallback(async (newPreferences: Partial<NotificationPreferences>) => {
@@ -185,13 +163,9 @@ export const useEnhancedNotifications = () => {
     title: string;
     message: string;
     type: string;
-    category?: string;
-    priority?: string;
-    is_actionable?: boolean;
     action_url?: string;
     action_text?: string;
     metadata?: any;
-    expires_at?: string;
   }) => {
     if (!profile?.user_id) return;
 
@@ -209,10 +183,6 @@ export const useEnhancedNotifications = () => {
         by_type: {
           ...prev.by_type,
           [newNotification.type]: (prev.by_type[newNotification.type] || 0) + 1
-        },
-        by_category: {
-          ...prev.by_category,
-          [newNotification.category]: (prev.by_category[newNotification.category] || 0) + 1
         }
       }));
       setUnreadCount(prev => prev + 1);
@@ -227,21 +197,6 @@ export const useEnhancedNotifications = () => {
   // Filter notifications by type
   const getNotificationsByType = useCallback((type: string) => {
     return notifications.filter(n => n.type === type);
-  }, [notifications]);
-
-  // Filter notifications by category
-  const getNotificationsByCategory = useCallback((category: string) => {
-    return notifications.filter(n => n.category === category);
-  }, [notifications]);
-
-  // Get actionable notifications
-  const getActionableNotifications = useCallback(() => {
-    return notifications.filter(n => n.is_actionable);
-  }, [notifications]);
-
-  // Get high priority notifications
-  const getHighPriorityNotifications = useCallback(() => {
-    return notifications.filter(n => n.priority === 'high' || n.priority === 'urgent');
   }, [notifications]);
 
   // Set up real-time subscription
@@ -273,10 +228,6 @@ export const useEnhancedNotifications = () => {
             by_type: {
               ...prev.by_type,
               [newNotification.type]: (prev.by_type[newNotification.type] || 0) + 1
-            },
-            by_category: {
-              ...prev.by_category,
-              [newNotification.category]: (prev.by_category[newNotification.category] || 0) + 1
             }
           }));
           
@@ -338,10 +289,6 @@ export const useEnhancedNotifications = () => {
             by_type: {
               ...prev.by_type,
               [deletedNotification.type]: Math.max(0, (prev.by_type[deletedNotification.type] || 0) - 1)
-            },
-            by_category: {
-              ...prev.by_category,
-              [deletedNotification.category]: Math.max(0, (prev.by_category[deletedNotification.category] || 0) - 1)
             }
           }));
           
@@ -357,25 +304,6 @@ export const useEnhancedNotifications = () => {
     };
   }, [profile?.user_id, preferences?.in_app_notifications, toast, fetchNotifications, fetchPreferences]);
 
-  // Clean up expired notifications periodically
-  useEffect(() => {
-    const cleanupInterval = setInterval(async () => {
-      if (profile?.user_id) {
-        try {
-          const deletedCount = await EnhancedNotificationService.deleteExpiredNotifications();
-          if (deletedCount > 0) {
-            // Refresh notifications to remove expired ones
-            fetchNotifications();
-          }
-        } catch (error) {
-          console.error('Error cleaning up expired notifications:', error);
-        }
-      }
-    }, 60000); // Check every minute
-
-    return () => clearInterval(cleanupInterval);
-  }, [profile?.user_id, fetchNotifications]);
-
   return {
     // State
     notifications,
@@ -389,15 +317,11 @@ export const useEnhancedNotifications = () => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    markAsActioned,
     updatePreferences,
     createNotification,
     
     // Filters
     getNotificationsByType,
-    getNotificationsByCategory,
-    getActionableNotifications,
-    getHighPriorityNotifications,
     
     // Refresh
     refresh: () => fetchNotifications()

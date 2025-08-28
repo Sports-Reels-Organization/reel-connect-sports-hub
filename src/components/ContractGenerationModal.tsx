@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { contractService } from '@/services/contractService';
-import { DocumentPreview } from './DocumentPreview';
 import { FileText, Download, Send } from 'lucide-react';
 
 interface ContractGenerationModalProps {
@@ -42,7 +42,6 @@ export const ContractGenerationModal: React.FC<ContractGenerationModalProps> = (
     additionalTerms: ''
   });
   const [generatedContract, setGeneratedContract] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
   const [contractStep, setContractStep] = useState<'form' | 'preview'>('form');
 
   const handleInputChange = (field: string, value: any) => {
@@ -104,7 +103,7 @@ export const ContractGenerationModal: React.FC<ContractGenerationModalProps> = (
     if (!generatedContract) return;
 
     try {
-      const fileName = `${playerName}_${teamName}_Contract_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `${playerName}_${teamName}_Contract_${new Date().toISOString().split('T')[0]}.html`;
       await contractService.downloadContract(generatedContract, fileName);
     } catch (error) {
       console.error('Download error:', error);
@@ -144,31 +143,6 @@ export const ContractGenerationModal: React.FC<ContractGenerationModalProps> = (
       toast({
         title: "Send Failed",
         description: "Failed to send contract",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const testBucketAccess = async () => {
-    try {
-      const hasAccess = await contractService.testBucketAccess();
-      if (hasAccess) {
-        toast({
-          title: "Bucket Access Test",
-          description: "✅ Contracts bucket is available and accessible",
-        });
-      } else {
-        toast({
-          title: "Bucket Access Test",
-          description: "❌ Contracts bucket not found or not accessible",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Bucket test error:', error);
-      toast({
-        title: "Bucket Access Test",
-        description: "❌ Error testing bucket access",
         variant: "destructive"
       });
     }
@@ -305,13 +279,6 @@ export const ContractGenerationModal: React.FC<ContractGenerationModalProps> = (
 
               {/* Generate Button */}
               <div className="flex gap-3 pt-4 border-t border-gray-700">
-                <Button
-                  onClick={testBucketAccess}
-                  variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                >
-                  Test Storage
-                </Button>
                 <Button
                   onClick={generateContract}
                   disabled={loading}

@@ -32,8 +32,9 @@ export interface ContractTemplate {
   name: string;
   template_type: string;
   language_code: string;
-  content: string;
+  template_content: string;
   is_active: boolean;
+  variables: Record<string, string>;
 }
 
 export interface ContractComment {
@@ -89,7 +90,15 @@ export const enhancedContractService = {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []).map(template => ({
+      id: template.id,
+      name: template.name,
+      template_type: template.template_type,
+      language_code: template.language_code,
+      template_content: template.template_content || template.content,
+      is_active: template.is_active,
+      variables: typeof template.variables === 'string' ? JSON.parse(template.variables) : (template.variables || {})
+    }));
   },
 
   async createContractTemplate(template: Omit<ContractTemplate, 'id' | 'is_active'>): Promise<string> {
@@ -99,7 +108,9 @@ export const enhancedContractService = {
         name: template.name,
         template_type: template.template_type,
         language_code: template.language_code,
-        content: template.content,
+        template_content: template.template_content,
+        content: template.template_content, // Ensure both fields are populated
+        variables: template.variables,
         is_active: true
       })
       .select()

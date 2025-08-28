@@ -11,6 +11,7 @@ import { FileUpload } from './FileUpload';
 import { MessageBubble } from './MessageBubble';
 import { ContractGenerationModal } from './ContractGenerationModal';
 import { useEnhancedMessaging } from '@/hooks/useEnhancedMessaging';
+import { useContractNotifications } from '@/hooks/useContractNotifications';
 
 interface MessageModalProps {
   isOpen: boolean;
@@ -42,6 +43,9 @@ export const MessageModal: React.FC<MessageModalProps> = ({
   const [contractGenerating, setContractGenerating] = useState(false);
   
   const { messages, loading, sending, sendMessage } = useEnhancedMessaging(pitchId);
+  
+  // Enable contract notifications
+  useContractNotifications();
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !receiverId) return;
@@ -58,23 +62,48 @@ export const MessageModal: React.FC<MessageModalProps> = ({
     }
   };
 
+  const handleFileUploadComplete = async (fileUrl: string, fileName: string, fileSize: number, fileType: string) => {
+    if (!receiverId) return;
+    
+    try {
+      await sendMessage(
+        `📄 Contract document uploaded: ${fileName}`,
+        receiverId,
+        {
+          pitchId,
+          playerId,
+          contractFileUrl: fileUrl,
+          messageType: 'contract'
+        }
+      );
+      
+      toast({
+        title: "File Uploaded",
+        description: "Contract document has been uploaded and sent",
+      });
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload file",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleContractGenerated = async (contractHtml: string) => {
     if (!receiverId) return;
     
     setContractGenerating(true);
     
     try {
-      // Here you would convert HTML to PDF and upload it
-      // For now, we'll simulate the contract generation
-      const contractUrl = 'https://example.com/contract.pdf'; // This would be the actual PDF URL
-      
       await sendMessage(
         `📄 Contract generated for ${playerName}`,
         receiverId,
         {
           pitchId,
           playerId,
-          contractFileUrl: contractUrl,
+          contractFileUrl: 'generated-contract',
           messageType: 'contract'
         }
       );
@@ -104,6 +133,21 @@ export const MessageModal: React.FC<MessageModalProps> = ({
             <DialogTitle className="flex items-center justify-between">
               <span>Message about {playerName}</span>
               <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                  onClick={() => document.getElementById('file-upload-input')?.click()}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Contract
+                </Button>
+                
+                <FileUpload
+                  onFileUploaded={handleFileUploadComplete}
+                  disabled={false}
+                />
+                
                 <Button
                   onClick={() => setShowContractGen(true)}
                   disabled={contractGenerating}

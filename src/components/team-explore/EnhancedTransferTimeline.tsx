@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Edit, Trash2, Calendar, DollarSign, MapPin, Users, Eye, EyeOff } from 'lucide-react';
+import { MessageCircle, Edit, Trash2, Calendar, DollarSign, MapPin, Users, Eye, FileText } from 'lucide-react';
 import MessageModal from '../MessageModal';
-import { useEnhancedMessaging } from '@/hooks/useEnhancedMessaging';
+import { useContractNotifications } from '@/hooks/useContractNotifications';
 
 interface TransferPitch {
   id: string;
@@ -47,6 +48,9 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
   const [selectedPitch, setSelectedPitch] = useState<TransferPitch | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [editingPitch, setEditingPitch] = useState<string | null>(null);
+
+  // Enable contract notifications
+  useContractNotifications();
 
   const fetchPitches = async () => {
     try {
@@ -366,12 +370,21 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
                             className="bg-rosegold hover:bg-rosegold/90"
                           >
                             <MessageCircle className="w-4 h-4 mr-2" />
-                            Message
+                            Express Interest
                           </Button>
                         )}
                         
                         {isOwner && (
                           <>
+                            <Button
+                              onClick={() => handleMessageClick(pitch)}
+                              size="sm"
+                              variant="outline"
+                              className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              View Messages
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -400,7 +413,7 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
         )}
       </div>
 
-      {/* Message Modal */}
+      {/* Message Modal with Contract Integration */}
       {selectedPitch && (
         <MessageModal
           isOpen={showMessageModal}

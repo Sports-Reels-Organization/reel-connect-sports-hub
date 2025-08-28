@@ -22,9 +22,6 @@ const NotificationTest: React.FC = () => {
         title: "Test Notification",
         message: "This is a test notification to verify the system is working",
         type: "test",
-        category: "system",
-        priority: "normal",
-        is_actionable: true,
         action_url: "/notifications",
         action_text: "View"
       });
