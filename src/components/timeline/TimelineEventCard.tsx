@@ -12,7 +12,9 @@ import {
   Heart,
   ExternalLink,
   Play,
-  FileText
+  FileText,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { EventIcon, EventBadge } from './TimelineEventIcons';
@@ -44,12 +46,20 @@ interface TimelineEventCardProps {
   event: TimelineEvent;
   onTogglePin: (eventId: string, currentPinned: boolean) => void;
   onOpenComments: (eventId: string) => void;
+  onEditEvent?: (event: TimelineEvent) => void;
+  onDeleteEvent?: (event: TimelineEvent) => void;
+  onOpenMessaging?: (event: TimelineEvent) => void;
+  canEdit?: boolean;
 }
 
 const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
   event,
   onTogglePin,
-  onOpenComments
+  onOpenComments,
+  onEditEvent,
+  onDeleteEvent,
+  onOpenMessaging,
+  canEdit = false
 }) => {
   const navigation = useTimelineNavigation();
 
@@ -155,6 +165,43 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
                 )}
               </div>
               <div className="flex items-center gap-2">
+                {/* Edit/Delete buttons for team members */}
+                {canEdit && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onEditEvent?.(event)}
+                      className="text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all"
+                      title="Edit Event"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onDeleteEvent?.(event)}
+                      className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete Event"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+                
+                {/* Messaging button for transfer events */}
+                {event.event_type === 'transfer' && onOpenMessaging && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onOpenMessaging(event)}
+                    className="text-gray-400 hover:text-green-500 opacity-0 group-hover:opacity-100 transition-all"
+                    title="Open Messaging"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </Button>
+                )}
+                
                 <Button
                   size="sm"
                   variant="ghost"

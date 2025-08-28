@@ -21,6 +21,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import TimelineEventCard from './timeline/TimelineEventCard';
 import SeasonSeparator from './timeline/SeasonSeparator';
+import TransferTimelineMessaging from './TransferTimelineMessaging';
 import { exportTimelineToPDF } from '@/utils/pdfExport';
 
 export type EventType = 'match' | 'transfer' | 'player' | 'team' | 'achievement';
@@ -85,6 +86,16 @@ const EnhancedTeamTimeline = () => {
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [showComments, setShowComments] = useState(false);
+  
+  // Edit/Delete functionality
+  const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<TimelineEvent | null>(null);
+  
+  // Messaging integration
+  const [showMessaging, setShowMessaging] = useState(false);
+  const [selectedPitch, setSelectedPitch] = useState<any>(null);
   
   // Players for filtering/selection
   const [teamPlayers, setTeamPlayers] = useState<any[]>([]);
@@ -429,6 +440,151 @@ const EnhancedTeamTimeline = () => {
     setShowComments(true);
   };
 
+  // Edit event functionality
+  const handleEditEvent = (event: TimelineEvent) => {
+    setEditingEvent(event);
+    setNewEventType(event.event_type);
+    setNewEventTitle(event.title);
+    setNewEventDescription(event.description);
+    setNewEventDate(event.event_date);
+    setNewEventPlayerId(event.player_id || '');
+    setShowEditForm(true);
+  };
+
+  const handleUpdateEvent = async () => {
+    if (!editingEvent || !newEventTitle.trim() || !newEventDescription.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('timeline_events')
+        .update({
+          title: newEventTitle,
+          description: newEventDescription,
+          event_type: newEventType,
+          event_date: newEventDate,
+          player_id: newEventPlayerId || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingEvent.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setEvents(prev =>
+        prev.map(event =>
+          event.id === editingEvent.id
+            ? {
+                ...event,
+                title: newEventTitle,
+                description: newEventDescription,
+                event_type: newEventType,
+                event_date: newEventDate,
+                player_id: newEventPlayerId || undefined
+              }
+            : event
+        )
+      );
+
+      setShowEditForm(false);
+      setEditingEvent(null);
+      resetForm();
+      
+      toast({
+        title: "Success",
+        description: "Event updated successfully"
+      });
+    } catch (error) {
+      console.error('Error updating event:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update event",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Delete event functionality
+  const handleDeleteEvent = (event: TimelineEvent) => {
+    setEventToDelete(event);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteEvent = async () => {
+    if (!eventToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('timeline_events')
+        .delete()
+        .eq('id', eventToDelete.id);
+
+      if (error) throw error;
+
+      // Remove from local state
+      setEvents(prev => prev.filter(event => event.id !== eventToDelete.id));
+
+      setShowDeleteConfirm(false);
+      setEventToDelete(null);
+      
+      toast({
+        title: "Success",
+        description: "Event deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete event",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setNewEventType('team');
+    setNewEventTitle('');
+    setNewEventDescription('');
+    setNewEventDate(new Date().toISOString().split('T')[0]);
+    setNewEventPlayerId('');
+  };
+
+  // Messaging integration
+  const openMessaging = async (event: TimelineEvent) => {
+    if (event.event_type === 'transfer' && event.metadata?.pitch_id) {
+      try {
+        // Fetch pitch details
+        const { data: pitchData } = await supabase
+          .from('transfer_pitches')
+          .select(`
+            *,
+            players:players!inner(
+              id,
+              full_name
+            ),
+            teams:teams!inner(
+              id,
+              team_name
+            )
+          `)
+          .eq('id', event.metadata.pitch_id)
+          .single();
+
+        if (pitchData) {
+          setSelectedPitch(pitchData);
+          setShowMessaging(true);
+        }
+      } catch (error) {
+        console.error('Error fetching pitch details:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load pitch details",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -654,6 +810,10 @@ const EnhancedTeamTimeline = () => {
                           event={event}
                           onTogglePin={togglePin}
                           onOpenComments={openComments}
+                          onEditEvent={handleEditEvent}
+                          onDeleteEvent={handleDeleteEvent}
+                          onOpenMessaging={openMessaging}
+                          canEdit={true}
                         />
                       ))}
                     </div>
@@ -708,6 +868,135 @@ const EnhancedTeamTimeline = () => {
               Add
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Event Dialog */}
+      <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+        <DialogContent className="bg-gray-900 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Event</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Update the event details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={newEventType} onValueChange={(value: EventType) => setNewEventType(value)}>
+              <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="match">Match Event</SelectItem>
+                <SelectItem value="transfer">Transfer Event</SelectItem>
+                <SelectItem value="player">Player Event</SelectItem>
+                <SelectItem value="team">Team Update</SelectItem>
+                <SelectItem value="achievement">Achievement</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Input
+              placeholder="Event title"
+              value={newEventTitle}
+              onChange={(e) => setNewEventTitle(e.target.value)}
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+
+            <Textarea
+              placeholder="Event description"
+              value={newEventDescription}
+              onChange={(e) => setNewEventDescription(e.target.value)}
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+
+            <Input
+              type="date"
+              value={newEventDate}
+              onChange={(e) => setNewEventDate(e.target.value)}
+              className="bg-gray-800 border-gray-600 text-white"
+            />
+
+            {(newEventType === 'player' || newEventType === 'transfer') && (
+              <Select value={newEventPlayerId} onValueChange={setNewEventPlayerId}>
+                <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                  <SelectValue placeholder="Select player (optional)" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  {teamPlayers.map(player => (
+                    <SelectItem key={player.id} value={player.id}>
+                      {player.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowEditForm(false)}
+                className="border-gray-600 text-gray-300"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateEvent}
+                className="bg-rosegold hover:bg-rosegold/90 text-white"
+              >
+                Update Event
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="bg-gray-900 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Delete Event</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Are you sure you want to delete "{eventToDelete?.title}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              className="border-gray-600 text-gray-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDeleteEvent}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete Event
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Messaging Dialog */}
+      <Dialog open={showMessaging} onOpenChange={setShowMessaging}>
+        <DialogContent className="bg-gray-900 border-gray-700 max-w-6xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-white">Transfer Timeline Messaging</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Communicate with other teams about this transfer
+            </DialogDescription>
+          </DialogHeader>
+          {selectedPitch && (
+            <TransferTimelineMessaging
+              pitchId={selectedPitch.id}
+              playerId={selectedPitch.player_id}
+              teamId={selectedPitch.team_id}
+              playerName={selectedPitch.players?.full_name || 'Unknown Player'}
+              teamName={selectedPitch.teams?.team_name || 'Unknown Team'}
+              onMessageSent={() => {
+                // Refresh messages or update UI as needed
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

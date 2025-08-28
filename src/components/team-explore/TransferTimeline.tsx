@@ -25,6 +25,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import ContractWizard from '@/components/contracts/ContractWizard';
 
 interface TimelinePitch {
   id: string;
@@ -70,6 +72,10 @@ const TransferTimeline = () => {
   const [teamSportType, setTeamSportType] = useState<'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby'>('football');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pitchToDelete, setPitchToDelete] = useState<TimelinePitch | null>(null);
+  
+  // Contract Wizard State
+  const [showContractWizard, setShowContractWizard] = useState(false);
+  const [selectedPitchForContract, setSelectedPitchForContract] = useState<TimelinePitch | null>(null);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -322,6 +328,24 @@ const TransferTimeline = () => {
 
   const canEditPitch = (pitch: TimelinePitch) => {
     return profile?.user_type === 'team' && profile?.id === pitch.teams.id;
+  };
+
+  const handleGenerateContract = (pitch: TimelinePitch) => {
+    setSelectedPitchForContract(pitch);
+    setShowContractWizard(true);
+  };
+
+  const handleContractComplete = (contractId: string) => {
+    setShowContractWizard(false);
+    setSelectedPitchForContract(null);
+    
+    toast({
+      title: "Contract Created",
+      description: "Contract has been generated successfully!"
+    });
+    
+    // Refresh the timeline to show updated status
+    fetchTimelinePitches();
   };
 
   if (loading) {
@@ -618,6 +642,16 @@ const TransferTimeline = () => {
                           View Details
                         </Button>
                         
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-rosegold text-rosegold hover:bg-rosegold/10"
+                          onClick={() => handleGenerateContract(pitch)}
+                        >
+                          <DollarSign className="w-4 h-4 mr-2" />
+                          Generate Contract
+                        </Button>
+                        
                         {canEditPitch(pitch) && (
                           <>
                             <Button
@@ -669,6 +703,18 @@ const TransferTimeline = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Contract Wizard */}
+      {showContractWizard && selectedPitchForContract && (
+        <ContractWizard
+          pitchId={selectedPitchForContract.id}
+          onComplete={handleContractComplete}
+          onCancel={() => {
+            setShowContractWizard(false);
+            setSelectedPitchForContract(null);
+          }}
+        />
+      )}
     </div>
   );
 };

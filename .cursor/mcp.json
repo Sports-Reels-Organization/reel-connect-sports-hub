@@ -1,16 +1,15 @@
 {
-    "mcpServers": {
-      "supabase": {
-        "command": "cmd",
-        "args": [
-          "/c",
-          "npx",
-          "-y",
-          "@supabase/mcp-server-supabase@latest",
-          "--read-only",
-          "--project-ref=vlfwfihegbvjpyjjufwr",
-          "--access-token=sbp_244531ac1646ae1afdbfc28345d79b6d2213c93d"
-        ]
-      }
+  "mcpServers": {
+    "supabase": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref=vlfwfihegbvjpyjjufwr",
+        "--access-token=sbp_244531ac1646ae1afdbfc28345d79b6d2213c93d"
+      ]
     }
   }
+}

@@ -1,13 +1,15 @@
 import Layout from '@/components/Layout';
 import NotificationCenter from '@/components/NotificationCenter'
+import NotificationTest from '@/components/NotificationTest';
 import React from 'react'
 
 const Notification = () => {
     return (
         <Layout>
-            <NotificationCenter />
+            <div className="space-y-6">
+                <NotificationCenter />
+            </div>
         </Layout>
-
     )
 }
 

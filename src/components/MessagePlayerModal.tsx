@@ -155,8 +155,12 @@ const MessagePlayerModal: React.FC<MessagePlayerModalProps> = ({
       };
 
       const { error } = await supabase
-        .from('player_messages')
-        .insert(messageData);
+        .from('messages')
+        .insert({
+          ...messageData,
+          status: 'sent',
+          contract_file_url: null
+        });
 
       if (error) throw error;
 

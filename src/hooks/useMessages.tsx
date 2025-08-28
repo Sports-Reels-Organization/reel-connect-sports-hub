@@ -75,6 +75,7 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
         },
         (payload) => {
           console.log('Real-time message received:', payload.new);
+          console.log('Message sender profile:', payload.new.sender_profile);
           
           // Add new message to state with a smooth animation
           setMessages(prev => {
@@ -104,7 +105,7 @@ export function useMessages({ pitchId, teamId, agentId, currentUserId }: UseMess
           toast({
             title: "New Message",
             description: `You have a new message from ${payload.new.sender_profile?.full_name || 'Unknown'}`,
-            duration: 4000,
+            duration: 5000,
           });
         }
       )
