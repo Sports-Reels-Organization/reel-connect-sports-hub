@@ -9,26 +9,23 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const NotificationBell: React.FC = () => {
   const { profile } = useAuth();
-  const { unreadCount, notifications, markAsRead, getHighPriorityNotifications } = useEnhancedNotifications();
+  const { unreadCount, notifications } = useEnhancedNotifications();
   const navigate = useNavigate();
 
   const handleClick = () => {
     navigate('/notifications');
   };
 
-  // Get high priority notifications for immediate attention
-  const highPriorityNotifications = getHighPriorityNotifications();
-  const urgentCount = highPriorityNotifications.filter(n => n.priority === 'urgent').length;
+  // Get important notifications for immediate attention
+  const importantNotifications = notifications.filter(n => n.type === 'contract' || n.type === 'message');
 
-  // Show different badge colors based on priority
+  // Show different badge colors based on notification type
   const getBadgeVariant = () => {
-    if (urgentCount > 0) return 'destructive';
     if (unreadCount > 0) return 'default';
     return 'secondary';
   };
 
   const getBadgeContent = () => {
-    if (urgentCount > 0) return urgentCount > 99 ? '99+' : urgentCount;
     if (unreadCount > 0) return unreadCount > 99 ? '99+' : unreadCount;
     return '';
   };
@@ -61,23 +58,23 @@ const NotificationBell: React.FC = () => {
         </Badge>
       )}
       
-      {/* Enhanced Tooltip for high priority notifications */}
-      {highPriorityNotifications.length > 0 && (
+      {/* Enhanced Tooltip for important notifications */}
+      {importantNotifications.length > 0 && (
         <div className="absolute top-full right-0 mt-2 w-80 bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
           <div className="p-3">
             <div className="text-sm font-medium text-white mb-2">
-              High Priority Notifications
+              Recent Notifications
             </div>
             <div className="space-y-2">
-              {highPriorityNotifications.slice(0, 3).map((notification) => (
+              {importantNotifications.slice(0, 3).map((notification) => (
                 <div key={notification.id} className="text-xs text-gray-300">
                   <div className="font-medium">{notification.title}</div>
                   <div className="truncate">{notification.message}</div>
                 </div>
               ))}
-              {highPriorityNotifications.length > 3 && (
+              {importantNotifications.length > 3 && (
                 <div className="text-xs text-gray-400">
-                  +{highPriorityNotifications.length - 3} more...
+                  +{importantNotifications.length - 3} more...
                 </div>
               )}
             </div>
