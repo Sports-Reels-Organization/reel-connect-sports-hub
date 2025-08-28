@@ -493,7 +493,7 @@ const AgentDashboard = () => {
               {recentActivity.length > 0 ? (
                 <div className="space-y-4">
                   {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-800/50">
+                    <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#111111]">
                       <div className={`${getActivityColor(activity.type)} mt-0.5`}>
                         {getActivityIcon(activity.type)}
                       </div>

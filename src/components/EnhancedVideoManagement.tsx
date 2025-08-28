@@ -364,7 +364,7 @@ const EnhancedVideoManagement: React.FC = () => {
     <div className="space-y-8">
       {/* Enhanced Header */}
       <div className="relative overflow-hidden">
-        <Card className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-gray-700 shadow-2xl">
+        <Card className="border-0 shadow-2xl">
           <CardHeader className="pb-8">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
               <div className="space-y-2">
@@ -373,7 +373,7 @@ const EnhancedVideoManagement: React.FC = () => {
                     <Video className="w-8 h-8 text-bright-pink" />
                   </div>
                   <div>
-                    <CardTitle className="text-white text-3xl font-bold">
+                    <CardTitle className="text-white pb-2 text-3xl font-bold font-[Polysans Median]">
                       Video Management
                     </CardTitle>
                     <p className="text-gray-300 text-lg">
@@ -466,14 +466,14 @@ const EnhancedVideoManagement: React.FC = () => {
                   placeholder="Search by title, type, opponent, or player tags..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-11 pr-4 py-3 bg-gray-700 border-gray-600 text-white text-base h-12"
+                  className="pl-11 pr-4 py-3 text-white text-base h-12"
                 />
               </div>
 
               {/* Filter Controls */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 <Select value={filters.type} onValueChange={(value) => setFilters({ ...filters, type: value })}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white h-12">
+                  <SelectTrigger className=" text-white h-12">
                     <SelectValue placeholder="Video Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -486,7 +486,7 @@ const EnhancedVideoManagement: React.FC = () => {
                 </Select>
 
                 <Select value={filters.analysisStatus} onValueChange={(value) => setFilters({ ...filters, analysisStatus: value })}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white h-12">
+                  <SelectTrigger className=" text-white h-12">
                     <SelectValue placeholder="Analysis Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -499,7 +499,7 @@ const EnhancedVideoManagement: React.FC = () => {
                 </Select>
 
                 <Select value={filters.player} onValueChange={(value) => setFilters({ ...filters, player: value })}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white h-12">
+                  <SelectTrigger className=" text-white h-12">
                     <SelectValue placeholder="Filter by Player" />
                   </SelectTrigger>
                   <SelectContent>
@@ -513,7 +513,7 @@ const EnhancedVideoManagement: React.FC = () => {
                 </Select>
 
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white h-12">
+                  <SelectTrigger className=" text-white h-12">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -528,7 +528,7 @@ const EnhancedVideoManagement: React.FC = () => {
                 <Button
                   onClick={clearAllFilters}
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700 h-12"
+                  className=" text-gray-300 bg-destructive h-12"
                 >
                   <FilterX className="w-4 h-4 mr-2" />
                   Clear Filters
@@ -543,7 +543,7 @@ const EnhancedVideoManagement: React.FC = () => {
                     type="date"
                     value={filters.dateFrom}
                     onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                    className="bg-gray-700 border-gray-600 text-white h-12"
+                    className=" text-white h-12 "
                   />
                 </div>
                 <div className="space-y-2">
@@ -552,14 +552,14 @@ const EnhancedVideoManagement: React.FC = () => {
                     type="date"
                     value={filters.dateTo}
                     onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                    className="bg-gray-700 border-gray-600 text-white h-12"
+                    className=" text-white h-12"
                   />
                 </div>
               </div>
 
               {/* Active Filters Display */}
               {(searchTerm || filters.type !== 'all' || filters.analysisStatus !== 'all' || filters.player !== 'all' || filters.dateFrom || filters.dateTo) && (
-                <div className="flex flex-wrap items-center gap-2 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+                <div className="flex flex-wrap items-center gap-2 p-4  rounded-lg border">
                   <span className="text-sm text-gray-400">Active filters:</span>
                   {searchTerm && (
                     <Badge variant="outline" className="border-bright-pink/50 text-bright-pink">
@@ -667,7 +667,7 @@ const EnhancedVideoManagement: React.FC = () => {
                                     <Video className="w-6 h-6 text-gray-500" />
                                   </div>
                                 )}
-                               
+
                               </div>
                               <div className="min-w-0">
                                 <h3 className="text-white font-medium text-sm truncate max-w-xs">
@@ -698,11 +698,11 @@ const EnhancedVideoManagement: React.FC = () => {
                             </Badge>
                           </td>
                           <td className="p-4 text-gray-300 text-sm text-center">
-                             {video.duration && (
-                                  <div className="absolute -bottom-1 -right-1 bg-black/80 text-white text-xs px-1 py-0.5 rounded">
-                                    {formatDuration(video.duration)}
-                                  </div>
-                                )}
+                            {video.duration && (
+                              <div className="absolute -bottom-1 -right-1 bg-black/80 text-white text-xs px-1 py-0.5 rounded">
+                                {formatDuration(video.duration)}
+                              </div>
+                            )}
                           </td>
                           <td className="p-4">
                             {video.tags.length > 0 ? (
@@ -723,8 +723,8 @@ const EnhancedVideoManagement: React.FC = () => {
                             )}
                           </td>
                           <td className="p-4 text-gray-300 text-sm">
-                            {new Date(video.created_at).toLocaleDateString('en-US', { 
-                              month: 'short', 
+                            {new Date(video.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
                               day: 'numeric',
                               year: 'numeric'
                             })}
@@ -884,9 +884,9 @@ const EnhancedVideoManagement: React.FC = () => {
                           <div className="flex items-center gap-3 text-xs text-gray-400">
                             <div className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              {new Date(video.created_at).toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric' 
+                              {new Date(video.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric'
                               })}
                             </div>
                             {video.file_size && (
@@ -1014,7 +1014,7 @@ const EnhancedVideoManagement: React.FC = () => {
       {/* Video Analysis Dialog */}
       {selectedVideo && (
         <Dialog open={isAnalysisDialogOpen} onOpenChange={setIsAnalysisDialogOpen}>
-          <DialogContent className="bg-gray-800 border-gray-700 max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="border-0 max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-white">{selectedVideo.title}</DialogTitle>
             </DialogHeader>

@@ -90,7 +90,7 @@
     @apply border-0;
   } */
   [class*="bg-gray-"] {
-    /* background-color: #1a1a1a !important; */
+    background-color: #1a1a1a !important;
     /* force dark background */
   }
 
