@@ -32,7 +32,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import EnhancedVideoCompressionService from '@/services/enhancedVideoCompressionService';
-import { EnhancedAIAnalysisService } from '@/services/enhancedAIAnalysisService';
 
 interface VideoMetadata {
   title: string;
@@ -57,7 +56,7 @@ interface TeamPlayer {
 }
 
 interface ProcessingStatus {
-  stage: 'idle' | 'compressing' | 'uploading' | 'analyzing' | 'complete' | 'error';
+  stage: 'idle' | 'compressing' | 'uploading' | 'complete' | 'error';
   progress: number;
   message: string;
 }
@@ -118,7 +117,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   });
 
   const videoCompressionService = new EnhancedVideoCompressionService();
-  const aiAnalysisService = new EnhancedAIAnalysisService();
 
   useEffect(() => {
     fetchTeamPlayers();
@@ -379,41 +377,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
   };
 
-  const performAIAnalysis = async (videoId: string) => {
-    updateProcessingStatus('analyzing', 0, 'Initializing AI analysis...');
-
-    try {
-      await aiAnalysisService.analyzeVideo(
-        videoId,
-        {
-          title: metadata.title,
-          description: metadata.description,
-          videoType: metadata.videoType,
-          duration: videoFileInfo?.duration || 0,
-          playerTags: metadata.playerTags,
-          matchDetails: metadata.matchDetails
-        },
-        (progress, status) => {
-          updateProcessingStatus('analyzing', progress, status || 'Analyzing video...');
-        }
-      );
-
-      await supabase
-        .from('videos')
-        .update({ ai_analysis_status: 'completed' })
-        .eq('id', videoId);
-
-    } catch (error) {
-      console.error('AI analysis error:', error);
-      await supabase
-        .from('videos')
-        .update({ ai_analysis_status: 'failed' })
-        .eq('id', videoId);
-
-      throw error;
-    }
-  };
-
   const addPlayerTag = () => {
     if (!selectedPlayerId) return;
 
@@ -493,17 +456,13 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         video_url: '',
         video_type: metadata.videoType,
         duration: videoFileInfo?.duration || 0,
-        file_size: selectedFile.size,
-        ai_analysis_status: 'pending',
-        video_description: metadata.description || '',
-        tagged_players: metadata.playerTags,
+        description: metadata.description || '',
+        tags: metadata.playerTags,
         ...(metadata.videoType === 'match' && metadata.matchDetails && {
           opposing_team: metadata.matchDetails.opposingTeam || '',
           match_date: metadata.matchDetails.matchDate || null,
-          home_or_away: metadata.matchDetails.homeOrAway || 'home',
-          venue: metadata.matchDetails.venue || '',
-          final_score_home: metadata.matchDetails.finalScore ? parseInt(metadata.matchDetails.finalScore.split('-')[0]) || 0 : 0,
-          final_score_away: metadata.matchDetails.finalScore ? parseInt(metadata.matchDetails.finalScore.split('-')[1]) || 0 : 0
+          score: metadata.matchDetails.finalScore || '',
+          league_competition: metadata.matchDetails.league || ''
         })
       };
 
@@ -541,14 +500,11 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         throw new Error(`Failed to update video: ${updateError.message}`);
       }
 
-      // Perform AI analysis
-      await performAIAnalysis(videoId);
-
-      updateProcessingStatus('complete', 100, 'Upload and analysis complete!');
+      updateProcessingStatus('complete', 100, 'Upload complete!');
 
       toast({
         title: "Upload Complete",
-        description: "Video uploaded and analyzed successfully!",
+        description: "Video uploaded successfully!",
       });
 
       // Reset form and callback
@@ -708,7 +664,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                   <div className="flex items-center gap-3">
                     {processingStatus.stage === 'compressing' && <Minimize2 className="w-5 h-5 text-bright-pink animate-spin" />}
                     {processingStatus.stage === 'uploading' && <Upload className="w-5 h-5 text-bright-pink animate-pulse" />}
-                    {processingStatus.stage === 'analyzing' && <Zap className="w-5 h-5 text-bright-pink animate-pulse" />}
                     <span className="text-white font-medium text-lg">{processingStatus.message}</span>
                   </div>
                   <Progress value={processingStatus.progress} className="h-3" />
@@ -895,7 +850,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           )}
 
           <p className="text-xs text-gray-500">
-            Tag players featured in this video to enable AI analysis of their performance and presence.
+            Tag players featured in this video for future analysis.
           </p>
         </CardContent>
       </Card>
@@ -1022,7 +977,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           ) : (
             <Upload className="w-5 h-5 mr-3" />
           )}
-          {isProcessing ? 'Processing Video...' : 'Upload & Analyze Video'}
+          {isProcessing ? 'Processing Video...' : 'Upload Video'}
         </Button>
 
         <Button
@@ -1050,8 +1005,8 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
             <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
             <h3 className="text-white font-semibold text-lg mb-2">Upload Successful!</h3>
             <p className="text-green-300">
-              Your video has been uploaded and AI analysis is complete.
-              You can now view the detailed analysis results.
+              Your video has been uploaded successfully.
+              You can now view the video and analyze it when ready.
             </p>
           </CardContent>
         </Card>

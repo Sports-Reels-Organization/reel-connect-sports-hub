@@ -31,7 +31,8 @@ import {
   Grid3X3,
   List,
   SortAsc,
-  Trophy
+  Trophy,
+  X
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -187,24 +188,26 @@ const EnhancedVideoManagement: React.FC = () => {
       if (error) throw error;
 
       // Map the data to ensure all required fields are present
-      const mappedVideos: VideoData[] = (data || []).map(video => ({
-        id: video.id,
-        title: video.title,
-        video_url: video.video_url,
-        thumbnail_url: video.thumbnail_url,
-        video_type: video.video_type,
-        duration: video.duration,
-        file_size: video.file_size,
-        tags: Array.isArray(video.tagged_players) ?
-          video.tagged_players.map((tag: any) => typeof tag === 'string' ? tag : String(tag)) :
-          [],
-        ai_analysis_status: video.ai_analysis_status,
-        created_at: video.created_at,
-        opposing_team: video.opposing_team,
-        match_date: video.match_date,
-        score_display: video.score_display,
-        description: video.description
-      }));
+      const mappedVideos: VideoData[] = (data || []).map(video => {
+        return {
+          id: video.id,
+          title: video.title,
+          video_url: video.video_url,
+          thumbnail_url: video.thumbnail_url,
+          video_type: video.video_type,
+          duration: video.duration,
+          file_size: video.file_size,
+          tags: Array.isArray(video.tagged_players) ?
+            video.tagged_players.map((tag: any) => typeof tag === 'string' ? tag : String(tag)) :
+            [],
+          ai_analysis_status: video.ai_analysis_status,
+          created_at: video.created_at,
+          opposing_team: video.opposing_team,
+          match_date: video.match_date,
+          score_display: video.score_display,
+          description: video.description
+        };
+      });
 
       setVideos(mappedVideos);
     } catch (error) {
@@ -744,13 +747,16 @@ const EnhancedVideoManagement: React.FC = () => {
                                   Analyze
                                 </Button>
                               ) : (
-                                <Button
+                                                                                            <Button
                                   size="sm"
                                   variant="outline"
                                   className="h-8 px-3 border-gray-600 text-gray-300 hover:bg-gray-700 text-xs"
-                                  onClick={() => window.open(video.video_url, '_blank')}
+                                  onClick={() => {
+                                    setSelectedVideo(video);
+                                    setIsAnalysisDialogOpen(true);
+                                  }}
                                 >
-                                  <Play className="w-3 h-3 mr-1" />
+                                  <Eye className="w-3 h-3 mr-1" />
                                   View
                                 </Button>
                               )}
@@ -924,15 +930,18 @@ const EnhancedVideoManagement: React.FC = () => {
                               Analyze
                             </Button>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 h-8 border-gray-600 text-gray-300 hover:bg-gray-700 text-xs"
-                              onClick={() => window.open(video.video_url, '_blank')}
-                            >
-                              <Play className="w-3 h-3 mr-1" />
-                              View
-                            </Button>
+                                                         <Button
+                               size="sm"
+                               variant="outline"
+                               className="flex-1 h-8 border-gray-600 text-gray-300 hover:bg-gray-700 text-xs"
+                                                               onClick={() => {
+                                  setSelectedVideo(video);
+                                  setIsAnalysisDialogOpen(true);
+                                }}
+                             >
+                               <Eye className="w-3 h-3 mr-1" />
+                               View
+                             </Button>
                           )}
 
                           <Button
@@ -1014,14 +1023,22 @@ const EnhancedVideoManagement: React.FC = () => {
       {/* Video Analysis Dialog */}
       {selectedVideo && (
         <Dialog open={isAnalysisDialogOpen} onOpenChange={setIsAnalysisDialogOpen}>
-          <DialogContent className="border-0 max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="border-0 max-w-6xl max-h-[90vh] overflow-y-auto bg-gray-900">
+            <DialogHeader className="flex items-center justify-between">
               <DialogTitle className="text-white">{selectedVideo.title}</DialogTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsAnalysisDialogOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </Button>
             </DialogHeader>
             {teamId && (
               <VideoAnalysisResults
                 videoId={selectedVideo.id}
-                videoType={selectedVideo.video_type as any}
+                videoType={selectedVideo.video_type as 'match' | 'training' | 'highlight' | 'interview'}
                 teamId={teamId}
               />
             )}
