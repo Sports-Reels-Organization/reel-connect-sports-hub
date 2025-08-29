@@ -108,7 +108,32 @@ const VideoAnalysisResults = () => {
         return;
       }
 
-      setVideo(videoData);
+      // Map the database video to our Video interface
+      const mappedVideo: Video = {
+        id: videoData.id,
+        title: videoData.title,
+        video_url: videoData.video_url,
+        thumbnail_url: videoData.thumbnail_url,
+        duration: videoData.duration,
+        video_type: videoData.video_type as 'match' | 'training' | 'interview' | 'highlight',
+        description: videoData.description,
+        tags: Array.isArray(videoData.tagged_players) 
+          ? videoData.tagged_players.map((tag: any) => String(tag)) 
+          : [],
+        ai_analysis_status: (videoData.ai_analysis_status === 'pending' || 
+                           videoData.ai_analysis_status === 'analyzing' || 
+                           videoData.ai_analysis_status === 'completed' || 
+                           videoData.ai_analysis_status === 'failed') 
+                           ? videoData.ai_analysis_status 
+                           : 'pending',
+        created_at: videoData.created_at,
+        opposing_team: videoData.opposing_team,
+        match_date: videoData.match_date,
+        score: videoData.score_display || undefined,
+        league_competition: videoData.competition || undefined
+      };
+
+      setVideo(mappedVideo);
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -194,7 +219,6 @@ const VideoAnalysisResults = () => {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* Video Player Section */}
           <div className="xl:col-span-2">
             <Card className="bg-gray-800 border-gray-700">
               <CardContent className="p-0">
@@ -213,7 +237,6 @@ const VideoAnalysisResults = () => {
                   </video>
                 </div>
                 
-                {/* Video Controls Info */}
                 <div className="p-4 bg-gray-800">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -227,7 +250,6 @@ const VideoAnalysisResults = () => {
                       </span>
                     </div>
                     
-                    {/* AI Analysis Button */}
                     <Button
                       onClick={handleAnalyzeVideo}
                       className="bg-bright-pink hover:bg-bright-pink/90 text-white"
@@ -240,7 +262,6 @@ const VideoAnalysisResults = () => {
               </CardContent>
             </Card>
 
-            {/* Video Description */}
             {video.description && (
               <Card className="bg-gray-800 border-gray-700 mt-6">
                 <CardHeader>
@@ -253,9 +274,7 @@ const VideoAnalysisResults = () => {
             )}
           </div>
 
-          {/* Video Information Sidebar */}
           <div className="space-y-6">
-            {/* Video Details */}
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -293,7 +312,6 @@ const VideoAnalysisResults = () => {
               </CardContent>
             </Card>
 
-            {/* Match Details (if applicable) */}
             {video.video_type === 'match' && (video.opposing_team || video.match_date || video.score || video.league_competition) && (
               <Card className="bg-gray-800 border-gray-700">
                 <CardHeader>
@@ -334,7 +352,6 @@ const VideoAnalysisResults = () => {
               </Card>
             )}
 
-            {/* Tagged Players */}
             {video.tags && video.tags.length > 0 && (
               <Card className="bg-gray-800 border-gray-700">
                 <CardHeader>
@@ -358,7 +375,6 @@ const VideoAnalysisResults = () => {
               </Card>
             )}
 
-            {/* Analysis Actions */}
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
                 <CardTitle className="text-white">Analysis Actions</CardTitle>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,7 +51,7 @@ interface Video {
 
 interface Team {
   id: string;
-  name: string;
+  team_name: string;
   profile_id: string;
 }
 
@@ -110,7 +109,7 @@ const EnhancedVideoManagement = () => {
 
       const { data: teamsData, error } = await supabase
         .from('teams')
-        .select('id, name, profile_id')
+        .select('id, team_name, profile_id')
         .eq('profile_id', profile.id);
 
       if (error) throw error;
@@ -150,7 +149,9 @@ const EnhancedVideoManagement = () => {
         duration: video.duration,
         video_type: video.video_type as 'match' | 'training' | 'interview' | 'highlight',
         description: video.description,
-        tags: Array.isArray(video.tags) ? video.tags.map(tag => String(tag)) : [],
+        tags: Array.isArray(video.tagged_players) 
+          ? video.tagged_players.map((tag: any) => String(tag)) 
+          : [],
         ai_analysis_status: (video.ai_analysis_status === 'pending' || 
                            video.ai_analysis_status === 'analyzing' || 
                            video.ai_analysis_status === 'completed' || 
@@ -160,8 +161,8 @@ const EnhancedVideoManagement = () => {
         created_at: video.created_at,
         opposing_team: video.opposing_team,
         match_date: video.match_date,
-        score: video.score,
-        league_competition: video.league_competition
+        score: video.score_display || undefined,
+        league_competition: video.competition || undefined
       }));
 
       setVideos(mappedVideos);
@@ -325,7 +326,6 @@ const EnhancedVideoManagement = () => {
         </TabsList>
 
         <TabsContent value="videos" className="space-y-6">
-          {/* Filters */}
           <Card className="bg-gray-800 border-gray-700">
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
@@ -422,7 +422,6 @@ const EnhancedVideoManagement = () => {
             </CardContent>
           </Card>
 
-          {/* Videos Grid/List */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
@@ -465,7 +464,6 @@ const EnhancedVideoManagement = () => {
                 >
                   {viewMode === 'grid' ? (
                     <CardContent className="p-0">
-                      {/* Thumbnail */}
                       <div className="relative aspect-video bg-gray-900 rounded-t-lg overflow-hidden">
                         {video.thumbnail_url ? (
                           <img
@@ -488,7 +486,6 @@ const EnhancedVideoManagement = () => {
                         </div>
                       </div>
                       
-                      {/* Content */}
                       <div className="p-4">
                         <div className="flex items-start justify-between mb-2">
                           <h3 className="font-semibold text-white text-sm line-clamp-2">{video.title}</h3>
@@ -524,7 +521,6 @@ const EnhancedVideoManagement = () => {
                   ) : (
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4">
-                        {/* Thumbnail */}
                         <div className="relative w-24 h-16 bg-gray-900 rounded overflow-hidden flex-shrink-0">
                           {video.thumbnail_url ? (
                             <img
@@ -542,7 +538,6 @@ const EnhancedVideoManagement = () => {
                           </div>
                         </div>
                         
-                        {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between mb-1">
                             <h3 className="font-semibold text-white truncate">{video.title}</h3>
