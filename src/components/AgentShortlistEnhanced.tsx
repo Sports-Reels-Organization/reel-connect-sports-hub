@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  Heart, MessageSquare, Eye, Clock, DollarSign, 
+import {
+  Heart, MessageSquare, Eye, Clock, DollarSign,
   MapPin, User, Trash2, Star, Filter, Search,
   Play, BarChart3, Download, Share, AlertCircle,
   Calendar, TrendingUp, FileText, Settings,
@@ -67,7 +67,7 @@ interface ShortlistStats {
 const AgentShortlistEnhanced = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
-  
+
   const [shortlistItems, setShortlistItems] = useState<ShortlistItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<ShortlistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +106,7 @@ const AgentShortlistEnhanced = () => {
 
     try {
       setLoading(true);
-      
+
       // Get agent ID
       const { data: agentData } = await supabase
         .from('agents')
@@ -159,16 +159,16 @@ const AgentShortlistEnhanced = () => {
         ...item,
         player: {
           ...item.player,
-          age: item.player.date_of_birth 
+          age: item.player.date_of_birth
             ? new Date().getFullYear() - new Date(item.player.date_of_birth).getFullYear()
             : 0
         },
         priority_level: (item.priority_level as 'high' | 'medium' | 'low') || 'medium',
         pitch: {
           ...item.pitch,
-          tagged_videos: Array.isArray(item.pitch.tagged_videos) 
+          tagged_videos: Array.isArray(item.pitch.tagged_videos)
             ? item.pitch.tagged_videos.map(video => String(video))
-            : item.pitch.tagged_videos 
+            : item.pitch.tagged_videos
               ? [String(item.pitch.tagged_videos)]
               : []
         }
@@ -220,14 +220,14 @@ const AgentShortlistEnhanced = () => {
     if (filterExpiring && filterExpiring !== 'all') {
       const now = new Date();
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      
+
       if (filterExpiring === 'expiring_soon') {
-        filtered = filtered.filter(item => 
+        filtered = filtered.filter(item =>
           new Date(item.pitch.expires_at) <= sevenDaysFromNow &&
           new Date(item.pitch.expires_at) > now
         );
       } else if (filterExpiring === 'expired') {
-        filtered = filtered.filter(item => 
+        filtered = filtered.filter(item =>
           new Date(item.pitch.expires_at) <= now
         );
       }
@@ -260,7 +260,7 @@ const AgentShortlistEnhanced = () => {
 
     const now = new Date();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    
+
     const expiringThisWeek = shortlistItems.filter(item => {
       const expiryDate = new Date(item.pitch.expires_at);
       return expiryDate <= sevenDaysFromNow && expiryDate > now;
@@ -269,18 +269,18 @@ const AgentShortlistEnhanced = () => {
     const validPrices = shortlistItems
       .filter(item => item.pitch.asking_price)
       .map(item => item.pitch.asking_price!);
-    
-    const averagePrice = validPrices.length > 0 
-      ? validPrices.reduce((sum, price) => sum + price, 0) / validPrices.length 
+
+    const averagePrice = validPrices.length > 0
+      ? validPrices.reduce((sum, price) => sum + price, 0) / validPrices.length
       : 0;
 
     const positionCounts: Record<string, number> = {};
     shortlistItems.forEach(item => {
       positionCounts[item.player.position] = (positionCounts[item.player.position] || 0) + 1;
     });
-    
+
     const topPosition = Object.entries(positionCounts)
-      .sort(([,a], [,b]) => b - a)[0]?.[0] || '';
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || '';
 
     const recentActivity = shortlistItems.filter(item => {
       const createdDate = new Date(item.created_at);
@@ -306,7 +306,7 @@ const AgentShortlistEnhanced = () => {
 
       if (error) throw error;
 
-      setShortlistItems(prev => prev.map(item => 
+      setShortlistItems(prev => prev.map(item =>
         item.id === shortlistId ? { ...item, priority_level: priority } : item
       ));
 
@@ -333,7 +333,7 @@ const AgentShortlistEnhanced = () => {
 
       if (error) throw error;
 
-      setShortlistItems(prev => prev.map(item => 
+      setShortlistItems(prev => prev.map(item =>
         item.id === shortlistId ? { ...item, notes } : item
       ));
 
@@ -363,7 +363,7 @@ const AgentShortlistEnhanced = () => {
       if (error) throw error;
 
       setShortlistItems(prev => prev.filter(item => item.id !== shortlistId));
-      
+
       toast({
         title: "Removed",
         description: "Player removed from shortlist",
@@ -412,7 +412,7 @@ const AgentShortlistEnhanced = () => {
       shortlistedAt: item.created_at
     }));
 
-    const csvContent = "data:text/csv;charset=utf-8," + 
+    const csvContent = "data:text/csv;charset=utf-8," +
       Object.keys(exportData[0]).join(",") + "\n" +
       exportData.map(row => Object.values(row).join(",")).join("\n");
 
@@ -435,6 +435,7 @@ const AgentShortlistEnhanced = () => {
       style: 'currency',
       currency: currency || 'USD',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -472,66 +473,66 @@ const AgentShortlistEnhanced = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
       {/* Header with Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Heart className="w-8 h-8 text-bright-pink" />
-              <div>
-                <p className="text-2xl font-bold text-white">{stats.totalPlayers}</p>
-                <p className="text-sm text-gray-400">Total Players</p>
+          <CardContent className="p-2 sm:p-3 lg:p-4">
+            <div className="flex items-center gap-2">
+              <Heart className="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-bright-pink flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-white truncate">{stats.totalPlayers}</p>
+                <p className="text-xs sm:text-sm text-gray-400">Total</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-8 h-8 text-red-500" />
-              <div>
-                <p className="text-2xl font-bold text-white">{stats.expiringThisWeek}</p>
-                <p className="text-sm text-gray-400">Expiring Soon</p>
+          <CardContent className="p-2 sm:p-3 lg:p-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-red-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-white">{stats.expiringThisWeek}</p>
+                <p className="text-xs sm:text-sm text-gray-400">Expiring</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-green-500" />
-              <div>
-                <p className="text-lg font-bold text-white">
+        <Card className="bg-gray-800 border-gray-700 col-span-2 sm:col-span-1">
+          <CardContent className="p-2 sm:p-3 lg:p-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-green-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm lg:text-lg font-bold text-white truncate">
                   {stats.averagePrice > 0 ? formatCurrency(stats.averagePrice, 'USD') : 'N/A'}
                 </p>
-                <p className="text-sm text-gray-400">Avg. Price</p>
+                <p className="text-xs sm:text-sm text-gray-400">Avg. Price</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Users className="w-8 h-8 text-blue-500" />
-              <div>
-                <p className="text-lg font-bold text-white">{stats.topPosition || 'N/A'}</p>
-                <p className="text-sm text-gray-400">Top Position</p>
+        <Card className="bg-gray-800 border-gray-700 hidden sm:block">
+          <CardContent className="p-2 sm:p-3 lg:p-4">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-blue-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm sm:text-lg lg:text-lg font-bold text-white truncate">{stats.topPosition || 'N/A'}</p>
+                <p className="text-xs sm:text-sm text-gray-400">Top Pos.</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="w-8 h-8 text-purple-500" />
-              <div>
-                <p className="text-2xl font-bold text-white">{stats.recentActivity}</p>
-                <p className="text-sm text-gray-400">Recent Activity</p>
+        <Card className="bg-gray-800 border-gray-700 hidden lg:block">
+          <CardContent className="p-2 sm:p-3 lg:p-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-purple-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-white">{stats.recentActivity}</p>
+                <p className="text-xs sm:text-sm text-gray-400">Recent</p>
               </div>
             </div>
           </CardContent>
@@ -539,45 +540,51 @@ const AgentShortlistEnhanced = () => {
       </div>
 
       {/* Main Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-white flex items-center gap-2">
-            <Heart className="w-8 h-8 text-bright-pink" />
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white flex items-center gap-2">
+            <Heart className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-bright-pink" />
             Enhanced Shortlist
           </h2>
-          <p className="text-gray-400 mt-1">
+          <p className="text-sm text-gray-400 mt-1">
             {filteredItems.length} of {shortlistItems.length} player{filteredItems.length !== 1 ? 's' : ''} shortlisted
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportShortlist} disabled={filteredItems.length === 0}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportShortlist}
+            disabled={filteredItems.length === 0}
+            className="text-xs sm:text-sm"
+          >
+            <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            Export
           </Button>
-          <Button variant="outline">
-            <Share className="w-4 h-4 mr-2" />
-            Share List
+          <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+            <Share className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            Share
           </Button>
         </div>
       </div>
 
       {/* Filters */}
       <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2 sm:gap-4">
+            <div className="relative sm:col-span-2">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
               <Input
-                placeholder="Search players, teams, notes..."
+                placeholder="Search players, teams..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-gray-700 border-gray-600"
+                className="pl-8 sm:pl-9 bg-gray-700 border-gray-600 text-xs sm:text-sm h-8 sm:h-10"
               />
             </div>
 
             <Select value={filterPosition} onValueChange={setFilterPosition}>
-              <SelectTrigger className="bg-gray-700 border-gray-600">
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-xs sm:text-sm h-8 sm:h-10">
                 <SelectValue placeholder="Position" />
               </SelectTrigger>
               <SelectContent>
@@ -590,7 +597,7 @@ const AgentShortlistEnhanced = () => {
             </Select>
 
             <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger className="bg-gray-700 border-gray-600">
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-xs sm:text-sm h-8 sm:h-10">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
@@ -602,8 +609,8 @@ const AgentShortlistEnhanced = () => {
             </Select>
 
             <Select value={filterTransferType} onValueChange={setFilterTransferType}>
-              <SelectTrigger className="bg-gray-700 border-gray-600">
-                <SelectValue placeholder="Transfer Type" />
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-xs sm:text-sm h-8 sm:h-10">
+                <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
@@ -613,8 +620,8 @@ const AgentShortlistEnhanced = () => {
             </Select>
 
             <Select value={filterExpiring} onValueChange={setFilterExpiring}>
-              <SelectTrigger className="bg-gray-700 border-gray-600">
-                <SelectValue placeholder="Expiry Status" />
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-xs sm:text-sm h-8 sm:h-10">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
@@ -624,15 +631,15 @@ const AgentShortlistEnhanced = () => {
             </Select>
 
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="bg-gray-700 border-gray-600">
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-xs sm:text-sm h-8 sm:h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="created_at_desc">Recently Added</SelectItem>
-                <SelectItem value="expires_asc">Expiring Soon</SelectItem>
-                <SelectItem value="priority_desc">High Priority</SelectItem>
-                <SelectItem value="price_desc">Highest Price</SelectItem>
-                <SelectItem value="name_asc">Name A-Z</SelectItem>
+                <SelectItem value="created_at_desc">Recent</SelectItem>
+                <SelectItem value="expires_asc">Expiring</SelectItem>
+                <SelectItem value="priority_desc">Priority</SelectItem>
+                <SelectItem value="price_desc">Price</SelectItem>
+                <SelectItem value="name_asc">Name</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -641,26 +648,26 @@ const AgentShortlistEnhanced = () => {
 
       {/* Shortlist Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="animate-pulse bg-gray-800">
-              <CardContent className="p-4">
-                <div className="h-48 bg-gray-700 rounded mb-4"></div>
-                <div className="h-4 bg-gray-700 rounded mb-2"></div>
-                <div className="h-3 bg-gray-700 rounded"></div>
+              <CardContent className="p-3 sm:p-4">
+                <div className="h-32 bg-gray-700 rounded mb-3"></div>
+                <div className="h-3 bg-gray-700 rounded mb-2"></div>
+                <div className="h-3 bg-gray-700 rounded w-3/4"></div>
               </CardContent>
             </Card>
           ))}
         </div>
       ) : filteredItems.length === 0 ? (
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-12 text-center">
-            <Heart className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-            <h3 className="text-xl font-semibold text-white mb-2">
+          <CardContent className="p-8 sm:p-12 text-center">
+            <Heart className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-500" />
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
               {shortlistItems.length === 0 ? 'No Players Shortlisted' : 'No Players Match Filters'}
             </h3>
-            <p className="text-gray-400">
-              {shortlistItems.length === 0 
+            <p className="text-sm text-gray-400">
+              {shortlistItems.length === 0
                 ? "Start exploring the transfer timeline to shortlist players you're interested in."
                 : "Try adjusting your search filters to find more players."
               }
@@ -668,19 +675,18 @@ const AgentShortlistEnhanced = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {filteredItems.map((item) => (
-            <Card 
-              key={item.id} 
-              className={`border-gray-600 hover:border-rosegold/50 transition-colors ${
-                isExpired(item.pitch.expires_at) ? 'opacity-60' : ''
-              }`}
+            <Card
+              key={item.id}
+              className={`border-gray-600 hover:border-rosegold/50 transition-colors ${isExpired(item.pitch.expires_at) ? 'opacity-60' : ''
+                }`}
             >
               <CardContent className="p-0">
                 {/* Player Header */}
                 <div className="relative">
-                  <div className="h-32 bg-gradient-to-br from-gray-800 to-gray-900 p-4 flex items-center">
-                    <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 mr-4">
+                  <div className="h-24 sm:h-28 lg:h-32 bg-gradient-to-br from-gray-800 to-gray-900 p-2 sm:p-3 lg:p-4 flex items-center">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full overflow-hidden bg-gray-700 mr-2 sm:mr-3 lg:mr-4 flex-shrink-0">
                       {item.player.photo_url || item.player.headshot_url ? (
                         <img
                           src={item.player.photo_url || item.player.headshot_url}
@@ -693,7 +699,7 @@ const AgentShortlistEnhanced = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex-1">
                       <h3 className="font-bold text-white text-lg line-clamp-1">
                         {item.player.full_name}
@@ -710,8 +716,8 @@ const AgentShortlistEnhanced = () => {
 
                   {/* Priority Badge */}
                   <div className="absolute top-2 right-2">
-                    <Select 
-                      value={item.priority_level} 
+                    <Select
+                      value={item.priority_level}
                       onValueChange={(value) => updatePriority(item.id, value as any)}
                     >
                       <SelectTrigger className="w-auto h-auto p-1 border-0 bg-transparent">
@@ -752,12 +758,12 @@ const AgentShortlistEnhanced = () => {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <Badge 
+                      <Badge
                         variant={item.pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}
                       >
                         {item.pitch.transfer_type.toUpperCase()}
                       </Badge>
-                      
+
                       {!isExpired(item.pitch.expires_at) && (
                         <div className="text-xs text-gray-400">
                           <Clock className="h-3 w-3 inline mr-1" />
@@ -810,7 +816,7 @@ const AgentShortlistEnhanced = () => {
                       <Eye className="h-3 w-3 mr-1" />
                       View Profile
                     </Button>
-                    
+
                     <Button
                       size="sm"
                       variant="outline"
@@ -828,7 +834,7 @@ const AgentShortlistEnhanced = () => {
                     >
                       <BarChart3 className="h-3 w-3" />
                     </Button>
-                    
+
                     <Button
                       size="sm"
                       variant="ghost"

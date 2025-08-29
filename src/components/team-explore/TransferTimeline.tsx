@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Clock, MessageCircle, Eye, AlertCircle, TrendingUp, 
+import {
+  Clock, MessageCircle, Eye, AlertCircle, TrendingUp,
   Search, Filter, Grid3X3, List, Edit, XCircle, Play,
   Building2, User, MapPin, Calendar, DollarSign, Trash2
 } from 'lucide-react';
@@ -72,11 +72,11 @@ const TransferTimeline = () => {
   const [teamSportType, setTeamSportType] = useState<'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby'>('football');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pitchToDelete, setPitchToDelete] = useState<TimelinePitch | null>(null);
-  
+
   // Contract Wizard State
   const [showContractWizard, setShowContractWizard] = useState(false);
   const [selectedPitchForContract, setSelectedPitchForContract] = useState<TimelinePitch | null>(null);
-  
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [positionFilter, setPositionFilter] = useState('all');
@@ -116,7 +116,7 @@ const TransferTimeline = () => {
 
   const fetchTeamSportType = async () => {
     if (!profile?.id) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('teams')
@@ -168,24 +168,24 @@ const TransferTimeline = () => {
         .limit(50);
 
       if (error) throw error;
-      
+
       // Process data to add age calculation and ensure proper typing
       const processedPitches: TimelinePitch[] = (data || []).map(pitch => ({
         ...pitch,
         tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
         players: {
           ...pitch.players,
-          age: pitch.players.date_of_birth ? 
+          age: pitch.players.date_of_birth ?
             new Date().getFullYear() - new Date(pitch.players.date_of_birth).getFullYear() : undefined
         }
       }));
-      
+
       setPitches(processedPitches);
 
       // Extract unique teams for filtering
       const teams = [...new Set(processedPitches.map(p => p.teams.team_name))].sort();
       setAvailableTeams(teams);
-      
+
     } catch (error) {
       console.error('Error fetching timeline pitches:', error);
       toast({
@@ -279,10 +279,10 @@ const TransferTimeline = () => {
   };
 
   const handleViewDetails = (pitch: TimelinePitch) => {
-    navigate(`/player-profile/${pitch.players.id}`, { 
-      state: { 
+    navigate(`/player-profile/${pitch.players.id}`, {
+      state: {
         pitchId: pitch.id,
-        fromTransferTimeline: true 
+        fromTransferTimeline: true
       }
     });
   };
@@ -338,12 +338,12 @@ const TransferTimeline = () => {
   const handleContractComplete = (contractId: string) => {
     setShowContractWizard(false);
     setSelectedPitchForContract(null);
-    
+
     toast({
       title: "Contract Created",
       description: "Contract has been generated successfully!"
     });
-    
+
     // Refresh the timeline to show updated status
     fetchTimelinePitches();
   };
@@ -381,7 +381,7 @@ const TransferTimeline = () => {
                 </Badge>
               )}
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant={viewMode === 'card' ? 'default' : 'outline'}
@@ -402,7 +402,7 @@ const TransferTimeline = () => {
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent>
           {/* Search and Filters */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
@@ -415,7 +415,7 @@ const TransferTimeline = () => {
                 className="pl-10 text-white placeholder:text-gray-500"
               />
             </div>
-            
+
             <Select value={positionFilter} onValueChange={setPositionFilter}>
               <SelectTrigger className="text-white">
                 <SelectValue placeholder="All Positions" />
@@ -512,7 +512,7 @@ const TransferTimeline = () => {
                 {pitches.length === 0 ? 'No Active Pitches' : 'No Results Found'}
               </h3>
               <p className="text-gray-400">
-                {pitches.length === 0 
+                {pitches.length === 0
                   ? `No transfer pitches are currently active for ${teamSportType}.`
                   : 'Try adjusting your filters to see more results.'
                 }
@@ -521,13 +521,12 @@ const TransferTimeline = () => {
           ) : (
             <div className={viewMode === 'card' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
               {filteredPitches.map((pitch) => (
-                <Card 
-                  key={pitch.id} 
-                  className={`border-gray-600 transition-all duration-200 hover:border-rosegold/50 hover:shadow-lg ${
-                    isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : ''
-                  } ${viewMode === 'list' ? 'w-full' : ''}`}
+                <Card
+                  key={pitch.id}
+                  className={`border-gray-600 transition-all duration-200 hover:border-rosegold/50 hover:shadow-lg ${isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : ''
+                    } ${viewMode === 'list' ? 'w-full' : ''}`}
                 >
-                  <CardContent className="p-4">
+                  <CardContent className="p-4 bg-[#141414]">
                     <div className="space-y-3">
                       {/* Player and Team Info */}
                       <div className="flex items-start justify-between">
@@ -641,7 +640,7 @@ const TransferTimeline = () => {
                           <Eye className="w-4 h-4 mr-2" />
                           View Details
                         </Button>
-                        
+
                         <Button
                           size="sm"
                           variant="outline"
@@ -651,7 +650,7 @@ const TransferTimeline = () => {
                           <DollarSign className="w-4 h-4 mr-2" />
                           Generate Contract
                         </Button>
-                        
+
                         {canEditPitch(pitch) && (
                           <>
                             <Button
@@ -688,13 +687,13 @@ const TransferTimeline = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Transfer Pitch</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this transfer pitch for {pitchToDelete?.players.full_name}? 
+              Are you sure you want to delete this transfer pitch for {pitchToDelete?.players.full_name}?
               This action cannot be undone and will remove the pitch from the timeline.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDeletePitch}
               className="bg-red-600 hover:bg-red-700"
             >

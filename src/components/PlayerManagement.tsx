@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Plus, Users, Target, AlertCircle, Video, BarChart3, Download, 
+import {
+  Plus, Users, Target, AlertCircle, Video, BarChart3, Download,
   User, TrendingUp, Activity, Award, Heart, FileText
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
@@ -223,7 +223,7 @@ const PlayerManagement: React.FC = () => {
 
   return (
     <div className="p-[3rem] space-y-6 max-w-7xl mx-auto bg-background min-h-screen">
-      <div className="flex items-center justify-between">
+      <div className="grid space-y-5">
         <div className='text-start'>
           <h1 className="font-polysans text-3xl font-bold text-white mb-2">
             Player Management
@@ -412,7 +412,7 @@ const PlayerManagement: React.FC = () => {
 
         {/* Roster & Squad Tab - Main roster management interface */}
         <TabsContent value="roster" className="space-y-4">
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className="border-0">
             <CardHeader>
               <CardTitle className="text-white font-polysans flex items-center gap-2">
                 <Users className="h-5 w-5" />
@@ -428,6 +428,7 @@ const PlayerManagement: React.FC = () => {
                 players={players}
                 onFilteredPlayersChange={setFilteredPlayers}
                 onExportPlayers={handleExportPlayers}
+
               />
 
               {/* View Mode Toggle */}
@@ -517,7 +518,7 @@ const PlayerManagement: React.FC = () => {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className="border-0">
             <CardHeader>
               <CardTitle className="text-white font-polysans flex items-center gap-2">
                 <User className="h-5 w-5" />
