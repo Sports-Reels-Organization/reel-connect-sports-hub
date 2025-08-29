@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,17 @@ interface AnalysisResult {
   confidence: number;
 }
 
-const EnhancedVideoAnalysis: React.FC = () => {
+interface EnhancedVideoAnalysisProps {
+  videoId: string;
+  teamId: string;
+  onAnalysisComplete: () => void;
+}
+
+const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
+  videoId,
+  teamId,
+  onAnalysisComplete
+}) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +80,15 @@ const EnhancedVideoAnalysis: React.FC = () => {
     apiKey: process.env.REACT_APP_GEMINI_API_KEY || '',
     model: 'gemini-2.5-flash'
   });
+
+  // Load video data when videoId changes
+  useEffect(() => {
+    if (videoId) {
+      // You can fetch video data from the database here using videoId and teamId
+      console.log('Loading video analysis for:', { videoId, teamId });
+      // For now, we'll keep the existing file upload functionality
+    }
+  }, [videoId, teamId]);
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -158,6 +177,9 @@ const EnhancedVideoAnalysis: React.FC = () => {
           title: 'Analysis completed!',
           description: 'AI analysis results are ready.',
         });
+
+        // Call the onAnalysisComplete callback
+        onAnalysisComplete();
       } else {
         throw new Error(result.error || 'Analysis failed');
       }
@@ -238,10 +260,16 @@ const EnhancedVideoAnalysis: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Enhanced Video Analysis</h1>
           <p className="text-gray-600 mt-2">Powered by Gemini 1.5 Pro AI</p>
         </div>
-        <Badge variant="secondary" className="flex items-center gap-2">
-          <Brain className="w-4 h-4" />
-          AI-Powered
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => onAnalysisComplete()}>
+            <Eye className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <Badge variant="secondary" className="flex items-center gap-2">
+            <Brain className="w-4 h-4" />
+            AI-Powered
+          </Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
