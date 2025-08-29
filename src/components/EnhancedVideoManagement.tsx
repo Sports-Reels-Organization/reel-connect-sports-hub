@@ -1020,12 +1020,9 @@ const EnhancedVideoManagement: React.FC = () => {
             </DialogHeader>
             {teamId && (
               <VideoAnalysisResults
-                analysisResult={null} // This should be the actual analysis result
-                videoMetadata={{
-                  title: selectedVideo.title,
-                  videoType: selectedVideo.video_type || 'match',
-                  sport: 'football' // Default sport, should be configurable
-                }}
+                videoId={selectedVideo.id}
+                videoType={selectedVideo.video_type as any}
+                teamId={teamId}
               />
             )}
           </DialogContent>

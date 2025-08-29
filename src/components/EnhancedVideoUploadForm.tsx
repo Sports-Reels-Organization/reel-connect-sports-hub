@@ -28,25 +28,16 @@ import {
   Target,
   Camera,
   PlayCircle,
-  Image as ImageIcon,
-  Brain,
-  BarChart3,
-  TrendingUp,
-  Eye
+  Image as ImageIcon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import EnhancedVideoCompressionService from '@/services/enhancedVideoCompressionService';
 import { EnhancedAIAnalysisService } from '@/services/enhancedAIAnalysisService';
-import { GeminiVideoAnalysisService } from '@/services/geminiVideoAnalysisService';
-import { VideoFrameExtractor } from '@/utils/videoFrameExtractor';
-import { GEMINI_CONFIG } from '@/config/gemini';
-import VideoAnalysisResults from './VideoAnalysisResults';
 
 interface VideoMetadata {
   title: string;
   description: string;
   videoType: 'match' | 'training' | 'interview' | 'highlight';
-  sport: 'football' | 'basketball' | 'baseball' | 'volleyball' | 'tennis' | 'rugby' | 'soccer';
   playerTags: string[];
   matchDetails?: {
     opposingTeam: string;
@@ -69,15 +60,6 @@ interface ProcessingStatus {
   stage: 'idle' | 'compressing' | 'uploading' | 'analyzing' | 'complete' | 'error';
   progress: number;
   message: string;
-}
-
-interface GeminiAnalysisResult {
-  playerAnalysis: any[];
-  tacticalInsights: any;
-  skillAssessment: any;
-  matchEvents: any[];
-  recommendations: string[];
-  confidence: number;
 }
 
 interface VideoFileInfo {
@@ -116,8 +98,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     ratio: number;
   } | null>(null);
 
-  const [geminiAnalysisResult, setGeminiAnalysisResult] = useState<GeminiAnalysisResult | null>(null);
-
   const [teamPlayers, setTeamPlayers] = useState<TeamPlayer[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
   const [dragActive, setDragActive] = useState(false);
@@ -126,7 +106,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     title: '',
     description: '',
     videoType: 'match',
-    sport: 'football',
     playerTags: [],
     matchDetails: {
       opposingTeam: '',
@@ -140,10 +119,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
   const videoCompressionService = new EnhancedVideoCompressionService();
   const aiAnalysisService = new EnhancedAIAnalysisService();
-  const geminiService = new GeminiVideoAnalysisService({
-    apiKey: GEMINI_CONFIG.API_KEY,
-    model: 'gemini-2.5-flash'
-  });
 
   useEffect(() => {
     fetchTeamPlayers();
@@ -408,7 +383,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     updateProcessingStatus('analyzing', 0, 'Initializing AI analysis...');
 
     try {
-      // Perform legacy AI analysis
       await aiAnalysisService.analyzeVideo(
         videoId,
         {
@@ -420,69 +394,9 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           matchDetails: metadata.matchDetails
         },
         (progress, status) => {
-          updateProcessingStatus('analyzing', progress * 0.5, status || 'Legacy AI analysis...');
+          updateProcessingStatus('analyzing', progress, status || 'Analyzing video...');
         }
       );
-
-      // Perform Gemini AI analysis
-      updateProcessingStatus('analyzing', 50, 'Performing Gemini AI analysis...');
-
-      if (selectedFile && previewUrl) {
-        try {
-          // Extract video frames
-          const frameExtractor = new VideoFrameExtractor();
-          const frames = await frameExtractor.extractFrames(previewUrl, {
-            frameRate: GEMINI_CONFIG.VIDEO_ANALYSIS.FRAME_RATE,
-            maxFrames: GEMINI_CONFIG.VIDEO_ANALYSIS.MAX_FRAMES,
-            quality: GEMINI_CONFIG.VIDEO_ANALYSIS.QUALITY,
-            maxWidth: GEMINI_CONFIG.VIDEO_ANALYSIS.MAX_WIDTH,
-            maxHeight: GEMINI_CONFIG.VIDEO_ANALYSIS.MAX_HEIGHT
-          });
-
-          updateProcessingStatus('analyzing', 70, 'Analyzing frames with Gemini AI...');
-
-          // Prepare player tags for Gemini
-          const playerTags = metadata.playerTags.map((name, index) => {
-            const player = teamPlayers.find(p => p.full_name === name);
-            return {
-              playerId: player?.id || `player_${index}`,
-              playerName: name,
-              jerseyNumber: player?.jersey_number || (index + 1),
-              position: player?.position || 'Unknown'
-            };
-          });
-
-          // Perform Gemini analysis
-          const geminiResult = await geminiService.analyzeVideo({
-            videoUrl: previewUrl,
-            videoType: metadata.videoType,
-            sport: metadata.sport,
-            metadata: {
-              playerTags: playerTags.length > 0 ? playerTags : undefined,
-              teamInfo: metadata.videoType === 'match' && metadata.matchDetails ? {
-                homeTeam: 'Your Team',
-                awayTeam: metadata.matchDetails.opposingTeam || 'Opposing Team',
-                competition: metadata.matchDetails.league || 'Match',
-                date: metadata.matchDetails.matchDate || new Date().toISOString().split('T')[0]
-              } : undefined,
-              context: metadata.description
-            },
-            frames
-          });
-
-          if (geminiResult.success) {
-            setGeminiAnalysisResult(geminiResult.analysis);
-            updateProcessingStatus('analyzing', 90, 'Processing Gemini analysis results...');
-          } else {
-            console.error('Gemini analysis failed:', geminiResult.error);
-          }
-
-          frameExtractor.destroy();
-        } catch (error) {
-          console.error('Gemini analysis error:', error);
-          // Continue with legacy analysis if Gemini fails
-        }
-      }
 
       await supabase
         .from('videos')
@@ -535,14 +449,12 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     setVideoFileInfo(null);
     setPreviewUrl('');
     setCompressionStats(null);
-    setGeminiAnalysisResult(null);
     setSelectedPlayerId('');
     setProcessingStatus({ stage: 'idle', progress: 0, message: '' });
     setMetadata({
       title: '',
       description: '',
       videoType: 'match',
-      sport: 'football',
       playerTags: [],
       matchDetails: {
         opposingTeam: '',
@@ -886,30 +798,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label className="text-gray-300 font-medium">Sport *</Label>
-              <Select
-                value={metadata.sport}
-                onValueChange={(value: 'football' | 'basketball' | 'baseball' | 'volleyball' | 'tennis' | 'rugby' | 'soccer') =>
-                  setMetadata(prev => ({ ...prev, sport: value }))
-                }
-                disabled={isProcessing}
-              >
-                <SelectTrigger className="bg-gray-700 border-gray-600 text-white h-12">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="football">Football</SelectItem>
-                  <SelectItem value="basketball">Basketball</SelectItem>
-                  <SelectItem value="baseball">Baseball</SelectItem>
-                  <SelectItem value="volleyball">Volleyball</SelectItem>
-                  <SelectItem value="tennis">Tennis</SelectItem>
-                  <SelectItem value="rugby">Rugby</SelectItem>
-                  <SelectItem value="soccer">Soccer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           {/* Description */}
@@ -1161,23 +1049,10 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           <CardContent className="p-6 text-center">
             <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
             <h3 className="text-white font-semibold text-lg mb-2">Upload Successful!</h3>
-            <p className="text-green-300 mb-4">
+            <p className="text-green-300">
               Your video has been uploaded and AI analysis is complete.
               You can now view the detailed analysis results.
             </p>
-
-            {geminiAnalysisResult && (
-              <div className="space-y-4">
-                <VideoAnalysisResults
-                  analysisResult={geminiAnalysisResult}
-                  videoMetadata={{
-                    title: metadata.title,
-                    videoType: metadata.videoType,
-                    sport: metadata.sport
-                  }}
-                />
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -1205,3 +1080,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 };
 
 export default EnhancedVideoUploadForm;
+
+
+
