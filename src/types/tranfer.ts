@@ -7,6 +7,7 @@ export interface TransferPitch {
     currency: string;
     transfer_type: string;
     status: string;
+    deal_stage?: string; // Add missing property
     created_at: string;
     expires_at: string;
     tagged_videos: string[];
@@ -21,6 +22,7 @@ export interface TransferPitch {
     service_charge_rate: number;
     team_id: string;
     team_profile_id?: string; // Added for messaging
+    contract_finalized?: boolean; // Add missing property
     players: {
         id: string;
         full_name: string;

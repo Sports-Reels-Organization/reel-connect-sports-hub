@@ -113,10 +113,9 @@ const ContractWorkflow: React.FC<ContractWorkflowProps> = ({
 
   const getStepIcon = (stepType: ContractWorkflowStep['step_type']) => {
     switch (stepType) {
-      case 'draft_created': return <FileText className="w-4 h-4 text-blue-600" />;
-      case 'sent_to_agent': return <Send className="w-4 h-4 text-orange-600" />;
-      case 'agent_reviewed': return <Check className="w-4 h-4 text-green-600" />;
-      case 'agent_modified': return <Edit className="w-4 h-4 text-yellow-600" />;
+      case 'draft': return <FileText className="w-4 h-4 text-blue-600" />;
+      case 'review': return <Send className="w-4 h-4 text-orange-600" />;
+      case 'negotiation': return <Edit className="w-4 h-4 text-yellow-600" />;
       case 'signed': return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'finalized': return <CheckCircle className="w-4 h-4 text-emerald-600" />;
       default: return <Clock className="w-4 h-4 text-gray-600" />;
@@ -125,10 +124,9 @@ const ContractWorkflow: React.FC<ContractWorkflowProps> = ({
 
   const getStepTitle = (stepType: ContractWorkflowStep['step_type']) => {
     switch (stepType) {
-      case 'draft_created': return 'Contract Draft Created';
-      case 'sent_to_agent': return 'Sent to Agent';
-      case 'agent_reviewed': return 'Agent Reviewed';
-      case 'agent_modified': return 'Agent Requested Modifications';
+      case 'draft': return 'Contract Draft Created';
+      case 'review': return 'Sent to Agent';
+      case 'negotiation': return 'Agent Requested Modifications';
       case 'signed': return 'Contract Signed';
       case 'finalized': return 'Contract Finalized';
       default: return 'Unknown Step';
@@ -136,8 +134,8 @@ const ContractWorkflow: React.FC<ContractWorkflowProps> = ({
   };
 
   const currentStep = workflowSteps[workflowSteps.length - 1];
-  const canAgentReview = profile?.user_type === 'agent' && currentStep?.step_type === 'sent_to_agent';
-  const canSign = currentStep?.step_type === 'agent_reviewed' || currentStep?.step_type === 'agent_modified';
+  const canAgentReview = profile?.user_type === 'agent' && currentStep?.step_type === 'review';
+  const canSign = currentStep?.step_type === 'review' || currentStep?.step_type === 'negotiation';
 
   return (
     <div className="space-y-4">

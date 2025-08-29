@@ -28,6 +28,20 @@ export interface ContractDetails {
 
 export class ContractWorkflowService {
   
+  // Initialize contract from pitch
+  static async initializeContractFromPitch(pitchId: string, options?: { template_content?: string }) {
+    try {
+      const result = await this.createContractFromPitch(pitchId, 'permanent');
+      if (result.success && result.contract) {
+        return result.contract.id;
+      }
+      throw new Error(result.error || 'Failed to create contract');
+    } catch (error) {
+      console.error('Error initializing contract:', error);
+      throw error;
+    }
+  }
+
   // Create a new contract from a pitch
   static async createContractFromPitch(pitchId: string, contractType: 'permanent' | 'loan') {
     try {
@@ -74,7 +88,7 @@ export class ContractWorkflowService {
 
       if (contractError) throw contractError;
 
-      // Create initial workflow step
+      // Create initial workflow step using contracts table
       await this.createWorkflowStep(contract.id, 'draft', 'System generated contract');
 
       return { success: true, contract };
@@ -84,17 +98,28 @@ export class ContractWorkflowService {
     }
   }
 
-  // Get contract workflow steps
-  static async getContractWorkflow(contractId: string): Promise<ContractWorkflowStep[]> {
+  // Get contract workflow steps (using existing contracts table)
+  static async getWorkflowSteps(contractId: string): Promise<ContractWorkflowStep[]> {
     try {
+      // Use contract_versions table as a proxy for workflow steps
       const { data, error } = await supabase
-        .from('contract_workflow_steps')
+        .from('contract_versions')
         .select('*')
         .eq('contract_id', contractId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return data || [];
+      
+      // Transform to workflow steps format
+      return (data || []).map(version => ({
+        id: version.id,
+        contract_id: contractId,
+        step_type: 'review' as const,
+        completed_by: version.created_by || 'system',
+        notes: version.changes_summary,
+        created_at: version.created_at,
+        updated_at: version.created_at
+      }));
     } catch (error) {
       console.error('Error fetching workflow:', error);
       return [];
@@ -108,13 +133,15 @@ export class ContractWorkflowService {
     notes?: string
   ) {
     try {
+      // Use contract_versions table to track workflow
       const { data, error } = await supabase
-        .from('contract_workflow_steps')
+        .from('contract_versions')
         .insert({
           contract_id: contractId,
-          step_type: stepType,
-          completed_by: 'current_user', // This should be the actual user ID
-          notes: notes || ''
+          version_number: 1,
+          content: stepType,
+          changes_summary: notes || '',
+          created_by: 'current_user' // This should be the actual user ID
         })
         .select()
         .single();
@@ -124,6 +151,67 @@ export class ContractWorkflowService {
     } catch (error) {
       console.error('Error creating workflow step:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  // Agent review contract
+  static async agentReviewContract(
+    contractId: string,
+    agentId: string,
+    action: 'accept' | 'modify' | 'reject',
+    notes?: string
+  ) {
+    try {
+      const status = action === 'accept' ? 'review' : action === 'reject' ? 'draft' : 'negotiation';
+      
+      const { data, error } = await supabase
+        .from('contracts')
+        .update({ 
+          status,
+          last_activity: new Date().toISOString()
+        })
+        .eq('id', contractId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Create workflow step
+      await this.createWorkflowStep(contractId, status as any, notes);
+
+      return { success: true, contract: data };
+    } catch (error) {
+      console.error('Error in agent review:', error);
+      throw error;
+    }
+  }
+
+  // Sign contract
+  static async signContract(
+    contractId: string,
+    userId: string,
+    signatureType: 'team' | 'agent'
+  ) {
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .update({ 
+          status: 'signed',
+          last_activity: new Date().toISOString()
+        })
+        .eq('id', contractId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Create workflow step
+      await this.createWorkflowStep(contractId, 'signed', `Contract signed by ${signatureType}`);
+
+      return { success: true, contract: data };
+    } catch (error) {
+      console.error('Error signing contract:', error);
+      throw error;
     }
   }
 
