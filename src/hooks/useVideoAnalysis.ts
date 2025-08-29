@@ -1,5 +1,5 @@
-
 import { useState, useCallback, useRef } from 'react';
+import { GeminiVideoAnalysisService, GeminiAnalysisRequest, GeminiAnalysisResponse } from '@/services/geminiVideoAnalysisService';
 import { VideoFrameExtractor, VideoFrame } from '@/utils/videoFrameExtractor';
 import { GEMINI_CONFIG, validateGeminiConfig } from '@/config/gemini';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,12 +58,17 @@ export const useVideoAnalysis = () => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [extractedFrames, setExtractedFrames] = useState<VideoFrame[]>([]);
 
+  const geminiServiceRef = useRef<GeminiVideoAnalysisService | null>(null);
   const frameExtractorRef = useRef<VideoFrameExtractor | null>(null);
 
   // Initialize Gemini service
   const initializeGeminiService = useCallback(() => {
     try {
       validateGeminiConfig();
+      geminiServiceRef.current = new GeminiVideoAnalysisService({
+        apiKey: GEMINI_CONFIG.API_KEY,
+        model: GEMINI_CONFIG.DEFAULT_MODEL
+      });
       return true;
     } catch (error) {
       setAnalysisState(prev => ({
@@ -183,8 +188,10 @@ export const useVideoAnalysis = () => {
     teamInfo?: TeamInfo,
     context?: string
   ) => {
-    if (!initializeGeminiService()) {
-      return { success: false, error: 'Gemini service not initialized' };
+    if (!geminiServiceRef.current) {
+      if (!initializeGeminiService()) {
+        return { success: false, error: 'Gemini service not initialized' };
+      }
     }
 
     if (!extractedFrames.length) {
@@ -200,45 +207,51 @@ export const useVideoAnalysis = () => {
         error: null
       }));
 
-      // Simulate analysis for now
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      const mockResult: AnalysisResult = {
-        playerAnalysis: [],
-        tacticalInsights: {},
-        skillAssessment: {},
-        matchEvents: [],
-        recommendations: ['Placeholder recommendations will be implemented'],
-        confidence: 0.8
-      };
-
-      setAnalysisState(prev => ({
-        ...prev,
-        progress: 90,
-        currentStep: 'Processing results...'
-      }));
-
-      setAnalysisResult(mockResult);
-
-      // Save to database
-      await saveAnalysisToDatabase(mockResult, {
+      const analysisRequest: GeminiAnalysisRequest = {
         videoUrl,
         videoType,
-        sport,
-        playerTags,
-        teamInfo,
-        context
-      });
+        sport: sport as any,
+        metadata: {
+          playerTags: playerTags.length > 0 ? playerTags : undefined,
+          teamInfo: teamInfo?.homeTeam ? teamInfo : undefined,
+          context: context || undefined
+        },
+        frames: extractedFrames
+      };
 
-      setAnalysisState(prev => ({
-        ...prev,
-        progress: 100,
-        currentStep: 'Analysis completed successfully!',
-        isAnalyzing: false,
-        status: 'Analysis completed'
-      }));
+      const result = await geminiServiceRef.current!.analyzeVideo(analysisRequest);
 
-      return { success: true, result: mockResult };
+      if (result.success) {
+        setAnalysisState(prev => ({
+          ...prev,
+          progress: 90,
+          currentStep: 'Processing results...'
+        }));
+
+        setAnalysisResult(result.analysis);
+
+        // Save to database
+        await saveAnalysisToDatabase(result.analysis, {
+          videoUrl,
+          videoType,
+          sport,
+          playerTags,
+          teamInfo,
+          context
+        });
+
+        setAnalysisState(prev => ({
+          ...prev,
+          progress: 100,
+          currentStep: 'Analysis completed successfully!',
+          isAnalyzing: false,
+          status: 'Analysis completed'
+        }));
+
+        return { success: true, result: result.analysis };
+      } else {
+        throw new Error(result.error || 'Analysis failed');
+      }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Analysis failed';
@@ -252,7 +265,7 @@ export const useVideoAnalysis = () => {
     }
   }, [videoUrl, extractedFrames, initializeGeminiService]);
 
-  // Save analysis to database (using videos table for now)
+  // Save analysis to database
   const saveAnalysisToDatabase = useCallback(async (
     analysis: AnalysisResult,
     metadata: {
@@ -266,11 +279,19 @@ export const useVideoAnalysis = () => {
   ) => {
     try {
       const { error } = await supabase
-        .from('videos')
-        .update({
-          ai_analysis: analysis as any
-        })
-        .eq('video_url', metadata.videoUrl);
+        .from('video_analyses')
+        .insert({
+          video_url: metadata.videoUrl,
+          video_type: metadata.videoType,
+          sport: metadata.sport,
+          analysis_data: analysis,
+          player_tags: metadata.playerTags,
+          team_info: metadata.teamInfo,
+          context: metadata.context,
+          created_at: new Date().toISOString(),
+          confidence: analysis.confidence,
+          frame_count: extractedFrames.length
+        });
 
       if (error) {
         console.error('Error saving analysis:', error);
@@ -278,7 +299,7 @@ export const useVideoAnalysis = () => {
     } catch (error) {
       console.error('Failed to save analysis:', error);
     }
-  }, []);
+  }, [extractedFrames.length]);
 
   // Reset analysis
   const resetAnalysis = useCallback(() => {
@@ -296,7 +317,7 @@ export const useVideoAnalysis = () => {
   // Cleanup resources
   const cleanup = useCallback(() => {
     if (frameExtractorRef.current) {
-      frameExtractorRef.current.cleanup();
+      frameExtractorRef.current.destroy();
       frameExtractorRef.current = null;
     }
     if (videoUrl) {
@@ -308,9 +329,8 @@ export const useVideoAnalysis = () => {
   const getAnalysisHistory = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('videos')
+        .from('video_analyses')
         .select('*')
-        .not('ai_analysis', 'is', null)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -340,7 +360,7 @@ export const useVideoAnalysis = () => {
     getAnalysisHistory,
 
     // Utilities
-    isReady: !!videoUrl,
+    isReady: !!geminiServiceRef.current && !!videoUrl,
     canAnalyze: !!extractedFrames.length && !analysisState.isAnalyzing
   };
 };
