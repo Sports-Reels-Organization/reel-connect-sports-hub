@@ -141,6 +141,13 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
 
       setAnalysisState(prev => ({ ...prev, progress: 30, currentStep: 'Frames extracted, preparing for AI analysis' }));
 
+      // Convert frames to match the expected interface for Gemini service
+      const geminiFrames = frames.map(frame => ({
+        ...frame,
+        frameData: frame.frameData || frame.canvas.toDataURL('image/jpeg', 0.8),
+        frameNumber: frame.frameNumber || 0
+      }));
+
       // Step 2: Prepare analysis request
       const analysisRequest: GeminiAnalysisRequest = {
         videoUrl,
@@ -151,7 +158,7 @@ const EnhancedVideoAnalysis: React.FC<EnhancedVideoAnalysisProps> = ({
           teamInfo: teamInfo.homeTeam ? teamInfo : undefined,
           context: context || undefined
         },
-        frames
+        frames: geminiFrames
       };
 
       setAnalysisState(prev => ({ ...prev, progress: 50, currentStep: 'Sending to Gemini AI for analysis' }));

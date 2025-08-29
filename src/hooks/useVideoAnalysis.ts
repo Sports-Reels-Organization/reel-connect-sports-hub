@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef } from 'react';
 import { VideoFrameExtractor, VideoFrame } from '@/utils/videoFrameExtractor';
 import { GEMINI_CONFIG, validateGeminiConfig } from '@/config/gemini';
@@ -277,7 +278,7 @@ export const useVideoAnalysis = () => {
     } catch (error) {
       console.error('Failed to save analysis:', error);
     }
-  }, [extractedFrames.length]);
+  }, []);
 
   // Reset analysis
   const resetAnalysis = useCallback(() => {
@@ -295,7 +296,7 @@ export const useVideoAnalysis = () => {
   // Cleanup resources
   const cleanup = useCallback(() => {
     if (frameExtractorRef.current) {
-      frameExtractorRef.current.destroy();
+      frameExtractorRef.current.cleanup();
       frameExtractorRef.current = null;
     }
     if (videoUrl) {
