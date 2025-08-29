@@ -1,114 +1,69 @@
 
-import React from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { LanguageProvider } from '@/contexts/LanguageContext';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Index from '@/pages/Index';
-import Profile from '@/pages/Profile';
-import Messages from '@/pages/Messages';
-import Videos from '@/pages/Videos';
-import VideoShowcase from '@/pages/VideoShowcase';
-import VideoAnalysis from '@/pages/VideoAnalysis';
-import Players from '@/pages/Players';
-import PlayerProfile from '@/pages/PlayerProfile';
-import Explore from '@/pages/Explore';
-import AgentShortlist from '@/pages/AgentShortlist';
-import History from '@/pages/History';
-import News from '@/pages/News';
-import Timeline from '@/pages/Timeline';
-import Contracts from '@/pages/Contracts';
-import Notification from '@/pages/Notification';
-import UserManagement from '@/pages/UserManagement';
-import NotFound from '@/pages/NotFound';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
+import Index from "./pages/Index";
+import Players from "./pages/Players";
+import Videos from "./pages/Videos";
+import VideoAnalysis from "./pages/VideoAnalysis";
+import VideoAnalysisResults from "./pages/VideoAnalysisResults";
+import Messages from "./pages/Messages";
+import Profile from "./pages/Profile";
+import PlayerProfile from "./pages/PlayerProfile";
+import History from "./pages/History";
+import Timeline from "./pages/Timeline";
+import TransferTimeline from "./pages/TransferTimeline";
+import Explore from "./pages/Explore";
+import TeamExplore from "./pages/TeamExplore";
+import AgentShortlist from "./pages/AgentShortlist";
+import Contracts from "./pages/Contracts";
+import UserManagement from "./pages/UserManagement";
+import News from "./pages/News";
+import VideoShowcase from "./pages/VideoShowcase";
+import Notification from "./pages/Notification";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
-
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Index />,
-  },
-  {
-    path: '/profile',
-    element: <Profile />,
-  },
-  {
-    path: '/messages',
-    element: <Messages />,
-  },
-  {
-    path: '/videos',
-    element: <Videos />,
-  },
-  {
-    path: '/video-showcase',
-    element: <VideoShowcase />,
-  },
-  {
-    path: '/video-analysis/:videoId',
-    element: <VideoAnalysis />,
-  },
-  {
-    path: '/players',
-    element: <Players />,
-  },
-  {
-    path: '/player/:playerId',
-    element: <PlayerProfile />,
-  },
-  {
-    path: '/player-profile/:playerId',
-    element: <PlayerProfile />,
-  },
-  {
-    path: '/explore',
-    element: <Explore />,
-  },
-  {
-    path: '/shortlist',
-    element: <AgentShortlist />,
-  },
-  {
-    path: '/history',
-    element: <History />,
-  },
-  {
-    path: '/news',
-    element: <News />,
-  },
-  {
-    path: '/timeline',
-    element: <Timeline />,
-  },
-  {
-    path: '/contracts',
-    element: <Contracts />,
-  },
-  {
-    path: '/notifications',
-    element: <Notification />,
-  },
-  {
-    path: '/admin/users',
-    element: <UserManagement />,
-  },
-  {
-    path: '*',
-    element: <NotFound />,
-  },
-]);
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <AuthProvider>
-          <RouterProvider router={router} />
-          <Toaster />
-        </AuthProvider>
-      </LanguageProvider>
+      <AuthProvider>
+        <LanguageProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/players" element={<Players />} />
+                <Route path="/videos" element={<Videos />} />
+                <Route path="/videos/:videoTitle" element={<VideoAnalysisResults />} />
+                <Route path="/video-analysis/:videoId" element={<VideoAnalysis />} />
+                <Route path="/messages" element={<Messages />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/player/:playerId" element={<PlayerProfile />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/timeline" element={<Timeline />} />
+                <Route path="/transfer-timeline" element={<TransferTimeline />} />
+                <Route path="/explore" element={<Explore />} />
+                <Route path="/team-explore" element={<TeamExplore />} />
+                <Route path="/agent-shortlist" element={<AgentShortlist />} />
+                <Route path="/contracts" element={<Contracts />} />
+                <Route path="/user-management" element={<UserManagement />} />
+                <Route path="/news" element={<News />} />
+                <Route path="/video-showcase" element={<VideoShowcase />} />
+                <Route path="/notifications" element={<Notification />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </LanguageProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

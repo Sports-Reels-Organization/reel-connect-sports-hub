@@ -194,7 +194,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       return;
     }
 
-    // Check file size (100MB limit)
     if (file.size > 100 * 1024 * 1024) {
       toast({
         title: "File Too Large",
@@ -208,14 +207,12 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     const fileInfo = await getVideoFileInfo(file);
     setVideoFileInfo(fileInfo);
 
-    // Create preview URL
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
     const newPreviewUrl = URL.createObjectURL(file);
     setPreviewUrl(newPreviewUrl);
 
-    // Auto-fill title if empty
     if (!metadata.title) {
       setMetadata(prev => ({
         ...prev,
@@ -255,7 +252,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     setProcessingStatus({ stage, progress, message });
   };
 
-  const compressVideo = async (file: File, videoId?: string): Promise<File> => {
+  const compressVideo = async (file: File): Promise<File> => {
     updateProcessingStatus('compressing', 0, 'Initializing video compression...');
 
     const progressInterval = setInterval(() => {
@@ -283,8 +280,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           maxQuality: 'high',
           maintainAspectRatio: true,
           generateThumbnail: true
-        },
-        videoId
+        }
       );
 
       clearInterval(progressInterval);
@@ -449,7 +445,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
 
     try {
-      // Create video record
+      // Create video record without AI analysis
       const videoData = {
         team_id: teamId,
         title: metadata.title,
@@ -458,6 +454,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         duration: videoFileInfo?.duration || 0,
         description: metadata.description || '',
         tags: metadata.playerTags,
+        ai_analysis_status: 'pending' as const,
         ...(metadata.videoType === 'match' && metadata.matchDetails && {
           opposing_team: metadata.matchDetails.opposingTeam || '',
           match_date: metadata.matchDetails.matchDate || null,
@@ -478,14 +475,14 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
       const videoId = videoRecord.id;
 
-      // Process video
-      const compressedFile = await compressVideo(selectedFile, videoId);
+      // Process video (compress and upload only)
+      const compressedFile = await compressVideo(selectedFile);
       const [thumbnailUrl, videoUrl] = await Promise.all([
         generateThumbnail(compressedFile),
         uploadVideo(compressedFile)
       ]);
 
-      // Update video record
+      // Update video record with URLs
       const updateData = {
         video_url: videoUrl,
         ...(thumbnailUrl && { thumbnail_url: thumbnailUrl })
@@ -504,10 +501,9 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
       toast({
         title: "Upload Complete",
-        description: "Video uploaded successfully!",
+        description: "Video uploaded successfully! You can now analyze it.",
       });
 
-      // Reset form and callback
       setTimeout(() => {
         resetForm();
         onUploadComplete?.(videoId);
@@ -545,7 +541,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
             <div className="p-2 bg-bright-pink/20 rounded-lg">
               <Upload className="w-5 h-5 text-bright-pink" />
             </div>
-            Upload & Analyze Video
+            Upload & Compress Video
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -1035,6 +1031,3 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 };
 
 export default EnhancedVideoUploadForm;
-
-
-
