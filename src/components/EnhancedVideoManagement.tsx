@@ -59,13 +59,6 @@ interface Team {
   team_name: string;
 }
 
-interface VideoUploadFormProps {
-  open: boolean;
-  onClose: () => void;
-  onVideoUploaded: () => void;
-  teams: Team[];
-}
-
 const EnhancedVideoManagement = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -103,7 +96,8 @@ const EnhancedVideoManagement = () => {
       const mappedVideos = (data || []).map(video => ({
         ...video,
         video_type: video.video_type as 'match' | 'training' | 'highlight' | 'interview',
-        tagged_players: video.tagged_players || []
+        ai_analysis_status: video.ai_analysis_status as 'pending' | 'analyzing' | 'completed' | 'failed',
+        tagged_players: Array.isArray(video.tagged_players) ? video.tagged_players : []
       }));
 
       setVideos(mappedVideos);
@@ -533,8 +527,6 @@ const EnhancedVideoManagement = () => {
             {selectedVideoForAnalysis ? (
               <VideoAnalysisResults
                 videoId={selectedVideoForAnalysis.id}
-                videoType={selectedVideoForAnalysis.video_type}
-                teamId={selectedVideoForAnalysis.team_id}
               />
             ) : (
               <Card className="bg-gray-800/50 border-gray-700/50 backdrop-blur-sm">
@@ -558,10 +550,11 @@ const EnhancedVideoManagement = () => {
 
         {showUploadForm && (
           <VideoUploadForm
-            open={showUploadForm}
-            onClose={() => setShowUploadForm(false)}
-            onVideoUploaded={handleVideoUploaded}
-            teams={teams}
+            onSuccess={() => {
+              setShowUploadForm(false);
+              handleVideoUploaded();
+            }}
+            onCancel={() => setShowUploadForm(false)}
           />
         )}
 
