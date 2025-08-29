@@ -15,9 +15,15 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface VideoAnalysisResultsProps {
   videoId: string;
+  videoType?: string;
+  teamId?: string;
 }
 
-const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({ videoId }) => {
+const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({ 
+  videoId, 
+  videoType, 
+  teamId 
+}) => {
   const { toast } = useToast();
   const [analysisData, setAnalysisData] = useState<AIAnalysisEvent[]>([]);
   const [videoData, setVideoData] = useState<any>(null);
@@ -354,7 +360,7 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({ videoId }) 
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Video Type:</span>
-                  <span className="capitalize">{videoData.video_type || 'unknown'}</span>
+                  <span className="capitalize">{videoData.video_type || videoType || 'unknown'}</span>
                 </div>
                 {videoData.tagged_players && videoData.tagged_players.length > 0 && (
                   <div>
