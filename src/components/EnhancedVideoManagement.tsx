@@ -35,7 +35,8 @@ import {
   Star,
   Award,
   MapPin,
-  Zap
+  Zap,
+  ArrowUp
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import VideoUploadForm from './VideoUploadForm';
@@ -56,6 +57,13 @@ interface Video {
 interface Team {
   id: string;
   team_name: string;
+}
+
+interface VideoUploadFormProps {
+  open: boolean;
+  onClose: () => void;
+  onVideoUploaded: () => void;
+  teams: Team[];
 }
 
 const EnhancedVideoManagement = () => {
@@ -91,7 +99,14 @@ const EnhancedVideoManagement = () => {
 
       if (error) throw error;
 
-      setVideos(data || []);
+      // Map the database response to match our Video interface
+      const mappedVideos = (data || []).map(video => ({
+        ...video,
+        video_type: video.video_type as 'match' | 'training' | 'highlight' | 'interview',
+        tagged_players: video.tagged_players || []
+      }));
+
+      setVideos(mappedVideos);
     } catch (err) {
       console.error('Error fetching videos:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch videos');
@@ -122,7 +137,7 @@ const EnhancedVideoManagement = () => {
 
   const handleVideoUploaded = useCallback(() => {
     fetchVideos();
-  }, [fetchVideos]);
+  }, []);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -541,12 +556,14 @@ const EnhancedVideoManagement = () => {
           </TabsContent>
         </Tabs>
 
-        <VideoUploadForm
-          open={showUploadForm}
-          onClose={() => setShowUploadForm(false)}
-          onVideoUploaded={handleVideoUploaded}
-          teams={teams}
-        />
+        {showUploadForm && (
+          <VideoUploadForm
+            open={showUploadForm}
+            onClose={() => setShowUploadForm(false)}
+            onVideoUploaded={handleVideoUploaded}
+            teams={teams}
+          />
+        )}
 
         {isActionsMenuOpen && selectedVideoForActions && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
