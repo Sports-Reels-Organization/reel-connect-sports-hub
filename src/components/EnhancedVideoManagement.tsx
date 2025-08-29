@@ -97,7 +97,9 @@ const EnhancedVideoManagement = () => {
         ...video,
         video_type: video.video_type as 'match' | 'training' | 'highlight' | 'interview',
         ai_analysis_status: video.ai_analysis_status as 'pending' | 'analyzing' | 'completed' | 'failed',
-        tagged_players: Array.isArray(video.tagged_players) ? video.tagged_players : []
+        tagged_players: Array.isArray(video.tagged_players) 
+          ? video.tagged_players.map(player => String(player))
+          : []
       }));
 
       setVideos(mappedVideos);
