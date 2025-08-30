@@ -47,13 +47,16 @@ export class VideoFrameExtractor {
           const frameInterval = duration / maxFrames;
           let frameCount = 0;
 
-          const extractFrame = (currentTime: number) => {
+          let currentTime = 0;
+
+          const extractFrame = (time: number) => {
             if (frameCount >= maxFrames) {
               resolve(frames);
               return;
             }
 
-            video.currentTime = currentTime;
+            currentTime = time;
+            video.currentTime = time;
           };
 
           video.onseeked = () => {
@@ -85,10 +88,10 @@ export class VideoFrameExtractor {
               });
 
               frameCount++;
-              currentTime += frameInterval;
+              const nextTime = currentTime + frameInterval;
 
-              if (currentTime < duration && frameCount < maxFrames) {
-                extractFrame(currentTime);
+              if (nextTime < duration && frameCount < maxFrames) {
+                extractFrame(nextTime);
               } else {
                 resolve(frames);
               }
