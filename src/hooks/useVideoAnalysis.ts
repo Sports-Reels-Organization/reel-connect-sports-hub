@@ -68,7 +68,7 @@ export const useVideoAnalysis = () => {
       validateGeminiConfig();
       geminiServiceRef.current = new GeminiVideoAnalysisService({
         apiKey: GEMINI_CONFIG.API_KEY,
-        model: GEMINI_CONFIG.DEFAULT_MODEL as "gemini-2.5-flash"
+        model: "gemini-2.5-flash" // Use literal type instead of variable
       });
       return true;
     } catch (error) {
@@ -291,24 +291,27 @@ export const useVideoAnalysis = () => {
         return;
       }
 
+      // Cast to proper JSON type for Supabase
+      const analysisMetadata = {
+        sport: metadata.sport,
+        video_type: metadata.videoType,
+        player_tags: metadata.playerTags || [],
+        team_info: metadata.teamInfo || {},
+        context: metadata.context || '',
+        confidence: analysis.confidence || 0,
+        frame_count: extractedFrames.length
+      } as any;
+
       const { error } = await supabase
         .from('enhanced_video_analysis')
         .insert({
           video_id: videoData.id,
           analysis_status: 'completed',
           overall_assessment: `AI analysis completed for ${metadata.videoType} video`,
-          recommendations: analysis.recommendations || [],
-          analysis_metadata: {
-            sport: metadata.sport,
-            video_type: metadata.videoType,
-            player_tags: metadata.playerTags,
-            team_info: metadata.teamInfo,
-            context: metadata.context,
-            confidence: analysis.confidence,
-            frame_count: extractedFrames.length
-          },
-          tagged_player_analysis: analysis.playerAnalysis || {},
-          key_events: analysis.matchEvents || [],
+          recommendations: (analysis.recommendations || []) as any,
+          analysis_metadata: analysisMetadata,
+          tagged_player_analysis: (analysis.playerAnalysis || {}) as any,
+          key_events: (analysis.matchEvents || []) as any,
           created_at: new Date().toISOString()
         });
 

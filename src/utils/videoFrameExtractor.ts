@@ -5,8 +5,8 @@ export interface VideoFrame {
   url: string;
   width: number;
   height: number;
-  frameData?: string; // Base64 encoded frame data for Gemini
-  frameNumber?: number; // Frame sequence number
+  frameData: string; // Base64 encoded frame data for Gemini (required)
+  frameNumber: number; // Frame sequence number (required)
 }
 
 export interface FrameExtractionOptions {
@@ -114,7 +114,8 @@ export class VideoFrameExtractor {
           this.context.drawImage(this.video, 0, 0, width, height);
 
           // Get base64 data for Gemini compatibility
-          const frameData = this.canvas.toDataURL('image/jpeg', quality);
+          const frameDataUrl = this.canvas.toDataURL('image/jpeg', quality);
+          const frameData = frameDataUrl.split(',')[1]; // Remove data:image/jpeg;base64, prefix
 
           // Convert to blob
           this.canvas.toBlob((blob) => {
@@ -125,7 +126,8 @@ export class VideoFrameExtractor {
                 url: URL.createObjectURL(blob),
                 width,
                 height,
-                frameData: frameData.split(',')[1] // Remove data:image/jpeg;base64, prefix
+                frameData, // Now required and always provided
+                frameNumber: 1 // Will be overridden by caller
               };
               resolve(frame);
             } else {

@@ -22,16 +22,6 @@ export interface WorkflowContext {
 export class ContractWorkflowService {
   static async initializeWorkflow(context: WorkflowContext): Promise<boolean> {
     try {
-      // Create initial workflow steps using contracts table
-      const steps = [
-        'draft_created',
-        'initial_review',
-        'negotiations',
-        'final_review',
-        'signatures',
-        'completion'
-      ];
-
       // Update contract status instead of creating workflow steps
       const { error } = await supabase
         .from('contracts')
@@ -48,6 +38,58 @@ export class ContractWorkflowService {
     } catch (error) {
       console.error('Failed to initialize workflow:', error);
       return false;
+    }
+  }
+
+  static async initializeContractFromPitch(
+    pitchId: string,
+    contractType: string,
+    terms: any
+  ): Promise<string | null> {
+    try {
+      // Get pitch details
+      const { data: pitch, error: pitchError } = await supabase
+        .from('transfer_pitches')
+        .select(`
+          *,
+          teams (id, profile_id),
+          players (id)
+        `)
+        .eq('id', pitchId)
+        .single();
+
+      if (pitchError || !pitch) {
+        console.error('Pitch not found:', pitchError);
+        return null;
+      }
+
+      // Create contract
+      const { data: contract, error: contractError } = await supabase
+        .from('contracts')
+        .insert({
+          pitch_id: pitchId,
+          team_id: pitch.team_id,
+          player_id: pitch.player_id,
+          contract_type: contractType,
+          terms,
+          status: 'draft',
+          deal_stage: 'draft',
+          created_by: pitch.teams?.profile_id,
+          contract_value: pitch.asking_price || null,
+          currency: pitch.currency || 'USD'
+        })
+        .select('id')
+        .single();
+
+      if (contractError || !contract) {
+        console.error('Failed to create contract:', contractError);
+        return null;
+      }
+
+      return contract.id;
+    } catch (error) {
+      console.error('Failed to create contract from pitch:', error);
+      return null;
     }
   }
 
@@ -91,7 +133,7 @@ export class ContractWorkflowService {
           status: newStatus,
           deal_stage: newDealStage,
           last_activity: new Date().toISOString(),
-          negotiation_rounds: supabase.sql`negotiation_rounds + 1`
+          negotiation_rounds: supabase.rpc('increment', { x: 1 }) // Use RPC instead of raw SQL
         })
         .eq('id', contractId);
 
@@ -110,6 +152,76 @@ export class ContractWorkflowService {
       return true;
     } catch (error) {
       console.error('Failed to advance workflow:', error);
+      return false;
+    }
+  }
+
+  static async agentReviewContract(
+    contractId: string,
+    agentId: string,
+    approved: boolean,
+    notes?: string
+  ): Promise<boolean> {
+    try {
+      const status = approved ? 'agent_approved' : 'agent_rejected';
+      
+      const { error } = await supabase
+        .from('contracts')
+        .update({
+          status,
+          last_activity: new Date().toISOString()
+        })
+        .eq('id', contractId);
+
+      if (error) throw error;
+
+      // Add comment
+      await supabase
+        .from('contract_comments')
+        .insert({
+          contract_id: contractId,
+          user_id: agentId,
+          comment: `Agent ${approved ? 'approved' : 'rejected'} contract${notes ? ` - ${notes}` : ''}`,
+          is_internal: true
+        });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to update agent review:', error);
+      return false;
+    }
+  }
+
+  static async signContract(
+    contractId: string,
+    userId: string,
+    signatureType: 'player' | 'team' | 'agent'
+  ): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('contracts')
+        .update({
+          status: 'signed',
+          deal_stage: 'completed',
+          last_activity: new Date().toISOString()
+        })
+        .eq('id', contractId);
+
+      if (error) throw error;
+
+      // Add signature comment
+      await supabase
+        .from('contract_comments')
+        .insert({
+          contract_id: contractId,
+          user_id: userId,
+          comment: `Contract signed by ${signatureType}`,
+          is_internal: true
+        });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to sign contract:', error);
       return false;
     }
   }
@@ -173,7 +285,7 @@ export class ContractWorkflowService {
         .update({
           terms,
           last_activity: new Date().toISOString(),
-          version: supabase.sql`version + 1`
+          version: supabase.rpc('increment', { x: 1 }) // Use RPC instead of raw SQL
         })
         .eq('id', contractId);
 
@@ -241,51 +353,7 @@ export class ContractWorkflowService {
     contractType: string,
     terms: any
   ): Promise<string | null> {
-    try {
-      // Get pitch details
-      const { data: pitch, error: pitchError } = await supabase
-        .from('transfer_pitches')
-        .select(`
-          *,
-          teams (id, profile_id),
-          players (id)
-        `)
-        .eq('id', pitchId)
-        .single();
-
-      if (pitchError || !pitch) {
-        console.error('Pitch not found:', pitchError);
-        return null;
-      }
-
-      // Create contract
-      const { data: contract, error: contractError } = await supabase
-        .from('contracts')
-        .insert({
-          pitch_id: pitchId,
-          team_id: pitch.team_id,
-          player_id: pitch.player_id,
-          contract_type: contractType,
-          terms,
-          status: 'draft',
-          deal_stage: 'draft',
-          created_by: pitch.teams?.profile_id,
-          contract_value: pitch.asking_price || null,
-          currency: pitch.currency || 'USD'
-        })
-        .select('id')
-        .single();
-
-      if (contractError || !contract) {
-        console.error('Failed to create contract:', contractError);
-        return null;
-      }
-
-      return contract.id;
-    } catch (error) {
-      console.error('Failed to create contract from pitch:', error);
-      return null;
-    }
+    return this.initializeContractFromPitch(pitchId, contractType, terms);
   }
 }
 
