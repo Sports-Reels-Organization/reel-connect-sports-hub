@@ -57,10 +57,11 @@ const ContractWorkflow: React.FC<ContractWorkflowProps> = ({
 
     try {
       setLoading(true);
+      const approved = action === 'accept';
       await ContractWorkflowService.agentReviewContract(
         contractId, 
         profile.id, 
-        action, 
+        approved,
         reviewNotes || undefined
       );
       

@@ -127,13 +127,22 @@ export class ContractWorkflowService {
           break;
       }
 
+      // Get current contract to increment negotiation rounds
+      const { data: currentContract, error: fetchError } = await supabase
+        .from('contracts')
+        .select('negotiation_rounds')
+        .eq('id', contractId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       const { error } = await supabase
         .from('contracts')
         .update({
           status: newStatus,
           deal_stage: newDealStage,
           last_activity: new Date().toISOString(),
-          negotiation_rounds: supabase.rpc('increment', { x: 1 }) // Use RPC instead of raw SQL
+          negotiation_rounds: (currentContract?.negotiation_rounds || 0) + 1
         })
         .eq('id', contractId);
 
@@ -226,6 +235,34 @@ export class ContractWorkflowService {
     }
   }
 
+  static async getWorkflowSteps(contractId: string): Promise<ContractWorkflowStep[]> {
+    try {
+      const { data: comments, error } = await supabase
+        .from('contract_comments')
+        .select('*')
+        .eq('contract_id', contractId)
+        .eq('is_internal', true)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Convert comments to workflow steps format
+      return (comments || []).map(comment => ({
+        id: comment.id,
+        contract_id: comment.contract_id,
+        step_type: comment.comment.includes('approved') ? 'agent_reviewed' : 
+                  comment.comment.includes('signed') ? 'signed' : 'step_completed',
+        completed_by: comment.user_id,
+        created_at: comment.created_at,
+        updated_at: comment.updated_at,
+        notes: comment.comment
+      }));
+    } catch (error) {
+      console.error('Failed to get workflow steps:', error);
+      return [];
+    }
+  }
+
   static async getWorkflowStatus(contractId: string): Promise<any> {
     try {
       const { data: contract, error } = await supabase
@@ -280,12 +317,21 @@ export class ContractWorkflowService {
     userId: string
   ): Promise<boolean> {
     try {
+      // Get current contract to increment version
+      const { data: currentContract, error: fetchError } = await supabase
+        .from('contracts')
+        .select('version')
+        .eq('id', contractId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       const { error } = await supabase
         .from('contracts')
         .update({
           terms,
           last_activity: new Date().toISOString(),
-          version: supabase.rpc('increment', { x: 1 }) // Use RPC instead of raw SQL
+          version: (currentContract?.version || 1) + 1
         })
         .eq('id', contractId);
 

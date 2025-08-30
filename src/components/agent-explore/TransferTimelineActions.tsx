@@ -35,18 +35,24 @@ const TransferTimelineActions: React.FC<TransferTimelineActionsProps> = ({
     try {
       setLoading(true);
       
-      // Initialize contract from pitch
-      const contractId = await ContractWorkflowService.initializeContractFromPitch(pitch.id, {
-        template_content: contractHtml
-      });
+      // Initialize contract from pitch with all required parameters
+      const contractId = await ContractWorkflowService.initializeContractFromPitch(
+        pitch.id, 
+        'transfer',
+        { template_content: contractHtml }
+      );
 
-      toast({
-        title: "Success",
-        description: "Contract has been generated and is ready to send to agent"
-      });
+      if (contractId) {
+        toast({
+          title: "Success",
+          description: "Contract has been generated and is ready to send to agent"
+        });
 
-      setShowContractModal(false);
-      onAction?.('contract_created');
+        setShowContractModal(false);
+        onAction?.('contract_created');
+      } else {
+        throw new Error('Failed to create contract');
+      }
     } catch (error) {
       console.error('Error generating contract:', error);
       toast({
