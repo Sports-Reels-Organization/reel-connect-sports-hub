@@ -298,7 +298,7 @@ const AgentTransferTimeline = () => {
 
   const handleViewDetails = async (pitch: TimelinePitch) => {
     // Simply navigate to player profile - no RPC call needed since function doesn't exist
-    navigate(`/player-profile/${pitch.players.id}`, {
+    navigate(`/player/${pitch.players.id}`, {
       state: {
         pitchId: pitch.id,
         fromTransferTimeline: true

@@ -279,7 +279,7 @@ const TransferTimeline = () => {
   };
 
   const handleViewDetails = (pitch: TimelinePitch) => {
-    navigate(`/player-profile/${pitch.players.id}`, {
+    navigate(`/player/${pitch.players.id}`, {
       state: {
         pitchId: pitch.id,
         fromTransferTimeline: true
