@@ -25,7 +25,7 @@ export const ClickablePlayerTag: React.FC<ClickablePlayerTagProps> = ({
     e.preventDefault();
     e.stopPropagation();
     // Use the correct route that matches App.tsx routing
-    navigate(`/players/${playerId}`);
+    navigate(`/player/${playerId}`);
   };
 
   const sizeClasses = {

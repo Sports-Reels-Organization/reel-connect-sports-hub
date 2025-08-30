@@ -6,7 +6,7 @@ export const useTimelineNavigation = () => {
 
   const navigateToPlayerProfile = (playerId: string, playerName?: string) => {
     // Use the correct route that matches the routing configuration
-    navigate(`/players/${playerId}`, {
+    navigate(`/player/${playerId}`, {
       state: { playerName }
     });
   };

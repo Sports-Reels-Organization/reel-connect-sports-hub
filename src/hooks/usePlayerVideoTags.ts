@@ -27,7 +27,7 @@ export const usePlayerVideoTags = (playerId: string) => {
       setLoading(true);
       setError(null);
 
-      // Search for videos where the player is tagged - use array queries to handle multiple results
+      // Search for videos where the player is tagged - use select() to get all matching rows
       const { data: videosData, error: videosError } = await supabase
         .from('videos')
         .select(`
@@ -44,7 +44,7 @@ export const usePlayerVideoTags = (playerId: string) => {
 
       if (videosError) throw videosError;
 
-      // Also check match_videos table - handle potential multiple results properly
+      // Also check match_videos table - use select() to get all matching rows
       const { data: matchVideosData, error: matchVideosError } = await supabase
         .from('match_videos')
         .select(`
