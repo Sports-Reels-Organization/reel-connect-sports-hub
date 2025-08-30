@@ -4,7 +4,7 @@ import { GEMINI_CONFIG, getSportPrompt } from '@/config/gemini';
 export interface ComprehensiveAnalysisRequest {
   videoUrl: string;
   videoType: 'match' | 'training' | 'highlight' | 'interview';
-  sport: 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby' | 'baseball' | 'soccer';
+  sport: 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby' | 'baseball' | 'soccer' | 'cricket' | 'hockey' | 'golf' | 'swimming' | 'athletics';
   metadata: {
     playerTags?: Array<{
       playerId: string;

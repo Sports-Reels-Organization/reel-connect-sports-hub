@@ -86,6 +86,7 @@ const VideoAnalysisResults = () => {
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisStatus, setAnalysisStatus] = useState('');
   const [hasAnalysis, setHasAnalysis] = useState(false);
+  const [detectedSport, setDetectedSport] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTeamId, setCurrentTeamId] = useState<string>('');
@@ -114,6 +115,13 @@ const VideoAnalysisResults = () => {
     }
   }, [videoTitle, currentTeamId]);
 
+  // Detect sport when video data is loaded
+  useEffect(() => {
+    if (video && currentTeamId) {
+      detectVideoSport();
+    }
+  }, [video, currentTeamId]);
+
   const fetchCurrentTeam = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -138,6 +146,18 @@ const VideoAnalysisResults = () => {
       }
     } catch (error) {
       console.error('Error fetching team:', error);
+    }
+  };
+
+  const detectVideoSport = async () => {
+    if (!video || !currentTeamId) return;
+    
+    try {
+      const sport = await determineSportFromVideo(video);
+      setDetectedSport(sport);
+      console.log('Sport detected on load:', sport);
+    } catch (error) {
+      console.error('Error detecting sport on load:', error);
     }
   };
 
@@ -208,44 +228,63 @@ const VideoAnalysisResults = () => {
       // Initialize comprehensive AI analysis service
       const aiService = new ComprehensiveAIAnalysisService();
 
-      // Extract video frames
-      setAnalysisProgress(20);
-      setAnalysisStatus('Extracting video frames...');
-      const frameExtractor = new VideoFrameExtractor();
-      const frames = await frameExtractor.extractFrames(video.video_url, {
-        frameRate: 1,
-        maxFrames: 30,
-        quality: 0.8,
-        maxWidth: 800,
-        maxHeight: 600
-      });
+             // Extract video frames
+       setAnalysisProgress(20);
+       setAnalysisStatus('Extracting video frames...');
+       const frameExtractor = new VideoFrameExtractor();
+       
+       console.log('Starting frame extraction for video:', video.video_url);
+       
+       const frames = await frameExtractor.extractFrames(video.video_url, {
+         frameRate: 1,
+         maxFrames: 30,
+         quality: 0.8,
+         maxWidth: 800,
+         maxHeight: 600
+       });
+       
+       console.log('Frame extraction completed. Frames extracted:', frames.length);
       
       setAnalysisProgress(40);
       setAnalysisStatus('Frames extracted, preparing for AI analysis...');
 
-      // Prepare comprehensive analysis request
-      const analysisRequest = {
-        videoUrl: video.video_url,
-        videoType: video.video_type,
-        sport: determineSportFromVideo(video),
-        metadata: {
-          playerTags: video.tags.map((tag, index) => ({
-            playerId: `player_${index}`,
-            playerName: tag,
-            jerseyNumber: index + 1,
-            position: 'Unknown'
-          })),
-          teamInfo: {
-            homeTeam: video.opposing_team ? 'Your Team' : 'Home Team',
-            awayTeam: video.opposing_team || 'Away Team',
-            competition: video.league_competition || 'Unknown Competition',
-            date: video.created_at
-          },
-          context: video.description || '',
-          duration: video.duration
-        },
-        frames: frames
-      };
+             // Prepare comprehensive analysis request
+       const detectedSport = await determineSportFromVideo(video);
+       setDetectedSport(detectedSport);
+       
+       console.log('Video Analysis Debug Info:', {
+         videoTitle: video.title,
+         videoType: video.video_type,
+         detectedSport: detectedSport,
+         tags: video.tags,
+         description: video.description,
+         duration: video.duration,
+         frameCount: frames.length,
+         teamId: currentTeamId
+       });
+
+       const analysisRequest = {
+         videoUrl: video.video_url,
+         videoType: video.video_type,
+         sport: detectedSport,
+         metadata: {
+           playerTags: video.tags.map((tag, index) => ({
+             playerId: `player_${index}`,
+             playerName: tag,
+             jerseyNumber: index + 1,
+             position: 'Unknown'
+           })),
+           teamInfo: {
+             homeTeam: video.opposing_team ? 'Your Team' : 'Home Team',
+             awayTeam: video.opposing_team || 'Away Team',
+             competition: video.league_competition || 'Unknown Competition',
+             date: video.created_at
+           },
+           context: video.description || '',
+           duration: video.duration
+         },
+         frames: frames
+       };
 
       // Perform AI analysis
       setAnalysisProgress(60);
@@ -285,18 +324,53 @@ const VideoAnalysisResults = () => {
     }
   };
 
-  const determineSportFromVideo = (video: Video): 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby' | 'baseball' | 'soccer' => {
-    // Determine sport based on video content, tags, or description
-    const videoContent = `${video.title} ${video.description || ''} ${video.tags.join(' ')}`.toLowerCase();
-    
-    if (videoContent.includes('football') || videoContent.includes('soccer')) return 'football';
-    if (videoContent.includes('basketball')) return 'basketball';
-    if (videoContent.includes('rugby')) return 'rugby';
-    if (videoContent.includes('tennis')) return 'tennis';
-    if (videoContent.includes('volleyball')) return 'volleyball';
-    if (videoContent.includes('baseball')) return 'baseball';
-    
-    return 'football'; // Default to football
+  const determineSportFromVideo = async (video: Video): Promise<'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby' | 'baseball' | 'soccer' | 'cricket' | 'hockey' | 'golf' | 'swimming' | 'athletics'> => {
+    try {
+      // First, try to get sport from team's sport_type
+      if (currentTeamId) {
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('sport_type')
+          .eq('id', currentTeamId)
+          .single();
+        
+        if (teamData?.sport_type) {
+          console.log('Sport detected from team:', teamData.sport_type);
+          return teamData.sport_type as any;
+        }
+      }
+      
+      // Fallback: Determine sport based on video content, tags, or description
+      const videoContent = `${video.title} ${video.description || ''} ${video.tags.join(' ')}`.toLowerCase();
+      
+      // More comprehensive sport detection
+      if (videoContent.includes('football') || videoContent.includes('soccer') || videoContent.includes('futbol')) return 'football';
+      if (videoContent.includes('basketball') || videoContent.includes('basket ball') || videoContent.includes('hoops')) return 'basketball';
+      if (videoContent.includes('rugby') || videoContent.includes('rugby union') || videoContent.includes('rugby league')) return 'rugby';
+      if (videoContent.includes('tennis') || videoContent.includes('tennis court') || videoContent.includes('racket')) return 'tennis';
+      if (videoContent.includes('volleyball') || videoContent.includes('volley ball') || videoContent.includes('spike')) return 'volleyball';
+      if (videoContent.includes('baseball') || videoContent.includes('base ball') || videoContent.includes('diamond')) return 'baseball';
+      if (videoContent.includes('cricket') || videoContent.includes('wicket')) return 'cricket';
+      if (videoContent.includes('hockey') || videoContent.includes('ice hockey') || videoContent.includes('field hockey')) return 'hockey';
+      if (videoContent.includes('golf') || videoContent.includes('putt')) return 'golf';
+      if (videoContent.includes('swimming') || videoContent.includes('pool') || videoContent.includes('stroke')) return 'swimming';
+      if (videoContent.includes('athletics') || videoContent.includes('track') || videoContent.includes('sprint')) return 'athletics';
+      
+      // Check for common sports equipment or terms
+      if (videoContent.includes('goal') || videoContent.includes('penalty') || videoContent.includes('corner')) return 'football';
+      if (videoContent.includes('basket') || videoContent.includes('dunk') || videoContent.includes('three pointer')) return 'basketball';
+      if (videoContent.includes('try') || videoContent.includes('scrum') || videoContent.includes('lineout')) return 'rugby';
+      if (videoContent.includes('ace') || videoContent.includes('serve') || videoContent.includes('match point')) return 'tennis';
+      
+      console.log('Sport detection - Video content:', videoContent);
+      return 'football'; // Default to football
+    } catch (error) {
+      console.error('Error determining sport from team:', error);
+      // Fallback to content-based detection
+      const videoContent = `${video.title} ${video.description || ''} ${video.tags.join(' ')}`.toLowerCase();
+      if (videoContent.includes('basketball') || videoContent.includes('basket') || videoContent.includes('hoops')) return 'basketball';
+      return 'football'; // Default to football
+    }
   };
 
   const mapAIResultsToAnalysisData = (aiResults: any): AnalysisData => {
@@ -690,10 +764,10 @@ const VideoAnalysisResults = () => {
                     <p className="text-white text-3xl font-bold mt-1">
                       {analysisData?.playerActions.length || 0}
                     </p>
-                    <div className="flex items-center mt-2 text-xs text-blue-300">
-                      <ArrowUp className="w-3 h-3 mr-1" />
-                      +12% vs last match
-                    </div>
+                                         <div className="flex items-center mt-2 text-xs text-blue-300">
+                       <ArrowUp className="w-3 h-3 mr-1" />
+                       {hasAnalysis ? 'Events detected' : 'No data yet'}
+                     </div>
                   </div>
                   <div className="p-3 bg-blue-500/20 rounded-xl">
                     <Activity className="w-6 h-6 text-blue-400" />
@@ -710,10 +784,10 @@ const VideoAnalysisResults = () => {
                     <p className="text-white text-3xl font-bold mt-1">
                       {analysisData?.keyMoments.length || 0}
                     </p>
-                    <div className="flex items-center mt-2 text-xs text-emerald-300">
-                      <ArrowUp className="w-3 h-3 mr-1" />
-                      High impact events
-                    </div>
+                                         <div className="flex items-center mt-2 text-xs text-emerald-300">
+                       <ArrowUp className="w-3 h-3 mr-1" />
+                       {hasAnalysis ? 'Key moments found' : 'No moments yet'}
+                     </div>
                   </div>
                   <div className="p-3 bg-emerald-500/20 rounded-xl">
                     <Target className="w-6 h-6 text-emerald-400" />
@@ -733,10 +807,10 @@ const VideoAnalysisResults = () => {
                       </p>
                       <span className="text-gray-400 text-lg ml-1">/10</span>
                     </div>
-                    <div className="flex items-center mt-2 text-xs text-purple-300">
-                      <Star className="w-3 h-3 mr-1" />
-                      Excellent rating
-                    </div>
+                                         <div className="flex items-center mt-2 text-xs text-purple-300">
+                       <Star className="w-3 h-3 mr-1" />
+                       {hasAnalysis ? 'Performance analyzed' : 'No rating yet'}
+                     </div>
                   </div>
                   <div className="p-3 bg-purple-500/20 rounded-xl">
                     <Award className="w-6 h-6 text-purple-400" />
@@ -745,23 +819,46 @@ const VideoAnalysisResults = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/20 border-orange-500/30 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-orange-200 text-sm font-medium">AI Confidence</p>
-                    <p className="text-white text-3xl font-bold mt-1">92%</p>
-                    <div className="flex items-center mt-2 text-xs text-orange-300">
-                      <Zap className="w-3 h-3 mr-1" />
-                      High accuracy
-                    </div>
-                  </div>
-                  <div className="p-3 bg-orange-500/20 rounded-xl">
-                    <Eye className="w-6 h-6 text-orange-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                         <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/20 border-orange-500/30 backdrop-blur-sm">
+               <CardContent className="p-6">
+                 <div className="flex items-center justify-between">
+                   <div>
+                     <p className="text-orange-200 text-sm font-medium">AI Confidence</p>
+                     <p className="text-white text-3xl font-bold mt-1">
+                       {hasAnalysis ? 'High' : 'N/A'}
+                     </p>
+                     <div className="flex items-center mt-2 text-xs text-orange-300">
+                       <Zap className="w-3 h-3 mr-1" />
+                       {hasAnalysis ? 'Analysis completed' : 'Run analysis first'}
+                     </div>
+                   </div>
+                   <div className="p-3 bg-orange-500/20 rounded-xl">
+                     <Eye className="w-6 h-6 text-orange-400" />
+                   </div>
+                 </div>
+               </CardContent>
+             </Card>
+             
+             {/* Sport Type Display */}
+             <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/20 border-blue-500/30 backdrop-blur-sm">
+               <CardContent className="p-6">
+                 <div className="flex items-center justify-between">
+                   <div>
+                     <p className="text-blue-200 text-sm font-medium">Sport Type</p>
+                     <p className="text-white text-3xl font-bold mt-1">
+                       {detectedSport ? detectedSport.charAt(0).toUpperCase() + detectedSport.slice(1) : 'Detecting...'}
+                     </p>
+                     <div className="flex items-center mt-2 text-xs text-blue-300">
+                       <Target className="w-3 h-3 mr-1" />
+                       {detectedSport ? 'Sport identified' : 'Analyzing video content'}
+                     </div>
+                   </div>
+                   <div className="p-3 bg-blue-500/20 rounded-xl">
+                     <Target className="w-6 h-6 text-blue-400" />
+                   </div>
+                 </div>
+               </CardContent>
+             </Card>
           </div>
 
           {/* Main Analysis Tabs */}
@@ -1309,60 +1406,42 @@ const VideoAnalysisResults = () => {
                 </CardContent>
               </Card>
 
-              {/* Recommendations */}
-              <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/30 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Target className="w-5 h-5 text-bright-pink" />
-                    AI Recommendations
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-gray-700/30 rounded-lg border-l-4 border-green-500">
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <ArrowUp className="w-3 h-3 text-white" />
-                        </div>
-                        <div>
-                          <h4 className="text-green-400 font-semibold mb-1">Tactical Strength</h4>
-                          <p className="text-gray-300 text-sm">
-                            Continue utilizing high defensive line coordination. The 89% success rate indicates strong team chemistry in defensive transitions.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-gray-700/30 rounded-lg border-l-4 border-orange-500">
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <AlertCircle className="w-3 h-3 text-white" />
-                        </div>
-                        <div>
-                          <h4 className="text-orange-400 font-semibold mb-1">Area for Improvement</h4>
-                          <p className="text-gray-300 text-sm">
-                            Focus on set piece delivery and positioning. Current 40% conversion rate suggests need for specialized training in dead ball situations.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-gray-700/30 rounded-lg border-l-4 border-blue-500">
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Users className="w-3 h-3 text-white" />
-                        </div>
-                        <div>
-                          <h4 className="text-blue-400 font-semibold mb-1">Player Development</h4>
-                          <p className="text-gray-300 text-sm">
-                            Player #10's midfield coverage (11.2km) is exceptional. Consider building more plays through central areas to maximize this asset.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                             {/* AI Recommendations */}
+               <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/30 backdrop-blur-sm">
+                 <CardHeader>
+                   <CardTitle className="text-white flex items-center gap-2">
+                     <Target className="w-5 h-5 text-bright-pink" />
+                     AI Recommendations
+                   </CardTitle>
+                 </CardHeader>
+                 <CardContent>
+                   {!hasAnalysis ? (
+                     <div className="text-center py-8">
+                       <div className="w-16 h-16 bg-gray-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                         <Target className="w-8 h-8 text-gray-400" />
+                       </div>
+                       <p className="text-gray-400 mb-2">No recommendations available</p>
+                       <p className="text-gray-500 text-sm">Run AI analysis to get personalized recommendations</p>
+                     </div>
+                   ) : (
+                     <div className="space-y-4">
+                       {analysisData?.insights?.slice(0, 3).map((insight, index) => (
+                         <div key={index} className="p-4 bg-gray-700/30 rounded-lg border-l-4 border-bright-pink">
+                           <div className="flex items-start gap-3">
+                             <div className="w-6 h-6 bg-bright-pink rounded-full flex items-center justify-center flex-shrink-0">
+                               <Zap className="w-3 h-3 text-white" />
+                             </div>
+                             <div>
+                               <h4 className="text-bright-pink font-semibold mb-1">AI Insight #{index + 1}</h4>
+                               <p className="text-gray-300 text-sm">{insight}</p>
+                             </div>
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                 </CardContent>
+               </Card>
             </TabsContent>
           </Tabs>
 
