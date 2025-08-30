@@ -60,6 +60,7 @@ export const usePlayerData = (playerId: string | null) => {
 
         console.log('Fetching player data for ID:', playerId);
 
+        // Use maybeSingle() to handle cases where player might not exist
         const { data, error: fetchError } = await supabase
           .from('players')
           .select(`
@@ -99,7 +100,7 @@ export const usePlayerData = (playerId: string | null) => {
             )
           `)
           .eq('id', playerId)
-          .single();
+          .maybeSingle();
 
         if (fetchError) {
           console.error('Fetch error:', fetchError);
