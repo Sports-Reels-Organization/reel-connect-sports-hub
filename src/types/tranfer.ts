@@ -20,7 +20,10 @@ export interface TransferPitch {
     is_international: boolean;
     service_charge_rate: number;
     team_id: string;
-    team_profile_id?: string; // Added for messaging
+    team_profile_id?: string;
+    deal_stage?: string;
+    contract_finalized?: boolean;
+    contract_finalized_at?: string;
     players: {
         id: string;
         full_name: string;

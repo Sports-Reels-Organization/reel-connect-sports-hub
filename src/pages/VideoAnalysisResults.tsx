@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Play, Pause, RotateCcw, Zap, Eye, Calendar, Clock, Users, Video as VideoIcon } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Settings, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import Layout from '@/components/Layout';
+import { useToast } from '@/hooks/use-toast';
 
 interface Video {
   id: string;
@@ -23,122 +23,106 @@ interface Video {
   match_date?: string;
   score?: string;
   league_competition?: string;
+  file_size?: number;
+  compressed_url?: string;
 }
 
 const VideoAnalysisResults = () => {
   const { videoTitle } = useParams<{ videoTitle: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
   const [video, setVideo] = useState<Video | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [currentTeamId, setCurrentTeamId] = useState<string>('');
 
   useEffect(() => {
-    if (videoTitle) {
-      fetchVideoByTitle(decodeURIComponent(videoTitle));
+    fetchCurrentTeam();
+  }, []);
+
+  useEffect(() => {
+    if (videoTitle && currentTeamId) {
+      fetchVideoData();
     }
-  }, [videoTitle]);
+  }, [videoTitle, currentTeamId]);
 
-  const fetchVideoByTitle = async (title: string) => {
+  const fetchCurrentTeam = async () => {
     try {
-      setIsLoading(true);
-      
-      // Get current user's profile to find their team
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to view videos",
-          variant: "destructive"
-        });
-        navigate('/');
-        return;
-      }
+      if (!user) return;
 
-      // Get user's profile and team
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user.id)
         .single();
 
-      if (!profile) {
-        toast({
-          title: "Profile Not Found",
-          description: "User profile not found",
-          variant: "destructive"
-        });
-        return;
-      }
+      if (!profile) return;
 
-      const { data: team } = await supabase
+      const { data: teamData } = await supabase
         .from('teams')
         .select('id')
         .eq('profile_id', profile.id)
         .single();
 
-      if (!team) {
-        toast({
-          title: "Team Not Found",
-          description: "No team associated with your account",
-          variant: "destructive"
-        });
-        return;
+      if (teamData) {
+        setCurrentTeamId(teamData.id);
       }
+    } catch (error) {
+      console.error('Error fetching team:', error);
+    }
+  };
 
-      // Fetch video by title for this team
-      const { data: videoData, error } = await supabase
+  const fetchVideoData = async () => {
+    if (!videoTitle || !currentTeamId) return;
+
+    try {
+      setIsLoading(true);
+      const decodedTitle = decodeURIComponent(videoTitle);
+
+      const { data, error } = await supabase
         .from('videos')
         .select('*')
-        .eq('team_id', team.id)
-        .eq('title', title)
+        .eq('title', decodedTitle)
+        .eq('team_id', currentTeamId)
         .single();
 
-      if (error) {
-        console.error('Error fetching video:', error);
-        toast({
-          title: "Video Not Found",
-          description: "The requested video could not be found",
-          variant: "destructive"
-        });
-        navigate(-1);
-        return;
+      if (error) throw error;
+
+      if (data) {
+        const mappedVideo: Video = {
+          id: data.id,
+          title: data.title,
+          video_url: data.video_url,
+          thumbnail_url: data.thumbnail_url,
+          duration: data.duration,
+          video_type: data.video_type as 'match' | 'training' | 'interview' | 'highlight',
+          description: data.description,
+          tags: Array.isArray(data.tagged_players) 
+            ? data.tagged_players.map((tag: any) => String(tag)) 
+            : [],
+          ai_analysis_status: (data.ai_analysis_status === 'pending' || 
+                             data.ai_analysis_status === 'analyzing' || 
+                             data.ai_analysis_status === 'completed' || 
+                             data.ai_analysis_status === 'failed') 
+                             ? data.ai_analysis_status 
+                             : 'pending',
+          created_at: data.created_at,
+          opposing_team: data.opposing_team,
+          match_date: data.match_date,
+          score: data.score_display || undefined,
+          league_competition: data.league || undefined,
+          file_size: data.file_size,
+          compressed_url: data.compressed_url
+        };
+        setVideo(mappedVideo);
       }
-
-      // Map the database video to our Video interface
-      const mappedVideo: Video = {
-        id: videoData.id,
-        title: videoData.title,
-        video_url: videoData.video_url,
-        thumbnail_url: videoData.thumbnail_url,
-        duration: videoData.duration,
-        video_type: videoData.video_type as 'match' | 'training' | 'interview' | 'highlight',
-        description: videoData.description,
-        tags: Array.isArray(videoData.tagged_players) 
-          ? videoData.tagged_players.map((tag: any) => String(tag)) 
-          : [],
-        ai_analysis_status: (videoData.ai_analysis_status === 'pending' || 
-                           videoData.ai_analysis_status === 'analyzing' || 
-                           videoData.ai_analysis_status === 'completed' || 
-                           videoData.ai_analysis_status === 'failed') 
-                           ? videoData.ai_analysis_status 
-                           : 'pending',
-        created_at: videoData.created_at,
-        opposing_team: videoData.opposing_team,
-        match_date: videoData.match_date,
-        score: videoData.score_display || undefined,
-        league_competition: videoData.competition || undefined
-      };
-
-      setVideo(mappedVideo);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching video:', error);
       toast({
         title: "Error",
-        description: "Failed to load video",
+        description: "Failed to load video data",
         variant: "destructive"
       });
     } finally {
@@ -146,21 +130,11 @@ const VideoAnalysisResults = () => {
     }
   };
 
-  const handleBack = () => {
-    navigate(-1);
-  };
-
   const handleAnalyzeVideo = () => {
     toast({
       title: "AI Analysis",
-      description: "AI video analysis feature coming soon!",
+      description: "AI video analysis feature is coming soon!",
     });
-  };
-
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -171,232 +145,216 @@ const VideoAnalysisResults = () => {
     });
   };
 
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(1)} MB`;
+  };
+
   if (isLoading) {
     return (
-      <Layout>
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-center min-h-[50vh]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bright-pink mx-auto mb-4"></div>
-              <p className="text-gray-400">Loading video...</p>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bright-pink mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading video...</p>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   if (!video) {
     return (
-      <Layout>
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col items-center justify-center min-h-[50vh]">
-            <p className="text-red-400 mb-4">Video not found</p>
-            <Button onClick={handleBack} className="bg-rosegold text-black hover:bg-rosegold/90">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Go Back
-            </Button>
-          </div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Video Not Found</h2>
+          <p className="text-gray-400 mb-6">The video you're looking for doesn't exist or has been removed.</p>
+          <Button 
+            onClick={() => navigate('/videos')}
+            className="bg-bright-pink hover:bg-bright-pink/90"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Videos
+          </Button>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Header with back button */}
+    <div className="min-h-screen bg-gray-900 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button 
-            variant="ghost" 
-            onClick={handleBack}
-            className="text-white hover:text-rosegold"
+          <Button
+            onClick={() => navigate('/videos')}
+            variant="outline"
+            className="border-gray-600 text-gray-300 hover:bg-gray-700"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Videos
           </Button>
-          <h1 className="text-3xl font-polysans text-white">{video.title}</h1>
+          <h1 className="text-2xl font-polysans text-white">{video.title}</h1>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          <div className="xl:col-span-2">
-            <Card className="bg-gray-800 border-gray-700">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Video Player */}
+          <div className="lg:col-span-2">
+            <Card className="bg-gray-800 border-gray-700 overflow-hidden">
               <CardContent className="p-0">
-                <div className="relative aspect-video bg-black rounded-t-lg overflow-hidden">
+                <div className="relative aspect-video bg-black">
                   <video
-                    className="w-full h-full object-contain"
-                    controls
+                    src={video.compressed_url || video.video_url}
                     poster={video.thumbnail_url}
+                    controls
+                    className="w-full h-full object-contain"
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
-                    onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                    onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
                   >
-                    <source src={video.video_url} type="video/mp4" />
                     Your browser does not support the video tag.
                   </video>
                 </div>
                 
-                <div className="p-4 bg-gray-800">
+                {/* Video Controls Info */}
+                <div className="p-4 border-t border-gray-700">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 text-sm text-gray-400">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {formatDuration(currentTime)} / {formatDuration(duration || video.duration)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-4 h-4" />
-                        {video.video_type.charAt(0).toUpperCase() + video.video_type.slice(1)}
-                      </span>
+                      <span>Duration: {formatDuration(video.duration)}</span>
+                      <span>•</span>
+                      <span className="capitalize">{video.video_type}</span>
+                      {video.file_size && (
+                        <>
+                          <span>•</span>
+                          <span>{formatFileSize(video.file_size)}</span>
+                        </>
+                      )}
                     </div>
-                    
+                    <Badge className={`
+                      ${video.ai_analysis_status === 'completed' ? 'bg-green-900/20 text-green-400' :
+                        video.ai_analysis_status === 'analyzing' ? 'bg-blue-900/20 text-blue-400' :
+                        video.ai_analysis_status === 'failed' ? 'bg-red-900/20 text-red-400' :
+                        'bg-gray-900/20 text-gray-400'} border-0
+                    `}>
+                      {video.ai_analysis_status}
+                    </Badge>
+                  </div>
+                  
+                  {/* AI Analysis Button */}
+                  <div className="mt-4">
                     <Button
                       onClick={handleAnalyzeVideo}
-                      className="bg-bright-pink hover:bg-bright-pink/90 text-white"
+                      className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white"
+                      size="lg"
                     >
-                      <Zap className="w-4 h-4 mr-2" />
-                      Analyze with AI
+                      <Zap className="w-5 h-5 mr-2" />
+                      Analyze Video with AI
                     </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
-
-            {video.description && (
-              <Card className="bg-gray-800 border-gray-700 mt-6">
-                <CardHeader>
-                  <CardTitle className="text-white">Description</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-300">{video.description}</p>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
+          {/* Video Information Sidebar */}
           <div className="space-y-6">
+            {/* Basic Info */}
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <VideoIcon className="w-5 h-5" />
-                  Video Details
-                </CardTitle>
+                <CardTitle className="text-white">Video Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Type</span>
-                  <span className="text-white capitalize">{video.video_type}</span>
+                <div>
+                  <h4 className="font-medium text-gray-300 mb-1">Title</h4>
+                  <p className="text-white">{video.title}</p>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Duration</span>
-                  <span className="text-white">{formatDuration(video.duration)}</span>
+                {video.description && (
+                  <div>
+                    <h4 className="font-medium text-gray-300 mb-1">Description</h4>
+                    <p className="text-gray-400 text-sm">{video.description}</p>
+                  </div>
+                )}
+
+                <div>
+                  <h4 className="font-medium text-gray-300 mb-1">Upload Date</h4>
+                  <p className="text-gray-400">{formatDate(video.created_at)}</p>
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Uploaded</span>
-                  <span className="text-white">{formatDate(video.created_at)}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">AI Status</span>
-                  <span className={`text-sm font-medium px-2 py-1 rounded ${
-                    video.ai_analysis_status === 'completed' ? 'bg-green-900/20 text-green-400' :
-                    video.ai_analysis_status === 'analyzing' ? 'bg-blue-900/20 text-blue-400' :
-                    video.ai_analysis_status === 'failed' ? 'bg-red-900/20 text-red-400' :
-                    'bg-gray-900/20 text-gray-400'
-                  }`}>
-                    {video.ai_analysis_status.charAt(0).toUpperCase() + video.ai_analysis_status.slice(1)}
-                  </span>
+
+                <div>
+                  <h4 className="font-medium text-gray-300 mb-1">Type</h4>
+                  <Badge variant="outline" className="border-gray-600 text-gray-300 capitalize">
+                    {video.video_type}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
 
-            {video.video_type === 'match' && (video.opposing_team || video.match_date || video.score || video.league_competition) && (
+            {/* Match Details (if applicable) */}
+            {video.video_type === 'match' && (
               <Card className="bg-gray-800 border-gray-700">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
-                    Match Information
-                  </CardTitle>
+                  <CardTitle className="text-white">Match Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3">
                   {video.opposing_team && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Opponent</span>
-                      <span className="text-white">{video.opposing_team}</span>
+                    <div>
+                      <h4 className="font-medium text-gray-300 mb-1">Opposing Team</h4>
+                      <p className="text-white">{video.opposing_team}</p>
                     </div>
                   )}
                   
                   {video.match_date && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Match Date</span>
-                      <span className="text-white">{formatDate(video.match_date)}</span>
+                    <div>
+                      <h4 className="font-medium text-gray-300 mb-1">Match Date</h4>
+                      <p className="text-gray-400">{formatDate(video.match_date)}</p>
                     </div>
                   )}
                   
                   {video.score && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Score</span>
-                      <span className="text-white">{video.score}</span>
+                    <div>
+                      <h4 className="font-medium text-gray-300 mb-1">Score</h4>
+                      <p className="text-white font-mono">{video.score}</p>
                     </div>
                   )}
                   
                   {video.league_competition && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Competition</span>
-                      <span className="text-white">{video.league_competition}</span>
+                    <div>
+                      <h4 className="font-medium text-gray-300 mb-1">Competition</h4>
+                      <p className="text-white">{video.league_competition}</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
             )}
 
-            {video.tags && video.tags.length > 0 && (
+            {/* Tagged Players */}
+            {video.tags.length > 0 && (
               <Card className="bg-gray-800 border-gray-700">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Tagged Players
-                  </CardTitle>
+                  <CardTitle className="text-white">Tagged Players</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {video.tags.map((tag, index) => (
-                      <span
+                      <Badge
                         key={index}
-                        className="bg-bright-pink/20 text-bright-pink px-2 py-1 rounded-md text-sm"
+                        className="bg-bright-pink/20 text-bright-pink border-bright-pink/30"
                       >
                         {tag}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </CardContent>
               </Card>
             )}
-
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Analysis Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  onClick={handleAnalyzeVideo}
-                  className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white"
-                >
-                  <Zap className="w-4 h-4 mr-2" />
-                  Analyze with AI
-                </Button>
-                
-                <p className="text-xs text-gray-500 text-center">
-                  Generate comprehensive AI analysis including player performance, tactical insights, and key moments.
-                </p>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
-    </Layout>
+    </div>
   );
 };
 

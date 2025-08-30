@@ -162,7 +162,7 @@ const EnhancedVideoManagement = () => {
         opposing_team: video.opposing_team,
         match_date: video.match_date,
         score: video.score_display || undefined,
-        league_competition: video.competition || undefined
+        league_competition: video.league || undefined
       }));
 
       setVideos(mappedVideos);
