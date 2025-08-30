@@ -24,6 +24,7 @@ export const ClickablePlayerTag: React.FC<ClickablePlayerTagProps> = ({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    // Use the correct route that matches App.tsx routing
     navigate(`/players/${playerId}`);
   };
 

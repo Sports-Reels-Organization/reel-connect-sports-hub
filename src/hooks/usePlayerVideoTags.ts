@@ -27,7 +27,7 @@ export const usePlayerVideoTags = (playerId: string) => {
       setLoading(true);
       setError(null);
 
-      // Search for videos where the player is tagged
+      // Search for videos where the player is tagged - use maybeSingle() to handle multiple results
       const { data: videosData, error: videosError } = await supabase
         .from('videos')
         .select(`
@@ -44,7 +44,7 @@ export const usePlayerVideoTags = (playerId: string) => {
 
       if (videosError) throw videosError;
 
-      // Also check match_videos table
+      // Also check match_videos table - handle potential multiple results properly
       const { data: matchVideosData, error: matchVideosError } = await supabase
         .from('match_videos')
         .select(`
