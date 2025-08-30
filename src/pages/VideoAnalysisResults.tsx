@@ -93,6 +93,9 @@ const VideoAnalysisResults = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [videoCount, setVideoCount] = useState<number>(0);
 
   // AI analysis data - starts empty, populated only by AI analysis
   const [analysisData, setAnalysisData] = useState<AnalysisData>({
@@ -161,18 +164,75 @@ const VideoAnalysisResults = () => {
     }
   };
 
+  // Function to handle duplicate videos
+  const handleDuplicateVideos = async (title: string) => {
+    try {
+      console.log('Attempting to resolve duplicate videos for title:', title);
+      
+      // Get all videos with the same title
+      const { data: duplicateVideos, error } = await supabase
+        .from('videos')
+        .select('id, created_at, video_url, thumbnail_url')
+        .eq('title', title)
+        .eq('team_id', currentTeamId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (duplicateVideos && duplicateVideos.length > 1) {
+        console.log(`Found ${duplicateVideos.length} duplicate videos:`, duplicateVideos);
+        
+        // Keep the most recent one, delete the older ones
+        const videosToDelete = duplicateVideos.slice(1);
+        const deleteIds = videosToDelete.map(v => v.id);
+        
+        console.log('Deleting duplicate videos with IDs:', deleteIds);
+        
+        const { error: deleteError } = await supabase
+          .from('videos')
+          .delete()
+          .in('id', deleteIds);
+        
+        if (deleteError) {
+          console.error('Error deleting duplicate videos:', deleteError);
+        } else {
+          console.log('Successfully deleted duplicate videos');
+          // Refresh the page to load the remaining video
+          window.location.reload();
+        }
+      }
+    } catch (error) {
+      console.error('Error handling duplicate videos:', error);
+    }
+  };
+
   const fetchVideoData = async () => {
     if (!videoTitle || !currentTeamId) return;
 
     try {
       setIsLoading(true);
       const decodedTitle = decodeURIComponent(videoTitle);
+      
+      console.log('Fetching video data:', { videoTitle, decodedTitle, currentTeamId });
+
+      // First, let's check how many videos exist with this title
+      const { count: countResult } = await supabase
+        .from('videos')
+        .select('*', { count: 'exact', head: true })
+        .eq('title', decodedTitle)
+        .eq('team_id', currentTeamId);
+
+      const count = countResult || 0;
+      setVideoCount(count);
+      console.log(`Found ${count} videos with title: "${decodedTitle}"`);
 
       const { data, error } = await supabase
         .from('videos')
         .select('*')
         .eq('title', decodedTitle)
         .eq('team_id', currentTeamId)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
       if (error) throw error;
@@ -207,9 +267,20 @@ const VideoAnalysisResults = () => {
       }
     } catch (error) {
       console.error('Error fetching video:', error);
+      
+      let errorMessage = "Failed to load video data";
+      
+      if (error && typeof error === 'object' && 'code' in error) {
+        if (error.code === 'PGRST116') {
+          errorMessage = "Multiple videos found with the same title. This can happen when the same video is uploaded multiple times.";
+          setDuplicateCount(videoCount || 0);
+          setShowDuplicateWarning(true);
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to load video data",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -1475,6 +1546,43 @@ const VideoAnalysisResults = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Duplicate Video Warning */}
+          {showDuplicateWarning && (
+            <Card className="bg-yellow-900/20 border-yellow-700/50 backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-yellow-500/20 rounded-full">
+                    <AlertCircle className="w-6 h-6 text-yellow-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-yellow-400 font-semibold text-lg mb-2">
+                      Duplicate Videos Detected
+                    </h3>
+                    <p className="text-yellow-300 mb-4">
+                      We found {duplicateCount} videos with the same title "{videoTitle}". 
+                      This usually happens when the same video is uploaded multiple times.
+                    </p>
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => handleDuplicateVideos(videoTitle || '')}
+                        className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                      >
+                        Clean Up Duplicates
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowDuplicateWarning(false)}
+                        className="border-yellow-600 text-yellow-400 hover:bg-yellow-600 hover:text-white"
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </Layout>

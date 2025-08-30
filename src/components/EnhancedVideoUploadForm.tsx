@@ -248,6 +248,14 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     }
   };
 
+  // Utility function to sanitize filenames for storage
+  const sanitizeFileName = (name: string): string => {
+    return name
+      .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace special chars with underscore
+      .replace(/_+/g, '_') // Replace multiple underscores with single
+      .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+  };
+
   const updateProcessingStatus = (stage: ProcessingStatus['stage'], progress: number, message: string) => {
     setProcessingStatus({ stage, progress, message });
   };
@@ -311,7 +319,8 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   const uploadVideo = async (file: File): Promise<string> => {
     updateProcessingStatus('uploading', 0, 'Starting upload...');
 
-    const fileName = `${teamId}/${Date.now()}-${file.name}`;
+    const sanitizedFileName = sanitizeFileName(file.name);
+    const fileName = `${teamId}/${Date.now()}-${sanitizedFileName}`;
 
     try {
       const progressInterval = setInterval(() => {
@@ -331,6 +340,13 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         });
       }, 300);
 
+      console.log('Uploading file:', { fileName, fileSize: file.size, fileType: file.type });
+      
+      // Validate filename format
+      if (!/^[a-zA-Z0-9._/-]+$/.test(fileName)) {
+        throw new Error(`Invalid filename format: ${fileName}`);
+      }
+      
       const { data, error } = await supabase.storage
         .from('match-videos')
         .upload(fileName, file);
@@ -338,7 +354,10 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       clearInterval(progressInterval);
       updateProcessingStatus('uploading', 100, 'Upload complete!');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase upload error:', error);
+        throw error;
+      }
 
       const { data: urlData } = supabase.storage
         .from('match-videos')
@@ -346,6 +365,13 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
       return urlData.publicUrl;
     } catch (error) {
+      console.error('Upload error details:', {
+        error,
+        fileName,
+        fileSize: file.size,
+        fileType: file.type,
+        teamId
+      });
       updateProcessingStatus('error', 0, 'Upload failed');
       throw error;
     }
