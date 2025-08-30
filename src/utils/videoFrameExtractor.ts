@@ -5,6 +5,8 @@ export interface VideoFrame {
   url: string;
   width: number;
   height: number;
+  frameData?: string; // Base64 encoded frame data for Gemini
+  frameNumber?: number; // Frame sequence number
 }
 
 export interface FrameExtractionOptions {
@@ -72,12 +74,13 @@ export class VideoFrameExtractor {
   ): Promise<VideoFrame[]> {
     const frames: VideoFrame[] = [];
 
-    for (const timestamp of timestamps) {
+    for (let i = 0; i < timestamps.length; i++) {
       try {
-        const frame = await this.extractFrameAtTime(timestamp, quality, maxWidth, maxHeight);
+        const frame = await this.extractFrameAtTime(timestamps[i], quality, maxWidth, maxHeight);
+        frame.frameNumber = i + 1;
         frames.push(frame);
       } catch (error) {
-        console.warn(`Failed to extract frame at ${timestamp}s:`, error);
+        console.warn(`Failed to extract frame at ${timestamps[i]}s:`, error);
       }
     }
 
@@ -95,7 +98,6 @@ export class VideoFrameExtractor {
         try {
           // Calculate dimensions maintaining aspect ratio
           const { videoWidth, videoHeight } = this.video;
-          const aspectRatio = videoWidth / videoHeight;
           
           let { width, height } = this.calculateDimensions(
             videoWidth, 
@@ -111,6 +113,9 @@ export class VideoFrameExtractor {
           // Draw video frame to canvas
           this.context.drawImage(this.video, 0, 0, width, height);
 
+          // Get base64 data for Gemini compatibility
+          const frameData = this.canvas.toDataURL('image/jpeg', quality);
+
           // Convert to blob
           this.canvas.toBlob((blob) => {
             if (blob) {
@@ -119,7 +124,8 @@ export class VideoFrameExtractor {
                 blob,
                 url: URL.createObjectURL(blob),
                 width,
-                height
+                height,
+                frameData: frameData.split(',')[1] // Remove data:image/jpeg;base64, prefix
               };
               resolve(frame);
             } else {

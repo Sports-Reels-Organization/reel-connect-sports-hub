@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef } from 'react';
 import { GeminiVideoAnalysisService, GeminiAnalysisRequest, GeminiAnalysisResponse } from '@/services/geminiVideoAnalysisService';
 import { VideoFrameExtractor, VideoFrame } from '@/utils/videoFrameExtractor';
@@ -67,7 +68,7 @@ export const useVideoAnalysis = () => {
       validateGeminiConfig();
       geminiServiceRef.current = new GeminiVideoAnalysisService({
         apiKey: GEMINI_CONFIG.API_KEY,
-        model: GEMINI_CONFIG.DEFAULT_MODEL
+        model: GEMINI_CONFIG.DEFAULT_MODEL as "gemini-2.5-flash"
       });
       return true;
     } catch (error) {
@@ -230,7 +231,7 @@ export const useVideoAnalysis = () => {
 
         setAnalysisResult(result.analysis);
 
-        // Save to database
+        // Save to enhanced_video_analysis table instead
         await saveAnalysisToDatabase(result.analysis, {
           videoUrl,
           videoType,
@@ -265,7 +266,7 @@ export const useVideoAnalysis = () => {
     }
   }, [videoUrl, extractedFrames, initializeGeminiService]);
 
-  // Save analysis to database
+  // Save analysis to database using enhanced_video_analysis table
   const saveAnalysisToDatabase = useCallback(async (
     analysis: AnalysisResult,
     metadata: {
@@ -278,26 +279,44 @@ export const useVideoAnalysis = () => {
     }
   ) => {
     try {
+      // First, find the video by URL to get the video_id
+      const { data: videoData, error: videoError } = await supabase
+        .from('videos')
+        .select('id')
+        .eq('video_url', metadata.videoUrl)
+        .single();
+
+      if (videoError || !videoData) {
+        console.error('Video not found for analysis save:', videoError);
+        return;
+      }
+
       const { error } = await supabase
-        .from('video_analyses')
+        .from('enhanced_video_analysis')
         .insert({
-          video_url: metadata.videoUrl,
-          video_type: metadata.videoType,
-          sport: metadata.sport,
-          analysis_data: analysis,
-          player_tags: metadata.playerTags,
-          team_info: metadata.teamInfo,
-          context: metadata.context,
-          created_at: new Date().toISOString(),
-          confidence: analysis.confidence,
-          frame_count: extractedFrames.length
+          video_id: videoData.id,
+          analysis_status: 'completed',
+          overall_assessment: `AI analysis completed for ${metadata.videoType} video`,
+          recommendations: analysis.recommendations || [],
+          analysis_metadata: {
+            sport: metadata.sport,
+            video_type: metadata.videoType,
+            player_tags: metadata.playerTags,
+            team_info: metadata.teamInfo,
+            context: metadata.context,
+            confidence: analysis.confidence,
+            frame_count: extractedFrames.length
+          },
+          tagged_player_analysis: analysis.playerAnalysis || {},
+          key_events: analysis.matchEvents || [],
+          created_at: new Date().toISOString()
         });
 
       if (error) {
-        console.error('Error saving analysis:', error);
+        console.error('Error saving enhanced analysis:', error);
       }
     } catch (error) {
-      console.error('Failed to save analysis:', error);
+      console.error('Failed to save enhanced analysis:', error);
     }
   }, [extractedFrames.length]);
 
@@ -325,17 +344,24 @@ export const useVideoAnalysis = () => {
     }
   }, [videoUrl]);
 
-  // Get analysis history
+  // Get analysis history from enhanced_video_analysis table
   const getAnalysisHistory = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('video_analyses')
-        .select('*')
+        .from('enhanced_video_analysis')
+        .select(`
+          *,
+          videos (
+            title,
+            video_type,
+            created_at
+          )
+        `)
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) throw error;
-      return data;
+      return data || [];
     } catch (error) {
       console.error('Failed to fetch analysis history:', error);
       return [];
