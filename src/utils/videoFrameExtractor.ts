@@ -1,12 +1,8 @@
 
 export interface VideoFrame {
   timestamp: number;
-  blob: Blob;
-  url: string;
-  width: number;
-  height: number;
-  frameData: string; // Base64 encoded frame data for Gemini (required)
-  frameNumber: number; // Frame sequence number (required)
+  frameData: string; // Base64 encoded frame
+  frameNumber: number;
 }
 
 export interface FrameExtractionOptions {
@@ -19,169 +15,161 @@ export interface FrameExtractionOptions {
 
 export class VideoFrameExtractor {
   private canvas: HTMLCanvasElement;
-  private context: CanvasRenderingContext2D;
-  private video: HTMLVideoElement;
+  private ctx: CanvasRenderingContext2D;
 
   constructor() {
     this.canvas = document.createElement('canvas');
-    this.context = this.canvas.getContext('2d')!;
-    this.video = document.createElement('video');
-    this.video.crossOrigin = 'anonymous';
-    this.video.muted = true;
+    this.ctx = this.canvas.getContext('2d')!;
   }
 
-  async extractFrames(videoUrl: string, options: FrameExtractionOptions = {}): Promise<VideoFrame[]> {
+  async extractFrames(
+    videoUrl: string,
+    options: FrameExtractionOptions = {}
+  ): Promise<VideoFrame[]> {
     const {
-      frameRate = 1, // Extract 1 frame per second
+      frameRate = 1,
       maxFrames = 30,
       quality = 0.8,
-      maxWidth = 640,
-      maxHeight = 480
+      maxWidth = 800,
+      maxHeight = 600
     } = options;
 
     return new Promise((resolve, reject) => {
-      const frames: VideoFrame[] = [];
-      let frameCount = 0;
-      
-      this.video.onloadedmetadata = () => {
-        const duration = this.video.duration;
-        const interval = Math.max(1 / frameRate, duration / maxFrames);
-        const timestamps = [];
-        
-        for (let t = 0; t < duration && timestamps.length < maxFrames; t += interval) {
-          timestamps.push(t);
-        }
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.playsInline = true;
 
-        this.extractFramesAtTimestamps(timestamps, quality, maxWidth, maxHeight)
-          .then(resolve)
-          .catch(reject);
+      video.onloadedmetadata = () => {
+        try {
+          const frames: VideoFrame[] = [];
+          const duration = video.duration;
+          const frameInterval = duration / maxFrames;
+          let frameCount = 0;
+
+          const extractFrame = (currentTime: number) => {
+            if (frameCount >= maxFrames) {
+              resolve(frames);
+              return;
+            }
+
+            video.currentTime = currentTime;
+          };
+
+          video.onseeked = () => {
+            try {
+              // Set canvas dimensions
+              const aspectRatio = video.videoWidth / video.videoHeight;
+              let width = maxWidth;
+              let height = maxHeight;
+
+              if (aspectRatio > 1) {
+                height = width / aspectRatio;
+              } else {
+                width = height * aspectRatio;
+              }
+
+              this.canvas.width = width;
+              this.canvas.height = height;
+
+              // Draw video frame to canvas
+              this.ctx.drawImage(video, 0, 0, width, height);
+
+              // Convert to base64 with quality setting
+              const frameData = this.canvas.toDataURL('image/jpeg', quality);
+
+              frames.push({
+                timestamp: currentTime,
+                frameData: frameData,
+                frameNumber: frameCount
+              });
+
+              frameCount++;
+              currentTime += frameInterval;
+
+              if (currentTime < duration && frameCount < maxFrames) {
+                extractFrame(currentTime);
+              } else {
+                resolve(frames);
+              }
+            } catch (error) {
+              reject(error);
+            }
+          };
+
+          // Start frame extraction
+          extractFrame(0);
+        } catch (error) {
+          reject(error);
+        }
       };
 
-      this.video.onerror = () => {
+      video.onerror = () => {
         reject(new Error('Failed to load video'));
       };
 
-      this.video.src = videoUrl;
-      this.video.load();
+      video.src = videoUrl;
     });
   }
 
-  private async extractFramesAtTimestamps(
-    timestamps: number[], 
-    quality: number, 
-    maxWidth: number, 
-    maxHeight: number
-  ): Promise<VideoFrame[]> {
-    const frames: VideoFrame[] = [];
+  async extractFrameAtTime(
+    videoUrl: string,
+    timestamp: number,
+    options: Omit<FrameExtractionOptions, 'frameRate' | 'maxFrames'> = {}
+  ): Promise<VideoFrame | null> {
+    const { quality = 0.8, maxWidth = 800, maxHeight = 600 } = options;
 
-    for (let i = 0; i < timestamps.length; i++) {
-      try {
-        const frame = await this.extractFrameAtTime(timestamps[i], quality, maxWidth, maxHeight);
-        frame.frameNumber = i + 1;
-        frames.push(frame);
-      } catch (error) {
-        console.warn(`Failed to extract frame at ${timestamps[i]}s:`, error);
-      }
-    }
-
-    return frames;
-  }
-
-  public async extractFrameAtTime(
-    timestamp: number, 
-    quality: number = 0.8, 
-    maxWidth: number = 640, 
-    maxHeight: number = 480
-  ): Promise<VideoFrame> {
     return new Promise((resolve, reject) => {
-      const handleSeeked = () => {
-        try {
-          // Calculate dimensions maintaining aspect ratio
-          const { videoWidth, videoHeight } = this.video;
-          
-          let { width, height } = this.calculateDimensions(
-            videoWidth, 
-            videoHeight, 
-            maxWidth, 
-            maxHeight
-          );
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.playsInline = true;
 
-          // Set canvas size
+      video.onloadedmetadata = () => {
+        try {
+          video.currentTime = timestamp;
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      video.onseeked = () => {
+        try {
+          // Set canvas dimensions
+          const aspectRatio = video.videoWidth / video.videoHeight;
+          let width = maxWidth;
+          let height = maxHeight;
+
+          if (aspectRatio > 1) {
+            height = width / aspectRatio;
+          } else {
+            width = height * aspectRatio;
+          }
+
           this.canvas.width = width;
           this.canvas.height = height;
 
           // Draw video frame to canvas
-          this.context.drawImage(this.video, 0, 0, width, height);
+          this.ctx.drawImage(video, 0, 0, width, height);
 
-          // Get base64 data for Gemini compatibility
-          const frameDataUrl = this.canvas.toDataURL('image/jpeg', quality);
-          const frameData = frameDataUrl.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+          // Convert to base64 with quality setting
+          const frameData = this.canvas.toDataURL('image/jpeg', quality);
 
-          // Convert to blob
-          this.canvas.toBlob((blob) => {
-            if (blob) {
-              const frame: VideoFrame = {
-                timestamp,
-                blob,
-                url: URL.createObjectURL(blob),
-                width,
-                height,
-                frameData, // Now required and always provided
-                frameNumber: 1 // Will be overridden by caller
-              };
-              resolve(frame);
-            } else {
-              reject(new Error('Failed to create blob from canvas'));
-            }
-          }, 'image/jpeg', quality);
-
+          resolve({
+            timestamp: timestamp,
+            frameData: frameData,
+            frameNumber: 0
+          });
         } catch (error) {
           reject(error);
-        } finally {
-          this.video.removeEventListener('seeked', handleSeeked);
         }
       };
 
-      this.video.addEventListener('seeked', handleSeeked);
-      this.video.currentTime = timestamp;
+      video.onerror = () => {
+        reject(new Error('Failed to load video'));
+      };
+
+      video.src = videoUrl;
     });
-  }
-
-  private calculateDimensions(
-    originalWidth: number, 
-    originalHeight: number, 
-    maxWidth: number, 
-    maxHeight: number
-  ) {
-    const aspectRatio = originalWidth / originalHeight;
-    
-    let width = originalWidth;
-    let height = originalHeight;
-
-    // Scale down if necessary
-    if (width > maxWidth) {
-      width = maxWidth;
-      height = width / aspectRatio;
-    }
-
-    if (height > maxHeight) {
-      height = maxHeight;
-      width = height * aspectRatio;
-    }
-
-    return {
-      width: Math.round(width),
-      height: Math.round(height)
-    };
-  }
-
-  destroy() {
-    // Clean up resources
-    if (this.video.src) {
-      URL.revokeObjectURL(this.video.src);
-    }
-    this.video.src = '';
-    this.canvas.width = 0;
-    this.canvas.height = 0;
   }
 }
