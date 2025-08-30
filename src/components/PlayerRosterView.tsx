@@ -31,7 +31,7 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedPlayerForTags, setSelectedPlayerForTags] = useState<string | null>(null);
   const navigate = useNavigate();
-  
+
   const {
     availableTags,
     loading,
@@ -43,13 +43,13 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
 
   const getPlayerTags_Original = (player: DatabasePlayer) => {
     const tags: { label: string; color: string }[] = [];
-    
+
     // Contract status tags
     if (player.contract_expires) {
       const expiryDate = new Date(player.contract_expires);
       const now = new Date();
       const monthsUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30);
-      
+
       if (monthsUntilExpiry < 0) {
         tags.push({ label: 'Contract Expired', color: 'bg-red-500' });
       } else if (monthsUntilExpiry < 6) {
@@ -79,17 +79,17 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
   const sortedPlayers = [...players].sort((a, b) => {
     const aValue = a[sortBy];
     const bValue = b[sortBy];
-    
+
     if (aValue === null || aValue === undefined) return 1;
     if (bValue === null || bValue === undefined) return -1;
-    
+
     let comparison = 0;
     if (typeof aValue === 'string' && typeof bValue === 'string') {
       comparison = aValue.localeCompare(bValue);
     } else if (typeof aValue === 'number' && typeof bValue === 'number') {
       comparison = aValue - bValue;
     }
-    
+
     return sortOrder === 'asc' ? comparison : -comparison;
   });
 
@@ -103,7 +103,7 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
   };
 
   const handleViewPlayer = (player: DatabasePlayer) => {
-    navigate(`/players/${player.id}`);
+    navigate(`/player/${player.id}`);
   };
 
   if (viewMode === 'table') {
@@ -134,42 +134,42 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead 
+                <TableHead
                   className="text-white cursor-pointer hover:text-rosegold"
                   onClick={() => handleSort('full_name')}
                 >
                   Player {sortBy === 'full_name' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="text-white cursor-pointer hover:text-rosegold"
                   onClick={() => handleSort('position')}
                 >
                   Position {sortBy === 'position' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="text-white cursor-pointer hover:text-rosegold"
                   onClick={() => handleSort('age')}
                 >
                   Age {sortBy === 'age' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="text-white cursor-pointer hover:text-rosegold"
                   onClick={() => handleSort('citizenship')}
                 >
                   Nationality {sortBy === 'citizenship' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="text-white cursor-pointer hover:text-rosegold"
                   onClick={() => handleSort('contract_expires')}
                 >
                   Contract Expiry {sortBy === 'contract_expires' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="text-white cursor-pointer hover:text-rosegold"
                   onClick={() => handleSort('market_value')}
                 >
@@ -205,13 +205,13 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                     <TableCell className="text-white">{player.age || '-'}</TableCell>
                     <TableCell className="text-white">{player.citizenship}</TableCell>
                     <TableCell className="text-white">
-                      {player.contract_expires 
+                      {player.contract_expires
                         ? new Date(player.contract_expires).toLocaleDateString()
                         : '-'
                       }
                     </TableCell>
                     <TableCell className="text-white">
-                      {player.market_value 
+                      {player.market_value
                         ? `$${player.market_value.toLocaleString()}`
                         : '-'
                       }
@@ -312,7 +312,7 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {sortedPlayers.map((player) => {
@@ -353,7 +353,7 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                     <div className="flex justify-between">
                       <span>Contract:</span>
                       <span>
-                        {player.contract_expires 
+                        {player.contract_expires
                           ? new Date(player.contract_expires).getFullYear()
                           : '-'
                         }
