@@ -185,7 +185,7 @@ export function AppSidebar() {
               Sports Reels
             </h2>
             <p className="text-sm text-sidebar-foreground/70">
-              {profile?.user_type === 'team' ? t('teamDashboard') : t('agentDashboard')}
+              {profile?.user_type === 'team' ? t('Team') : t('Agent')}
             </p>
           </div>
         </div>
