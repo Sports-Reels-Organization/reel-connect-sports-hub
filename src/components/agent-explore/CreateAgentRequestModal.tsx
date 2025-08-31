@@ -33,11 +33,7 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
     transfer_type: 'permanent',
     budget_min: '',
     budget_max: '',
-    currency: 'USD',
-    passport_requirement: 'all',
-    league_level: '',
-    country: '',
-    category: 'elite'
+    currency: 'USD'
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -73,7 +69,7 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
         throw new Error('Agent profile not found');
       }
 
-      // Create the request with correct field names
+      // Create the request with only the fields that exist in the current schema
       const requestData = {
         title: formData.title,
         description: formData.description,
@@ -82,15 +78,34 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
         transfer_type: formData.transfer_type,
         budget_min: formData.budget_min ? parseFloat(formData.budget_min) : null,
         budget_max: formData.budget_max ? parseFloat(formData.budget_max) : null,
-        currency: formData.currency,
-        passport_requirement: formData.passport_requirement === 'all' ? null : formData.passport_requirement,
-        league_level: formData.league_level || null,
-        country: formData.country || null,
-        category: formData.category
+        currency: formData.currency
       };
 
-      // Use placeholder data since the database might not be synchronized
-      console.log('Would create request:', requestData);
+      // Create the request in the database
+      console.log('Inserting request data:', {
+        ...requestData,
+        agent_id: agentData.id,
+        is_public: true,
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      });
+
+      const { data: insertedRequest, error: insertError } = await supabase
+        .from('agent_requests')
+        .insert({
+          ...requestData,
+          agent_id: agentData.id,
+          is_public: true,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Database insert error:', insertError);
+        throw insertError;
+      }
+
+      console.log('Request created successfully:', insertedRequest);
       
       toast({
         title: "Request Created",
@@ -109,18 +124,22 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
         transfer_type: 'permanent',
         budget_min: '',
         budget_max: '',
-        currency: 'USD',
-        passport_requirement: 'all',
-        league_level: '',
-        country: '',
-        category: 'elite'
+        currency: 'USD'
       });
       
     } catch (error) {
       console.error('Error creating request:', error);
+      
+      let errorMessage = "Failed to create request. Please try again.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'message' in error) {
+        errorMessage = String(error.message);
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to create request. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -209,29 +228,11 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
                 <SelectContent>
                   <SelectItem value="permanent">Permanent</SelectItem>
                   <SelectItem value="loan">Loan</SelectItem>
-                  <SelectItem value="loan_with_option">Loan with Option</SelectItem>
-                  <SelectItem value="loan_with_obligation">Loan with Obligation</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="category">Category</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => handleInputChange('category', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="youth">Youth</SelectItem>
-                  <SelectItem value="womens">Women's</SelectItem>
-                  <SelectItem value="elite">Elite</SelectItem>
-                  <SelectItem value="academy">Academy</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -276,47 +277,7 @@ const CreateAgentRequestModal: React.FC<CreateAgentRequestModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                value={formData.country}
-                onChange={(e) => handleInputChange('country', e.target.value)}
-                placeholder="e.g., United Kingdom"
-              />
-            </div>
 
-            <div>
-              <Label htmlFor="passport_requirement">Passport Requirement</Label>
-              <Select
-                value={formData.passport_requirement}
-                onValueChange={(value) => handleInputChange('passport_requirement', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select passport type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Passports</SelectItem>
-                  <SelectItem value="EU">EU Passport</SelectItem>
-                  <SelectItem value="African">African Passport</SelectItem>
-                  <SelectItem value="Asian">Asian Passport</SelectItem>
-                  <SelectItem value="American">American Passport</SelectItem>
-                  <SelectItem value="Australian">Australian Passport</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="league_level">League Level</Label>
-            <Input
-              id="league_level"
-              value={formData.league_level}
-              onChange={(e) => handleInputChange('league_level', e.target.value)}
-              placeholder="e.g., Premier League, Championship, League One"
-            />
-          </div>
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>

@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Edit, Trash2, Calendar, DollarSign, MapPin, Users, Eye, FileText } from 'lucide-react';
 import MessageModal from '../MessageModal';
 import { useContractNotifications } from '@/hooks/useContractNotifications';
+import EditPitchModal from './EditPitchModal';
 
 interface TransferPitch {
   id: string;
@@ -48,6 +49,10 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
   const [selectedPitch, setSelectedPitch] = useState<TransferPitch | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [editingPitch, setEditingPitch] = useState<string | null>(null);
+  
+  // Edit Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedPitchForEdit, setSelectedPitchForEdit] = useState<TransferPitch | null>(null);
 
   // Enable contract notifications
   useContractNotifications();
@@ -108,21 +113,67 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
   };
 
   const handleDeletePitch = async (pitchId: string) => {
-    if (!confirm('Are you sure you want to delete this pitch?')) return;
+    if (!confirm('Are you sure you want to delete this pitch? This action cannot be undone.')) return;
 
     try {
-      const { error } = await supabase
-        .from('transfer_pitches')
-        .delete()
-        .eq('id', pitchId);
+      // First, check if there are any active contracts or messages for this pitch
+      const { data: contracts } = await supabase
+        .from('contracts')
+        .select('id')
+        .eq('pitch_id', pitchId)
+        .neq('status', 'cancelled');
 
-      if (error) throw error;
+      const { data: messages } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('pitch_id', pitchId);
 
-      setPitches(prev => prev.filter(p => p.id !== pitchId));
-      toast({
-        title: "Success",
-        description: "Transfer pitch deleted successfully",
-      });
+      if (contracts && contracts.length > 0) {
+        toast({
+          title: "Cannot Delete",
+          description: "This pitch has active contracts and cannot be deleted. Consider marking it as cancelled instead.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // If there are messages, we'll keep the pitch but mark it as cancelled
+      // If no messages, we can safely delete it
+      if (messages && messages.length > 0) {
+        // Mark as cancelled to preserve message history
+        const { error } = await supabase
+          .from('transfer_pitches')
+          .update({ 
+            status: 'cancelled',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', pitchId);
+
+        if (error) throw error;
+
+        setPitches(prev => prev.map(p => 
+          p.id === pitchId ? { ...p, status: 'cancelled' } : p
+        ));
+
+        toast({
+          title: "Success",
+          description: "Transfer pitch cancelled successfully (preserved due to message history)",
+        });
+      } else {
+        // Safe to delete completely
+        const { error } = await supabase
+          .from('transfer_pitches')
+          .delete()
+          .eq('id', pitchId);
+
+        if (error) throw error;
+
+        setPitches(prev => prev.filter(p => p.id !== pitchId));
+        toast({
+          title: "Success",
+          description: "Transfer pitch deleted successfully",
+        });
+      }
     } catch (error) {
       console.error('Error deleting pitch:', error);
       toast({
@@ -388,7 +439,10 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setEditingPitch(pitch.id)}
+                              onClick={() => {
+                                setSelectedPitchForEdit(pitch);
+                                setShowEditModal(true);
+                              }}
                               className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
                             >
                               <Edit className="w-4 h-4" />
@@ -428,6 +482,19 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
           currentUserId={profile?.user_id || ''}
           playerName={selectedPitch.players.full_name}
           teamName={selectedPitch.teams.team_name}
+        />
+      )}
+
+      {/* Edit Pitch Modal */}
+      {showEditModal && selectedPitchForEdit && (
+        <EditPitchModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedPitchForEdit(null);
+          }}
+          pitch={selectedPitchForEdit}
+          onPitchUpdated={fetchPitches}
         />
       )}
     </>

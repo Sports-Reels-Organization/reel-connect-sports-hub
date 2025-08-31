@@ -1,19 +1,31 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Search, Users, FileText } from 'lucide-react';
+import { TrendingUp, Search, Users, FileText, MessageSquare, BarChart3 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import AgentRequestsExplore from './AgentRequestsExplore';
 import AgentTransferTimeline from './AgentTransferTimeline';
 import AgentMarketInsights from './AgentMarketInsights';
+import UnifiedCommunicationHub from '../communication/UnifiedCommunicationHub';
+import SimplifiedContractWorkflow from '../contracts/SimplifiedContractWorkflow';
+import TransferPerformanceAnalytics from '../analytics/TransferPerformanceAnalytics';
 
 interface AgentExploreHubProps {
   initialSearch?: string;
 }
 
 export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch }) => {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('timeline');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['timeline', 'requests', 'communication', 'contracts', 'insights', 'analytics'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,7 +40,7 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 border-0">
+          <TabsList className="grid w-full grid-cols-6 border-0">
             <TabsTrigger
               value="timeline"
               className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
@@ -44,11 +56,32 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
               Agent Requests
             </TabsTrigger>
             <TabsTrigger
+              value="communication"
+              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Communication
+            </TabsTrigger>
+            <TabsTrigger
+              value="contracts"
+              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
+            >
+              <FileText className="w-4 h-4" />
+              Contracts
+            </TabsTrigger>
+            <TabsTrigger
               value="insights"
               className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
             >
               <Search className="w-4 h-4" />
               Market Insights
+            </TabsTrigger>
+            <TabsTrigger
+              value="analytics"
+              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Analytics
             </TabsTrigger>
           </TabsList>
 
@@ -62,9 +95,24 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
             <AgentRequestsExplore initialSearch={initialSearch} />
           </TabsContent>
 
+          {/* Communication Tab */}
+          <TabsContent value="communication" className="mt-6">
+            <UnifiedCommunicationHub />
+          </TabsContent>
+
+          {/* Contracts Tab */}
+          <TabsContent value="contracts" className="mt-6">
+            <SimplifiedContractWorkflow contractId="demo-contract" />
+          </TabsContent>
+
           {/* Market Insights Tab */}
           <TabsContent value="insights" className="mt-6">
             <AgentMarketInsights />
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="mt-6">
+            <TransferPerformanceAnalytics />
           </TabsContent>
         </Tabs>
       </div>

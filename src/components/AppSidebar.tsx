@@ -28,7 +28,8 @@ import {
   FileText,
   Clock,
   Newspaper,
-  Heart
+  Heart,
+  Target
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -92,7 +93,7 @@ export function AppSidebar() {
     ...baseMenuItems.slice(0, 3), // Dashboard, Explore, Messages
     {
       title: 'Shortlist',
-      url: "/shortlist",
+      url: "/agent-shortlist",
       icon: Heart,
     },
     ...baseMenuItems.slice(3), // Contracts, Profile, Notifications, News, History
@@ -110,6 +111,11 @@ export function AppSidebar() {
       title: t('videos'),
       url: "/videos",
       icon: Video,
+    },
+    {
+      title: 'Create Pitch',
+      url: "/team-explore?tab=create",
+      icon: Target,
     },
     {
       title: t('timeline'),

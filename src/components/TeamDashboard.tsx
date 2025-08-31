@@ -494,7 +494,7 @@ const TeamDashboard = () => {
                 </Button>
               </Link>
 
-              <Link to="/team-explore" className="block">
+              <Link to="/team-explore?tab=create" className="block">
                 <Button variant="outline" className="w-full justify-start">
                   <Target className="w-4 h-4 mr-2" />
                   Create Pitch
@@ -505,6 +505,13 @@ const TeamDashboard = () => {
                 <Button variant="outline" className="w-full justify-start">
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Check Messages
+                </Button>
+              </Link>
+
+              <Link to="/team-explore?tab=analytics" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  View Analytics
                 </Button>
               </Link>
 

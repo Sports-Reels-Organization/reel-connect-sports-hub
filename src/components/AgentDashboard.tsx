@@ -544,7 +544,7 @@ const AgentDashboard = () => {
                 </Button>
               </Link>
 
-              <Link to="/shortlist" className="block">
+              <Link to="/agent-shortlist" className="block">
                 <Button variant="outline" className="w-full justify-start">
                   <Heart className="w-4 h-4 mr-2" />
                   View Shortlist
@@ -562,6 +562,20 @@ const AgentDashboard = () => {
                 <Button variant="outline" className="w-full justify-start">
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Check Messages
+                </Button>
+              </Link>
+
+              <Link to="/explore?tab=communication" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Communication Hub
+                </Button>
+              </Link>
+
+              <Link to="/explore?tab=analytics" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  View Analytics
                 </Button>
               </Link>
 
