@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Heart, MessageSquare, Calendar, DollarSign, MapPin, User, Trash2 } from 'lucide-react';
-import { extractSingleResult } from '@/types/supabase-helpers';
 
 interface ShortlistedPitch {
   id: string;
@@ -14,7 +14,7 @@ interface ShortlistedPitch {
   pitch_id: string;
   notes?: string;
   created_at: string;
-  players: {
+  player: {
     id: string;
     full_name: string;
     position: string;
@@ -24,14 +24,14 @@ interface ShortlistedPitch {
     market_value?: number;
     age?: number;
   };
-  transfer_pitches: {
+  pitch: {
     id: string;
     asking_price?: number;
     currency: string;
     transfer_type: string;
     expires_at: string;
     status: string;
-    teams: {
+    team: {
       team_name: string;
       country: string;
       logo_url?: string;
@@ -68,60 +68,74 @@ const AgentShortlist = () => {
       const { data, error } = await supabase
         .from('shortlist')
         .select(`
-          *,
-          players!inner(
-            id,
-            full_name,
-            position,
-            citizenship,
-            headshot_url,
-            photo_url,
-            market_value,
-            date_of_birth
-          ),
-          transfer_pitches!inner(
-            id,
-            asking_price,
-            currency,
-            transfer_type,
-            expires_at,
-            status,
-            teams!inner(
-              team_name,
-              country,
-              logo_url
-            )
-          )
+          id,
+          player_id,
+          pitch_id,
+          notes,
+          created_at
         `)
-        .eq('agent_id', agentData.id)
-        .eq('transfer_pitches.status', 'active')
-        .gt('transfer_pitches.expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
+        .eq('agent_id', agentData.id);
 
       if (error) throw error;
 
-      // Process data safely using helper functions
-      const processedData = (data || []).map(item => {
-        const player = extractSingleResult(item.players);
-        const transferPitch = extractSingleResult(item.transfer_pitches);
-        const team = transferPitch ? extractSingleResult(transferPitch.teams) : null;
+      if (!data) {
+        setShortlistedPitches([]);
+        setLoading(false);
+        return;
+      }
 
-        return {
-          ...item,
-          players: {
-            ...player,
-            age: player?.date_of_birth
-              ? new Date().getFullYear() - new Date(player.date_of_birth).getFullYear()
-              : undefined
-          },
-          transfer_pitches: {
-            ...transferPitch,
-            teams: team || { team_name: 'Unknown Team', country: 'Unknown' }
+      // Fetch additional data for each shortlisted item
+      const enrichedData = await Promise.all(
+        data.map(async (item) => {
+          // Fetch player data
+          const { data: playerData } = await supabase
+            .from('players')
+            .select('id, full_name, position, citizenship, headshot_url, photo_url, market_value, date_of_birth')
+            .eq('id', item.player_id)
+            .single();
+
+          // Fetch pitch data with team
+          const { data: pitchData } = await supabase
+            .from('transfer_pitches')
+            .select(`
+              id,
+              asking_price,
+              currency,
+              transfer_type,
+              expires_at,
+              status,
+              team_id
+            `)
+            .eq('id', item.pitch_id)
+            .single();
+
+          let teamData = null;
+          if (pitchData?.team_id) {
+            const { data: team } = await supabase
+              .from('teams')
+              .select('team_name, country, logo_url')
+              .eq('id', pitchData.team_id)
+              .single();
+            teamData = team;
           }
-        };
-      }).filter(item => item.players && item.transfer_pitches);
 
-      setShortlistedPitches(processedData);
+          return {
+            ...item,
+            player: {
+              ...playerData,
+              age: playerData?.date_of_birth
+                ? new Date().getFullYear() - new Date(playerData.date_of_birth).getFullYear()
+                : undefined
+            },
+            pitch: {
+              ...pitchData,
+              team: teamData || { team_name: 'Unknown Team', country: 'Unknown' }
+            }
+          };
+        })
+      );
+
+      setShortlistedPitches(enrichedData.filter(item => item.player && item.pitch));
     } catch (error) {
       console.error('Error fetching shortlisted pitches:', error);
       toast({
@@ -222,10 +236,10 @@ const AgentShortlist = () => {
                     {/* Player Header */}
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700">
-                        {item.players.headshot_url || item.players.photo_url ? (
+                        {item.player.headshot_url || item.player.photo_url ? (
                           <img
-                            src={item.players.headshot_url || item.players.photo_url}
-                            alt={item.players.full_name}
+                            src={item.player.headshot_url || item.player.photo_url}
+                            alt={item.player.full_name}
                             className="w-full h-full object-cover"
                           />
                         ) : (
@@ -236,10 +250,10 @@ const AgentShortlist = () => {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-polysans font-bold text-white text-sm">
-                          {item.players.full_name}
+                          {item.player.full_name}
                         </h3>
                         <p className="text-gray-300 font-poppins text-xs">
-                          {item.players.position}
+                          {item.player.position}
                         </p>
                       </div>
                       <Button
@@ -255,25 +269,25 @@ const AgentShortlist = () => {
                     {/* Team Info */}
                     <div className="flex items-center gap-2 text-sm text-gray-400">
                       <MapPin className="h-3 w-3" />
-                      <span>{item.transfer_pitches.teams.team_name}, {item.transfer_pitches.teams.country}</span>
+                      <span>{item.pitch.team.team_name}, {item.pitch.team.country}</span>
                     </div>
 
                     {/* Transfer Info */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Badge variant={item.transfer_pitches.transfer_type === 'permanent' ? 'default' : 'secondary'}>
-                          {item.transfer_pitches.transfer_type.toUpperCase()}
+                        <Badge variant={item.pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}>
+                          {item.pitch.transfer_type.toUpperCase()}
                         </Badge>
                         <div className="text-xs text-gray-400">
                           <Calendar className="h-3 w-3 inline mr-1" />
-                          {formatDaysLeft(item.transfer_pitches.expires_at)}
+                          {formatDaysLeft(item.pitch.expires_at)}
                         </div>
                       </div>
 
-                      {item.transfer_pitches.asking_price && (
+                      {item.pitch.asking_price && (
                         <div className="flex items-center gap-1 text-bright-pink font-bold">
                           <DollarSign className="h-4 w-4" />
-                          {formatCurrency(item.transfer_pitches.asking_price, item.transfer_pitches.currency)}
+                          {formatCurrency(item.pitch.asking_price, item.pitch.currency)}
                         </div>
                       )}
                     </div>

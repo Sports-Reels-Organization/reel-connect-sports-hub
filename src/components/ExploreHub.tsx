@@ -1,570 +1,434 @@
+
 import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Users, Search, Calendar, MapPin, Filter, Tag } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-
-// Updated interface to match the actual Supabase response
-interface AgentProfile {
-  full_name: string | null;
-}
-
-interface Agent {
-  profile: AgentProfile | null;
-}
-
-interface CommentProfile {
-  full_name: string | null;
-  user_type: string;
-}
-
-interface Comment {
-  id: string;
-  content: string;
-  created_at: string;
-  tagged_players: any[];
-  profile: CommentProfile | null;
-}
-
-interface AgentRequest {
-  id: string;
-  agent_id: string;
-  description: string;
-  position: string;
-  sport_type: string;
-  budget_min: number;
-  budget_max: number;
-  currency: string;
-  created_at: string;
-  expires_at: string;
-  is_public: boolean;
-  agent: Agent | null;
-  comments: Comment[];
-}
-
-// Type for the raw database response - matching Supabase's actual response structure
-interface AgentRequestResponse {
-  id: string;
-  agent_id: string;
-  description: string;
-  position: string;
-  sport_type: string;
-  budget_min: number;
-  budget_max: number;
-  currency: string;
-  created_at: string;
-  expires_at: string;
-  is_public: boolean;
-  agent: Agent | null;
-  comments: Comment[];
-}
+import { Heart, MessageSquare, Calendar, DollarSign, MapPin, User, Star } from 'lucide-react';
 
 interface TransferPitch {
   id: string;
-  players: {
+  asking_price?: number;
+  currency: string;
+  transfer_type: string;
+  expires_at: string;
+  status: string;
+  view_count?: number;
+  message_count?: number;
+  shortlist_count?: number;
+  player: {
     id: string;
     full_name: string;
     position: string;
     citizenship: string;
+    photo_url?: string;
+    headshot_url?: string;
   };
-  teams: {
+  team: {
     team_name: string;
     country: string;
+    logo_url?: string;
   };
-  asking_price: number;
-  currency: string;
 }
 
-// Helper function to safely parse tagged_players
-const parseTaggedPlayers = (taggedPlayers: any): any[] => {
-  if (Array.isArray(taggedPlayers)) {
-    return taggedPlayers;
-  }
-  if (typeof taggedPlayers === 'string') {
-    try {
-      const parsed = JSON.parse(taggedPlayers);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.warn('Failed to parse tagged_players:', e);
-      return [];
-    }
-  }
-  return [];
-};
+interface AgentRequest {
+  id: string;
+  title: string;
+  description: string;
+  sport_type: string;
+  position?: string;
+  budget_min?: number;
+  budget_max?: number;
+  currency: string;
+  expires_at: string;
+  created_at: string;
+  agent: {
+    agency_name: string;
+  };
+}
 
-const ExploreHub: React.FC = () => {
+const ExploreHub = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const [requests, setRequests] = useState<AgentRequestResponse[]>([]);
-  const [pitches, setPitches] = useState<TransferPitch[]>([]);
+  const [transferPitches, setTransferPitches] = useState<TransferPitch[]>([]);
+  const [agentRequests, setAgentRequests] = useState<AgentRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
-  const [commentText, setCommentText] = useState('');
-  const [activeComment, setActiveComment] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchRequests = async () => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('agent_requests')
-        .select(`
-          *,
-          agent:agents!inner(
-            profile:profiles!inner(
-              full_name
-            )
-          ),
-          comments:agent_request_comments(
-            id,
-            content,
-            created_at,
-            tagged_players,
-            profile:profiles!inner(
-              full_name,
-              user_type
-            )
-          )
-        `)
-        .eq('is_public', true)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Safe type conversion with proper error handling
-      const typedData: AgentRequestResponse[] = (data || []).map(item => {
-        // Handle potential errors in nested data
-        let agentProfile = null;
-        try {
-          if (item.agent && typeof item.agent === 'object' && 'profile' in item.agent) {
-            agentProfile = {
-              full_name: item.agent.profile?.full_name || null
-            };
-          }
-        } catch (e) {
-          console.warn('Error parsing agent profile:', e);
-        }
-
-        const comments = (item.comments || []).map(comment => {
-          let commentProfile = null;
-          try {
-            if (comment.profile && typeof comment.profile === 'object') {
-              commentProfile = {
-                full_name: comment.profile.full_name || null,
-                user_type: comment.profile.user_type || 'unknown'
-              };
-            }
-          } catch (e) {
-            console.warn('Error parsing comment profile:', e);
-          }
-
-          return {
-            ...comment,
-            tagged_players: parseTaggedPlayers(comment.tagged_players),
-            profile: commentProfile
-          };
-        });
-
-        return {
-          ...item,
-          agent: agentProfile ? { profile: agentProfile } : null,
-          comments
-        };
-      });
-
-      setRequests(typedData);
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load agent requests",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const fetchPitches = async () => {
-    try {
-      const { data, error } = await supabase
+      // Fetch transfer pitches
+      const { data: pitchesData, error: pitchesError } = await supabase
         .from('transfer_pitches')
         .select(`
           id,
           asking_price,
           currency,
-          players:players!inner(
-            id,
-            full_name,
-            position,
-            citizenship
-          ),
-          teams:teams!inner(
-            team_name,
-            country
-          )
+          transfer_type,
+          expires_at,
+          status,
+          view_count,
+          message_count,
+          shortlist_count,
+          player_id,
+          team_id
         `)
         .eq('status', 'active')
         .gt('expires_at', new Date().toISOString())
-        .limit(20);
+        .order('created_at', { ascending: false })
+        .limit(6);
 
-      if (error) throw error;
-      setPitches(data || []);
+      if (pitchesError) throw pitchesError;
+
+      // Enrich pitches with player and team data
+      if (pitchesData) {
+        const enrichedPitches = await Promise.all(
+          pitchesData.map(async (pitch) => {
+            const [playerResult, teamResult] = await Promise.all([
+              supabase
+                .from('players')
+                .select('id, full_name, position, citizenship, photo_url, headshot_url')
+                .eq('id', pitch.player_id)
+                .single(),
+              supabase
+                .from('teams')
+                .select('team_name, country, logo_url')
+                .eq('id', pitch.team_id)
+                .single()
+            ]);
+
+            return {
+              ...pitch,
+              player: playerResult.data || { id: '', full_name: 'Unknown Player', position: '', citizenship: '' },
+              team: teamResult.data || { team_name: 'Unknown Team', country: '' }
+            };
+          })
+        );
+
+        setTransferPitches(enrichedPitches);
+      }
+
+      // Fetch agent requests
+      const { data: requestsData, error: requestsError } = await supabase
+        .from('agent_requests')
+        .select(`
+          id,
+          title,
+          description,
+          sport_type,
+          position,
+          budget_min,
+          budget_max,
+          currency,
+          expires_at,
+          created_at,
+          agent_id
+        `)
+        .eq('is_public', true)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(4);
+
+      if (requestsError) throw requestsError;
+
+      // Enrich requests with agent data
+      if (requestsData) {
+        const enrichedRequests = await Promise.all(
+          requestsData.map(async (request) => {
+            const { data: agentData } = await supabase
+              .from('agents')
+              .select('agency_name')
+              .eq('id', request.agent_id)
+              .single();
+
+            return {
+              ...request,
+              agent: agentData || { agency_name: 'Unknown Agency' }
+            };
+          })
+        );
+
+        setAgentRequests(enrichedRequests);
+      }
     } catch (error) {
-      console.error('Error fetching pitches:', error);
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch explore data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handlePlayerToggle = (playerId: string) => {
-    setSelectedPlayers(prev =>
-      prev.includes(playerId)
-        ? prev.filter(id => id !== playerId)
-        : [...prev, playerId]
-    );
-  };
-
-  const handleSubmitComment = async (requestId: string) => {
-    if (!commentText.trim() || !profile?.user_id) return;
+  const addToShortlist = async (pitchId: string, playerId: string) => {
+    if (!profile?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to add players to your shortlist",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
-      const { data: profileData } = await supabase
-        .from('profiles')
+      // Get agent ID
+      const { data: agentData } = await supabase
+        .from('agents')
         .select('id')
-        .eq('user_id', profile.user_id)
+        .eq('profile_id', profile.id)
         .single();
 
-      if (!profileData) return;
-
-      const commentData = {
-        request_id: requestId,
-        profile_id: profileData.id,
-        content: commentText,
-        tagged_players: selectedPlayers.map(playerId => {
-          const pitch = pitches.find(p => p.players.id === playerId);
-          return {
-            player_id: playerId,
-            player_name: pitch?.players.full_name,
-            pitch_id: pitch?.id,
-            team_name: pitch?.teams.team_name
-          };
-        })
-      };
+      if (!agentData) {
+        toast({
+          title: "Error",
+          description: "Agent profile not found",
+          variant: "destructive"
+        });
+        return;
+      }
 
       const { error } = await supabase
-        .from('agent_request_comments')
-        .insert(commentData);
+        .from('shortlist')
+        .insert({
+          agent_id: agentData.id,
+          player_id: playerId,
+          pitch_id: pitchId
+        });
 
       if (error) throw error;
 
-      setCommentText('');
-      setSelectedPlayers([]);
-      setActiveComment(null);
-
       toast({
-        title: "Comment posted",
-        description: selectedPlayers.length > 0
-          ? `Comment posted with ${selectedPlayers.length} tagged player${selectedPlayers.length > 1 ? 's' : ''}`
-          : "Comment posted successfully"
+        title: "Success",
+        description: "Player added to shortlist",
       });
-
-      // Refresh requests to show new comment
-      fetchRequests();
     } catch (error) {
-      console.error('Error posting comment:', error);
+      console.error('Error adding to shortlist:', error);
       toast({
         title: "Error",
-        description: "Failed to post comment",
+        description: "Failed to add player to shortlist",
         variant: "destructive"
       });
     }
   };
 
-  const filteredRequests = requests.filter(request =>
-    request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    request.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    request.sport_type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const formatCurrency = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchRequests(), fetchPitches()]);
-      setLoading(false);
-    };
-
-    loadData();
-  }, []);
+  const formatDaysLeft = (expiresAt: string) => {
+    const expires = new Date(expiresAt);
+    const now = new Date();
+    const diffInDays = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays <= 0) return 'Expired';
+    if (diffInDays === 1) return '1 day left';
+    return `${diffInDays} days left`;
+  };
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i} className="border-gray-700">
-            <CardContent className="p-6">
-              <div className="animate-pulse space-y-4">
-                <div className="h-6 bg-gray-700 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-700 rounded w-1/2"></div>
-                <div className="h-16 bg-gray-700 rounded"></div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-700 rounded w-1/4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-64 bg-gray-700 rounded"></div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-polysans font-bold text-white">Explore Requests</h1>
-          <p className="text-gray-400 mt-1">Discover agent requests and tag your players</p>
-        </div>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-80">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search requests..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-800 border-gray-600 text-white"
-            />
-          </div>
-          <Badge variant="outline" className="text-white border-white">
-            {filteredRequests.length} Active
-          </Badge>
-        </div>
-      </div>
-
-      {/* Player Selection Panel */}
-      {selectedPlayers.length > 0 && (
-        <Card className="border-blue-500 bg-blue-900/20">
-          <CardHeader>
-            <CardTitle className="text-lg text-white flex items-center gap-2">
-              <Tag className="w-5 h-5" />
-              Selected Players ({selectedPlayers.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {selectedPlayers.map(playerId => {
-                const pitch = pitches.find(p => p.players.id === playerId);
-                return pitch ? (
-                  <Badge
-                    key={playerId}
-                    variant="secondary"
-                    className="bg-blue-600 text-white cursor-pointer hover:bg-blue-700"
-                    onClick={() => handlePlayerToggle(playerId)}
-                  >
-                    {pitch.players.full_name} ×
-                  </Badge>
-                ) : null;
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Available Players */}
-      {profile?.user_type === 'team' && pitches.length > 0 && (
-        <Card className="border-gray-700 bg-gray-800/50">
-          <CardHeader>
-            <CardTitle className="text-lg text-white">Your Available Players</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {pitches.slice(0, 6).map(pitch => (
-                <Button
-                  key={pitch.players.id}
-                  variant={selectedPlayers.includes(pitch.players.id) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handlePlayerToggle(pitch.players.id)}
-                  className={selectedPlayers.includes(pitch.players.id)
-                    ? "bg-blue-600 hover:bg-blue-700 text-white"
-                    : "border-gray-600 text-gray-300 hover:bg-gray-700"
-                  }
-                >
-                  {pitch.players.full_name} - {pitch.players.position}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Requests */}
-      <div className="space-y-6">
-        {filteredRequests.length === 0 ? (
-          <Card className="border-gray-700">
-            <CardContent className="p-12 text-center">
-              <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-              <h3 className="text-xl font-semibold text-white mb-2">
-                No Active Requests
+    <div className="space-y-8">
+      {/* Transfer Pitches Section */}
+      <Card className="border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white font-polysans">
+            Latest Transfer Pitches
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {transferPitches.length === 0 ? (
+            <div className="text-center py-12">
+              <Star className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+              <h3 className="text-xl font-polysans font-semibold text-white mb-2">
+                No Active Pitches
               </h3>
-              <p className="text-gray-400">
-                No agent requests match your search criteria.
+              <p className="text-gray-400 font-poppins">
+                Check back later for new transfer opportunities.
               </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredRequests.map(request => (
-            <Card key={request.id} className="border-gray-700 bg-gray-800/50">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarFallback>
-                        {request.agent?.profile?.full_name?.charAt(0) || 'A'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-lg text-white">
-                        {request.position} - {request.sport_type}
-                      </CardTitle>
-                      <p className="text-sm text-gray-400">
-                        by {request.agent?.profile?.full_name || 'Unknown Agent'}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-green-400 border-green-400">
-                    Active
-                  </Badge>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <span className="text-sm text-gray-400">Position:</span>
-                    <p className="text-white font-medium">{request.position}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-400">Budget:</span>
-                    <p className="text-white font-medium">
-                      {request.currency} {request.budget_min.toLocaleString()} - {request.budget_max.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-400">Sport Type:</span>
-                    <p className="text-white font-medium">{request.sport_type}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-gray-300">{request.description}</p>
-                </div>
-
-                <div className="flex items-center gap-4 text-sm text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MessageCircle className="w-4 h-4" />
-                    {request.comments?.length || 0} comments
-                  </div>
-                </div>
-
-                {/* Comments */}
-                {request.comments && request.comments.length > 0 && (
-                  <div className="border-t border-gray-700 pt-4">
-                    <h4 className="text-sm font-semibold text-white mb-3">Comments</h4>
-                    <div className="space-y-3">
-                      {request.comments.map(comment => (
-                        <div key={comment.id} className="bg-gray-700/30 rounded-lg p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-white">
-                              {comment.profile?.full_name || 'Anonymous User'}
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {comment.profile?.user_type || 'Unknown'}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-300 mb-2">{comment.content}</p>
-
-                          {comment.tagged_players && comment.tagged_players.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {comment.tagged_players.map((player: any, index: number) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
-                                  {player.player_name}
-                                </Badge>
-                              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {transferPitches.map((pitch) => (
+                <Card key={pitch.id} className="border-gray-600 hover:border-rosegold/50 transition-colors">
+                  <CardContent className="p-4">
+                    <div className="space-y-4">
+                      {/* Player Header */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700">
+                          {pitch.player.headshot_url || pitch.player.photo_url ? (
+                            <img
+                              src={pitch.player.headshot_url || pitch.player.photo_url}
+                              alt={pitch.player.full_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <User className="w-6 h-6 text-gray-400" />
                             </div>
                           )}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-polysans font-bold text-white text-sm">
+                            {pitch.player.full_name}
+                          </h3>
+                          <p className="text-gray-300 font-poppins text-xs">
+                            {pitch.player.position}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => addToShortlist(pitch.id, pitch.player.id)}
+                          size="sm"
+                          variant="ghost"
+                          className="text-bright-pink hover:text-bright-pink/80"
+                        >
+                          <Heart className="w-4 h-4" />
+                        </Button>
+                      </div>
 
-                          <span className="text-xs text-gray-400">
-                            {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                      {/* Team Info */}
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <MapPin className="h-3 w-3" />
+                        <span>{pitch.team.team_name}, {pitch.team.country}</span>
+                      </div>
 
-                {/* Comment Form */}
-                <div className="border-t border-gray-700 pt-4">
-                  {activeComment === request.id ? (
-                    <div className="space-y-3">
-                      <Textarea
-                        placeholder="Share your thoughts or tag players..."
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        className="bg-gray-700 border-gray-600 text-white"
-                        rows={3}
-                      />
-                      <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-400">
-                          {selectedPlayers.length > 0 && (
-                            <span>{selectedPlayers.length} player{selectedPlayers.length > 1 ? 's' : ''} selected</span>
-                          )}
+                      {/* Transfer Info */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Badge variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}>
+                            {pitch.transfer_type.toUpperCase()}
+                          </Badge>
+                          <div className="text-xs text-gray-400">
+                            <Calendar className="h-3 w-3 inline mr-1" />
+                            {formatDaysLeft(pitch.expires_at)}
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setActiveComment(null);
-                              setCommentText('');
-                              setSelectedPlayers([]);
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleSubmitComment(request.id)}
-                            disabled={!commentText.trim()}
-                            className="bg-rosegold hover:bg-rosegold/90"
-                          >
-                            Post Comment
-                          </Button>
-                        </div>
+
+                        {pitch.asking_price && (
+                          <div className="flex items-center gap-1 text-bright-pink font-bold">
+                            <DollarSign className="h-4 w-4" />
+                            {formatCurrency(pitch.asking_price, pitch.currency)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Stats */}
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>{pitch.view_count || 0} views</span>
+                        <span>{pitch.message_count || 0} messages</span>
+                        <span>{pitch.shortlist_count || 0} shortlisted</span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white text-xs"
+                        >
+                          <MessageSquare className="h-3 w-3 mr-1" />
+                          Message
+                        </Button>
                       </div>
                     </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveComment(request.id)}
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Add Comment
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Agent Requests Section */}
+      <Card className="border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white font-polysans">
+            Agent Requests
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {agentRequests.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+              <h3 className="text-xl font-polysans font-semibold text-white mb-2">
+                No Active Requests
+              </h3>
+              <p className="text-gray-400 font-poppins">
+                Check back later for new agent requests.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {agentRequests.map((request) => (
+                <Card key={request.id} className="border-gray-600 hover:border-rosegold/50 transition-colors">
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <h3 className="font-polysans font-bold text-white text-sm">
+                          {request.title}
+                        </h3>
+                        <Badge variant="outline" className="text-xs">
+                          {request.sport_type}
+                        </Badge>
+                      </div>
+                      
+                      <p className="text-gray-300 text-xs line-clamp-2">
+                        {request.description}
+                      </p>
+                      
+                      {request.position && (
+                        <div className="text-xs text-gray-400">
+                          Position: {request.position}
+                        </div>
+                      )}
+                      
+                      {(request.budget_min || request.budget_max) && (
+                        <div className="text-xs text-bright-pink">
+                          Budget: {request.budget_min ? formatCurrency(request.budget_min, request.currency) : '0'} 
+                          {request.budget_max ? ` - ${formatCurrency(request.budget_max, request.currency)}` : '+'}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>{request.agent.agency_name}</span>
+                        <span>{formatDaysLeft(request.expires_at)}</span>
+                      </div>
+                      
+                      <Button size="sm" className="w-full bg-bright-pink hover:bg-bright-pink/90 text-white text-xs">
+                        Respond to Request
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
