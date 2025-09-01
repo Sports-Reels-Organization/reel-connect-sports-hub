@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { extractSingleResult, DatabaseTeam } from '@/types/supabase-helpers';
 
 interface PlayerVideo {
   id: string;
@@ -28,7 +27,7 @@ export const usePlayerVideoTags = (playerId: string) => {
       setLoading(true);
       setError(null);
 
-      // Search for videos where the player is tagged
+      // Search for videos where the player is tagged - use select() to get all matching rows
       const { data: videosData, error: videosError } = await supabase
         .from('videos')
         .select(`
@@ -45,7 +44,7 @@ export const usePlayerVideoTags = (playerId: string) => {
 
       if (videosError) throw videosError;
 
-      // Also check match_videos table
+      // Also check match_videos table - use select() to get all matching rows
       const { data: matchVideosData, error: matchVideosError } = await supabase
         .from('match_videos')
         .select(`
@@ -72,7 +71,7 @@ export const usePlayerVideoTags = (playerId: string) => {
           video_url: video.video_url,
           thumbnail_url: video.thumbnail_url,
           created_at: video.created_at,
-          team_name: extractSingleResult(video.teams as DatabaseTeam[])?.team_name
+          team_name: video.teams?.team_name
         })),
         ...(matchVideosData || []).map(video => ({
           id: video.id,
@@ -80,7 +79,7 @@ export const usePlayerVideoTags = (playerId: string) => {
           video_url: video.video_url,
           thumbnail_url: video.thumbnail_url,
           created_at: video.created_at,
-          team_name: extractSingleResult(video.teams as DatabaseTeam[])?.team_name
+          team_name: video.teams?.team_name
         }))
       ];
 

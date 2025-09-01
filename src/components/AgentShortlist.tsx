@@ -14,7 +14,7 @@ interface ShortlistedPitch {
   pitch_id: string;
   notes?: string;
   created_at: string;
-  player: {
+  players: {
     id: string;
     full_name: string;
     position: string;
@@ -24,14 +24,14 @@ interface ShortlistedPitch {
     market_value?: number;
     age?: number;
   };
-  pitch: {
+  transfer_pitches: {
     id: string;
     asking_price?: number;
     currency: string;
     transfer_type: string;
     expires_at: string;
     status: string;
-    team: {
+    teams: {
       team_name: string;
       country: string;
       logo_url?: string;
@@ -68,74 +68,50 @@ const AgentShortlist = () => {
       const { data, error } = await supabase
         .from('shortlist')
         .select(`
-          id,
-          player_id,
-          pitch_id,
-          notes,
-          created_at
+          *,
+          players!inner(
+            id,
+            full_name,
+            position,
+            citizenship,
+            headshot_url,
+            photo_url,
+            market_value,
+            date_of_birth
+          ),
+          transfer_pitches!inner(
+            id,
+            asking_price,
+            currency,
+            transfer_type,
+            expires_at,
+            status,
+            teams!inner(
+              team_name,
+              country,
+              logo_url
+            )
+          )
         `)
-        .eq('agent_id', agentData.id);
+        .eq('agent_id', agentData.id)
+        .eq('transfer_pitches.status', 'active')
+        .gt('transfer_pitches.expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      if (!data) {
-        setShortlistedPitches([]);
-        setLoading(false);
-        return;
-      }
+      // Process data to add age calculation
+      const processedData = (data || []).map(item => ({
+        ...item,
+        players: {
+          ...item.players,
+          age: item.players.date_of_birth
+            ? new Date().getFullYear() - new Date(item.players.date_of_birth).getFullYear()
+            : undefined
+        }
+      }));
 
-      // Fetch additional data for each shortlisted item
-      const enrichedData = await Promise.all(
-        data.map(async (item) => {
-          // Fetch player data
-          const { data: playerData } = await supabase
-            .from('players')
-            .select('id, full_name, position, citizenship, headshot_url, photo_url, market_value, date_of_birth')
-            .eq('id', item.player_id)
-            .single();
-
-          // Fetch pitch data with team
-          const { data: pitchData } = await supabase
-            .from('transfer_pitches')
-            .select(`
-              id,
-              asking_price,
-              currency,
-              transfer_type,
-              expires_at,
-              status,
-              team_id
-            `)
-            .eq('id', item.pitch_id)
-            .single();
-
-          let teamData = null;
-          if (pitchData?.team_id) {
-            const { data: team } = await supabase
-              .from('teams')
-              .select('team_name, country, logo_url')
-              .eq('id', pitchData.team_id)
-              .single();
-            teamData = team;
-          }
-
-          return {
-            ...item,
-            player: {
-              ...playerData,
-              age: playerData?.date_of_birth
-                ? new Date().getFullYear() - new Date(playerData.date_of_birth).getFullYear()
-                : undefined
-            },
-            pitch: {
-              ...pitchData,
-              team: teamData || { team_name: 'Unknown Team', country: 'Unknown' }
-            }
-          };
-        })
-      );
-
-      setShortlistedPitches(enrichedData.filter(item => item.player && item.pitch));
+      setShortlistedPitches(processedData);
     } catch (error) {
       console.error('Error fetching shortlisted pitches:', error);
       toast({
@@ -236,10 +212,10 @@ const AgentShortlist = () => {
                     {/* Player Header */}
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700">
-                        {item.player.headshot_url || item.player.photo_url ? (
+                        {item.players.headshot_url || item.players.photo_url ? (
                           <img
-                            src={item.player.headshot_url || item.player.photo_url}
-                            alt={item.player.full_name}
+                            src={item.players.headshot_url || item.players.photo_url}
+                            alt={item.players.full_name}
                             className="w-full h-full object-cover"
                           />
                         ) : (
@@ -250,10 +226,10 @@ const AgentShortlist = () => {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-polysans font-bold text-white text-sm">
-                          {item.player.full_name}
+                          {item.players.full_name}
                         </h3>
                         <p className="text-gray-300 font-poppins text-xs">
-                          {item.player.position}
+                          {item.players.position}
                         </p>
                       </div>
                       <Button
@@ -269,25 +245,25 @@ const AgentShortlist = () => {
                     {/* Team Info */}
                     <div className="flex items-center gap-2 text-sm text-gray-400">
                       <MapPin className="h-3 w-3" />
-                      <span>{item.pitch.team.team_name}, {item.pitch.team.country}</span>
+                      <span>{item.transfer_pitches.teams.team_name}, {item.transfer_pitches.teams.country}</span>
                     </div>
 
                     {/* Transfer Info */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Badge variant={item.pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}>
-                          {item.pitch.transfer_type.toUpperCase()}
+                        <Badge variant={item.transfer_pitches.transfer_type === 'permanent' ? 'default' : 'secondary'}>
+                          {item.transfer_pitches.transfer_type.toUpperCase()}
                         </Badge>
                         <div className="text-xs text-gray-400">
                           <Calendar className="h-3 w-3 inline mr-1" />
-                          {formatDaysLeft(item.pitch.expires_at)}
+                          {formatDaysLeft(item.transfer_pitches.expires_at)}
                         </div>
                       </div>
 
-                      {item.pitch.asking_price && (
+                      {item.transfer_pitches.asking_price && (
                         <div className="flex items-center gap-1 text-bright-pink font-bold">
                           <DollarSign className="h-4 w-4" />
-                          {formatCurrency(item.pitch.asking_price, item.pitch.currency)}
+                          {formatCurrency(item.transfer_pitches.asking_price, item.transfer_pitches.currency)}
                         </div>
                       )}
                     </div>
