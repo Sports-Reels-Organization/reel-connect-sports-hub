@@ -488,19 +488,47 @@ const AgentTransferTimeline = () => {
 
     try {
       // First, get the agent record to ensure we have the correct agent_id
-      const { data: agentData, error: agentError } = await supabase
+      let { data: agentData, error: agentError } = await supabase
         .from('agents')
         .select('id')
         .eq('profile_id', profile.id)
-        .single();
+        .maybeSingle(); // Changed from single() to maybeSingle() to handle missing agent records
 
-      if (agentError || !agentData) {
+      if (agentError) {
+        console.error('Error fetching agent data:', agentError);
         toast({
           title: "Error",
-          description: "Agent profile not found. Please ensure you have a complete agent profile.",
+          description: "Failed to fetch agent profile. Please try again.",
           variant: "destructive"
         });
         return;
+      }
+
+      if (!agentData) {
+        // No agent record exists, create one
+        console.log('No agent record found, creating one...');
+        const { data: newAgentData, error: createError } = await supabase
+          .from('agents')
+          .insert({
+            profile_id: profile.id,
+            agency_name: 'Agency', // Default name
+            specialization: ['football']
+          })
+          .select('id')
+          .single();
+        
+        if (createError) {
+          console.error('Error creating agent record:', createError);
+          toast({
+            title: "Error",
+            description: "Failed to create agent profile. Please ensure you have a complete agent profile.",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        agentData = newAgentData;
+        console.log('Created agent with ID:', agentData.id);
       }
 
       // Check if interest already exists to prevent duplicate key errors
@@ -509,7 +537,7 @@ const AgentTransferTimeline = () => {
         .select('id, status')
         .eq('pitch_id', pitch.id)
         .eq('agent_id', agentData.id)
-        .single();
+        .maybeSingle(); // Changed from single() to maybeSingle() to handle no existing interest
 
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
         throw checkError;
@@ -562,8 +590,8 @@ const AgentTransferTimeline = () => {
         .eq('sender_id', profile.id)
         .eq('receiver_id', pitch.teams.profile_id)
         .eq('pitch_id', pitch.id)
-        .eq('message_type', 'interest')
-        .single();
+        .eq('message_type', 'interest') // Reverted back to 'interest' since it's now valid
+        .maybeSingle(); // Changed from single() to maybeSingle() to handle no existing message
 
       if (!existingMessage) {
         // Create new message only if one doesn't exist
@@ -574,7 +602,7 @@ const AgentTransferTimeline = () => {
             receiver_id: pitch.teams.profile_id,
             pitch_id: pitch.id,
             content: messageContent,
-            message_type: 'interest',
+            message_type: 'interest', // Reverted back to 'interest' since it's now valid
             created_at: new Date().toISOString()
           });
 

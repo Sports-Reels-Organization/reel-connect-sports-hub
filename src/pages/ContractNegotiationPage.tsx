@@ -70,11 +70,16 @@ interface Contract {
   created_at: string;
   updated_at: string;
   pitch?: {
-    player_name: string;
-    player_position: string;
-    player_nationality: string;
+    id: string;
+    transfer_type: string;
     asking_price: number;
-    loan_fee?: number;
+    currency: string;
+    status: string;
+    player?: {
+      full_name: string;
+      position: string;
+      citizenship: string;
+    };
   };
   agent?: {
     profile: {
@@ -493,11 +498,11 @@ const ContractNegotiationPage: React.FC = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label className="text-sm font-medium">Player</Label>
-                          <p className="text-sm text-muted-foreground">{contract.pitch?.player_name}</p>
+                          <p className="text-sm text-muted-foreground">{contract.pitch?.player?.full_name}</p>
                         </div>
                         <div>
                           <Label className="text-sm font-medium">Position</Label>
-                          <p className="text-sm text-muted-foreground">{contract.pitch?.player_position}</p>
+                          <p className="text-sm text-muted-foreground">{contract.pitch?.player?.position}</p>
                         </div>
                         <div>
                           <Label className="text-sm font-medium">Transfer Type</Label>

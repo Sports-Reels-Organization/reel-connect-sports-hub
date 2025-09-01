@@ -131,6 +131,14 @@ export interface LoanTransferContract {
 
 export const contractService = {
   async generatePermanentTransferContract(data: PermanentTransferContract): Promise<string> {
+    // Helper function to safely format numbers
+    const formatNumber = (value: number | null | undefined): string => {
+      if (value === null || value === undefined || isNaN(value)) {
+        return '0';
+      }
+      return value.toLocaleString();
+    };
+
     try {
       const contractHtml = `
         <!DOCTYPE html>
@@ -138,7 +146,7 @@ export const contractService = {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Permanent Transfer Contract - ${data.playerName}</title>
+          <title>Permanent Transfer Contract - ${data.playerName || 'Player'}</title>
           <style>
             body { font-family: 'Times New Roman', serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
             .header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
@@ -160,26 +168,26 @@ export const contractService = {
           <div class="header">
             <div class="contract-title">PERMANENT TRANSFER CONTRACT</div>
             <div>Professional Football Player Transfer Agreement</div>
-            <div>Date: ${data.contractDate}</div>
+            <div>Date: ${data.contractDate || new Date().toISOString().split('T')[0]}</div>
           </div>
 
           <div class="section">
             <div class="section-title">1. PARTIES TO THE AGREEMENT</div>
             <div class="term">
               <span class="term-label">Player:</span>
-              <span class="term-value">${data.playerName} (${data.playerPosition})</span>
+              <span class="term-value">${data.playerName || 'Player Name'} (${data.playerPosition || 'Position'})</span>
             </div>
             <div class="term">
               <span class="term-label">Nationality:</span>
-              <span class="term-value">${data.playerNationality}</span>
+              <span class="term-value">${data.playerNationality || 'Nationality'}</span>
             </div>
             <div class="term">
               <span class="term-label">Acquiring Club:</span>
-              <span class="term-value">${data.teamName}</span>
+              <span class="term-value">${data.teamName || 'Club Name'}</span>
             </div>
             <div class="term">
               <span class="term-label">Country:</span>
-              <span class="term-value">${data.teamCountry}</span>
+              <span class="term-value">${data.teamCountry || 'Country'}</span>
             </div>
           </div>
 
@@ -188,11 +196,11 @@ export const contractService = {
             <div class="highlight">
               <div class="term">
                 <span class="term-label">Transfer Fee:</span>
-                <span class="term-value">${data.currency} ${data.transferFee.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.transferFee)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Contract Duration:</span>
-                <span class="term-value">${data.contractDuration}</span>
+                <span class="term-value">${data.contractDuration || '3 years'}</span>
               </div>
             </div>
           </div>
@@ -204,15 +212,15 @@ export const contractService = {
               <div class="subsection-title">3.1 Player Salary</div>
               <div class="term">
                 <span class="term-label">Annual Salary:</span>
-                <span class="term-value">${data.currency} ${data.playerSalary.annual.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.playerSalary?.annual)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Monthly Salary:</span>
-                <span class="term-value">${data.currency} ${data.playerSalary.monthly.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.playerSalary?.monthly)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Weekly Salary:</span>
-                <span class="term-value">${data.currency} ${data.playerSalary.weekly.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.playerSalary?.weekly)}</span>
               </div>
             </div>
 
@@ -220,7 +228,7 @@ export const contractService = {
               <div class="subsection-title">3.2 Sign-on Bonus</div>
               <div class="term">
                 <span class="term-label">Amount:</span>
-                <span class="term-value">${data.currency} ${data.signOnBonus.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.signOnBonus)}</span>
               </div>
             </div>
 
@@ -228,23 +236,23 @@ export const contractService = {
               <div class="subsection-title">3.3 Performance Bonuses</div>
               <div class="term">
                 <span class="term-label">Appearance Bonus:</span>
-                <span class="term-value">${data.currency} ${data.performanceBonus.appearance.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.performanceBonus?.appearance)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Goal Bonus:</span>
-                <span class="term-value">${data.currency} ${data.performanceBonus.goal.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.performanceBonus?.goal)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Assist Bonus:</span>
-                <span class="term-value">${data.currency} ${data.performanceBonus.assist.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.performanceBonus?.assist)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Clean Sheet Bonus:</span>
-                <span class="term-value">${data.currency} ${data.performanceBonus.cleanSheet.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.performanceBonus?.cleanSheet)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Team Success Bonus:</span>
-                <span class="term-value">${data.currency} ${data.performanceBonus.teamSuccess.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.performanceBonus?.teamSuccess)}</span>
               </div>
             </div>
           </div>
@@ -256,19 +264,19 @@ export const contractService = {
               <div class="subsection-title">4.1 Relocation Support</div>
               <div class="term">
                 <span class="term-label">Housing Allowance:</span>
-                <span class="term-value">${data.currency} ${data.relocationSupport.housing.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.relocationSupport?.housing)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Transportation:</span>
-                <span class="term-value">${data.currency} ${data.relocationSupport.transportation.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.relocationSupport?.transportation)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Family Support:</span>
-                <span class="term-value">${data.currency} ${data.relocationSupport.familySupport.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.relocationSupport?.familySupport)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Language Training:</span>
-                <span class="term-value">${data.currency} ${data.relocationSupport.languageTraining.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.relocationSupport?.languageTraining)}</span>
               </div>
             </div>
 
@@ -280,7 +288,7 @@ export const contractService = {
               </div>
               <div class="term">
                 <span class="term-label">Image Rights:</span>
-                <span class="term-value">${data.imageRights.percentage}% - ${data.imageRights.terms}</span>
+                <span class="term-value">${data.imageRights?.percentage || 0}% - ${data.imageRights?.terms || 'Standard terms'}</span>
               </div>
             </div>
           </div>
@@ -292,7 +300,7 @@ export const contractService = {
               <div class="subsection-title">5.1 Release Clause</div>
               <div class="term">
                 <span class="term-label">Amount:</span>
-                <span class="term-value">${data.currency} ${data.releaseClause.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.releaseClause)}</span>
               </div>
             </div>
 
@@ -300,7 +308,7 @@ export const contractService = {
               <div class="subsection-title">5.2 Sell-on Clause</div>
               <div class="term">
                 <span class="term-label">Percentage:</span>
-                <span class="term-value">${data.sellOnPercentage}%</span>
+                <span class="term-value">${data.sellOnPercentage || 0}%</span>
               </div>
             </div>
 
@@ -308,16 +316,16 @@ export const contractService = {
               <div class="subsection-title">5.3 Buyback Clause</div>
               <div class="term">
                 <span class="term-label">Active:</span>
-                <span class="term-value">${data.buybackClause.active ? 'Yes' : 'No'}</span>
+                <span class="term-value">${data.buybackClause?.active ? 'Yes' : 'No'}</span>
               </div>
-              ${data.buybackClause.active ? `
+              ${data.buybackClause?.active ? `
               <div class="term">
                 <span class="term-label">Amount:</span>
-                <span class="term-value">${data.currency} ${data.buybackClause.amount.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.buybackClause?.amount)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Duration:</span>
-                <span class="term-value">${data.buybackClause.duration}</span>
+                <span class="term-value">${data.buybackClause?.duration || 'Not specified'}</span>
               </div>
               ` : ''}
             </div>
@@ -350,6 +358,14 @@ export const contractService = {
   },
 
   async generateLoanTransferContract(data: LoanTransferContract): Promise<string> {
+    // Helper function to safely format numbers
+    const formatNumber = (value: number | null | undefined): string => {
+      if (value === null || value === undefined || isNaN(value)) {
+        return '0';
+      }
+      return value.toLocaleString();
+    };
+
     try {
       const contractHtml = `
         <!DOCTYPE html>
@@ -357,7 +373,7 @@ export const contractService = {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Loan Transfer Contract - ${data.playerName}</title>
+          <title>Loan Transfer Contract - ${data.playerName || 'Player'}</title>
           <style>
             body { font-family: 'Times New Roman', serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
             .header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
@@ -380,26 +396,26 @@ export const contractService = {
           <div class="header">
             <div class="contract-title">LOAN TRANSFER AGREEMENT</div>
             <div>Professional Football Player Loan Contract</div>
-            <div>Date: ${data.contractDate}</div>
+            <div>Date: ${data.contractDate || new Date().toISOString().split('T')[0]}</div>
           </div>
 
           <div class="section">
             <div class="section-title">1. PARTIES TO THE AGREEMENT</div>
             <div class="term">
               <span class="term-label">Player:</span>
-              <span class="term-value">${data.playerName} (${data.playerPosition})</span>
+              <span class="term-value">${data.playerName || 'Player Name'} (${data.playerPosition || 'Position'})</span>
             </div>
             <div class="term">
               <span class="term-label">Nationality:</span>
-              <span class="term-value">${data.playerNationality}</span>
+              <span class="term-value">${data.playerNationality || 'Nationality'}</span>
             </div>
             <div class="term">
               <span class="term-label">Parent Club:</span>
-              <span class="term-value">${data.parentClub}</span>
+              <span class="term-value">${data.parentClub || 'Parent Club'}</span>
             </div>
             <div class="term">
               <span class="term-label">Loan Club:</span>
-              <span class="term-value">${data.loanClub}</span>
+              <span class="term-value">${data.loanClub || 'Loan Club'}</span>
             </div>
           </div>
 
@@ -408,11 +424,11 @@ export const contractService = {
             <div class="loan-type">
               <div class="term">
                 <span class="term-label">Loan Duration:</span>
-                <span class="term-value">${data.loanDuration}</span>
+                <span class="term-value">${data.loanDuration || '1 year'}</span>
               </div>
               <div class="term">
                 <span class="term-label">Loan Type:</span>
-                <span class="term-value">${data.loanType.replace('-', ' ').toUpperCase()}</span>
+                <span class="term-value">${(data.loanType || 'with-options').replace('-', ' ').toUpperCase()}</span>
               </div>
             </div>
           </div>
@@ -424,19 +440,19 @@ export const contractService = {
               <div class="subsection-title">3.1 Loan Fees</div>
               <div class="term">
                 <span class="term-label">Base Loan Fee:</span>
-                <span class="term-value">${data.currency} ${data.loanFee.base.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.loanFee?.base)}</span>
               </div>
               <div class="term">
                 <span class="term-label">With Options:</span>
-                <span class="term-value">${data.currency} ${data.loanFee.withOptions.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.loanFee?.withOptions)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Without Options:</span>
-                <span class="term-value">${data.currency} ${data.loanFee.withoutOptions.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.loanFee?.withoutOptions)}</span>
               </div>
               <div class="term">
                 <span class="term-label">With Obligations:</span>
-                <span class="term-value">${data.currency} ${data.loanFee.withObligations.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.loanFee?.withObligations)}</span>
               </div>
             </div>
 
@@ -444,15 +460,15 @@ export const contractService = {
               <div class="subsection-title">3.2 Salary Coverage</div>
               <div class="term">
                 <span class="term-label">Parent Club Contribution:</span>
-                <span class="term-value">${data.currency} ${data.salaryCoverage.parentClub.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.salaryCoverage?.parentClub)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Loan Club Contribution:</span>
-                <span class="term-value">${data.currency} ${data.salaryCoverage.loanClub.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.salaryCoverage?.loanClub)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Coverage Percentage:</span>
-                <span class="term-value">${data.salaryCoverage.percentage}%</span>
+                <span class="term-value">${data.salaryCoverage?.percentage || 0}%</span>
               </div>
             </div>
           </div>
@@ -464,19 +480,19 @@ export const contractService = {
               <div class="subsection-title">4.1 Appearance & Performance Bonuses</div>
               <div class="term">
                 <span class="term-label">Appearance Clause:</span>
-                <span class="term-value">${data.currency} ${data.appearanceClause.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.appearanceClause)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Goal Bonus:</span>
-                <span class="term-value">${data.currency} ${data.goalBonus.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.goalBonus)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Assist Bonus:</span>
-                <span class="term-value">${data.currency} ${data.assistBonus.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.assistBonus)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Promotion Bonus:</span>
-                <span class="term-value">${data.currency} ${data.promotionBonus.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.promotionBonus)}</span>
               </div>
             </div>
           </div>
@@ -488,16 +504,16 @@ export const contractService = {
               <div class="subsection-title">5.1 Purchase Option</div>
               <div class="term">
                 <span class="term-label">Active:</span>
-                <span class="term-value">${data.purchaseOption.active ? 'Yes' : 'No'}</span>
+                <span class="term-value">${data.purchaseOption?.active ? 'Yes' : 'No'}</span>
               </div>
-              ${data.purchaseOption.active ? `
+              ${data.purchaseOption?.active ? `
               <div class="term">
                 <span class="term-label">Amount:</span>
-                <span class="term-value">${data.currency} ${data.purchaseOption.amount.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.purchaseOption?.amount)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Conditions:</span>
-                <span class="term-value">${data.purchaseOption.conditions.join(', ')}</span>
+                <span class="term-value">${data.purchaseOption?.conditions?.join(', ') || 'Standard conditions'}</span>
               </div>
               ` : ''}
             </div>
@@ -506,16 +522,16 @@ export const contractService = {
               <div class="subsection-title">5.2 Obligation to Buy</div>
               <div class="term">
                 <span class="term-label">Active:</span>
-                <span class="term-value">${data.obligationToBuy.active ? 'Yes' : 'No'}</span>
+                <span class="term-value">${data.obligationToBuy?.active ? 'Yes' : 'No'}</span>
               </div>
-              ${data.obligationToBuy.active ? `
+              ${data.obligationToBuy?.active ? `
               <div class="term">
                 <span class="term-label">Amount:</span>
-                <span class="term-value">${data.currency} ${data.obligationToBuy.amount.toLocaleString()}</span>
+                <span class="term-value">${data.currency || 'USD'} ${formatNumber(data.obligationToBuy?.amount)}</span>
               </div>
               <div class="term">
                 <span class="term-label">Triggers:</span>
-                <span class="term-value">${data.obligationToBuy.triggers.join(', ')}</span>
+                <span class="term-value">${data.obligationToBuy?.triggers?.join(', ') || 'Standard triggers'}</span>
               </div>
               ` : ''}
             </div>
@@ -528,16 +544,16 @@ export const contractService = {
               <div class="subsection-title">6.1 Recall Clause</div>
               <div class="term">
                 <span class="term-label">Active:</span>
-                <span class="term-value">${data.recallClause.active ? 'Yes' : 'No'}</span>
+                <span class="term-value">${data.recallClause?.active ? 'Yes' : 'No'}</span>
               </div>
-              ${data.recallClause.active ? `
+              ${data.recallClause?.active ? `
               <div class="term">
                 <span class="term-label">Conditions:</span>
-                <span class="term-value">${data.recallClause.conditions.join(', ')}</span>
+                <span class="term-value">${data.recallClause?.conditions?.join(', ') || 'Standard conditions'}</span>
               </div>
               <div class="term">
                 <span class="term-label">Notice Period:</span>
-                <span class="term-value">${data.recallClause.noticePeriod}</span>
+                <span class="term-value">${data.recallClause?.noticePeriod || 'Standard notice'}</span>
               </div>
               ` : ''}
             </div>
@@ -546,16 +562,16 @@ export const contractService = {
               <div class="subsection-title">6.2 Extension Option</div>
               <div class="term">
                 <span class="term-label">Active:</span>
-                <span class="term-value">${data.extensionOption.active ? 'Yes' : 'No'}</span>
+                <span class="term-value">${data.extensionOption?.active ? 'Yes' : 'No'}</span>
               </div>
-              ${data.extensionOption.active ? `
+              ${data.extensionOption?.active ? `
               <div class="term">
                 <span class="term-label">Duration:</span>
-                <span class="term-value">${data.extensionOption.duration}</span>
+                <span class="term-value">${data.extensionOption?.duration || 'Standard duration'}</span>
               </div>
               <div class="term">
                 <span class="term-label">Conditions:</span>
-                <span class="term-value">${data.extensionOption.conditions.join(', ')}</span>
+                <span class="term-value">${data.extensionOption?.conditions?.join(', ') || 'Standard conditions'}</span>
               </div>
               ` : ''}
             </div>

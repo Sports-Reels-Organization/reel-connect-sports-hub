@@ -93,7 +93,10 @@ const TransferTimeline = () => {
             id,
             agent_id,
             status,
-            created_at
+            created_at,
+            agent:agents!agent_interest_agent_id_fkey(
+              profile:profiles!agents_profile_id_fkey(full_name, user_type)
+            )
           )
         `)
         .eq('status', 'active')
@@ -147,7 +150,7 @@ const TransferTimeline = () => {
           receiver_id: pitch.teams.profile_id,
           pitch_id: pitch.id,
           content: interestMessage || `I'm interested in ${pitch.players.full_name}`,
-          message_type: 'interest',
+          message_type: 'interest', // Reverted back to 'interest' since it's now valid
           created_at: new Date().toISOString()
         });
 
@@ -474,7 +477,9 @@ const TransferTimeline = () => {
                     {pitch.agent_interest.slice(0, 3).map((interest) => (
                       <div key={interest.id} className="flex items-center gap-2 text-sm">
                         <Users className="w-4 h-4 text-blue-400" />
-                        <span className="text-white">Agent #{interest.agent_id.slice(0, 8)}</span>
+                        <span className="text-white">
+                          {interest.agent?.profile?.full_name || `Agent #${interest.agent_id.slice(0, 8)}`}
+                        </span>
                         <Badge variant="outline" className="text-xs">
                           {interest.status}
                         </Badge>

@@ -61,13 +61,21 @@ interface AgentInterest {
   status: 'interested' | 'requested' | 'negotiating';
   message?: string;
   created_at: string;
+  agent: {
+    profile: {
+      full_name: string;
+      user_type: string;
+    };
+  };
   pitch: {
     players: {
       full_name: string;
       position: string;
+      citizenship?: string;
     };
     teams: {
       team_name: string;
+      country?: string;
     };
     asking_price: number;
     currency: string;
@@ -307,16 +315,110 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
   const fetchContracts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('*')
-        .eq('pitch_id', pitchId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setContracts(data || []);
+      if (pitchId) {
+        // If pitchId is provided, fetch contracts for that specific pitch
+        const { data, error } = await supabase
+          .from('contracts')
+          .select('*')
+          .eq('pitch_id', pitchId)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        setContracts(data || []);
+      } else {
+        // If no pitchId, fetch contracts for the current user using contractManagementService
+        if (profile?.id && profile?.user_type) {
+          const userContracts = await contractManagementService.getUserContracts(
+            profile.id, 
+            profile.user_type as 'agent' | 'team'
+          );
+          setContracts(userContracts || []);
+        }
+      }
     } catch (error) {
       console.error('Error fetching contracts:', error);
+    }
+  };
+
+  // Function to clean up invalid agent interest records
+  const cleanupInvalidAgentInterest = async () => {
+    try {
+      // First, get all agent interest records
+      const { data: allAgentInterest, error: fetchError } = await supabase
+        .from('agent_interest')
+        .select('id, agent_id');
+      
+      if (fetchError) {
+        console.error('Error fetching agent interest records:', fetchError);
+        return;
+      }
+      
+      if (!allAgentInterest || allAgentInterest.length === 0) {
+        toast({
+          title: "No Records Found",
+          description: "No agent interest records to clean up.",
+        });
+        return;
+      }
+      
+      // Get all valid agent IDs (not profile IDs!)
+      const { data: validAgents, error: agentError } = await supabase
+        .from('agents')
+        .select('id');
+      
+      if (agentError) {
+        console.error('Error fetching valid agents:', agentError);
+        return;
+      }
+      
+      const validAgentIds = new Set(validAgents?.map(a => a.id) || []);
+      
+      // Find invalid records - agent_id should reference agents table
+      const invalidRecords = allAgentInterest.filter(record => 
+        !validAgentIds.has(record.agent_id)
+      );
+      
+      if (invalidRecords.length === 0) {
+        toast({
+          title: "No Invalid Records",
+          description: "All agent interest records are valid.",
+        });
+        return;
+      }
+      
+      console.log(`Found ${invalidRecords.length} invalid agent interest records to clean up`);
+      
+      // Delete invalid records
+      const { error: deleteError } = await supabase
+        .from('agent_interest')
+        .delete()
+        .in('id', invalidRecords.map(r => r.id));
+      
+      if (deleteError) {
+        console.error('Error deleting invalid records:', deleteError);
+        toast({
+          title: "Error",
+          description: "Failed to delete invalid records.",
+          variant: "destructive"
+        });
+      } else {
+        console.log(`Successfully cleaned up ${invalidRecords.length} invalid records`);
+        toast({
+          title: "Database Cleanup",
+          description: `Cleaned up ${invalidRecords.length} invalid agent interest records.`,
+        });
+        
+        // Refresh the data
+        fetchAgentInterest();
+        fetchAllCommunications();
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+      toast({
+        title: "Error",
+        description: "An error occurred during cleanup.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -416,21 +518,114 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
   );
 
   const filteredInterest = agentInterest.filter(interest =>
-    interest.agent_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (interest.agent?.profile?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     interest.pitch.players.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     interest.status.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).filter(interest => interest.agent?.profile?.full_name); // Only show interests with valid agent profiles
 
   // Enhanced function to handle contract creation from interest
   const handleCreateContract = async (interest: AgentInterest) => {
     setSelectedInterest(interest);
+    
+    // Auto-populate contract form with comprehensive pitch data
     setDetailedContractForm(prev => ({
       ...prev,
+      // Basic Information
       playerName: interest.pitch.players.full_name,
       playerPosition: interest.pitch.players.position,
+      playerNationality: interest.pitch.players.citizenship || '',
+      teamName: interest.pitch.teams.team_name,
+      teamCountry: interest.pitch.teams.country || '',
+      contractDate: new Date().toISOString().split('T')[0],
+      currency: interest.pitch.currency,
+      
+      // Transfer Details
       transferFee: interest.pitch.asking_price,
-      currency: interest.pitch.currency
+      loanFee: {
+        base: interest.pitch.asking_price * 0.1, // 10% of asking price as default loan fee
+        withOptions: interest.pitch.asking_price * 0.12,
+        withoutOptions: interest.pitch.asking_price * 0.08,
+        withObligations: interest.pitch.asking_price * 0.15
+      },
+      
+      // Contract Terms
+      contractDuration: '3 years',
+      loanDuration: '1 year',
+      loanType: 'with-options' as 'with-options' | 'without-options' | 'with-obligations',
+      
+      // Player Salary (estimate based on transfer fee)
+      playerSalary: {
+        annual: interest.pitch.asking_price * 0.15, // 15% of transfer fee as annual salary
+        weekly: (interest.pitch.asking_price * 0.15) / 52,
+        monthly: (interest.pitch.asking_price * 0.15) / 12
+      },
+      
+      // Bonuses
+      signOnBonus: interest.pitch.asking_price * 0.05, // 5% of transfer fee
+      performanceBonus: {
+        appearance: interest.pitch.asking_price * 0.01,
+        goal: interest.pitch.asking_price * 0.02,
+        assist: interest.pitch.asking_price * 0.015,
+        cleanSheet: interest.pitch.asking_price * 0.01,
+        teamSuccess: interest.pitch.asking_price * 0.025
+      },
+      
+      // Relocation Support
+      relocationSupport: {
+        housing: interest.pitch.asking_price * 0.02,
+        transportation: interest.pitch.asking_price * 0.01,
+        familySupport: interest.pitch.asking_price * 0.015,
+        languageTraining: interest.pitch.asking_price * 0.005
+      },
+      
+      // Release Clause
+      releaseClause: interest.pitch.asking_price * 1.5, // 150% of transfer fee
+      
+      // Buyback Clause (for permanent transfers)
+      buybackClause: {
+        active: true,
+        amount: interest.pitch.asking_price * 1.2, // 120% of transfer fee
+        duration: '2 years'
+      },
+      
+      // Image Rights
+      imageRights: {
+        terms: 'Standard commercial rights',
+        percentage: 50
+      },
+      
+      // Loan-specific terms
+      salaryCoverage: {
+        parentClub: interest.pitch.asking_price * 0.1,
+        loanClub: interest.pitch.asking_price * 0.05,
+        percentage: 100
+      },
+      appearanceClause: interest.pitch.asking_price * 0.01,
+      goalBonus: interest.pitch.asking_price * 0.02,
+      assistBonus: interest.pitch.asking_price * 0.015,
+      promotionBonus: interest.pitch.asking_price * 0.025,
+      purchaseOption: {
+        active: true,
+        amount: interest.pitch.asking_price * 1.1,
+        conditions: ['Minimum appearances', 'Performance targets']
+      },
+      obligationToBuy: {
+        active: false,
+        amount: interest.pitch.asking_price * 1.2,
+        triggers: ['Promotion achieved', 'Appearance targets met']
+      },
+      recallClause: {
+        active: true,
+        conditions: ['Injury crisis', 'Performance issues'],
+        noticePeriod: '7 days'
+      },
+      extensionOption: {
+        active: true,
+        duration: '1 year',
+        conditions: ['Mutual agreement', 'Performance targets met']
+      }
     }));
+    
     setContractType('create');
     setShowContractModal(true);
   };
@@ -447,14 +642,14 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
       if (agentError) throw agentError;
 
-      const messageData = {
-        sender_id: profile?.id,
-        receiver_id: agentData.profile_id,
-        pitch_id: interest.pitch_id,
-        content: `Regarding your interest in ${interest.pitch.players.full_name}. Let's discuss the details.`,
-        message_type: 'negotiation',
-        created_at: new Date().toISOString()
-      };
+             const messageData = {
+         sender_id: profile?.id,
+         receiver_id: agentData.profile_id,
+         pitch_id: interest.pitch_id,
+         content: `Regarding your interest in ${interest.pitch.players.full_name}. Let's discuss the details.`,
+         message_type: 'negotiation', // Reverted back to 'negotiation' since it should be valid
+         created_at: new Date().toISOString()
+       };
 
       const { error } = await supabase
         .from('messages')
@@ -576,28 +771,47 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
               </div>
             </TabsContent>
 
-            {/* Agent Interest Tab */}
-            <TabsContent value="interest" className="mt-6 space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search agent interest..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-gray-600 bg-gray-800 text-white"
-                />
-              </div>
+                         {/* Agent Interest Tab */}
+             <TabsContent value="interest" className="mt-6 space-y-4">
+               <div className="flex gap-2">
+                 <Input
+                   placeholder="Search agent interest..."
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                   className="border-gray-600 bg-gray-800 text-white"
+                 />
+                 {profile?.user_type === 'team' && (
+                   <Button
+                     size="sm"
+                     variant="outline"
+                     onClick={cleanupInvalidAgentInterest}
+                     className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                   >
+                     <AlertCircle className="w-4 h-4 mr-1" />
+                     Clean Invalid Records
+                   </Button>
+                 )}
+               </div>
 
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {filteredInterest.length === 0 ? (
-                  <p className="text-gray-400 text-center py-8">No agent interest found</p>
-                ) : (
+                             <div className="space-y-3 max-h-96 overflow-y-auto">
+                 {filteredInterest.length === 0 ? (
+                   <div className="text-center py-8">
+                     <p className="text-gray-400 mb-2">No agent interest found</p>
+                     {agentInterest.length > 0 && filteredInterest.length === 0 && (
+                       <p className="text-xs text-red-400">
+                         Some records may be invalid and have been filtered out. 
+                         Use the "Clean Invalid Records" button to remove them.
+                       </p>
+                     )}
+                   </div>
+                 ) : (
                   filteredInterest.map((interest) => (
                     <Card key={interest.id} className="border-gray-600">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <h4 className="font-semibold text-white">
-                              Agent #{interest.agent_id.slice(0, 8)}
+                              {interest.agent?.profile?.full_name || `Agent #${interest.agent_id.slice(0, 8)}`}
                             </h4>
                             <p className="text-sm text-gray-400">
                               Interested in {interest.pitch.players.full_name} ({interest.pitch.players.position})
@@ -1058,29 +1272,148 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                        let teamId = '';
                        let agentId = '';
                        
-                       if (profile?.user_type === 'team') {
-                         const { data: teamData } = await supabase
-                           .from('teams')
-                           .select('id')
-                           .eq('profile_id', profile.id)
-                           .single();
-                         teamId = teamData?.id || '';
-                       }
+                                               if (profile?.user_type === 'team') {
+                          // First, verify the profile exists
+                          const { data: profileData, error: profileError } = await supabase
+                            .from('profiles')
+                            .select('id')
+                            .eq('id', profile.id)
+                            .maybeSingle();
+                          
+                          if (profileError) {
+                            console.error('Error fetching profile data:', profileError);
+                            throw new Error(`Profile not found: ${profileError.message}`);
+                          }
+                          
+                          if (!profileData) {
+                            throw new Error(`Profile with ID ${profile.id} does not exist in profiles table`);
+                          }
+                          
+                          const { data: teamData, error: teamError } = await supabase
+                            .from('teams')
+                            .select('id')
+                            .eq('profile_id', profile.id)
+                            .maybeSingle(); // Use maybeSingle instead of single
+                          
+                          if (teamError) {
+                            console.error('Error fetching team data:', teamError);
+                            throw new Error(`Team not found: ${teamError.message}`);
+                          }
+                          
+                          // If no team record exists, create one
+                          if (!teamData) {
+                            console.log('No team record found, creating one...');
+                            const { data: newTeamData, error: createError } = await supabase
+                              .from('teams')
+                              .insert({
+                                profile_id: profile.id,
+                                team_name: 'Team', // Default name
+                                country: 'Unknown',
+                                sport_type: 'football'
+                              })
+                              .select('id')
+                              .single();
+                            
+                            if (createError) {
+                              console.error('Error creating team record:', createError);
+                              throw new Error(`Failed to create team record: ${createError.message}`);
+                            }
+                            
+                            teamId = newTeamData?.id || '';
+                          } else {
+                            teamId = teamData.id;
+                          }
+                          
+                          if (!teamId) {
+                            throw new Error('Team record not found in teams table');
+                          }
+                        }
                        
-                       if (selectedInterest) {
-                         agentId = selectedInterest.agent_id;
-                       }
+                                               if (selectedInterest) {
+                          console.log('Selected interest agent_id:', selectedInterest.agent_id);
+                          
+                          // First, verify the profile exists
+                          const { data: profileData, error: profileError } = await supabase
+                            .from('profiles')
+                            .select('id')
+                            .eq('id', selectedInterest.agent_id)
+                            .maybeSingle();
+                          
+                          if (profileError) {
+                            console.error('Error fetching profile data:', profileError);
+                            throw new Error(`Profile not found: ${profileError.message}`);
+                          }
+                          
+                                                     if (!profileData) {
+                             console.error('Profile not found for agent_id:', selectedInterest.agent_id);
+                             
+                             // Show user-friendly error and skip this interest
+                             toast({
+                               title: "Invalid Agent Record",
+                               description: "This agent interest references a profile that no longer exists. The record will be skipped.",
+                               variant: "destructive"
+                             });
+                             
+                             // Close modal and return early
+                             setShowContractModal(false);
+                             setSelectedInterest(null);
+                             return;
+                           }
+                          
+                          console.log('Profile found:', profileData);
+                          
+                          // Get the actual agent ID from the agents table using profile_id
+                          const { data: agentData, error: agentError } = await supabase
+                            .from('agents')
+                            .select('id')
+                            .eq('profile_id', selectedInterest.agent_id)
+                            .maybeSingle(); // Use maybeSingle instead of single
+                          
+                          if (agentError) {
+                            console.error('Error fetching agent data:', agentError);
+                            throw new Error(`Agent not found: ${agentError.message}`);
+                          }
+                          
+                          // If no agent record exists, create one
+                          if (!agentData) {
+                            console.log('No agent record found, creating one...');
+                            const { data: newAgentData, error: createError } = await supabase
+                              .from('agents')
+                              .insert({
+                                profile_id: selectedInterest.agent_id,
+                                agency_name: 'Agency', // Default name
+                                specialization: ['football']
+                              })
+                              .select('id')
+                              .single();
+                            
+                            if (createError) {
+                              console.error('Error creating agent record:', createError);
+                              throw new Error(`Failed to create agent record: ${createError.message}`);
+                            }
+                            
+                            agentId = newAgentData?.id || '';
+                            console.log('Created agent with ID:', agentId);
+                          } else {
+                            agentId = agentData.id;
+                            console.log('Found existing agent with ID:', agentId);
+                          }
+                          
+                          if (!agentId) {
+                            throw new Error('Agent record not found in agents table');
+                          }
+                        }
                        
-                       if (!teamId || !agentId) {
-                         throw new Error('Missing team or agent information');
-                       }
+                                               if (!teamId || !agentId) {
+                          throw new Error(`Missing team or agent information. Team ID: ${teamId}, Agent ID: ${agentId}. Please ensure both team and agent profiles are properly set up.`);
+                        }
                        
                        // Create contract in database
                        const contractData = {
                          pitchId: selectedInterest?.pitch_id || pitchId || '',
                          agentId: agentId,
                          teamId: teamId,
-                         transferType: transferType,
+                         transferType: transferType as 'permanent' | 'loan',
                          contractValue: detailedContractForm.transferFee,
                          currency: detailedContractForm.currency,
                          contractDetails: {

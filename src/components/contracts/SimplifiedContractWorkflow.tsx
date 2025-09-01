@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText, Send, Clock, CheckCircle, AlertCircle, DollarSign,
-  TrendingUp, User, Building2, Calendar, Target, ArrowRight, Plus
+  TrendingUp, User, Building2, Calendar, Target, ArrowRight, Plus, MessageSquare
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -67,6 +68,7 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
 }) => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -162,7 +164,9 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
             currency
           ),
           team:teams!contracts_team_id_fkey(team_name),
-          agent:profiles!contracts_agent_id_fkey(full_name)
+          agent:agents!contracts_agent_id_fkey(
+            profile:profiles(full_name)
+          )
         `)
         .eq('id', contractId)
         .single();
@@ -191,7 +195,9 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
             currency
           ),
           team:teams!contracts_team_id_fkey(team_name),
-          agent:profiles!contracts_agent_id_fkey(full_name)
+          agent:agents!contracts_agent_id_fkey(
+            profile:profiles(full_name)
+          )
         `)
         .order('created_at', { ascending: false });
 
@@ -463,23 +469,32 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                       </div>
                     )}
 
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      {canAdvanceStage(contract.status) && (
-                        <Button
-                          onClick={() => updateContractStatus(contract.id, getNextStage(contract.status)?.key || '')}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          <ArrowRight className="w-4 h-4 mr-2" />
-                          Advance to {getNextStage(contract.status)?.label}
-                        </Button>
-                      )}
-                      
-                      <Button variant="outline" className="border-gray-600 text-white">
-                        <FileText className="w-4 h-4 mr-2" />
-                        View Details
-                      </Button>
-                    </div>
+                                         {/* Actions */}
+                     <div className="flex gap-2">
+                       {canAdvanceStage(contract.status) && (
+                         <Button
+                           onClick={() => updateContractStatus(contract.id, getNextStage(contract.status)?.key || '')}
+                           className="bg-blue-600 hover:bg-blue-700 text-white"
+                         >
+                           <ArrowRight className="w-4 h-4 mr-2" />
+                           Advance to {getNextStage(contract.status)?.label}
+                         </Button>
+                       )}
+                       
+                       <Button 
+                         onClick={() => navigate(`/contract-negotiation/${contract.id}`)}
+                         variant="outline" 
+                         className="border-gray-600 text-white hover:bg-gray-700"
+                       >
+                         <MessageSquare className="w-4 h-4 mr-2" />
+                         View Negotiation
+                       </Button>
+                       
+                       <Button variant="outline" className="border-gray-600 text-white">
+                         <FileText className="w-4 h-4 mr-2" />
+                         View Details
+                       </Button>
+                     </div>
                   </CardContent>
                 </Card>
               ))}
