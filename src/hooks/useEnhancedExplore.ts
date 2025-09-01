@@ -1,8 +1,8 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { extractSingleResult, safeArrayAccess, DatabasePlayer, DatabaseTeam, DatabaseAgent } from '@/types/supabase-helpers';
 
 interface FilterState {
   position?: string;
@@ -117,15 +117,22 @@ export const useEnhancedExplore = () => {
 
       if (pitchData) {
         const validPrices = pitchData.filter(p => p.asking_price).map(p => p.asking_price);
-        const validMarketValues = pitchData.filter(p => p.players?.market_value).map(p => p.players.market_value);
+        const validMarketValues = pitchData.filter(p => {
+          const player = extractSingleResult(p.players as DatabasePlayer[]);
+          return player?.market_value;
+        }).map(p => {
+          const player = extractSingleResult(p.players as DatabasePlayer[]);
+          return player?.market_value || 0;
+        });
         
         avgAskingPrice = validPrices.length > 0 ? validPrices.reduce((a, b) => a + b, 0) / validPrices.length : 0;
         avgMarketValue = validMarketValues.length > 0 ? validMarketValues.reduce((a, b) => a + b, 0) / validMarketValues.length : 0;
 
         // Count positions
         pitchData.forEach(p => {
-          if (p.players?.position) {
-            positionCounts[p.players.position] = (positionCounts[p.players.position] || 0) + 1;
+          const player = extractSingleResult(p.players as DatabasePlayer[]);
+          if (player?.position) {
+            positionCounts[player.position] = (positionCounts[player.position] || 0) + 1;
           }
         });
       }
@@ -180,7 +187,8 @@ export const useEnhancedExplore = () => {
         }> = {};
 
         trendsData.forEach(pitch => {
-          const position = pitch.players?.position;
+          const player = extractSingleResult(pitch.players as DatabasePlayer[]);
+          const position = player?.position;
           if (position) {
             if (!positionStats[position]) {
               positionStats[position] = {
@@ -193,7 +201,7 @@ export const useEnhancedExplore = () => {
             }
 
             if (pitch.asking_price) positionStats[position].prices.push(pitch.asking_price);
-            if (pitch.players.market_value) positionStats[position].marketValues.push(pitch.players.market_value);
+            if (player.market_value) positionStats[position].marketValues.push(player.market_value);
             positionStats[position].totalPitches++;
             positionStats[position].totalViews += pitch.view_count || 0;
             positionStats[position].totalShortlists += pitch.shortlist_count || 0;
@@ -240,10 +248,13 @@ export const useEnhancedExplore = () => {
 
       if (recentPitches) {
         recentPitches.forEach(pitch => {
+          const player = extractSingleResult(pitch.players as DatabasePlayer[]);
+          const team = extractSingleResult(pitch.teams as DatabaseTeam[]);
+          
           activities.push({
             id: `pitch-${pitch.id}`,
             type: 'pitch_created',
-            description: `${pitch.teams?.team_name} posted ${pitch.players?.full_name} for transfer`,
+            description: `${team?.team_name} posted ${player?.full_name} for transfer`,
             timestamp: pitch.created_at
           });
         });
@@ -265,10 +276,12 @@ export const useEnhancedExplore = () => {
 
       if (recentRequests) {
         recentRequests.forEach(request => {
+          const agent = extractSingleResult(request.agents as DatabaseAgent[]);
+          
           activities.push({
             id: `request-${request.id}`,
             type: 'request_posted',
-            description: `${request.agents?.agency_name} posted: "${request.title}"`,
+            description: `${agent?.agency_name} posted: "${request.title}"`,
             timestamp: request.created_at
           });
         });

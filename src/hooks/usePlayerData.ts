@@ -1,45 +1,18 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { DatabasePlayer, DatabaseTeam, extractSingleResult } from '@/types/supabase-helpers';
 
-interface Player {
-  id: string;
-  full_name: string;
+interface Player extends DatabasePlayer {
   sport_type: string;
-  position?: string;
-  age?: number;
   nationality?: string;
   team?: string;
   height?: string;
   weight?: string;
   preferred_foot?: string;
-  market_value?: number;
   profile_image?: string;
   achievements?: string[];
-  bio?: string;
   stats?: any;
-  // Additional required fields based on your requirements
-  gender?: string;
-  date_of_birth?: string;
-  jersey_number?: number;
-  citizenship?: string;
-  place_of_birth?: string;
-  foot?: string;
-  player_agent?: string;
-  current_club?: string;
-  joined_date?: string;
-  contract_expires?: string;
-  fifa_id?: string;
-  headshot_url?: string;
-  portrait_url?: string;
-  full_body_url?: string;
-  photo_url?: string;
-  leagues_participated?: string[];
-  titles_seasons?: string[];
-  transfer_history?: any;
-  international_duty?: any;
-  match_stats?: any;
-  ai_analysis?: any;
 }
 
 export const usePlayerData = (playerId: string | null) => {
@@ -60,7 +33,6 @@ export const usePlayerData = (playerId: string | null) => {
 
         console.log('Fetching player data for ID:', playerId);
 
-        // Use maybeSingle() to handle cases where player might not exist
         const { data, error: fetchError } = await supabase
           .from('players')
           .select(`
@@ -110,14 +82,16 @@ export const usePlayerData = (playerId: string | null) => {
         if (data) {
           console.log('Player data received:', data);
           
+          const teamData = extractSingleResult(data.teams as DatabaseTeam[]);
+          
           const transformedPlayer: Player = {
             id: data.id,
             full_name: data.full_name,
-            sport_type: data.teams.sport_type,
+            sport_type: teamData?.sport_type || 'Unknown',
             position: data.position,
             age: data.age,
             nationality: data.citizenship,
-            team: data.teams.team_name,
+            team: teamData?.team_name,
             height: data.height?.toString(),
             weight: data.weight?.toString(),
             preferred_foot: data.foot,
@@ -126,11 +100,15 @@ export const usePlayerData = (playerId: string | null) => {
             bio: data.bio,
             achievements: data.titles_seasons || [],
             stats: data.match_stats || {},
-            // Additional fields
+            // Copy all other fields
+            citizenship: data.citizenship,
+            headshot_url: data.headshot_url,
+            photo_url: data.photo_url,
+            portrait_url: data.portrait_url,
+            full_body_url: data.full_body_url,
+            jersey_number: data.jersey_number,
             gender: data.gender,
             date_of_birth: data.date_of_birth,
-            jersey_number: data.jersey_number,
-            citizenship: data.citizenship,
             place_of_birth: data.place_of_birth,
             foot: data.foot,
             player_agent: data.player_agent,
@@ -138,10 +116,6 @@ export const usePlayerData = (playerId: string | null) => {
             joined_date: data.joined_date,
             contract_expires: data.contract_expires,
             fifa_id: data.fifa_id,
-            headshot_url: data.headshot_url,
-            portrait_url: data.portrait_url,
-            full_body_url: data.full_body_url,
-            photo_url: data.photo_url,
             leagues_participated: data.leagues_participated,
             titles_seasons: data.titles_seasons,
             transfer_history: data.transfer_history,
