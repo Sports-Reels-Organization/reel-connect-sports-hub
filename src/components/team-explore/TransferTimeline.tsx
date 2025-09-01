@@ -7,11 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import EditPitchModal from './EditPitchModal';
+import ContractWizard from '@/components/contracts/ContractWizard';
 import {
   Search, Filter, Heart, MessageSquare, Eye, Calendar, DollarSign,
-  TrendingUp, MapPin, Users, Target, Star, Clock, AlertCircle, Plus, X, CheckCircle, Edit
+  TrendingUp, MapPin, Users, Target, Star, Clock, AlertCircle, Plus, X, CheckCircle, Edit, FileText
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -70,6 +72,8 @@ const TransferTimeline = () => {
   const [selectedPitchForInterest, setSelectedPitchForInterest] = useState<TimelinePitch | null>(null);
   const [interestMessage, setInterestMessage] = useState('');
   const [interestType, setInterestType] = useState<'interested' | 'requested'>('interested');
+  const [showContractWizard, setShowContractWizard] = useState(false);
+  const [selectedPitchForContract, setSelectedPitchForContract] = useState<TimelinePitch | null>(null);
 
   useEffect(() => {
     fetchPitches();
@@ -247,6 +251,24 @@ const TransferTimeline = () => {
 
   const hasExpressedInterest = (pitch: TimelinePitch) => {
     return pitch.agent_interest?.some(interest => interest.agent_id === profile?.id);
+  };
+
+  const handleGenerateContract = (pitch: TimelinePitch) => {
+    setSelectedPitchForContract(pitch);
+    setShowContractWizard(true);
+  };
+
+  const handleContractComplete = (contractId: string) => {
+    setShowContractWizard(false);
+    setSelectedPitchForContract(null);
+    
+    toast({
+      title: "Contract Created",
+      description: "Contract has been generated successfully!"
+    });
+    
+    // Refresh the timeline to show updated status
+    fetchPitches();
   };
 
   const filteredPitches = pitches.filter(pitch => {
@@ -492,6 +514,18 @@ const TransferTimeline = () => {
                     </Button>
                   )}
                   
+                  {/* Generate Contract Button */}
+                  {canEditPitch(pitch) && (
+                    <Button
+                      onClick={() => handleGenerateContract(pitch)}
+                      variant="outline"
+                      size="sm"
+                      className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </Button>
+                  )}
+                  
                   {canEditPitch(pitch) && (
                     <>
                       <Button
@@ -595,6 +629,22 @@ const TransferTimeline = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Contract Wizard Modal */}
+      {showContractWizard && selectedPitchForContract && (
+        <Dialog open={showContractWizard} onOpenChange={setShowContractWizard}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                         <ContractWizard
+               pitchId={selectedPitchForContract.id}
+               onComplete={handleContractComplete}
+               onCancel={() => {
+                 setShowContractWizard(false);
+                 setSelectedPitchForContract(null);
+               }}
+             />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

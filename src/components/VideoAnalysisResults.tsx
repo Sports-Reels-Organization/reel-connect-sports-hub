@@ -37,6 +37,7 @@ import {
   SkipForward,
   SkipBack
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VideoAnalysisResultsProps {
   videoId: string;
@@ -60,10 +61,11 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
   videoType,
   teamId
 }) => {
+  
   const [videoData, setVideoData] = useState<any>({
-    title: "Championship Final - Team Analysis",
-    duration: "45:30",
-    upload_date: "2025-01-15",
+    title: "Loading...",
+    duration: "0:00",
+    upload_date: "",
     video_url: null
   });
 
@@ -103,11 +105,77 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
     ]
   });
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch video data from database
+  useEffect(() => {
+    const fetchVideoData = async () => {
+      if (!videoId) {
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        // Try to find the video by ID
+        const { data, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('id', videoId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching video:', error);
+          return;
+        }
+
+        if (data) {
+          const mappedData = {
+            title: data.title || 'Untitled Video',
+            duration: data.duration ? formatDuration(data.duration) : '0:00',
+            upload_date: data.created_at ? new Date(data.created_at).toLocaleDateString() : '',
+            video_url: data.video_url || null,
+            description: data.description || '',
+            video_type: data.video_type || 'highlight'
+          };
+          
+          setVideoData(mappedData);
+        } else {
+          setVideoData({
+            title: "Video Not Found",
+            duration: "0:00",
+            upload_date: "",
+            video_url: null,
+            description: "The requested video could not be found in the database",
+            video_type: "unknown"
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching video data:', error);
+        setVideoData({
+          title: "Error Loading Video",
+          duration: "0:00",
+          upload_date: "",
+          video_url: null,
+          description: "Failed to load video data",
+          video_type: "unknown"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVideoData();
+  }, [videoId]);
+
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -138,13 +206,24 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
     return matchesFilter && matchesSearch;
   }) || [];
 
+  if (loading) {
+    return (
+      <div className="min-h-64 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-bright-pink mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading video...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen  ">
-      <div className="container mx-auto p-6 space-y-8">
+    <div className="min-h-full">
+      <div className="space-y-6">
         {/* Header Section */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold  ">
+            <h1 className="text-2xl font-bold text-white">
               Video Analysis Results
             </h1>
             <p className="text-gray-400 mt-1">AI-powered sports analysis and insights</p>
@@ -153,13 +232,6 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
             <Badge className="bg-bright-pink/20 text-bright-pink border-bright-pink/30">
               {videoType.toUpperCase()}
             </Badge>
-            <Button
-              variant="outline"
-              className="border-bright-pink/30 text-bright-pink hover:bg-bright-pink/10"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
           </div>
         </div>
 
@@ -167,20 +239,31 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
         <Card className="bg-gray-800/50 border-gray-700/50 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-0">
             <div className="relative">
-              <div className="aspect-video  rounded-t-lg flex items-center justify-center relative overflow-hidden">
-                {videoData?.video_url ? (
+                             <div className="aspect-video rounded-t-lg flex items-center justify-center relative overflow-hidden">
+                 {videoData?.video_url ? (
                   <video
                     src={videoData.video_url}
                     className="w-full h-full object-cover"
                     onTimeUpdate={(e) => setCurrentTime((e.target as HTMLVideoElement).currentTime)}
+                    onError={(e) => {
+                      console.error('Video loading error:', e);
+                      setVideoData(prev => ({
+                        ...prev,
+                        video_url: null
+                      }));
+                    }}
+                    controls
+                    preload="metadata"
                   />
                 ) : (
                   <div className="text-gray-400 flex flex-col items-center">
                     <div className="w-24 h-24 bg-gray-700 rounded-full flex items-center justify-center mb-4">
                       <Play className="w-12 h-12 text-bright-pink" />
                     </div>
-                    <span className="text-lg">Video Preview</span>
-                    <span className="text-sm text-gray-500 mt-1">Click to load video content</span>
+                    <span className="text-lg">No Video Available</span>
+                                         <span className="text-sm text-gray-500 mt-1">
+                       Video URL not found or video is loading.
+                     </span>
                   </div>
                 )}
 
@@ -214,7 +297,9 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
               <div className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-white font-semibold text-xl mb-1">{videoData?.title}</h3>
+                                         <h3 className="text-white font-semibold text-xl mb-1">
+                       {videoData?.title}
+                     </h3>
                     <div className="flex items-center gap-4 text-gray-400 text-sm">
                       <span className="flex items-center gap-1">
                         <Timer className="w-4 h-4" />
@@ -817,6 +902,18 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
             </div>
           </CardContent>
         </Card>
+
+        {/* AI Analysis Button */}
+        <div className="flex justify-center mt-8">
+          <Button
+            className="bg-bright-pink hover:bg-bright-pink/90 text-white h-14 text-lg font-medium px-8"
+            size="lg"
+            disabled
+          >
+            <Zap className="w-5 h-5 mr-3" />
+            Analyze Video with AI
+          </Button>
+        </div>
       </div>
     </div >
   );

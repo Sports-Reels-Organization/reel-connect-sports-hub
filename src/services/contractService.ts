@@ -18,7 +18,575 @@ export interface ContractData {
   };
 }
 
+// Enhanced contract data interfaces
+export interface PermanentTransferContract {
+  // Basic Information
+  playerName: string;
+  playerPosition: string;
+  playerNationality: string;
+  teamName: string;
+  teamCountry: string;
+  contractDate: string;
+  
+  // Transfer Details
+  transferFee: number;
+  currency: string;
+  contractDuration: string;
+  
+  // Financial Terms
+  playerSalary: {
+    annual: number;
+    monthly: number;
+    weekly: number;
+  };
+  signOnBonus: number;
+  performanceBonus: {
+    appearance: number;
+    goal: number;
+    assist: number;
+    cleanSheet: number;
+    teamSuccess: number;
+  };
+  
+  // Support & Benefits
+  relocationSupport: {
+    housing: number;
+    transportation: number;
+    familySupport: number;
+    languageTraining: number;
+  };
+  medicalInsurance: boolean;
+  imageRights: {
+    percentage: number;
+    terms: string;
+  };
+  
+  // Additional Terms
+  releaseClause: number;
+  sellOnPercentage: number;
+  buybackClause: {
+    active: boolean;
+    amount: number;
+    duration: string;
+  };
+}
+
+export interface LoanTransferContract {
+  // Basic Information
+  playerName: string;
+  playerPosition: string;
+  playerNationality: string;
+  parentClub: string;
+  loanClub: string;
+  contractDate: string;
+  currency: string;
+  
+  // Loan Details
+  loanDuration: string;
+  loanType: 'with-options' | 'without-options' | 'with-obligations';
+  
+  // Financial Terms
+  loanFee: {
+    base: number;
+    withOptions: number;
+    withoutOptions: number;
+    withObligations: number;
+  };
+  salaryCoverage: {
+    parentClub: number;
+    loanClub: number;
+    percentage: number;
+  };
+  
+  // Performance Clauses
+  appearanceClause: number;
+  goalBonus: number;
+  assistBonus: number;
+  promotionBonus: number;
+  
+  // Options & Obligations
+  purchaseOption: {
+    active: boolean;
+    amount: number;
+    conditions: string[];
+  };
+  obligationToBuy: {
+    active: boolean;
+    amount: number;
+    triggers: string[];
+  };
+  
+  // Additional Terms
+  recallClause: {
+    active: boolean;
+    conditions: string[];
+    noticePeriod: string;
+  };
+  extensionOption: {
+    active: boolean;
+    duration: string;
+    conditions: string[];
+  };
+}
+
 export const contractService = {
+  async generatePermanentTransferContract(data: PermanentTransferContract): Promise<string> {
+    try {
+      const contractHtml = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Permanent Transfer Contract - ${data.playerName}</title>
+          <style>
+            body { font-family: 'Times New Roman', serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+            .header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
+            .contract-title { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+            .section { margin: 25px 0; }
+            .section-title { font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; }
+            .subsection { margin: 15px 0; }
+            .subsection-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; }
+            .term { margin: 8px 0; display: flex; justify-content: space-between; }
+            .term-label { font-weight: bold; }
+            .term-value { text-align: right; }
+            .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
+            .signature-box { width: 200px; border-top: 1px solid #000; padding-top: 10px; text-align: center; }
+            .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+            .highlight { background-color: #f0f0f0; padding: 10px; border-left: 4px solid #007bff; margin: 10px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="contract-title">PERMANENT TRANSFER CONTRACT</div>
+            <div>Professional Football Player Transfer Agreement</div>
+            <div>Date: ${data.contractDate}</div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">1. PARTIES TO THE AGREEMENT</div>
+            <div class="term">
+              <span class="term-label">Player:</span>
+              <span class="term-value">${data.playerName} (${data.playerPosition})</span>
+            </div>
+            <div class="term">
+              <span class="term-label">Nationality:</span>
+              <span class="term-value">${data.playerNationality}</span>
+            </div>
+            <div class="term">
+              <span class="term-label">Acquiring Club:</span>
+              <span class="term-value">${data.teamName}</span>
+            </div>
+            <div class="term">
+              <span class="term-label">Country:</span>
+              <span class="term-value">${data.teamCountry}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">2. TRANSFER DETAILS</div>
+            <div class="highlight">
+              <div class="term">
+                <span class="term-label">Transfer Fee:</span>
+                <span class="term-value">${data.currency} ${data.transferFee.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Contract Duration:</span>
+                <span class="term-value">${data.contractDuration}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">3. FINANCIAL TERMS</div>
+            
+            <div class="subsection">
+              <div class="subsection-title">3.1 Player Salary</div>
+              <div class="term">
+                <span class="term-label">Annual Salary:</span>
+                <span class="term-value">${data.currency} ${data.playerSalary.annual.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Monthly Salary:</span>
+                <span class="term-value">${data.currency} ${data.playerSalary.monthly.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Weekly Salary:</span>
+                <span class="term-value">${data.currency} ${data.playerSalary.weekly.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div class="subsection">
+              <div class="subsection-title">3.2 Sign-on Bonus</div>
+              <div class="term">
+                <span class="term-label">Amount:</span>
+                <span class="term-value">${data.currency} ${data.signOnBonus.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div class="subsection">
+              <div class="subsection-title">3.3 Performance Bonuses</div>
+              <div class="term">
+                <span class="term-label">Appearance Bonus:</span>
+                <span class="term-value">${data.currency} ${data.performanceBonus.appearance.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Goal Bonus:</span>
+                <span class="term-value">${data.currency} ${data.performanceBonus.goal.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Assist Bonus:</span>
+                <span class="term-value">${data.currency} ${data.performanceBonus.assist.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Clean Sheet Bonus:</span>
+                <span class="term-value">${data.currency} ${data.performanceBonus.cleanSheet.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Team Success Bonus:</span>
+                <span class="term-value">${data.currency} ${data.performanceBonus.teamSuccess.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">4. SUPPORT & RELOCATION BENEFITS</div>
+            
+            <div class="subsection">
+              <div class="subsection-title">4.1 Relocation Support</div>
+              <div class="term">
+                <span class="term-label">Housing Allowance:</span>
+                <span class="term-value">${data.currency} ${data.relocationSupport.housing.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Transportation:</span>
+                <span class="term-value">${data.currency} ${data.relocationSupport.transportation.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Family Support:</span>
+                <span class="term-value">${data.currency} ${data.relocationSupport.familySupport.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Language Training:</span>
+                <span class="term-value">${data.currency} ${data.relocationSupport.languageTraining.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div class="subsection">
+              <div class="subsection-title">4.2 Additional Benefits</div>
+              <div class="term">
+                <span class="term-label">Medical Insurance:</span>
+                <span class="term-value">${data.medicalInsurance ? 'Included' : 'Not Included'}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Image Rights:</span>
+                <span class="term-value">${data.imageRights.percentage}% - ${data.imageRights.terms}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">5. TRANSFER CLAUSES</div>
+            
+            <div class="subsection">
+              <div class="subsection-title">5.1 Release Clause</div>
+              <div class="term">
+                <span class="term-label">Amount:</span>
+                <span class="term-value">${data.currency} ${data.releaseClause.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div class="subsection">
+              <div class="subsection-title">5.2 Sell-on Clause</div>
+              <div class="term">
+                <span class="term-label">Percentage:</span>
+                <span class="term-value">${data.sellOnPercentage}%</span>
+              </div>
+            </div>
+
+            <div class="subsection">
+              <div class="subsection-title">5.3 Buyback Clause</div>
+              <div class="term">
+                <span class="term-label">Active:</span>
+                <span class="term-value">${data.buybackClause.active ? 'Yes' : 'No'}</span>
+              </div>
+              ${data.buybackClause.active ? `
+              <div class="term">
+                <span class="term-label">Amount:</span>
+                <span class="term-value">${data.currency} ${data.buybackClause.amount.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Duration:</span>
+                <span class="term-value">${data.buybackClause.duration}</span>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="signature-section">
+            <div class="signature-box">
+              <div>Player Signature</div>
+              <div>Date: _______________</div>
+            </div>
+            <div class="signature-box">
+              <div>Club Representative</div>
+              <div>Date: _______________</div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>This contract is generated electronically and is legally binding upon signature by both parties.</p>
+            <p>Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      return contractHtml;
+    } catch (error) {
+      console.error('Error generating permanent transfer contract:', error);
+      throw error;
+    }
+  },
+
+  async generateLoanTransferContract(data: LoanTransferContract): Promise<string> {
+    try {
+      const contractHtml = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Loan Transfer Contract - ${data.playerName}</title>
+          <style>
+            body { font-family: 'Times New Roman', serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+            .header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
+            .contract-title { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+            .section { margin: 25px 0; }
+            .section-title { font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; }
+            .subsection { margin: 15px 0; }
+            .subsection-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; }
+            .term { margin: 8px 0; display: flex; justify-content: space-between; }
+            .term-label { font-weight: bold; }
+            .term-value { text-align: right; }
+            .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
+            .signature-box { width: 200px; border-top: 1px solid #000; padding-top: 10px; text-align: center; }
+            .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+            .highlight { background-color: #f0f0f0; padding: 10px; border-left: 4px solid #007bff; margin: 10px 0; }
+            .loan-type { background-color: #e8f5e8; padding: 10px; border-left: 4px solid #28a745; margin: 10px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="contract-title">LOAN TRANSFER AGREEMENT</div>
+            <div>Professional Football Player Loan Contract</div>
+            <div>Date: ${data.contractDate}</div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">1. PARTIES TO THE AGREEMENT</div>
+            <div class="term">
+              <span class="term-label">Player:</span>
+              <span class="term-value">${data.playerName} (${data.playerPosition})</span>
+            </div>
+            <div class="term">
+              <span class="term-label">Nationality:</span>
+              <span class="term-value">${data.playerNationality}</span>
+            </div>
+            <div class="term">
+              <span class="term-label">Parent Club:</span>
+              <span class="term-value">${data.parentClub}</span>
+            </div>
+            <div class="term">
+              <span class="term-label">Loan Club:</span>
+              <span class="term-value">${data.loanClub}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">2. LOAN DETAILS</div>
+            <div class="loan-type">
+              <div class="term">
+                <span class="term-label">Loan Duration:</span>
+                <span class="term-value">${data.loanDuration}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Loan Type:</span>
+                <span class="term-value">${data.loanType.replace('-', ' ').toUpperCase()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">3. FINANCIAL TERMS</div>
+            
+            <div class="subsection">
+              <div class="subsection-title">3.1 Loan Fees</div>
+              <div class="term">
+                <span class="term-label">Base Loan Fee:</span>
+                <span class="term-value">${data.currency} ${data.loanFee.base.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">With Options:</span>
+                <span class="term-value">${data.currency} ${data.loanFee.withOptions.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Without Options:</span>
+                <span class="term-value">${data.currency} ${data.loanFee.withoutOptions.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">With Obligations:</span>
+                <span class="term-value">${data.currency} ${data.loanFee.withObligations.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div class="subsection">
+              <div class="subsection-title">3.2 Salary Coverage</div>
+              <div class="term">
+                <span class="term-label">Parent Club Contribution:</span>
+                <span class="term-value">${data.currency} ${data.salaryCoverage.parentClub.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Loan Club Contribution:</span>
+                <span class="term-value">${data.currency} ${data.salaryCoverage.loanClub.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Coverage Percentage:</span>
+                <span class="term-value">${data.salaryCoverage.percentage}%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">4. PERFORMANCE CLAUSES</div>
+            
+            <div class="subsection">
+              <div class="subsection-title">4.1 Appearance & Performance Bonuses</div>
+              <div class="term">
+                <span class="term-label">Appearance Clause:</span>
+                <span class="term-value">${data.currency} ${data.appearanceClause.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Goal Bonus:</span>
+                <span class="term-value">${data.currency} ${data.goalBonus.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Assist Bonus:</span>
+                <span class="term-value">${data.currency} ${data.assistBonus.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Promotion Bonus:</span>
+                <span class="term-value">${data.currency} ${data.promotionBonus.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">5. OPTIONS & OBLIGATIONS</div>
+            
+            <div class="subsection">
+              <div class="subsection-title">5.1 Purchase Option</div>
+              <div class="term">
+                <span class="term-label">Active:</span>
+                <span class="term-value">${data.purchaseOption.active ? 'Yes' : 'No'}</span>
+              </div>
+              ${data.purchaseOption.active ? `
+              <div class="term">
+                <span class="term-label">Amount:</span>
+                <span class="term-value">${data.currency} ${data.purchaseOption.amount.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Conditions:</span>
+                <span class="term-value">${data.purchaseOption.conditions.join(', ')}</span>
+              </div>
+              ` : ''}
+            </div>
+
+            <div class="subsection">
+              <div class="subsection-title">5.2 Obligation to Buy</div>
+              <div class="term">
+                <span class="term-label">Active:</span>
+                <span class="term-value">${data.obligationToBuy.active ? 'Yes' : 'No'}</span>
+              </div>
+              ${data.obligationToBuy.active ? `
+              <div class="term">
+                <span class="term-label">Amount:</span>
+                <span class="term-value">${data.currency} ${data.obligationToBuy.amount.toLocaleString()}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Triggers:</span>
+                <span class="term-value">${data.obligationToBuy.triggers.join(', ')}</span>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">6. ADDITIONAL TERMS</div>
+            
+            <div class="subsection">
+              <div class="subsection-title">6.1 Recall Clause</div>
+              <div class="term">
+                <span class="term-label">Active:</span>
+                <span class="term-value">${data.recallClause.active ? 'Yes' : 'No'}</span>
+              </div>
+              ${data.recallClause.active ? `
+              <div class="term">
+                <span class="term-label">Conditions:</span>
+                <span class="term-value">${data.recallClause.conditions.join(', ')}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Notice Period:</span>
+                <span class="term-value">${data.recallClause.noticePeriod}</span>
+              </div>
+              ` : ''}
+            </div>
+
+            <div class="subsection">
+              <div class="subsection-title">6.2 Extension Option</div>
+              <div class="term">
+                <span class="term-label">Active:</span>
+                <span class="term-value">${data.extensionOption.active ? 'Yes' : 'No'}</span>
+              </div>
+              ${data.extensionOption.active ? `
+              <div class="term">
+                <span class="term-label">Duration:</span>
+                <span class="term-value">${data.extensionOption.duration}</span>
+              </div>
+              <div class="term">
+                <span class="term-label">Conditions:</span>
+                <span class="term-value">${data.extensionOption.conditions.join(', ')}</span>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="signature-section">
+            <div class="signature-box">
+              <div>Parent Club Representative</div>
+              <div>Date: _______________</div>
+            </div>
+            <div class="signature-box">
+              <div>Loan Club Representative</div>
+              <div>Date: _______________</div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>This loan agreement is generated electronically and is legally binding upon signature by both parties.</p>
+            <p>Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      return contractHtml;
+    } catch (error) {
+      console.error('Error generating loan transfer contract:', error);
+      throw error;
+    }
+  },
+
   async generateContract(contractData: ContractData): Promise<string> {
     try {
       // Generate contract HTML content
@@ -98,7 +666,11 @@ export const contractService = {
   async testBucketAccess(): Promise<boolean> {
     try {
       const { data, error } = await supabase.storage.getBucket('contracts');
-      return !error && data !== null;
+      if (error) {
+        console.error('Error accessing contracts bucket:', error);
+        return false;
+      }
+      return true;
     } catch (error) {
       console.error('Error testing bucket access:', error);
       return false;

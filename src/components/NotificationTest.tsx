@@ -1,13 +1,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const NotificationTest: React.FC = () => {
   const { profile } = useAuth();
-  const { createNotification } = useEnhancedNotifications();
   const { toast } = useToast();
 
   const testNotification = async () => {
@@ -17,20 +15,36 @@ const NotificationTest: React.FC = () => {
       console.log("Creating test notification for user:", profile.user_id);
       console.log("Profile data:", profile);
       
-      // Create a test notification
-      await createNotification({
-        title: "Test Notification",
-        message: "This is a test notification to verify the system is working",
-        type: "test",
-        action_url: "/notifications",
-        action_text: "View"
-      });
+      // Create a test notification directly using Supabase
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: profile.user_id,
+          title: "Test Notification",
+          message: "This is a test notification to verify the system is working",
+          type: "test",
+          action_url: "/notifications",
+          action_text: "View",
+          is_read: false,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-      console.log("Test notification created successfully");
-      toast({
-        title: "Test Notification Created",
-        description: "Test notification created successfully. Check the notification count in header.",
-      });
+      if (error) {
+        console.error("Error creating test notification:", error);
+        toast({
+          title: "Test Notification Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        console.log("Test notification created successfully:", data);
+        toast({
+          title: "Test Notification Created",
+          description: "Test notification created successfully. Check the notification count in header.",
+        });
+      }
     } catch (error) {
       console.error("Error creating test notification:", error);
       toast({

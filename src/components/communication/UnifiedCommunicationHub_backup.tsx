@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { contractService, PermanentTransferContract, LoanTransferContract } from '@/services/contractService';
-import { contractManagementService } from '@/services/contractManagementService';
 import { useNavigate } from 'react-router-dom';
 
 interface UnifiedCommunicationHubProps {
@@ -1054,67 +1053,66 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                  onClick={async () => {
                    try {
                      if (contractType === 'create') {
-                       // Get team and agent IDs
-                       let teamId = '';
-                       let agentId = '';
-                       
-                       if (profile?.user_type === 'team') {
-                         const { data: teamData } = await supabase
-                           .from('teams')
-                           .select('id')
-                           .eq('profile_id', profile.id)
-                           .single();
-                         teamId = teamData?.id || '';
-                       }
-                       
-                       if (selectedInterest) {
-                         agentId = selectedInterest.agent_id;
-                       }
-                       
-                       if (!teamId || !agentId) {
-                         throw new Error('Missing team or agent information');
-                       }
-                       
-                       // Create contract in database
-                       const contractData = {
-                         pitchId: selectedInterest?.pitch_id || pitchId || '',
-                         agentId: agentId,
-                         teamId: teamId,
-                         transferType: transferType,
-                         contractValue: detailedContractForm.transferFee,
-                         currency: detailedContractForm.currency,
-                         contractDetails: {
-                           duration: detailedContractForm.contractDuration,
-                           salary: detailedContractForm.playerSalary.annual,
+                       if (transferType === 'permanent') {
+                         const contractData: PermanentTransferContract = {
+                           playerName: detailedContractForm.playerName,
+                           playerPosition: detailedContractForm.playerPosition,
+                           playerNationality: detailedContractForm.playerNationality || 'Not specified',
+                           teamName: detailedContractForm.teamName || 'Acquiring Club',
+                           teamCountry: detailedContractForm.teamCountry || 'Not specified',
+                           contractDate: detailedContractForm.contractDate,
+                           transferFee: detailedContractForm.transferFee,
+                           currency: detailedContractForm.currency,
+                           contractDuration: detailedContractForm.contractDuration,
+                           playerSalary: detailedContractForm.playerSalary,
                            signOnBonus: detailedContractForm.signOnBonus,
-                           performanceBonus: detailedContractForm.performanceBonus.appearance,
-                           relocationSupport: detailedContractForm.relocationSupport.housing
-                         }
-                       };
-                       
-                       const contract = await contractManagementService.createContract(contractData);
-                       
-                       // Update agent interest status to reflect contract creation
-                       if (selectedInterest) {
-                         await supabase
-                           .from('agent_interest')
-                           .update({ 
-                             status: 'negotiating',
-                             updated_at: new Date().toISOString()
-                           })
-                           .eq('id', selectedInterest.id);
+                           performanceBonus: detailedContractForm.performanceBonus,
+                           relocationSupport: detailedContractForm.relocationSupport,
+                           medicalInsurance: detailedContractForm.medicalInsurance,
+                           imageRights: detailedContractForm.imageRights,
+                           releaseClause: detailedContractForm.releaseClause,
+                           sellOnPercentage: detailedContractForm.sellOnPercentage,
+                           buybackClause: detailedContractForm.buybackClause
+                         };
+                         
+                         const contractHtml = await contractService.generatePermanentTransferContract(contractData);
+                         await contractService.downloadContract(contractHtml, `permanent-transfer-${detailedContractForm.playerName}-${Date.now()}.html`);
+                         
+                         toast({
+                           title: "Contract Generated!",
+                           description: "Permanent transfer contract has been created and downloaded successfully.",
+                         });
+                       } else {
+                         const contractData: LoanTransferContract = {
+                           playerName: detailedContractForm.playerName,
+                           playerPosition: detailedContractForm.playerPosition,
+                           playerNationality: detailedContractForm.playerNationality || 'Not specified',
+                           parentClub: detailedContractForm.teamName || 'Parent Club',
+                           loanClub: 'Loan Club',
+                           contractDate: detailedContractForm.contractDate,
+                           currency: detailedContractForm.currency,
+                           loanDuration: detailedContractForm.loanDuration,
+                           loanType: detailedContractForm.loanType,
+                           loanFee: detailedContractForm.loanFee,
+                           salaryCoverage: detailedContractForm.salaryCoverage,
+                           appearanceClause: detailedContractForm.appearanceClause,
+                           goalBonus: detailedContractForm.goalBonus,
+                           assistBonus: detailedContractForm.assistBonus,
+                           promotionBonus: detailedContractForm.promotionBonus,
+                           purchaseOption: detailedContractForm.purchaseOption,
+                           obligationToBuy: detailedContractForm.obligationToBuy,
+                           recallClause: detailedContractForm.recallClause,
+                           extensionOption: detailedContractForm.extensionOption
+                         };
+                         
+                         const contractHtml = await contractService.generateLoanTransferContract(contractData);
+                         await contractService.downloadContract(contractHtml, `loan-transfer-${detailedContractForm.playerName}-${Date.now()}.html`);
+                         
+                         toast({
+                           title: "Contract Generated!",
+                           description: "Loan transfer contract has been created and downloaded successfully.",
+                         });
                        }
-                       
-                       toast({
-                         title: "Contract Created!",
-                         description: "Contract has been created and is ready for negotiation.",
-                       });
-                       
-                       setShowContractModal(false);
-                       
-                       // Navigate to contract negotiation page
-                       navigate(`/contract-negotiation/${contract.id}`);
-                       
                      } else if (contractType === 'upload' && contractFile) {
                        // Handle file upload logic here
                        toast({
@@ -1122,11 +1120,13 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                          description: "Contract file has been uploaded successfully.",
                        });
                      }
+                     
+                     setShowContractModal(false);
                    } catch (error: any) {
-                     console.error('Error creating contract:', error);
+                     console.error('Error generating contract:', error);
                      toast({
                        title: "Error",
-                       description: error.message || "Failed to create contract",
+                       description: error.message || "Failed to generate contract",
                        variant: "destructive"
                      });
                    }

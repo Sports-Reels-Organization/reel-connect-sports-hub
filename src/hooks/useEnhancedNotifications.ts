@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedNotificationService, EnhancedNotification, NotificationPreferences } from '@/services/enhancedNotificationService';
-import { supabase } from '@/integrations/supabase/client';
 
 export const useEnhancedNotifications = () => {
   const { profile } = useAuth();
@@ -199,110 +198,13 @@ export const useEnhancedNotifications = () => {
     return notifications.filter(n => n.type === type);
   }, [notifications]);
 
-  // Set up real-time subscription
+  // Initialize data
   useEffect(() => {
     if (!profile?.user_id) return;
 
     fetchNotifications();
     fetchPreferences();
-
-    const channel = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${profile.user_id}`
-        },
-        (payload) => {
-          console.log('Real-time notification received:', payload.new);
-          const newNotification = payload.new as EnhancedNotification;
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-          setStats(prev => ({
-            ...prev,
-            total: prev.total + 1,
-            unread: prev.unread + 1,
-            by_type: {
-              ...prev.by_type,
-              [newNotification.type]: (prev.by_type[newNotification.type] || 0) + 1
-            }
-          }));
-          
-          // Show toast for new notification
-          if (preferences?.in_app_notifications !== false) {
-            toast({
-              title: newNotification.title,
-              description: newNotification.message,
-              duration: 5000,
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${profile.user_id}`
-        },
-        (payload) => {
-          const updatedNotification = payload.new as EnhancedNotification;
-          setNotifications(prev =>
-            prev.map(n =>
-              n.id === updatedNotification.id ? updatedNotification : n
-            )
-          );
-          
-          // Update unread count if status changed
-          if (updatedNotification.is_read !== payload.old.is_read) {
-            setUnreadCount(prev => 
-              updatedNotification.is_read ? Math.max(0, prev - 1) : prev + 1
-            );
-            setStats(prev => ({
-              ...prev,
-              unread: updatedNotification.is_read ? Math.max(0, prev.unread - 1) : prev.unread + 1
-            }));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${profile.user_id}`
-        },
-        (payload) => {
-          const deletedNotification = payload.old as EnhancedNotification;
-          setNotifications(prev => prev.filter(n => n.id !== deletedNotification.id));
-          
-          // Update stats
-          setStats(prev => ({
-            ...prev,
-            total: Math.max(0, prev.total - 1),
-            unread: deletedNotification.is_read ? prev.unread : Math.max(0, prev.unread - 1),
-            by_type: {
-              ...prev.by_type,
-              [deletedNotification.type]: Math.max(0, (prev.by_type[deletedNotification.type] || 0) - 1)
-            }
-          }));
-          
-          if (!deletedNotification.is_read) {
-            setUnreadCount(prev => Math.max(0, prev - 1));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [profile?.user_id, preferences?.in_app_notifications, toast, fetchNotifications, fetchPreferences]);
+  }, [profile?.user_id]);
 
   return {
     // State

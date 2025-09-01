@@ -26,6 +26,7 @@ import News from "./pages/News";
 import VideoShowcase from "./pages/VideoShowcase";
 import Notification from "./pages/Notification";
 import NotFound from "./pages/NotFound";
+import ContractNegotiationPage from "./pages/ContractNegotiationPage";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ function App() {
                 <Route path="/team-explore" element={<TeamExplore />} />
                 <Route path="/agent-shortlist" element={<AgentShortlist />} />
                 <Route path="/contracts" element={<Contracts />} />
+                <Route path="/contract-negotiation/:contractId" element={<ContractNegotiationPage />} />
                 <Route path="/user-management" element={<UserManagement />} />
                 <Route path="/news" element={<News />} />
                 <Route path="/video-showcase" element={<VideoShowcase />} />
