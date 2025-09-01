@@ -13,6 +13,7 @@ import { useSportData, getSportDisplayName, getSportIcon, getAvailableSports } f
 import { Upload, Users, Trophy, Video, Plus, X, Camera, FileImage } from 'lucide-react';
 import InfoTooltip from './InfoTooltip';
 import imageCompression from 'browser-image-compression';
+import { TeamData } from '@/types/database';
 
 const leagues = [
   'NLO', 'NNL', 'NPFL', 'N-YOUTH LEAGUE', 'TCC', 'FEDERATION CUP', 'FA CUP'
@@ -23,7 +24,7 @@ const countries = [
   'United Kingdom', 'Germany', 'France', 'Spain', 'Italy', 'Brazil', 'Argentina', 'USA'
 ];
 
-interface TeamData {
+interface FormTeamData {
   team_name: string;
   sport_type: string;
   member_association: string;
@@ -41,7 +42,7 @@ const TeamProfileSetup: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [teamData, setTeamData] = useState<TeamData>({
+  const [teamData, setTeamData] = useState<FormTeamData>({
     team_name: '',
     sport_type: '',
     member_association: '',
@@ -59,7 +60,7 @@ const TeamProfileSetup: React.FC = () => {
 
   // Get available sports and sport-specific data
   const availableSports = getAvailableSports();
-  const sportData = useSportData(teamData.sport_type, 'male'); // Teams are typically male-focused for titles
+  const sportData = useSportData(teamData.sport_type, 'male');
 
   useEffect(() => {
     fetchTeamData();
@@ -83,18 +84,19 @@ const TeamProfileSetup: React.FC = () => {
       }
 
       if (data) {
+        const teamInfo = data as TeamData;
         setTeamData({
-          team_name: data.team_name || '',
-          sport_type: data.sport_type || '',
-          member_association: data.member_association || '',
-          year_founded: data.year_founded?.toString() || '',
-          country: data.country || '',
-          league: data.league || '',
-          description: data.description || '',
-          logo_url: data.logo_url || '',
-          titles: data.titles || []
+          team_name: teamInfo.team_name || '',
+          sport_type: teamInfo.sport_type || '',
+          member_association: teamInfo.member_association || '',
+          year_founded: teamInfo.year_founded?.toString() || '',
+          country: teamInfo.country || '',
+          league: teamInfo.league || '',
+          description: teamInfo.description || '',
+          logo_url: teamInfo.logo_url || '',
+          titles: teamInfo.titles || []
         });
-        checkProfileCompletion(data);
+        checkProfileCompletion(teamInfo);
       }
     } catch (error) {
       console.error('Error fetching team data:', error);
@@ -149,18 +151,15 @@ const TeamProfileSetup: React.FC = () => {
 
   const compressAndConvertToBase64 = async (file: File): Promise<string> => {
     try {
-      // Compression options
       const options = {
-        maxSizeMB: 0.5, // Maximum size 0.5MB
-        maxWidthOrHeight: 400, // Maximum dimension 400px
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 400,
         useWebWorker: true,
         fileType: 'image/jpeg'
       };
 
-      // Compress the image
       const compressedFile = await imageCompression(file, options);
 
-      // Convert to base64
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -180,7 +179,6 @@ const TeamProfileSetup: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({
         title: "Invalid File Type",
@@ -190,7 +188,6 @@ const TeamProfileSetup: React.FC = () => {
       return;
     }
 
-    // Validate file size (5MB limit before compression)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "File Too Large",
@@ -202,10 +199,7 @@ const TeamProfileSetup: React.FC = () => {
 
     setLogoUploading(true);
     try {
-      // Compress and convert to base64
       const base64Logo = await compressAndConvertToBase64(file);
-
-      // Update team data with base64 logo
       setTeamData(prev => ({ ...prev, logo_url: base64Logo }));
 
       toast({
@@ -221,7 +215,6 @@ const TeamProfileSetup: React.FC = () => {
       });
     } finally {
       setLogoUploading(false);
-      // Clear the input
       if (logoInputRef.current) {
         logoInputRef.current.value = '';
       }

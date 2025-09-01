@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Heart, MessageSquare, Calendar, DollarSign, MapPin, User, Trash2 } from 'lucide-react';
+import { extractSingleResult } from '@/types/supabase-helpers';
 
 interface ShortlistedPitch {
   id: string;
@@ -100,16 +100,26 @@ const AgentShortlist = () => {
 
       if (error) throw error;
 
-      // Process data to add age calculation
-      const processedData = (data || []).map(item => ({
-        ...item,
-        players: {
-          ...item.players,
-          age: item.players.date_of_birth
-            ? new Date().getFullYear() - new Date(item.players.date_of_birth).getFullYear()
-            : undefined
-        }
-      }));
+      // Process data safely using helper functions
+      const processedData = (data || []).map(item => {
+        const player = extractSingleResult(item.players);
+        const transferPitch = extractSingleResult(item.transfer_pitches);
+        const team = transferPitch ? extractSingleResult(transferPitch.teams) : null;
+
+        return {
+          ...item,
+          players: {
+            ...player,
+            age: player?.date_of_birth
+              ? new Date().getFullYear() - new Date(player.date_of_birth).getFullYear()
+              : undefined
+          },
+          transfer_pitches: {
+            ...transferPitch,
+            teams: team || { team_name: 'Unknown Team', country: 'Unknown' }
+          }
+        };
+      }).filter(item => item.players && item.transfer_pitches);
 
       setShortlistedPitches(processedData);
     } catch (error) {
