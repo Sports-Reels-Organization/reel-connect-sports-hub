@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, createAdminClient } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -96,23 +96,51 @@ const UserManagement = () => {
     setDeletingUsers(prev => new Set(prev).add(userId));
     
     try {
-      // Call the database function to safely delete the user
-      const { data, error } = await supabase.rpc('delete_user_completely', {
-        user_uuid: userId
+      console.log('Starting user deletion for:', userId, userName);
+      
+      // Since RLS is disabled, we can use the regular client
+      // First, delete the profile from public.profiles
+      console.log('Attempting to delete profile...');
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userId)
+        .select();
+
+      if (profileError) {
+        console.error('Profile deletion error:', profileError);
+        throw new Error(`Profile deletion failed: ${profileError.message}`);
+      }
+
+      console.log('Profile deleted successfully:', profileData);
+
+      // For auth user deletion, we'll use a direct API call
+      // This bypasses the Supabase client restrictions
+      console.log('Attempting to delete auth user via API...');
+      
+      const response = await fetch(`/api/delete-auth-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId })
       });
 
-      if (error) throw error;
-
-      if (data) {
-        toast.success(`User "${userName}" has been completely deleted`);
-        // Remove the user from the local state
-        setProfiles(prev => prev.filter(profile => profile.user_id !== userId));
-      } else {
-        throw new Error('Deletion function returned false');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Auth user deletion failed: ${errorData.error || 'Unknown error'}`);
       }
+
+      const authResult = await response.json();
+      console.log('Auth user deleted successfully:', authResult);
+
+      toast.success(`User "${userName}" has been completely deleted`);
+      // Remove the user from the local state
+      setProfiles(prev => prev.filter(profile => profile.user_id !== userId));
+      
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast.error(`Failed to delete user "${userName}". Please check the console for details.`);
+      toast.error(`Failed to delete user "${userName}": ${error.message}`);
     } finally {
       setDeletingUsers(prev => {
         const newSet = new Set(prev);

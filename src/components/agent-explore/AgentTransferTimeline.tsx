@@ -201,44 +201,56 @@ const AgentTransferTimeline = () => {
 
   const fetchTimelinePitches = async () => {
     try {
-      const { data, error } = await supabase
+      // Simplified query to avoid foreign key relationship issues
+      const { data: pitchesData, error: pitchesError } = await supabase
         .from('transfer_pitches')
-        .select(`
-          *,
-          players!inner(
-            id,
-            full_name,
-            position,
-            citizenship,
-            photo_url,
-            date_of_birth,
-            market_value
-          ),
-          teams!inner(
-            id,
-            team_name,
-            logo_url,
-            country,
-            sport_type,
-            profile_id
-          ),
-                     agent_interest(
-             id,
-             agent_id,
-             status,
-             created_at
-           )
-        `)
+        .select('*')
         .eq('status', 'active')
-        .eq('teams.sport_type', agentSportType)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (error) throw error;
+      if (pitchesError) throw pitchesError;
+
+      // Fetch team and player data separately to avoid relationship issues
+      const enrichedPitches = await Promise.all(
+        (pitchesData || []).map(async (pitch) => {
+          // Fetch team data
+          const { data: teamData } = await supabase
+            .from('teams')
+            .select('id, team_name, logo_url, country, sport_type, profile_id')
+            .eq('id', pitch.team_id)
+            .single();
+
+          // Fetch player data
+          const { data: playerData } = await supabase
+            .from('players')
+            .select('id, full_name, position, citizenship, photo_url, date_of_birth, market_value')
+            .eq('id', pitch.player_id)
+            .single();
+
+          // Fetch agent interest data
+          const { data: interestData } = await supabase
+            .from('agent_interest')
+            .select('id, agent_id, status, created_at')
+            .eq('pitch_id', pitch.id);
+
+          return {
+            ...pitch,
+            teams: teamData || {},
+            players: playerData || {},
+            agent_interest: interestData || []
+          };
+        })
+      );
+
+      // Filter by sport type after fetching data
+      const filteredPitches = enrichedPitches.filter(pitch => 
+        pitch.teams?.sport_type === agentSportType
+      );
 
       // Process data to add age calculation and ensure proper typing
-      const processedPitches: TimelinePitch[] = (data || []).map(pitch => ({
+      const processedPitches: TimelinePitch[] = filteredPitches.map(pitch => ({
         ...pitch,
         tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
         asking_price: pitch.asking_price || 0,

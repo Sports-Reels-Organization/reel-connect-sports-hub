@@ -169,12 +169,20 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
           )
         `)
         .eq('id', contractId)
-        .single();
+        .maybeSingle(); // Changed from .single() to .maybeSingle()
 
       if (error) throw error;
-      setContracts([data]);
+      
+      if (data) {
+        setContracts([data]);
+      } else {
+        // No contract found with this ID
+        setContracts([]);
+        console.log('No contract found with ID:', contractId);
+      }
     } catch (error) {
       console.error('Error fetching contract:', error);
+      setContracts([]);
     } finally {
       setLoading(false);
     }

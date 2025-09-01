@@ -82,20 +82,50 @@ const TeamDashboard = () => {
         .from('teams')
         .select('*')
         .eq('profile_id', profile.id)
-        .single();
+        .maybeSingle(); // Changed from .single() to .maybeSingle()
 
       if (teamError) {
         console.error('Error fetching team:', teamError);
         return;
       }
 
-      setTeamInfo(team);
+      let currentTeam = team;
+      let currentTeamId = team?.id;
 
       if (!team) {
-        console.log('No team found, user needs to complete setup');
+        console.log('No team found, creating default team...');
+        // Create a default team for this profile
+        const { data: newTeam, error: createError } = await supabase
+          .from('teams')
+          .insert({
+            team_name: 'My Team',
+            country: 'United States',
+            sport_type: 'football',
+            profile_id: profile.id
+          })
+          .select('*')
+          .single();
+
+        if (createError) {
+          console.error('Error creating team:', createError);
+          return;
+        }
+
+        currentTeam = newTeam;
+        currentTeamId = newTeam.id;
+        setTeamInfo(newTeam);
+        console.log('Created default team:', newTeam);
+      } else {
+        setTeamInfo(team);
+      }
+      
+      if (!currentTeamId) {
+        console.error('No team ID available');
         return;
       }
 
+      console.log('Fetching statistics for team ID:', currentTeamId);
+      
       // Fetch all statistics in parallel
       const [
         playersResult,
@@ -109,19 +139,19 @@ const TeamDashboard = () => {
         supabase
           .from('players')
           .select('*', { count: 'exact', head: true })
-          .eq('team_id', team.id),
+          .eq('team_id', currentTeamId),
 
         // Videos count and analysis status
         supabase
           .from('videos')
           .select('id, ai_analysis_status, created_at, title')
-          .eq('team_id', team.id),
+          .eq('team_id', currentTeamId),
 
         // Active pitches and their statistics
         supabase
           .from('transfer_pitches')
           .select('id, view_count, message_count, status, expires_at, created_at, player_id')
-          .eq('team_id', team.id)
+          .eq('team_id', currentTeamId)
           .eq('status', 'active')
           .gte('expires_at', new Date().toISOString()),
 
@@ -135,14 +165,24 @@ const TeamDashboard = () => {
         supabase
           .from('match_videos')
           .select('*', { count: 'exact', head: true })
-          .eq('team_id', team.id),
+          .eq('team_id', currentTeamId),
 
         // AI analysis status
         supabase
           .from('videos')
           .select('ai_analysis_status')
-          .eq('team_id', team.id)
+          .eq('team_id', currentTeamId)
       ]);
+
+      // Log results for debugging
+      console.log('Query results:', {
+        players: playersResult,
+        videos: videosResult,
+        pitches: pitchesResult,
+        messages: messagesResult,
+        matches: matchesResult,
+        analysis: analysisResult
+      });
 
       // Process results
       const totalPlayers = playersResult.count || 0;
@@ -203,7 +243,7 @@ const TeamDashboard = () => {
           .from('players')
           .select('full_name')
           .eq('id', pitch.player_id)
-          .single();
+          .maybeSingle(); // Changed from .single() to .maybeSingle()
 
         activities.push({
           id: `pitch_${pitch.id}`,
