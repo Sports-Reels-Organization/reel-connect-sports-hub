@@ -188,7 +188,7 @@ const AuthForm = () => {
             <div className="text-center space-y-4 mb-8">
               <div className="flex justify-center">
                 <img
-                  src="/lovable-Uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
+                  src="lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
                   alt="Sports Reels Logo"
                   className="w-16 h-16 transition-transform hover:scale-105"
                 />
