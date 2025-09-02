@@ -75,7 +75,7 @@ export class EnhancedAIAnalysisService {
           id,
           title,
           team_id,
-          teams!inner (
+          teams (
             id,
             team_name,
             profile_id

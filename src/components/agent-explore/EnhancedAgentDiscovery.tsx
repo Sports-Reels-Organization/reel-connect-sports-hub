@@ -178,7 +178,7 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
           is_international,
           description,
           tagged_videos,
-          players!inner(
+          players!transfer_pitches_player_id_fkey(
             id,
             full_name,
             position,
@@ -187,7 +187,7 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
             date_of_birth,
             market_value
           ),
-          teams!inner(
+          teams(
             id,
             team_name,
             logo_url,

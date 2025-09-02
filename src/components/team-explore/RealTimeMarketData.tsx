@@ -40,12 +40,12 @@ const RealTimeMarketData = () => {
           message_count,
           created_at,
           currency,
-          players!inner(
+          players!transfer_pitches_player_id_fkey(
             full_name,
             position,
             citizenship
           ),
-          teams!inner(
+          teams(
             team_name,
             country
           )

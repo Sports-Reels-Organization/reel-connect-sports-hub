@@ -126,7 +126,7 @@ export const enhancedContractService = {
       .from('contracts')
       .select(`
         *,
-        teams!inner(team_name),
+        teams(team_name),
         players(full_name, position)
       `)
       .order('last_activity', { ascending: false });
@@ -146,8 +146,8 @@ export const enhancedContractService = {
       .from('transfer_pitches')
       .select(`
         *,
-        teams!inner(*),
-        players!inner(*)
+        teams(*),
+        players!transfer_pitches_player_id_fkey(*)
       `)
       .eq('id', pitchId)
       .single();

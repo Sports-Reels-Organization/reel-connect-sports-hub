@@ -253,8 +253,8 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
               profile:profiles!agents_profile_id_fkey(full_name, user_type)
             ),
             pitch:transfer_pitches!agent_interest_pitch_id_fkey(
-              players!inner(full_name, position),
-              teams!inner(team_name),
+              players!transfer_pitches_player_id_fkey(full_name, position),
+              teams!transfer_pitches_team_id_fkey(team_name),
               asking_price,
               currency
             )
@@ -331,8 +331,8 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
             profile:profiles!agents_profile_id_fkey(full_name, user_type)
           ),
           pitch:transfer_pitches!agent_interest_pitch_id_fkey(
-            players!inner(full_name, position),
-            teams!inner(team_name),
+            players!transfer_pitches_player_id_fkey(full_name, position),
+            teams!transfer_pitches_team_id_fkey(team_name),
             asking_price,
             currency
           )

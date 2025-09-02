@@ -65,12 +65,12 @@ export const PlayerTaggingModal: React.FC<PlayerTaggingModalProps> = ({
           currency,
           transfer_type,
           expires_at,
-          players!inner(
+          players!transfer_pitches_player_id_fkey(
             full_name,
             position,
             citizenship
           ),
-          teams!inner(
+          teams(
             team_name,
             country
           )

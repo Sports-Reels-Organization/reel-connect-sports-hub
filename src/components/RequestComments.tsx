@@ -143,11 +143,11 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
           player_id,
           asking_price,
           currency,
-          players!inner(
+          players!transfer_pitches_player_id_fkey(
             full_name,
             position
           ),
-          teams!inner(
+          teams(
             team_name
           )
         `)

@@ -61,8 +61,8 @@ export const useMarketSnapshot = () => {
           asking_price,
           expires_at,
           message_count,
-          players!inner(position, market_value),
-          teams!inner(member_association)
+          players!transfer_pitches_player_id_fkey(position, market_value),
+          teams(member_association)
         `)
         .eq('status', 'active')
         .eq('teams.member_association', teamData.member_association)

@@ -53,7 +53,7 @@ const MessageStageTracker = () => {
           const { data: pitchData } = await supabase
             .from('transfer_pitches')
             .select(`
-              players!inner(full_name)
+              players!transfer_pitches_player_id_fkey(full_name)
             `)
             .eq('id', stage.pitch_id)
             .single();

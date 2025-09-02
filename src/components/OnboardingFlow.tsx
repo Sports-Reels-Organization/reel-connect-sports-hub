@@ -55,7 +55,7 @@ const OnboardingFlow = () => {
   // Add function to handle role change
   const handleRoleChange = async (newRole: 'team' | 'agent') => {
     if (!profile) return;
-    
+
     setLoading(true);
     try {
       await updateProfile({
@@ -530,6 +530,7 @@ const OnboardingFlow = () => {
                     placeholder="Tell us about your team..."
                     rows={3}
                     className="outline-none border-0"
+                    required
                   />
                 </div>
               </>

@@ -68,7 +68,7 @@ export const AgentExploreFilters: React.FC<FilterProps> = ({
       const { data: pitchData, error: pitchError } = await supabase
         .from('transfer_pitches')
         .select(`
-          players!inner(position, citizenship)
+          players!transfer_pitches_player_id_fkey(position, citizenship)
         `)
         .eq('status', 'active')
         .gt('expires_at', new Date().toISOString());

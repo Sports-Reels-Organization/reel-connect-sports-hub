@@ -102,8 +102,8 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
         .from('transfer_pitches')
         .select(`
           *,
-          players!inner(full_name, position),
-          teams!inner(team_name, profile_id)
+          players!transfer_pitches_player_id_fkey(full_name, position),
+          teams(team_name, profile_id)
         `)
         .eq('status', 'active');
 
@@ -129,8 +129,8 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
         .select(`
           *,
           pitch:transfer_pitches!contracts_pitch_id_fkey(
-            players!inner(full_name, position),
-            teams!inner(team_name),
+            players!transfer_pitches_player_id_fkey(full_name, position),
+            teams(team_name),
             asking_price,
             currency
           ),
@@ -158,8 +158,8 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
         .select(`
           *,
           pitch:transfer_pitches!contracts_pitch_id_fkey(
-            players!inner(full_name, position),
-            teams!inner(team_name),
+            players!transfer_pitches_player_id_fkey(full_name, position),
+            teams(team_name),
             asking_price,
             currency
           ),
@@ -197,8 +197,8 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
         .select(`
           *,
           pitch:transfer_pitches!contracts_pitch_id_fkey(
-            players!inner(full_name, position),
-            teams!inner(team_name),
+            players!transfer_pitches_player_id_fkey(full_name, position),
+            teams(team_name),
             asking_price,
             currency
           ),

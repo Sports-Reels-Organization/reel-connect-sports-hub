@@ -38,6 +38,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
+  
+  // Track profile creation attempts to prevent duplicates
+  const profileCreationAttempts = new Set<string>();
 
   useEffect(() => {
     console.log('Initializing auth...');
@@ -56,14 +59,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const pendingUserType = localStorage.getItem('pending_user_type');
           console.log('Pending user type from localStorage:', pendingUserType);
           
-          // Fetch user profile with a small delay to ensure database consistency
+          // Fetch user profile with a delay to allow trigger to complete
           setTimeout(() => {
             fetchUserProfile(session.user.id, {
               full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'New User',
               email: session.user.email || '',
               user_type: pendingUserType === 'agent' ? 'agent' : 'team' // Use selected type or default to team
             });
-          }, 200);
+          }, 500); // Increased delay to allow trigger to complete
         } else {
           console.log('No session, clearing profile and setting loading to false');
           setProfile(null);
@@ -112,16 +115,53 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       console.log('Creating or fetching profile for user:', userId, 'with data:', userData);
       
-      // First, try to fetch existing profile
-      const { data: existingProfile, error: fetchError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+      // Check if we're already trying to create a profile for this user
+      if (profileCreationAttempts.has(userId)) {
+        console.log('Profile creation already in progress for user:', userId);
+        // Wait a bit and try to fetch the profile
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+        
+        if (existingProfile) {
+          console.log('Profile found after waiting:', existingProfile);
+          return existingProfile;
+        }
+      }
+      
+      // Mark that we're attempting to create a profile for this user
+      profileCreationAttempts.add(userId);
+      
+      // First, try to fetch existing profile with multiple attempts
+      let existingProfile = null;
+      
+      // Try to fetch profile multiple times to handle trigger delays
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        console.log(`Attempt ${attempt} to fetch existing profile...`);
+        
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-      if (fetchError) {
-        console.error('Error fetching existing profile:', fetchError);
-        return null;
+        if (data) {
+          console.log('Profile found on attempt', attempt);
+          existingProfile = data;
+          break;
+        }
+        
+        if (error) {
+          console.error(`Error on attempt ${attempt}:`, error);
+        }
+        
+        // Wait before next attempt
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        }
       }
 
       if (existingProfile) {
@@ -129,37 +169,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return existingProfile;
       }
 
-      // If no existing profile, create a new one
+      // If no existing profile, use UPSERT to handle race conditions
+      console.log('No existing profile found, using upsert to create...');
       const profileData = {
         user_id: userId,
         full_name: userData?.full_name || userData?.name || 'New User',
         email: userData?.email || '',
-        user_type: userData?.user_type || 'team', // Use provided user_type or default to team
+        user_type: userData?.user_type || 'team',
         profile_completed: false
       };
       
-      console.log('Creating profile with user type:', profileData.user_type);
-
-      console.log('Attempting to create profile with data:', profileData);
+      console.log('Upserting profile with data:', profileData);
 
       const { data, error } = await supabase
         .from('profiles')
-        .insert(profileData)
+        .upsert(profileData, { 
+          onConflict: 'user_id',
+          ignoreDuplicates: false 
+        })
         .select()
         .single();
 
       if (error) {
-        console.error('Error creating profile:', error);
-        // If error is due to duplicate key (profile already exists), try fetching it
-        if (error.code === '23505') {
-          console.log('Profile already exists (duplicate key), fetching existing profile...');
-          const { data: retryFetch } = await supabase
+        console.error('Error upserting profile:', error);
+        
+        // If upsert fails, try to fetch the existing profile
+        if (error.code === '23505' || error.code === '409') {
+          console.log('Upsert failed due to conflict, fetching existing profile...');
+          const { data: existingProfile, error: fetchError } = await supabase
             .from('profiles')
             .select('*')
             .eq('user_id', userId)
             .single();
-          return retryFetch;
+          
+          if (existingProfile) {
+            console.log('Successfully fetched existing profile:', existingProfile);
+            return existingProfile;
+          } else {
+            console.error('Failed to fetch existing profile:', fetchError);
+            return null;
+          }
         }
+        
         return null;
       }
 
@@ -168,6 +219,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Exception in createOrFetchProfile:', error);
       return null;
+    } finally {
+      // Remove the user from the attempts set
+      profileCreationAttempts.delete(userId);
     }
   };
 
@@ -178,14 +232,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Set a timeout to prevent infinite loading
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000); // 10 second timeout
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000); // Increased to 15 seconds
       });
       
       // Try to fetch profile with retries to handle potential trigger delays
       let data = null;
       let error = null;
       let retryCount = 0;
-      const maxRetries = 3;
+      const maxRetries = 5; // Increased retries
       
       const fetchWithRetries = async (): Promise<{ data: any; error: any; retryCount: number }> => {
         while (retryCount < maxRetries && !data) {
@@ -251,45 +305,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.log('Cleaned up pending_user_type from localStorage');
         } else {
           console.error('Failed to create profile for user');
-          // Try one more time with a different approach
-          console.log('Attempting alternative profile creation...');
-          try {
-            const { data: directInsert, error: directError } = await supabase
-              .from('profiles')
-              .insert({
-                user_id: userId,
-                full_name: userData?.full_name || 'New User',
-                email: userData?.email || '',
-                user_type: userData?.user_type || 'team',
-                profile_completed: false
-              })
-              .select()
-              .single();
+                      // Try conflict resolution as last resort
+            console.log('Attempting conflict resolution...');
+            const conflictResolvedProfile = await handleProfileConflict(userId, userData || {
+              full_name: 'New User',
+              email: '',
+              user_type: 'team'
+            });
             
-            if (directInsert && !directError) {
-              console.log('Profile created via direct insert:', directInsert);
-              setProfile(prevProfile => {
-                if (prevProfile && prevProfile.user_id === directInsert.user_id) {
-                  console.log('Profile already exists, skipping duplicate update');
-                  return prevProfile;
-                }
-                return directInsert;
-              });
-              setIsAdmin(directInsert.role === 'admin');
+            if (conflictResolvedProfile) {
+              console.log('Profile resolved via conflict resolution:', conflictResolvedProfile);
+              setProfile(conflictResolvedProfile);
+              setIsAdmin(conflictResolvedProfile.role === 'admin');
               
               // Clean up localStorage after successful profile creation
               localStorage.removeItem('pending_user_type');
               console.log('Cleaned up pending_user_type from localStorage');
             } else {
-              console.error('Direct insert also failed:', directError);
+              console.error('Conflict resolution also failed');
               setProfile(null);
               setIsAdmin(false);
             }
-          } catch (directException) {
-            console.error('Exception in direct insert:', directException);
-            setProfile(null);
-            setIsAdmin(false);
-          }
         }
         setLoading(false);
               } else {
@@ -333,42 +369,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log('Cleaned up pending_user_type from localStorage');
           } else {
             console.error('Failed to create profile after timeout');
-            // Try one more time with a different approach
-            console.log('Attempting alternative profile creation after timeout...');
-            try {
-              const { data: directInsert, error: directError } = await supabase
-                .from('profiles')
-                .insert({
-                  user_id: userId,
-                  full_name: userData?.full_name || 'New User',
-                  email: userData?.email || '',
-                  user_type: userData?.user_type || 'team',
-                  profile_completed: false
-                })
-                .select()
-                .single();
+            // Try conflict resolution as last resort
+            console.log('Attempting conflict resolution after timeout...');
+            const conflictResolvedProfile = await handleProfileConflict(userId, userData || {
+              full_name: 'New User',
+              email: '',
+              user_type: 'team'
+            });
+            
+            if (conflictResolvedProfile) {
+              console.log('Profile resolved via conflict resolution after timeout:', conflictResolvedProfile);
+              setProfile(conflictResolvedProfile);
+              setIsAdmin(conflictResolvedProfile.role === 'admin');
               
-              if (directInsert && !directError) {
-                console.log('Profile created via direct insert after timeout:', directInsert);
-                setProfile(prevProfile => {
-                  if (prevProfile && prevProfile.user_id === directInsert.user_id) {
-                    console.log('Profile already exists, skipping duplicate update');
-                    return prevProfile;
-                  }
-                  return directInsert;
-                });
-                setIsAdmin(directInsert.role === 'admin');
-                
-                // Clean up localStorage after successful profile creation
-                localStorage.removeItem('pending_user_type');
-                console.log('Cleaned up pending_user_type from localStorage');
-              } else {
-                console.error('Direct insert also failed after timeout:', directError);
-                setProfile(null);
-                setIsAdmin(false);
-              }
-            } catch (directException) {
-              console.error('Exception in direct insert after timeout:', directException);
+              // Clean up localStorage after successful profile creation
+              localStorage.removeItem('pending_user_type');
+              console.log('Cleaned up pending_user_type from localStorage');
+            } else {
+              console.error('Conflict resolution also failed after timeout');
               setProfile(null);
               setIsAdmin(false);
             }
@@ -401,8 +419,68 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Utility function to handle profile conflicts gracefully
+  const handleProfileConflict = async (userId: string, userData: any) => {
+    try {
+      console.log('Handling profile conflict for user:', userId);
+      
+      // Wait a bit for any pending database operations
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Try to fetch the profile again
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (profile) {
+        console.log('Profile found after conflict resolution:', profile);
+        return profile;
+      }
+      
+      // If still no profile, try to create one with upsert
+      if (error || !profile) {
+        console.log('Attempting upsert profile creation...');
+        const { data: upsertProfile, error: upsertError } = await supabase
+          .from('profiles')
+          .upsert({
+            user_id: userId,
+            full_name: userData?.full_name || 'New User',
+            email: userData?.email || '',
+            user_type: userData?.user_type || 'team',
+            profile_completed: false
+          }, {
+            onConflict: 'user_id',
+            ignoreDuplicates: false
+          })
+          .select()
+          .single();
+        
+        if (upsertProfile && !upsertError) {
+          console.log('Profile created via upsert after conflict:', upsertProfile);
+          return upsertProfile;
+        } else {
+          console.error('Upsert failed after conflict:', upsertError);
+          return null;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error in handleProfileConflict:', error);
+      return null;
+    }
+  };
+
   const signUp = async (email: string, password: string, userData: any) => {
     try {
+      // Store user type in localStorage before signup to use in profile creation
+      if (userData.user_type) {
+        localStorage.setItem('pending_user_type', userData.user_type);
+        console.log('Stored pending user type:', userData.user_type);
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -413,6 +491,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       if (error) {
+        // Clean up localStorage on error
+        localStorage.removeItem('pending_user_type');
         toast({
           title: "Sign Up Error",
           description: error.message,
@@ -426,10 +506,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           title: "Check your email",
           description: "Please check your email and click the confirmation link to complete your registration.",
         });
+        
+        // Don't clean up localStorage here - keep it for when user confirms email
+        console.log('User signed up successfully, pending email confirmation. User type stored:', userData.user_type);
       }
 
       return { error: null };
     } catch (error: any) {
+      // Clean up localStorage on any error
+      localStorage.removeItem('pending_user_type');
       console.error('Error in signUp:', error);
       return { error };
     }
@@ -450,6 +535,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
         return { error };
       }
+
+      // If sign in successful, the auth state change will handle profile fetching
+      // But we can add some additional error handling here if needed
+      console.log('Sign in successful, auth state change will handle profile fetching');
 
       return { error: null };
     } catch (error: any) {

@@ -54,7 +54,7 @@ const ExpiringSoonWidget = () => {
           currency,
           view_count,
           message_count,
-          players!inner(
+          players!transfer_pitches_player_id_fkey(
             full_name,
             position
           )

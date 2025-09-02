@@ -198,13 +198,13 @@ const ExploreHub: React.FC = () => {
           id,
           asking_price,
           currency,
-          players:players!inner(
+          players:players!transfer_pitches_player_id_fkey(
             id,
             full_name,
             position,
             citizenship
           ),
-          teams:teams!inner(
+          teams:teams(
             team_name,
             country
           )

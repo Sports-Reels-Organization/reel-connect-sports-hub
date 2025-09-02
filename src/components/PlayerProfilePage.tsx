@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { usePlayerData } from '@/hooks/usePlayerData';
@@ -7,18 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { 
-  User, 
-  Calendar, 
-  MapPin, 
-  Ruler, 
-  Weight, 
-  Trophy, 
+import {
+  User,
+  Calendar,
+  MapPin,
+  Ruler,
+  Weight,
+  Trophy,
   Flag,
   Building,
   Clock,
   FileText,
-  Activity
+  Activity,
+  Star,
+  TrendingUp,
+  Play,
+  Eye
 } from 'lucide-react';
 import Layout from './Layout';
 
@@ -33,12 +36,29 @@ const PlayerProfilePage: React.FC = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse space-y-6">
-            <div className="h-48 bg-gray-700 rounded-lg"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="h-64 bg-gray-700 rounded-lg"></div>
-              <div className="h-64 bg-gray-700 rounded-lg"></div>
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          <div className="animate-pulse space-y-8">
+            {/* Header skeleton */}
+            <div className="relative h-64 bg-gradient-to-r from-gray-800/50 to-gray-700/50 rounded-2xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-bright-pink/5 to-rosegold/5"></div>
+              <div className="p-8 flex items-center space-x-8">
+                <div className="w-32 h-32 bg-gray-600 rounded-full"></div>
+                <div className="space-y-4 flex-1">
+                  <div className="h-10 bg-gray-600 rounded-lg w-80"></div>
+                  <div className="h-6 bg-gray-600 rounded w-64"></div>
+                  <div className="flex space-x-4">
+                    <div className="h-8 bg-gray-600 rounded-full w-20"></div>
+                    <div className="h-8 bg-gray-600 rounded-full w-16"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cards skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-80 bg-gray-800/50 rounded-xl"></div>
+              ))}
             </div>
           </div>
         </div>
@@ -49,15 +69,17 @@ const PlayerProfilePage: React.FC = () => {
   if (error || !player) {
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-8">
-          <Card className="border-red-500/20 bg-red-950/10">
-            <CardContent className="p-6 text-center">
-              <User className="w-12 h-12 mx-auto mb-4 text-red-400" />
-              <h2 className="text-xl font-semibold text-white mb-2">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          <Card className="border-0 bg-red-950/20 backdrop-blur-sm shadow-2xl rounded-2xl overflow-hidden">
+            <CardContent className="p-12 text-center">
+              <div className="w-24 h-24 mx-auto mb-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                <User className="w-12 h-12 text-red-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-4">
                 Player Not Found
               </h2>
-              <p className="text-gray-400">
-                {error || 'The requested player profile could not be found.'}
+              <p className="text-gray-300 text-lg max-w-md mx-auto">
+                {error || 'The requested player profile could not be found. Please check the URL and try again.'}
               </p>
             </CardContent>
           </Card>
@@ -75,139 +97,167 @@ const PlayerProfilePage: React.FC = () => {
       .slice(0, 2);
   };
 
+  const StatCard = ({ icon: Icon, label, value }: { icon: any, label: string, value: string | number }) => (
+    <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border-0 transition-all duration-300 hover:transform hover:scale-[1.02]">
+      <div className="flex items-center space-x-3">
+        <div className="p-2 rounded-lg bg-bright-pink/20">
+          <Icon className="w-5 h-5 text-bright-pink" />
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm font-medium">{label}</p>
+          <p className="text-white font-semibold text-lg">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        {/* Header */}
-        <Card className="bg-gradient-to-r from-bright-pink/10 to-rosegold/10 border-bright-pink/20">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-6">
-              <Avatar className="w-24 h-24">
-                <AvatarImage 
-                  src={player.profile_image} 
-                  alt={player.full_name}
-                />
-                <AvatarFallback className="bg-bright-pink text-white text-2xl">
-                  {getInitials(player.full_name)}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold text-white mb-2">
-                  {player.full_name}
-                </h1>
-                
-                <div className="flex flex-wrap items-center gap-4 text-gray-300">
-                  {player.position && (
-                    <Badge variant="secondary" className="bg-bright-pink text-white">
-                      {player.position}
-                    </Badge>
-                  )}
-                  
-                  {player.jersey_number && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm">Jersey #</span>
-                      <span className="font-semibold">{player.jersey_number}</span>
-                    </div>
-                  )}
-                  
-                  {player.team && (
-                    <div className="flex items-center gap-1">
-                      <Building className="w-4 h-4" />
-                      <span>{player.team}</span>
-                    </div>
-                  )}
+      <div className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
+        {/* Enhanced Header with Hero Background */}
+        <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+          {/* Background gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-bright-pink/20 via-rosegold/15 to-purple-900/20"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 to-gray-800/60 backdrop-blur-sm"></div>
+
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-bright-pink/10 to-transparent rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-rosegold/10 to-transparent rounded-full blur-2xl"></div>
+
+          <div className="relative p-8 lg:p-12">
+            <div className="flex flex-col lg:flex-row items-center lg:items-start space-y-6 lg:space-y-0 lg:space-x-10">
+              {/* Enhanced Avatar */}
+              <div className="relative group">
+                <div className="absolute -inset-4 bg-gradient-to-r from-bright-pink/30 to-rosegold/30 rounded-full blur-lg opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <Avatar className="relative w-32 h-32 lg:w-40 lg:h-40 border-0 shadow-2xl">
+                  <AvatarImage
+                    src={player.profile_image}
+                    alt={player.full_name}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-gradient-to-br from-bright-pink to-rosegold text-white text-4xl font-bold">
+                    {getInitials(player.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+
+              {/* Enhanced Player Info */}
+              <div className="flex-1 text-center lg:text-left space-y-6">
+                <div>
+                  <h1 className="text-4xl lg:text-5xl font-bold text-white mb-3 bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
+                    {player.full_name}
+                  </h1>
+
+                  <div className="flex flex-wrap justify-center lg:justify-start items-center gap-4">
+                    {player.position && (
+                      <Badge className="bg-gradient-to-r from-bright-pink to-rosegold text-white px-4 py-2 text-sm font-semibold border-0 shadow-lg hover:shadow-bright-pink/25 transition-shadow duration-300">
+                        {player.position}
+                      </Badge>
+                    )}
+
+                    {player.jersey_number && (
+                      <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border-0">
+                        <span className="text-gray-300 text-sm font-medium">#</span>
+                        <span className="text-white font-bold text-lg">{player.jersey_number}</span>
+                      </div>
+                    )}
+
+                    {player.team && (
+                      <div className="flex items-center gap-2 text-gray-200 bg-white/5 backdrop-blur-sm rounded-full px-4 py-2 border-0">
+                        <Building className="w-4 h-4 text-bright-pink" />
+                        <span className="font-medium">{player.team}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Quick Stats */}
+                {(player.age || player.nationality) && (
+                  <div className="flex flex-wrap justify-center lg:justify-start gap-4">
+                    {player.age && (
+                      <div className="flex items-center gap-2 text-gray-200 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2">
+                        <Calendar className="w-4 h-4 text-rosegold" />
+                        <span className="text-sm font-medium">{player.age} years</span>
+                      </div>
+                    )}
+                    {player.nationality && (
+                      <div className="flex items-center gap-2 text-gray-200 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2">
+                        <Flag className="w-4 h-4 text-rosegold" />
+                        <span className="text-sm font-medium">{player.nationality}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Basic Information */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <User className="w-5 h-5" />
-                Basic Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {player.age && (
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Calendar className="w-4 h-4" />
-                  <span>Age: {player.age} years</span>
-                </div>
-              )}
-              
-              {player.nationality && (
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Flag className="w-4 h-4" />
-                  <span>Nationality: {player.nationality}</span>
-                </div>
-              )}
-              
-              {player.height && (
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Ruler className="w-4 h-4" />
-                  <span>Height: {player.height}</span>
-                </div>
-              )}
-              
-              {player.weight && (
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Weight className="w-4 h-4" />
-                  <span>Weight: {player.weight}</span>
-                </div>
-              )}
-              
-              {player.preferred_foot && (
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Activity className="w-4 h-4" />
-                  <span>Preferred Foot: {player.preferred_foot}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Enhanced Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {player.height && (
+            <StatCard icon={Ruler} label="Height" value={player.height} />
+          )}
+          {player.weight && (
+            <StatCard icon={Weight} label="Weight" value={player.weight} />
+          )}
+          {player.preferred_foot && (
+            <StatCard icon={Activity} label="Preferred Foot" value={player.preferred_foot} />
+          )}
+          {player.market_value && (
+            <StatCard icon={TrendingUp} label="Market Value" value={`$${player.market_value.toLocaleString()}`} />
+          )}
+        </div>
 
-          {/* Career Information */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Trophy className="w-5 h-5" />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Enhanced Career Information */}
+          <Card className="xl:col-span-2 bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl rounded-2xl overflow-hidden transition-colors duration-300">
+            <CardHeader className=" bg-[#0c0c0c] border-0">
+              <CardTitle className="flex items-center gap-3 text-white text-xl">
+                <div className="p-2 rounded-lg bg-bright-pink/20">
+                  <Trophy className="w-5 h-5 text-bright-pink" />
+                </div>
                 Career Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {player.current_club && (
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Building className="w-4 h-4" />
-                  <span>Current Club: {player.current_club}</span>
-                </div>
-              )}
-              
-              {player.market_value && (
-                <div className="flex items-center gap-2 text-gray-300">
-                  <span>Market Value: ${player.market_value.toLocaleString()}</span>
-                </div>
-              )}
-              
-              {player.contract_expires && (
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Clock className="w-4 h-4" />
-                  <span>Contract Expires: {new Date(player.contract_expires).toLocaleDateString()}</span>
-                </div>
-              )}
-              
+            <CardContent className="p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {player.current_club && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                      <Building className="w-4 h-4" />
+                      Current Club
+                    </div>
+                    <p className="text-white font-semibold text-lg">{player.current_club}</p>
+                  </div>
+                )}
+
+                {player.contract_expires && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                      <Clock className="w-4 h-4" />
+                      Contract Expires
+                    </div>
+                    <p className="text-white font-semibold text-lg">
+                      {new Date(player.contract_expires).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {player.achievements && player.achievements.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-gray-300 mb-2">
-                    <Trophy className="w-4 h-4" />
-                    <span>Achievements:</span>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                    <Star className="w-4 h-4" />
+                    Achievements
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {player.achievements.map((achievement, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
+                      <Badge
+                        key={index}
+                        variant="outline"
+                        className="border-0 text-bright-pink  transition-colors duration-200 px-3 py-1"
+                      >
                         {achievement}
                       </Badge>
                     ))}
@@ -216,59 +266,87 @@ const PlayerProfilePage: React.FC = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Enhanced Videos Section */}
+          <Card className="bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl rounded-2xl overflow-hidden hover:border-bright-pink/30 transition-colors duration-300">
+            <CardHeader className="bg-[#0c0c0c] border-0">
+              <CardTitle className="flex items-center gap-3 text-white text-xl">
+                <div className="p-2 rounded-lg bg-bright-pink/20">
+                  <Play className="w-5 h-5 text-bright-pink" />
+                </div>
+                Tagged Videos
+                <Badge className="bg-bright-pink/20 text-bright-pink border-0 ml-auto">
+                  {videos.length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 max-h-96 overflow-y-auto">
+              {videosLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-20 bg-gray-700/50 rounded-xl"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : videos.length > 0 ? (
+                <div className="space-y-4">
+                  {videos.map((video, index) => (
+                    <div
+                      key={video.id}
+                      className="group p-4 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl  border-0 transition-all duration-300 cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-white mb-2 line-clamp-2 group-hover:text-bright-pink transition-colors duration-200">
+                            {video.title}
+                          </h4>
+                          {video.team_name && (
+                            <p className="text-sm text-gray-400 mb-1">
+                              Team: {video.team_name}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            {new Date(video.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Eye className="w-4 h-4 text-gray-500 group-hover:text-bright-pink transition-colors duration-200 flex-shrink-0 ml-2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Play className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                  <p className="text-gray-400">
+                    No videos found for this player.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Biography */}
+        {/* Enhanced Biography */}
         {player.bio && (
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <FileText className="w-5 h-5" />
+          <Card className="bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl rounded-2xl overflow-hidden transition-colors duration-300">
+            <CardHeader className="bg-[#0c0c0c] border-0">
+              <CardTitle className="flex items-center gap-3 text-white text-xl">
+                <div className="p-2 rounded-lg bg-bright-pink/20">
+                  <FileText className="w-5 h-5 text-bright-pink" />
+                </div>
                 Biography
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-gray-300">{player.bio}</p>
+            <CardContent className="p-8">
+              <div className="prose prose-gray max-w-none">
+                <p className="text-gray-300 leading-relaxed text-lg">
+                  {player.bio}
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}
-
-        {/* Videos */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Activity className="w-5 h-5" />
-              Tagged Videos ({videos.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {videosLoading ? (
-              <div className="animate-pulse space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-gray-700 rounded"></div>
-                ))}
-              </div>
-            ) : videos.length > 0 ? (
-              <div className="space-y-3">
-                {videos.map((video) => (
-                  <div key={video.id} className="p-3 bg-gray-700 rounded-lg">
-                    <h4 className="font-medium text-white">{video.title}</h4>
-                    {video.team_name && (
-                      <p className="text-sm text-gray-400">Team: {video.team_name}</p>
-                    )}
-                    <p className="text-xs text-gray-500">
-                      {new Date(video.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-center py-4">
-                No videos found for this player.
-              </p>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </Layout>
   );

@@ -93,7 +93,7 @@ export const usePlayerData = (playerId: string | null) => {
             international_duty,
             match_stats,
             ai_analysis,
-            teams!inner(
+            teams(
               team_name,
               sport_type,
               country

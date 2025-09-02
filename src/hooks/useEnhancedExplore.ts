@@ -103,7 +103,7 @@ export const useEnhancedExplore = () => {
         .from('transfer_pitches')
         .select(`
           asking_price,
-          players!inner(
+          players!transfer_pitches_player_id_fkey(
             position,
             market_value
           )
@@ -162,7 +162,7 @@ export const useEnhancedExplore = () => {
           asking_price,
           view_count,
           shortlist_count,
-          players!inner(
+          players!transfer_pitches_player_id_fkey(
             position,
             market_value
           )
@@ -231,8 +231,8 @@ export const useEnhancedExplore = () => {
         .select(`
           id,
           created_at,
-          players!inner(full_name),
-          teams!inner(team_name)
+          players!transfer_pitches_player_id_fkey(full_name),
+          teams(team_name)
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false })

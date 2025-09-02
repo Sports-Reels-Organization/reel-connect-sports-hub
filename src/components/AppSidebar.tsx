@@ -96,6 +96,11 @@ export function AppSidebar() {
       url: "/agent-shortlist",
       icon: Heart,
     },
+    {
+      title: 'AI Scout',
+      url: "/",
+      icon: Target,
+    },
     ...baseMenuItems.slice(3), // Contracts, Profile, Notifications, News, History
   ];
 
@@ -112,11 +117,7 @@ export function AppSidebar() {
       url: "/videos",
       icon: Video,
     },
-    {
-      title: 'Create Pitch',
-      url: "/team-explore?tab=create",
-      icon: Target,
-    },
+
     {
       title: t('timeline'),
       url: "/timeline",

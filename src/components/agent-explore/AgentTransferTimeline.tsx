@@ -74,7 +74,7 @@ const AgentTransferTimeline = () => {
   const [interestMessage, setInterestMessage] = useState('');
   const [interestType, setInterestType] = useState<'interested' | 'requested'>('interested');
   const [expressedInterests, setExpressedInterests] = useState<Set<string>>(new Set());
-  const [existingInterestData, setExistingInterestData] = useState<{status: string, message: string} | null>(null);
+  const [existingInterestData, setExistingInterestData] = useState<{ status: string, message: string } | null>(null);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,6 +83,7 @@ const AgentTransferTimeline = () => {
   const [priceRangeFilter, setPriceRangeFilter] = useState('all');
   const [dealStageFilter, setDealStageFilter] = useState('all');
   const [teamFilter, setTeamFilter] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   // Get sport-specific data
   const { positions } = useSportData(agentSportType);
@@ -151,7 +152,6 @@ const AgentTransferTimeline = () => {
 
       if (!agentData) return;
 
-      // Use the correct table name from the database schema
       const { data, error } = await supabase
         .from('shortlist')
         .select('pitch_id')
@@ -181,7 +181,6 @@ const AgentTransferTimeline = () => {
 
       if (!agentData) return;
 
-      // Fetch all pitches where this agent has expressed interest
       const { data, error } = await supabase
         .from('agent_interest')
         .select('pitch_id')
@@ -201,7 +200,6 @@ const AgentTransferTimeline = () => {
 
   const fetchTimelinePitches = async () => {
     try {
-      // Simplified query to avoid foreign key relationship issues
       const { data: pitchesData, error: pitchesError } = await supabase
         .from('transfer_pitches')
         .select('*')
@@ -212,24 +210,20 @@ const AgentTransferTimeline = () => {
 
       if (pitchesError) throw pitchesError;
 
-      // Fetch team and player data separately to avoid relationship issues
       const enrichedPitches = await Promise.all(
         (pitchesData || []).map(async (pitch) => {
-          // Fetch team data
           const { data: teamData } = await supabase
             .from('teams')
             .select('id, team_name, logo_url, country, sport_type, profile_id')
             .eq('id', pitch.team_id)
             .single();
 
-          // Fetch player data
           const { data: playerData } = await supabase
             .from('players')
             .select('id, full_name, position, citizenship, photo_url, date_of_birth, market_value')
             .eq('id', pitch.player_id)
             .single();
 
-          // Fetch agent interest data
           const { data: interestData } = await supabase
             .from('agent_interest')
             .select('id, agent_id, status, created_at')
@@ -244,12 +238,10 @@ const AgentTransferTimeline = () => {
         })
       );
 
-      // Filter by sport type after fetching data
-      const filteredPitches = enrichedPitches.filter(pitch => 
+      const filteredPitches = enrichedPitches.filter(pitch =>
         pitch.teams?.sport_type === agentSportType
       );
 
-      // Process data to add age calculation and ensure proper typing
       const processedPitches: TimelinePitch[] = filteredPitches.map(pitch => ({
         ...pitch,
         tagged_videos: Array.isArray(pitch.tagged_videos) ? pitch.tagged_videos : [],
@@ -271,7 +263,6 @@ const AgentTransferTimeline = () => {
 
       setPitches(processedPitches);
 
-      // Extract unique teams for filtering
       const teams = [...new Set(processedPitches.map(p => p.teams.team_name))].sort();
       setAvailableTeams(teams);
 
@@ -362,7 +353,6 @@ const AgentTransferTimeline = () => {
   };
 
   const handleViewDetails = async (pitch: TimelinePitch) => {
-    // Simply navigate to player profile - no RPC call needed since function doesn't exist
     navigate(`/player/${pitch.players.id}`, {
       state: {
         pitchId: pitch.id,
@@ -393,7 +383,6 @@ const AgentTransferTimeline = () => {
       const isShortlisted = shortlistedPitches.has(pitch.id);
 
       if (isShortlisted) {
-        // Remove from shortlist
         const { error } = await supabase
           .from('shortlist')
           .delete()
@@ -413,7 +402,6 @@ const AgentTransferTimeline = () => {
           description: `${pitch.players.full_name} removed from shortlist`,
         });
       } else {
-        // Add to shortlist
         const { error } = await supabase
           .from('shortlist')
           .insert({
@@ -448,8 +436,7 @@ const AgentTransferTimeline = () => {
 
   const handleOpenInterestModal = async (pitch: TimelinePitch) => {
     setSelectedPitchForInterest(pitch);
-    
-    // If agent has already expressed interest, fetch existing data
+
     if (expressedInterests.has(pitch.id)) {
       try {
         const { data: agentData } = await supabase
@@ -479,12 +466,11 @@ const AgentTransferTimeline = () => {
         console.error('Error fetching existing interest:', error);
       }
     } else {
-      // Reset form for new interest
       setExistingInterestData(null);
       setInterestType('interested');
       setInterestMessage('');
     }
-    
+
     setShowInterestModal(true);
   };
 
@@ -499,12 +485,11 @@ const AgentTransferTimeline = () => {
     }
 
     try {
-      // First, get the agent record to ensure we have the correct agent_id
       let { data: agentData, error: agentError } = await supabase
         .from('agents')
         .select('id')
         .eq('profile_id', profile.id)
-        .maybeSingle(); // Changed from single() to maybeSingle() to handle missing agent records
+        .maybeSingle();
 
       if (agentError) {
         console.error('Error fetching agent data:', agentError);
@@ -517,46 +502,41 @@ const AgentTransferTimeline = () => {
       }
 
       if (!agentData) {
-        // No agent record exists, create one
-        console.log('No agent record found, creating one...');
         const { data: newAgentData, error: createError } = await supabase
           .from('agents')
           .insert({
             profile_id: profile.id,
-            agency_name: 'Agency', // Default name
+            agency_name: 'Agency',
             specialization: ['football']
           })
           .select('id')
           .single();
-        
+
         if (createError) {
           console.error('Error creating agent record:', createError);
           toast({
             title: "Error",
-            description: "Failed to create agent profile. Please ensure you have a complete agent profile.",
+            description: "Failed to create agent profile.",
             variant: "destructive"
           });
           return;
         }
-        
+
         agentData = newAgentData;
-        console.log('Created agent with ID:', agentData.id);
       }
 
-      // Check if interest already exists to prevent duplicate key errors
       const { data: existingInterest, error: checkError } = await supabase
         .from('agent_interest')
         .select('id, status')
         .eq('pitch_id', pitch.id)
         .eq('agent_id', agentData.id)
-        .maybeSingle(); // Changed from single() to maybeSingle() to handle no existing interest
+        .maybeSingle();
 
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (checkError && checkError.code !== 'PGRST116') {
         throw checkError;
       }
 
       if (existingInterest) {
-        // Update existing interest instead of creating new one
         const { error: updateError } = await supabase
           .from('agent_interest')
           .update({
@@ -573,7 +553,6 @@ const AgentTransferTimeline = () => {
           description: "Your interest has been updated successfully.",
         });
       } else {
-        // Create new agent interest record
         const { error: interestError } = await supabase
           .from('agent_interest')
           .insert({
@@ -588,57 +567,26 @@ const AgentTransferTimeline = () => {
 
         toast({
           title: "Success!",
-          description: "Interest expressed successfully. The team will be notified.",
+          description: "Interest expressed successfully.",
         });
       }
 
-      // Create or update initial message
-      const messageContent = interestMessage || `I'm interested in ${pitch.players.full_name}`;
-      
-      // Check if message already exists
-      const { data: existingMessage } = await supabase
-        .from('messages')
-        .select('id')
-        .eq('sender_id', profile.id)
-        .eq('receiver_id', pitch.teams.profile_id)
-        .eq('pitch_id', pitch.id)
-        .eq('message_type', 'interest') // Reverted back to 'interest' since it's now valid
-        .maybeSingle(); // Changed from single() to maybeSingle() to handle no existing message
-
-      if (!existingMessage) {
-        // Create new message only if one doesn't exist
-        const { error: messageError } = await supabase
-          .from('messages')
-          .insert({
-            sender_id: profile.id,
-            receiver_id: pitch.teams.profile_id,
-            pitch_id: pitch.id,
-            content: messageContent,
-            message_type: 'interest', // Reverted back to 'interest' since it's now valid
-            created_at: new Date().toISOString()
-          });
-
-        if (messageError) throw messageError;
-      }
-
-      // Update local state to show the button as "Interest Expressed"
       setExpressedInterests(prev => new Set([...prev, pitch.id]));
-
       setShowInterestModal(false);
       setSelectedPitchForInterest(null);
       setInterestMessage('');
-      fetchTimelinePitches(); // Refresh to show new interest
-      fetchExpressedInterests(); // Refresh expressed interests
+      fetchTimelinePitches();
+      fetchExpressedInterests();
     } catch (error: any) {
       console.error('Error expressing interest:', error);
-      
+
       let errorMessage = "Failed to express interest";
       if (error.code === '23505') {
         errorMessage = "You have already expressed interest in this player";
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "Error",
         description: errorMessage,
@@ -647,16 +595,14 @@ const AgentTransferTimeline = () => {
     }
   };
 
-
-
   if (loading) {
     return (
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 md:p-6">
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-24 bg-gray-700 rounded"></div>
+                <div className="h-20 md:h-24 bg-gray-700 rounded"></div>
               </div>
             ))}
           </div>
@@ -666,146 +612,90 @@ const AgentTransferTimeline = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header with Filters */}
       <Card className="border-0">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <CardTitle className="flex items-center gap-2 text-white text-lg sm:text-xl">
-                <TrendingUp className="w-5 h-5" />
-                Transfer Timeline ({filteredPitches.length})
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Select value={agentSportType} onValueChange={(value: 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby') => setAgentSportType(value)}>
-                  <SelectTrigger className="w-32 text-white border-gray-600 bg-gray-800">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
-                    <SelectItem value="football" className="text-white">Football</SelectItem>
-                    <SelectItem value="basketball" className="text-white">Basketball</SelectItem>
-                    <SelectItem value="volleyball" className="text-white">Volleyball</SelectItem>
-                    <SelectItem value="tennis" className="text-white">Tennis</SelectItem>
-                    <SelectItem value="rugby" className="text-white">Rugby</SelectItem>
-                  </SelectContent>
-                </Select>
-                {filteredPitches.length > 0 && (
-                  <Badge variant="outline" className="text-rosegold border-rosegold text-xs sm:text-sm">
-                    {filteredPitches.length} pitches
-                  </Badge>
-                )}
+        <CardHeader className="px-4 md:px-6 pb-4">
+          {/* Main Header - Better Mobile Layout */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
+                <CardTitle className="flex items-center gap-2 text-white text-lg truncate">
+                  <TrendingUp className="w-5 h-5 flex-shrink-0" />
+                  Transfer Timeline
+                </CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={agentSportType} onValueChange={(value: 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby') => setAgentSportType(value)}>
+                    <SelectTrigger className="w-28 sm:w-32 text-white border-gray-600 bg-gray-800 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-600">
+                      <SelectItem value="football" className="text-white">Football</SelectItem>
+                      <SelectItem value="basketball" className="text-white">Basketball</SelectItem>
+                      <SelectItem value="volleyball" className="text-white">Volleyball</SelectItem>
+                      <SelectItem value="tennis" className="text-white">Tennis</SelectItem>
+                      <SelectItem value="rugby" className="text-white">Rugby</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {filteredPitches.length > 0 && (
+                    <Badge variant="outline" className="text-rosegold border-rosegold text-xs whitespace-nowrap">
+                      {filteredPitches.length}
+                    </Badge>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewMode === 'card' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('card')}
-                className="bg-rosegold hover:bg-rosegold/90 text-white text-xs"
-              >
-                <Grid3X3 className="w-4 h-4" />
-                <span className="hidden sm:inline ml-1">Grid</span>
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="bg-rosegold hover:bg-rosegold/90 text-white text-xs"
-              >
-                <List className="w-4 h-4" />
-                <span className="hidden sm:inline ml-1">List</span>
-              </Button>
+              <div className="flex items-center gap-2 justify-end">
+                <Button
+                  variant={viewMode === 'card' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('card')}
+                  className="bg-rosegold hover:bg-rosegold/90 text-white text-xs px-2 sm:px-3"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-1">Grid</span>
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="bg-rosegold hover:bg-rosegold/90 text-white text-xs px-2 sm:px-3"
+                >
+                  <List className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-1">List</span>
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent>
-          {/* Search and Filters */}
+        <CardContent className="px-4 md:px-6">
+          {/* Search and Filters - Improved Mobile Experience */}
           <div className="space-y-4 mb-6">
-            {/* Search Bar - Full Width */}
+            {/* Search Bar */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search players or teams..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 text-white placeholder:text-gray-500 w-full"
+                className="pl-10 text-white placeholder:text-gray-500 text-sm"
               />
             </div>
 
-            {/* Filters Grid - Responsive */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-              <Select value={positionFilter} onValueChange={setPositionFilter}>
-                <SelectTrigger className="text-white text-sm">
-                  <SelectValue placeholder="All Positions" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
-                  <SelectItem value="all">All Positions</SelectItem>
-                  {positions.map(position => (
-                    <SelectItem key={position} value={position}>
-                      {position}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Filter Controls */}
+            <div className="flex items-center justify-between gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="lg:hidden text-white border-gray-600 hover:bg-gray-700 text-sm"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Filters {showFilters ? '▲' : '▼'}
+              </Button>
 
-              <Select value={teamFilter} onValueChange={setTeamFilter}>
-                <SelectTrigger className="text-white text-sm">
-                  <SelectValue placeholder="All Teams" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
-                  <SelectItem value="all">All Teams</SelectItem>
-                  {availableTeams.map(team => (
-                    <SelectItem key={team} value={team}>
-                      {team}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
-                <SelectTrigger className="text-white text-sm">
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
-                  <SelectItem value="all">All Types</SelectItem>
-                  {transferTypes.map(type => (
-                    <SelectItem key={type} value={type}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={dealStageFilter} onValueChange={setDealStageFilter}>
-                <SelectTrigger className="text-white text-sm">
-                  <SelectValue placeholder="All Stages" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
-                  <SelectItem value="all">All Stages</SelectItem>
-                  {dealStages.map(stage => (
-                    <SelectItem key={stage} value={stage}>
-                      {getDealStageText(stage)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={priceRangeFilter} onValueChange={setPriceRangeFilter}>
-                <SelectTrigger className="text-white text-sm">
-                  <SelectValue placeholder="All Prices" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
-                  <SelectItem value="all">All Prices</SelectItem>
-                  {priceRanges.map(range => (
-                    <SelectItem key={range.value} value={range.value}>
-                      {range.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
+              {/* Clear Filters Button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -820,19 +710,94 @@ const AgentTransferTimeline = () => {
                 className="text-white border-gray-600 hover:bg-gray-700 text-sm"
               >
                 <Filter className="w-4 h-4 mr-2" />
-                Clear
+                Clear All
               </Button>
+            </div>
+
+            {/* Filters Grid - Responsive and Collapsible on Mobile */}
+            <div className={`${showFilters ? 'block' : 'hidden lg:block'}`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                <Select value={positionFilter} onValueChange={setPositionFilter}>
+                  <SelectTrigger className="text-white text-sm border-gray-600 bg-gray-800">
+                    <SelectValue placeholder="All Positions" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="all">All Positions</SelectItem>
+                    {positions.map(position => (
+                      <SelectItem key={position} value={position}>
+                        {position}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={teamFilter} onValueChange={setTeamFilter}>
+                  <SelectTrigger className="text-white text-sm border-gray-600 bg-gray-800">
+                    <SelectValue placeholder="All Teams" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="all">All Teams</SelectItem>
+                    {availableTeams.map(team => (
+                      <SelectItem key={team} value={team}>
+                        {team}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={transferTypeFilter} onValueChange={setTransferTypeFilter}>
+                  <SelectTrigger className="text-white text-sm border-gray-600 bg-gray-800">
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="all">All Types</SelectItem>
+                    {transferTypes.map(type => (
+                      <SelectItem key={type} value={type}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={dealStageFilter} onValueChange={setDealStageFilter}>
+                  <SelectTrigger className="text-white text-sm border-gray-600 bg-gray-800">
+                    <SelectValue placeholder="All Stages" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="all">All Stages</SelectItem>
+                    {dealStages.map(stage => (
+                      <SelectItem key={stage} value={stage}>
+                        {getDealStageText(stage)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={priceRangeFilter} onValueChange={setPriceRangeFilter}>
+                  <SelectTrigger className="text-white text-sm border-gray-600 bg-gray-800">
+                    <SelectValue placeholder="All Prices" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="all">All Prices</SelectItem>
+                    {priceRanges.map(range => (
+                      <SelectItem key={range.value} value={range.value}>
+                        {range.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
           {/* Results */}
           {filteredPitches.length === 0 ? (
-            <div className="text-center py-12">
-              <Clock className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-              <h3 className="text-xl font-semibold text-white mb-2">
+            <div className="text-center py-8 md:py-12">
+              <Clock className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 text-gray-500" />
+              <h3 className="text-lg md:text-xl font-semibold text-white mb-2">
                 {pitches.length === 0 ? 'No Active Pitches' : 'No Results Found'}
               </h3>
-              <p className="text-gray-400">
+              <p className="text-gray-400 text-sm md:text-base px-4">
                 {pitches.length === 0
                   ? `No transfer pitches are currently active for ${agentSportType}.`
                   : 'Try adjusting your filters to see more results.'
@@ -840,34 +805,41 @@ const AgentTransferTimeline = () => {
               </p>
             </div>
           ) : (
-            <div className={viewMode === 'card' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6' : 'space-y-3'}>
+            <div className={
+              viewMode === 'card'
+                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6'
+                : 'space-y-3 md:space-y-4'
+            }>
               {filteredPitches.map((pitch) => (
                 <Card
                   key={pitch.id}
                   className={`border-gray-600 transition-all duration-200 hover:border-rosegold/50 hover:shadow-lg ${isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : ''
-                    } ${viewMode === 'list' ? 'w-full' : ''}`}
+                    }`}
                 >
-                  <CardContent className={`${viewMode === 'list' ? 'p-3' : 'p-4'}`}>
-                    <div className={`${viewMode === 'list' ? 'space-y-2' : 'space-y-3'}`}>
+                  <CardContent className="p-4 md:p-5">
+                    <div className="space-y-3 md:space-y-4">
                       {/* Player and Team Info */}
-                      <div className={`${viewMode === 'list' ? 'flex items-center gap-4' : 'flex items-start justify-between'}`}>
-                        <div className={`flex items-center gap-3 ${viewMode === 'list' ? 'flex-1' : ''}`}>
+                      <div className={`${viewMode === 'list'
+                          ? 'flex items-center gap-3 md:gap-4'
+                          : 'flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3'
+                        }`}>
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
                           {pitch.players.photo_url ? (
                             <img
                               src={pitch.players.photo_url}
                               alt={pitch.players.full_name}
-                              className={`${viewMode === 'list' ? 'w-10 h-10' : 'w-12 h-12'} rounded-full object-cover`}
+                              className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover flex-shrink-0"
                             />
                           ) : (
-                            <div className={`${viewMode === 'list' ? 'w-10 h-10' : 'w-12 h-12'} rounded-full bg-gray-700 flex items-center justify-center`}>
-                              <User className={`${viewMode === 'list' ? 'w-5 h-5' : 'w-6 h-6'} text-gray-400`} />
+                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                              <User className="w-6 h-6 md:w-7 md:h-7 text-gray-400" />
                             </div>
                           )}
-                          <div className={`${viewMode === 'list' ? 'flex-1' : ''}`}>
-                            <h3 className={`font-semibold text-white ${viewMode === 'list' ? 'text-base' : ''}`}>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-white text-base md:text-lg truncate">
                               {pitch.players.full_name}
                             </h3>
-                            <p className={`text-gray-400 ${viewMode === 'list' ? 'text-xs' : 'text-sm'}`}>
+                            <p className="text-gray-400 text-sm">
                               {pitch.players.position} • {pitch.players.citizenship}
                               {pitch.players.age && ` • ${pitch.players.age} years`}
                             </p>
@@ -876,17 +848,17 @@ const AgentTransferTimeline = () => {
                                 <img
                                   src={pitch.teams.logo_url}
                                   alt={pitch.teams.team_name}
-                                  className="w-4 h-4 rounded-sm object-contain"
+                                  className="w-4 h-4 rounded-sm object-contain flex-shrink-0"
                                 />
                               )}
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 truncate">
                                 {pitch.teams.team_name} • {pitch.teams.country}
                               </p>
                             </div>
                           </div>
                         </div>
-                        <div className={`text-right ${viewMode === 'list' ? 'flex-shrink-0' : ''}`}>
-                          <div className={`font-bold text-rosegold ${viewMode === 'list' ? 'text-base' : 'text-lg'}`}>
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-bold text-rosegold text-lg md:text-xl">
                             {formatCurrency(pitch.asking_price, pitch.currency)}
                           </div>
                           <div className="text-xs text-gray-400">
@@ -897,120 +869,110 @@ const AgentTransferTimeline = () => {
 
                       {/* Description */}
                       {pitch.description && (
-                        <p className={`text-gray-300 line-clamp-2 ${viewMode === 'list' ? 'text-xs' : 'text-sm'}`}>
+                        <p className="text-gray-300 text-sm line-clamp-2 leading-relaxed">
                           {pitch.description}
                         </p>
                       )}
 
                       {/* Tags and Status */}
-                      <div className={`${viewMode === 'list' ? 'flex items-center gap-4' : 'flex items-center justify-between'}`}>
+                      <div className="space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge
                             variant="outline"
-                            className={`${getDealStageColor(pitch.deal_stage)} text-white border-none ${viewMode === 'list' ? 'text-xs' : ''}`}
+                            className={`${getDealStageColor(pitch.deal_stage)} text-white border-none text-xs`}
                           >
                             {getDealStageText(pitch.deal_stage)}
                           </Badge>
                           {pitch.is_international && (
-                            <Badge variant="outline" className={`text-blue-400 border-blue-400 ${viewMode === 'list' ? 'text-xs' : ''}`}>
+                            <Badge variant="outline" className="text-blue-400 border-blue-400 text-xs">
                               International
                             </Badge>
                           )}
                           {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
-                            <Badge variant="outline" className={`text-green-400 border-green-400 ${viewMode === 'list' ? 'text-xs' : ''}`}>
-                              <Play className={`${viewMode === 'list' ? 'w-3 h-3' : 'w-3 h-4'} mr-1`} />
+                            <Badge variant="outline" className="text-green-400 border-green-400 text-xs">
+                              <Play className="w-3 h-3 mr-1" />
                               {pitch.tagged_videos.length} Videos
                             </Badge>
                           )}
                           {isExpiringSoon(pitch.expires_at) && (
-                            <Badge variant="outline" className={`text-red-400 border-red-400 animate-pulse ${viewMode === 'list' ? 'text-xs' : ''}`}>
+                            <Badge variant="outline" className="text-red-400 border-red-400 animate-pulse text-xs">
                               <AlertCircle className="w-3 h-3 mr-1" />
                               Expiring Soon
                             </Badge>
                           )}
                         </div>
-                        <div className={`text-gray-400 ${viewMode === 'list' ? 'text-xs flex-shrink-0' : 'text-xs'}`}>
+                        <div className="text-xs text-gray-400">
                           Expires {formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}
                         </div>
                       </div>
 
                       {/* Stats */}
-                      <div className={`flex items-center gap-4 text-gray-400 ${viewMode === 'list' ? 'text-xs' : 'text-sm'}`}>
+                      <div className="flex items-center gap-4 text-gray-400 text-sm">
                         <div className="flex items-center gap-1">
-                          <Eye className={`${viewMode === 'list' ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                          {pitch.view_count}
+                          <Eye className="w-4 h-4" />
+                          <span>{pitch.view_count}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <MessageCircle className={`${viewMode === 'list' ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                          {pitch.message_count}
+                          <MessageCircle className="w-4 h-4" />
+                          <span>{pitch.message_count}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <TrendingUp className={`${viewMode === 'list' ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                          {pitch.shortlist_count} shortlisted
+                          <TrendingUp className="w-4 h-4" />
+                          <span>{pitch.shortlist_count}</span>
                         </div>
                       </div>
 
                       {/* Actions */}
-                      <div className={`${viewMode === 'list' ? 'flex flex-wrap gap-2' : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'}`}>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-700 text-xs"
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700 text-xs h-8"
                           onClick={() => handleViewDetails(pitch)}
                         >
                           <Eye className="w-3 h-3 mr-1" />
-                          <span className="hidden sm:inline">View</span>
+                          View
                         </Button>
 
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-700 text-xs"
-                          onClick={() => handleMessagePlayer(pitch)}
-                        >
-                          <MessageCircle className="w-3 h-3 mr-1" />
-                          <span className="hidden sm:inline">Message</span>
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`border-gray-600 hover:bg-gray-700 text-xs ${shortlistedPitches.has(pitch.id)
-                            ? 'text-red-400 border-red-400'
-                            : 'text-gray-300'
+                          className={`border-gray-600 hover:bg-gray-700 text-xs h-8 ${shortlistedPitches.has(pitch.id)
+                              ? 'text-red-400 border-red-400'
+                              : 'text-gray-300'
                             }`}
                           onClick={() => handleToggleShortlist(pitch)}
                         >
                           {shortlistedPitches.has(pitch.id) ? (
-                            <HeartOff className="w-3 h-3" />
+                            <HeartOff className="w-3 h-3 mr-1" />
                           ) : (
-                            <Heart className="w-3 h-3" />
+                            <Heart className="w-3 h-3 mr-1" />
                           )}
-                          <span className="hidden sm:inline ml-1">Shortlist</span>
+                          <span className="hidden sm:inline">
+                            {shortlistedPitches.has(pitch.id) ? 'Remove' : 'Add'}
+                          </span>
                         </Button>
 
                         {/* Express Interest Button */}
-                        {!expressedInterests.has(pitch.id) && (
+                        {!expressedInterests.has(pitch.id) ? (
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white text-xs"
+                            className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white text-xs h-8"
                             onClick={() => handleOpenInterestModal(pitch)}
                           >
                             <Heart className="w-3 h-3 mr-1" />
-                            <span className="hidden sm:inline">Interest</span>
+                            Interest
                           </Button>
-                        )}
-
-                        {expressedInterests.has(pitch.id) && (
+                        ) : (
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white text-xs"
+                            className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white text-xs h-8"
                             onClick={() => handleOpenInterestModal(pitch)}
                           >
                             <CheckCircle className="w-3 h-3 mr-1" />
-                            <span className="hidden sm:inline">Update</span>
+                            Update
                           </Button>
                         )}
                       </div>
@@ -1039,12 +1001,12 @@ const AgentTransferTimeline = () => {
 
       {/* Interest Modal */}
       {showInterestModal && selectedPitchForInterest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
-                         <h3 className="text-xl font-semibold text-white mb-4">
-               {expressedInterests.has(selectedPitchForInterest.id) ? 'Update Interest' : 'Express Interest'} in {selectedPitchForInterest.players.full_name}
-             </h3>
-            
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-4 md:p-6 w-full max-w-md mx-auto">
+            <h3 className="text-lg md:text-xl font-semibold text-white mb-4">
+              {expressedInterests.has(selectedPitchForInterest.id) ? 'Update Interest' : 'Express Interest'} in {selectedPitchForInterest.players.full_name}
+            </h3>
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-white mb-2 block">
@@ -1060,7 +1022,7 @@ const AgentTransferTimeline = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium text-white mb-2 block">
                   Message (Optional)
@@ -1069,32 +1031,32 @@ const AgentTransferTimeline = () => {
                   placeholder="Tell the team why you're interested..."
                   value={interestMessage}
                   onChange={(e) => setInterestMessage(e.target.value)}
-                  className="border-gray-600 bg-gray-800 text-white min-h-[100px]"
+                  className="border-gray-600 bg-gray-800 text-white min-h-[80px] text-sm"
                 />
               </div>
             </div>
-            
+
             <div className="flex gap-3 mt-6">
-                             <Button
-                 onClick={() => handleInterestInPitch(selectedPitchForInterest)}
-                 className="bg-rosegold hover:bg-rosegold/90 text-white flex-1"
-               >
-                 <Heart className="w-4 h-4 mr-2" />
-                 {expressedInterests.has(selectedPitchForInterest.id) ? 'Update Interest' : 'Express Interest'}
-               </Button>
-                             <Button
-                 onClick={() => {
-                   setShowInterestModal(false);
-                   setSelectedPitchForInterest(null);
-                   setInterestMessage('');
-                   setInterestType('interested');
-                   setExistingInterestData(null);
-                 }}
-                 variant="outline"
-                 className="border-gray-600 text-white"
-               >
-                 Cancel
-               </Button>
+              <Button
+                onClick={() => handleInterestInPitch(selectedPitchForInterest)}
+                className="bg-rosegold hover:bg-rosegold/90 text-white flex-1"
+              >
+                <Heart className="w-4 h-4 mr-2" />
+                {expressedInterests.has(selectedPitchForInterest.id) ? 'Update' : 'Express Interest'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowInterestModal(false);
+                  setSelectedPitchForInterest(null);
+                  setInterestMessage('');
+                  setInterestType('interested');
+                  setExistingInterestData(null);
+                }}
+                variant="outline"
+                className="border-gray-600 text-white"
+              >
+                Cancel
+              </Button>
             </div>
           </div>
         </div>
@@ -1104,4 +1066,3 @@ const AgentTransferTimeline = () => {
 };
 
 export default AgentTransferTimeline;
-

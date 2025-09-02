@@ -82,7 +82,7 @@ const TransferTimeline = () => {
   const fetchPitches = async () => {
     try {
       setLoading(true);
-      
+
       // Simplified query to avoid foreign key relationship issues
       const { data: pitchesData, error: pitchesError } = await supabase
         .from('transfer_pitches')
@@ -122,7 +122,7 @@ const TransferTimeline = () => {
                 .from('agents')
                 .select('profile_id')
                 .eq('id', interest.agent_id)
-        .single();
+                .single();
 
               if (agentData?.profile_id) {
                 const { data: profileData } = await supabase
@@ -143,7 +143,7 @@ const TransferTimeline = () => {
           );
 
           return {
-        ...pitch,
+            ...pitch,
             teams: teamData || {},
             players: playerData || {},
             agent_interest: enrichedInterest
@@ -251,9 +251,9 @@ const TransferTimeline = () => {
 
       if (messages && messages.length > 0) {
         // Update pitch status to cancelled instead of deleting
-      const { error } = await supabase
-        .from('transfer_pitches')
-        .update({ status: 'cancelled' })
+        const { error } = await supabase
+          .from('transfer_pitches')
+          .update({ status: 'cancelled' })
           .eq('id', pitchId);
 
         if (error) throw error;
@@ -269,9 +269,9 @@ const TransferTimeline = () => {
           .delete()
           .eq('id', pitchId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
+        toast({
           title: "Success!",
           description: "Pitch deleted successfully",
         });
@@ -322,17 +322,17 @@ const TransferTimeline = () => {
 
   const filteredPitches = pitches.filter(pitch => {
     const matchesSearch = pitch.players.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pitch.description.toLowerCase().includes(searchTerm.toLowerCase());
+      pitch.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSport = selectedSport === 'all' || !selectedSport || pitch.teams.sport_type === selectedSport;
     const matchesTeam = selectedTeam === 'all' || !selectedTeam || pitch.teams.id === selectedTeam;
-    
+
     return matchesSearch && matchesSport && matchesTeam;
   });
 
   const availableTeams = Array.from(new Set(pitches.map(pitch => pitch.teams.id)));
   const availableSports = Array.from(new Set(pitches.map(pitch => pitch.teams.sport_type).filter(Boolean)));
 
-  const processedPitches = filteredPitches.filter(pitch => 
+  const processedPitches = filteredPitches.filter(pitch =>
     pitch.teams && pitch.players
   );
 
@@ -345,18 +345,18 @@ const TransferTimeline = () => {
         <div>
           <h2 className="text-2xl font-bold text-white">Transfer Timeline</h2>
           <p className="text-gray-400">Browse available transfer opportunities</p>
-            </div>
+        </div>
 
         {profile?.user_type === 'team' && (
-              <Button
+          <Button
             onClick={() => window.location.href = '/team-explore?tab=create'}
-                className="bg-rosegold hover:bg-rosegold/90 text-white"
-              >
+            className="bg-rosegold hover:bg-rosegold/90 text-white"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Create Pitch
-              </Button>
+          </Button>
         )}
-          </div>
+      </div>
 
       {/* Filters */}
       <Card className="border-0">
@@ -386,20 +386,20 @@ const TransferTimeline = () => {
               </SelectContent>
             </Select>
 
-                         <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-               <SelectTrigger className="border-gray-600 bg-gray-800 text-white">
+            <Select value={selectedTeam} onValueChange={setSelectedTeam}>
+              <SelectTrigger className="border-gray-600 bg-gray-800 text-white">
                 <SelectValue placeholder="All Teams" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-600">
-                 <SelectItem value="all" className="text-white">All Teams</SelectItem>
-                 {availableTeams.map(teamId => {
-                   const team = pitches.find(p => p.teams.id === teamId)?.teams;
-                   return teamId && teamId !== '' ? (
-                     <SelectItem key={teamId} value={teamId} className="text-white">
-                       {team?.team_name || 'Unknown Team'}
-                  </SelectItem>
-                   ) : null;
-                 })}
+                <SelectItem value="all" className="text-white">All Teams</SelectItem>
+                {availableTeams.map(teamId => {
+                  const team = pitches.find(p => p.teams.id === teamId)?.teams;
+                  return teamId && teamId !== '' ? (
+                    <SelectItem key={teamId} value={teamId} className="text-white">
+                      {team?.team_name || 'Unknown Team'}
+                    </SelectItem>
+                  ) : null;
+                })}
               </SelectContent>
             </Select>
 
@@ -421,7 +421,7 @@ const TransferTimeline = () => {
 
       {/* Pitches Grid */}
       {loading ? (
-            <div className="text-center py-12">
+        <div className="text-center py-12">
           <Clock className="w-12 h-12 mx-auto mb-4 text-gray-500 animate-spin" />
           <p className="text-gray-400">Loading transfer pitches...</p>
         </div>
@@ -429,15 +429,15 @@ const TransferTimeline = () => {
         <Card className="border-0">
           <CardContent className="p-12 text-center">
             <Target className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-              <h3 className="text-xl font-semibold text-white mb-2">
+            <h3 className="text-xl font-semibold text-white mb-2">
               No pitches found
-              </h3>
-              <p className="text-gray-400">
+            </h3>
+            <p className="text-gray-400">
               {searchTerm || (selectedSport !== 'all') || (selectedTeam !== 'all')
                 ? 'Try adjusting your filters'
                 : 'No transfer pitches available at the moment.'
-                }
-              </p>
+              }
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -445,21 +445,21 @@ const TransferTimeline = () => {
           {processedPitches.map((pitch) => (
             <Card key={pitch.id} className="border-0 hover:border-rosegold/30 transition-colors">
               <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
                     {pitch.players.photo_url && (
-                            <img
-                              src={pitch.players.photo_url}
-                              alt={pitch.players.full_name}
-                              className="w-12 h-12 rounded-full object-cover"
-                            />
-                          )}
-                          <div>
+                      <img
+                        src={pitch.players.photo_url}
+                        alt={pitch.players.full_name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    )}
+                    <div>
                       <h3 className="font-semibold text-white">{pitch.players.full_name}</h3>
                       <p className="text-sm text-gray-400">{pitch.players.position}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Badge variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}>
                       {pitch.transfer_type}
@@ -470,22 +470,22 @@ const TransferTimeline = () => {
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
                 {/* Team Info */}
                 <div className="flex items-center gap-3">
-                              {pitch.teams.logo_url && (
-                                <img
-                                  src={pitch.teams.logo_url}
-                                  alt={pitch.teams.team_name}
+                  {pitch.teams.logo_url && (
+                    <img
+                      src={pitch.teams.logo_url}
+                      alt={pitch.teams.team_name}
                       className="w-8 h-8 rounded-full"
                     />
                   )}
                   <div>
                     <p className="font-medium text-white">{pitch.teams.team_name}</p>
                     <p className="text-sm text-gray-400">{pitch.teams.country}</p>
-                        </div>
-                      </div>
+                  </div>
+                </div>
 
                 {/* Price */}
                 <div className="flex items-center gap-2">
@@ -495,26 +495,26 @@ const TransferTimeline = () => {
                   </span>
                 </div>
 
-                      {/* Description */}
+                {/* Description */}
                 <p className="text-gray-300 text-sm line-clamp-3">
-                          {pitch.description}
-                        </p>
+                  {pitch.description}
+                </p>
 
-                      {/* Stats */}
+                {/* Stats */}
                 <div className="flex items-center justify-between text-sm text-gray-400">
-                        <div className="flex items-center gap-1">
-                          <Eye className="w-4 h-4" />
+                  <div className="flex items-center gap-1">
+                    <Eye className="w-4 h-4" />
                     {pitch.view_count} views
-                        </div>
-                        <div className="flex items-center gap-1">
+                  </div>
+                  <div className="flex items-center gap-1">
                     <MessageSquare className="w-4 h-4" />
                     {pitch.agent_interest?.length || 0} interests
-                        </div>
-                        <div className="flex items-center gap-1">
+                  </div>
+                  <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
                     {formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}
-                        </div>
-                      </div>
+                  </div>
+                </div>
 
                 {/* Agent Interest Display */}
                 {pitch.agent_interest && pitch.agent_interest.length > 0 && (
@@ -539,15 +539,15 @@ const TransferTimeline = () => {
                   </div>
                 )}
 
-                      {/* Actions */}
+                {/* Actions */}
                 <div className="flex gap-2 pt-2">
                   {canExpressInterest(pitch) && (
-                        <Button
+                    <Button
                       onClick={() => {
                         setSelectedPitchForInterest(pitch);
                         setShowInterestModal(true);
                       }}
-                          variant="outline"
+                      variant="outline"
                       className="flex-1 border-gray-600 text-white hover:border-rosegold"
                       disabled={hasExpressedInterest(pitch)}
                     >
@@ -562,47 +562,36 @@ const TransferTimeline = () => {
                           Express Interest
                         </>
                       )}
-                        </Button>
+                    </Button>
                   )}
 
-                  {/* Generate Contract Button */}
+
                   {canEditPitch(pitch) && (
-                        <Button
-                      onClick={() => handleGenerateContract(pitch)}
-                      variant="outline"
-                          size="sm"
-                      className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
-                        >
-                      <FileText className="w-4 h-4" />
-                        </Button>
-                  )}
-
-                        {canEditPitch(pitch) && (
-                          <>
-                            <Button
+                    <>
+                      <Button
                         onClick={() => handleEditPitch(pitch)}
                         variant="outline"
-                              size="sm"
+                        size="sm"
                         className="border-gray-600 text-white"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
                         onClick={() => handleDeletePitch(pitch.id)}
                         variant="outline"
-                              size="sm"
+                        size="sm"
                         className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
-                            >
+                      >
                         <X className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Edit Pitch Modal */}
       {showEditModal && selectedPitchForEdit && (
@@ -628,7 +617,7 @@ const TransferTimeline = () => {
             <h3 className="text-xl font-semibold text-white mb-4">
               Express Interest in {selectedPitchForInterest.players.full_name}
             </h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-white mb-2 block">
@@ -644,7 +633,7 @@ const TransferTimeline = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium text-white mb-2 block">
                   Message (Optional)
@@ -657,7 +646,7 @@ const TransferTimeline = () => {
                 />
               </div>
             </div>
-            
+
             <div className="flex gap-3 mt-6">
               <Button
                 onClick={() => handleInterestInPitch(selectedPitchForInterest)}
@@ -686,14 +675,14 @@ const TransferTimeline = () => {
       {showContractWizard && selectedPitchForContract && (
         <Dialog open={showContractWizard} onOpenChange={setShowContractWizard}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <ContractWizard
-          pitchId={selectedPitchForContract.id}
-          onComplete={handleContractComplete}
-          onCancel={() => {
-            setShowContractWizard(false);
-            setSelectedPitchForContract(null);
-          }}
-        />
+            <ContractWizard
+              pitchId={selectedPitchForContract.id}
+              onComplete={handleContractComplete}
+              onCancel={() => {
+                setShowContractWizard(false);
+                setSelectedPitchForContract(null);
+              }}
+            />
           </DialogContent>
         </Dialog>
       )}

@@ -254,25 +254,46 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
       // Fetch agent interest for teams
       if (profile.user_type === 'team') {
-        const { data: interest, error: interestError } = await supabase
-          .from('agent_interest')
-          .select(`
-            *,
-            agent:agents!agent_interest_agent_id_fkey(
-              profile:profiles!agents_profile_id_fkey(full_name, user_type)
-            ),
-            pitch:transfer_pitches!agent_interest_pitch_id_fkey(
-              players!inner(full_name, position),
-              teams!inner(team_name),
-              asking_price,
-              currency
-            )
-          `)
-          .eq('pitch.teams.profile_id', profile.id)
-          .order('created_at', { ascending: false });
+        // First get the team ID for the current user
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('profile_id', profile.id)
+          .single();
 
-        if (interestError) throw interestError;
-        setAgentInterest(interest || []);
+        if (teamData) {
+          // First get the pitch IDs for this team
+          const { data: teamPitches } = await supabase
+            .from('transfer_pitches')
+            .select('id')
+            .eq('team_id', teamData.id);
+
+          if (teamPitches && teamPitches.length > 0) {
+            const pitchIds = teamPitches.map(p => p.id);
+            
+            const { data: interest, error: interestError } = await supabase
+              .from('agent_interest')
+              .select(`
+                *,
+                agent:agents!agent_interest_agent_id_fkey(
+                  profile:profiles!agents_profile_id_fkey(full_name, user_type)
+                ),
+                pitch:transfer_pitches!agent_interest_pitch_id_fkey(
+                  players!transfer_pitches_player_id_fkey(full_name, position),
+                  teams(team_name),
+                  asking_price,
+                  currency
+                )
+              `)
+              .in('pitch_id', pitchIds)
+              .order('created_at', { ascending: false });
+
+            if (interestError) throw interestError;
+            setAgentInterest(interest || []);
+          } else {
+            setAgentInterest([]);
+          }
+        }
       }
 
       // Fetch contracts for the user
@@ -434,8 +455,8 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
             profile:profiles!agents_profile_id_fkey(full_name, user_type)
           ),
           pitch:transfer_pitches!agent_interest_pitch_id_fkey(
-            players!inner(full_name, position),
-            teams!inner(team_name),
+            players!transfer_pitches_player_id_fkey(full_name, position),
+            teams(team_name),
             asking_price,
             currency
           )
@@ -780,17 +801,7 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                    onChange={(e) => setSearchTerm(e.target.value)}
                    className="border-gray-600 bg-gray-800 text-white"
                  />
-                 {profile?.user_type === 'team' && (
-                   <Button
-                     size="sm"
-                     variant="outline"
-                     onClick={cleanupInvalidAgentInterest}
-                     className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
-                   >
-                     <AlertCircle className="w-4 h-4 mr-1" />
-                     Clean Invalid Records
-                   </Button>
-                 )}
+                 
                </div>
 
                              <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -908,24 +919,44 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                 {profile?.user_type === 'team' && (
                   <div className="flex gap-2">
                     <Button
+                      disabled={loading}
                       onClick={() => {
                         setContractType('create');
                         setShowContractModal(true);
                       }}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
                     >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Generate Contract
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Generate Contract
+                        </>
+                      )}
                     </Button>
                     <Button
+                      disabled={loading}
                       onClick={() => {
                         setContractType('upload');
                         setShowContractModal(true);
                       }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                     >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload Contract
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Contract
+                        </>
+                      )}
                     </Button>
                   </div>
                 )}
@@ -1265,14 +1296,16 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
             
                          <div className="flex gap-3 mt-6">
                <Button
+                 disabled={loading || (contractType === 'upload' ? !contractFile : !detailedContractForm.playerName)}
                  onClick={async () => {
                    try {
+                     setLoading(true);
                      if (contractType === 'create') {
                        // Get team and agent IDs
                        let teamId = '';
                        let agentId = '';
                        
-                                               if (profile?.user_type === 'team') {
+                       if (profile?.user_type === 'team') {
                           // First, verify the profile exists
                           const { data: profileData, error: profileError } = await supabase
                             .from('profiles')
@@ -1332,79 +1365,61 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                                                if (selectedInterest) {
                           console.log('Selected interest agent_id:', selectedInterest.agent_id);
                           
-                          // First, verify the profile exists
-                          const { data: profileData, error: profileError } = await supabase
-                            .from('profiles')
-                            .select('id')
-                            .eq('id', selectedInterest.agent_id)
-                            .maybeSingle();
-                          
-                          if (profileError) {
-                            console.error('Error fetching profile data:', profileError);
-                            throw new Error(`Profile not found: ${profileError.message}`);
-                          }
-                          
-                                                     if (!profileData) {
-                             console.error('Profile not found for agent_id:', selectedInterest.agent_id);
-                             
-                             // Show user-friendly error and skip this interest
-                             toast({
-                               title: "Invalid Agent Record",
-                               description: "This agent interest references a profile that no longer exists. The record will be skipped.",
-                               variant: "destructive"
-                             });
-                             
-                             // Close modal and return early
-                             setShowContractModal(false);
-                             setSelectedInterest(null);
-                             return;
-                           }
-                          
-                          console.log('Profile found:', profileData);
-                          
-                          // Get the actual agent ID from the agents table using profile_id
+                          // Get the agent data and verify it exists
                           const { data: agentData, error: agentError } = await supabase
                             .from('agents')
-                            .select('id')
-                            .eq('profile_id', selectedInterest.agent_id)
-                            .maybeSingle(); // Use maybeSingle instead of single
+                            .select(`
+                              id,
+                              profile_id,
+                              profile:profiles!agents_profile_id_fkey(id, full_name, user_type)
+                            `)
+                            .eq('id', selectedInterest.agent_id)
+                            .maybeSingle();
                           
                           if (agentError) {
                             console.error('Error fetching agent data:', agentError);
                             throw new Error(`Agent not found: ${agentError.message}`);
                           }
                           
-                          // If no agent record exists, create one
                           if (!agentData) {
-                            console.log('No agent record found, creating one...');
-                            const { data: newAgentData, error: createError } = await supabase
-                              .from('agents')
-                              .insert({
-                                profile_id: selectedInterest.agent_id,
-                                agency_name: 'Agency', // Default name
-                                specialization: ['football']
-                              })
-                              .select('id')
-                              .single();
+                            console.error('Agent not found for agent_id:', selectedInterest.agent_id);
                             
-                            if (createError) {
-                              console.error('Error creating agent record:', createError);
-                              throw new Error(`Failed to create agent record: ${createError.message}`);
-                            }
+                            // Show user-friendly error and skip this interest
+                            toast({
+                              title: "Invalid Agent Record",
+                              description: "This agent interest references an agent that no longer exists. The record will be skipped.",
+                              variant: "destructive"
+                            });
                             
-                            agentId = newAgentData?.id || '';
-                            console.log('Created agent with ID:', agentId);
-                          } else {
-                            agentId = agentData.id;
-                            console.log('Found existing agent with ID:', agentId);
+                            // Close modal and return early
+                            setShowContractModal(false);
+                            setSelectedInterest(null);
+                            return;
                           }
                           
-                          if (!agentId) {
-                            throw new Error('Agent record not found in agents table');
+                          console.log('Agent found:', agentData);
+                          
+                          // Get the profile data from the agent record
+                          const profileData = agentData.profile;
+                          if (!profileData) {
+                            console.error('Profile not found for agent:', agentData.id);
+                            
+                            toast({
+                              title: "Invalid Agent Profile",
+                              description: "This agent has no associated profile. The record will be skipped.",
+                              variant: "destructive"
+                            });
+                            
+                            setShowContractModal(false);
+                            setSelectedInterest(null);
+                            return;
                           }
+                          
+                          // Now we have the agent data, continue with contract creation
+                          agentId = agentData.id;
                         }
                        
-                                               if (!teamId || !agentId) {
+                        if (!teamId || !agentId) {
                           throw new Error(`Missing team or agent information. Team ID: ${teamId}, Agent ID: ${agentId}. Please ensure both team and agent profiles are properly set up.`);
                         }
                        
@@ -1462,12 +1477,18 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                        description: error.message || "Failed to create contract",
                        variant: "destructive"
                      });
+                   } finally {
+                     setLoading(false);
                    }
                  }}
-                 disabled={contractType === 'upload' ? !contractFile : !detailedContractForm.playerName}
                  className="bg-rosegold hover:bg-rosegold/90 text-white flex-1"
                >
-                {contractType === 'upload' ? (
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    {contractType === 'upload' ? 'Uploading...' : 'Generating...'}
+                  </>
+                ) : contractType === 'upload' ? (
                   <>
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Contract

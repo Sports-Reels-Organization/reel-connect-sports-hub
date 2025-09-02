@@ -37,7 +37,7 @@ export const usePlayerVideoTags = (playerId: string) => {
           thumbnail_url,
           created_at,
           tagged_players,
-          teams!inner(team_name)
+          teams(team_name)
         `)
         .contains('tagged_players', [playerId])
         .order('created_at', { ascending: false });
@@ -54,7 +54,7 @@ export const usePlayerVideoTags = (playerId: string) => {
           thumbnail_url,
           created_at,
           tagged_players,
-          teams!inner(team_name)
+          teams(team_name)
         `)
         .contains('tagged_players::jsonb', [`"${playerId}"`])
         .order('created_at', { ascending: false });

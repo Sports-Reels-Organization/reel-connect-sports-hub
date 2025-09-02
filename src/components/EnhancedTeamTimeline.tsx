@@ -558,11 +558,11 @@ const EnhancedTeamTimeline = () => {
           .from('transfer_pitches')
           .select(`
             *,
-            players:players!inner(
+            players:players!transfer_pitches_player_id_fkey(
               id,
               full_name
             ),
-            teams:teams!inner(
+            teams:teams(
               id,
               team_name
             )

@@ -118,14 +118,14 @@ const TeamDashboard = () => {
       } else {
         setTeamInfo(team);
       }
-      
+
       if (!currentTeamId) {
         console.error('No team ID available');
         return;
       }
 
       console.log('Fetching statistics for team ID:', currentTeamId);
-      
+
       // Fetch all statistics in parallel
       const [
         playersResult,
@@ -395,7 +395,7 @@ const TeamDashboard = () => {
                   <p className="text-sm font-medium text-gray-400">Total Videos</p>
                   <p className="text-2xl font-bold text-white">{stats.totalVideos}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="text-xs">
+                    <Badge className="text-xs bg-transparent">
                       {stats.completedAnalysis} Analyzed
                     </Badge>
                     {stats.pendingAnalysis > 0 && (
@@ -566,35 +566,7 @@ const TeamDashboard = () => {
         </div>
 
         {/* Profile Completion Notice */}
-        {!completionStatus.canAccessFeatures && (
-          <Card className="bg-orange-500/10 border-orange-500/30">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <AlertTriangle className="w-6 h-6 text-orange-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-orange-400 mb-2">
-                    Complete Your Profile to Access All Features
-                  </h3>
-                  <div className="space-y-2">
-                    {completionStatus.missingRequirements.map((requirement, index) => (
-                      <div key={index} className="flex items-center gap-2 text-orange-300">
-                        <div className="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
-                        <span className="text-sm">{requirement}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4">
-                    <Link to="/profile">
-                      <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-                        Complete Profile
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
       </div>
     </div>
   );

@@ -69,7 +69,7 @@ const AgentShortlist = () => {
         .from('shortlist')
         .select(`
           *,
-          players!inner(
+          players!transfer_pitches_player_id_fkey(
             id,
             full_name,
             position,
@@ -86,7 +86,7 @@ const AgentShortlist = () => {
             transfer_type,
             expires_at,
             status,
-            teams!inner(
+            teams(
               team_name,
               country,
               logo_url

@@ -120,7 +120,7 @@ const AgentShortlistEnhanced = () => {
         .from('shortlist')
         .select(`
           *,
-          player:players!inner(
+          player:players!transfer_pitches_player_id_fkey(
             id,
             full_name,
             position,
@@ -141,7 +141,7 @@ const AgentShortlistEnhanced = () => {
             message_count,
             shortlist_count,
             tagged_videos,
-            team:teams!inner(
+            team:teams(
               id,
               team_name,
               country,

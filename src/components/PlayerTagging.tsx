@@ -61,7 +61,7 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
             id,
             full_name,
             position,
-            teams!inner(
+            teams(
               team_name
             )
           `)
@@ -107,7 +107,7 @@ export const PlayerTagging: React.FC<PlayerTaggingProps> = ({
             id,
             full_name,
             position,
-            teams!inner(
+            teams(
               team_name
             )
           `)

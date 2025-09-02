@@ -102,7 +102,7 @@ const History = () => {
             asking_price, 
             status, 
             created_at,
-            players!inner(full_name)
+            players!transfer_pitches_player_id_fkey(full_name)
           `)
           .eq('team_id', profile.id)
           .order('created_at', { ascending: false })
