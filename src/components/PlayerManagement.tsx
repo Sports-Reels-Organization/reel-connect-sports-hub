@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,6 +35,7 @@ const PlayerManagement: React.FC = () => {
   const [eligiblePlayers, setEligiblePlayers] = useState<DatabasePlayer[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'roster'>('cards');
+  const playerFormRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchTeamId();
@@ -50,6 +51,18 @@ const PlayerManagement: React.FC = () => {
   useEffect(() => {
     setFilteredPlayers(players);
   }, [players]);
+
+  // Auto-scroll to player form when it becomes visible
+  useEffect(() => {
+    if (showAddForm && playerFormRef.current) {
+      setTimeout(() => {
+        playerFormRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100); // Small delay to ensure the form is rendered
+    }
+  }, [showAddForm]);
 
   const fetchTeamId = async () => {
     if (!profile?.id) return;
@@ -450,12 +463,14 @@ const PlayerManagement: React.FC = () => {
               </div>
 
               {showAddForm && (
-                <PlayerForm
-                  teamId={teamId}
-                  player={editingPlayer}
-                  onSave={handlePlayerSaved}
-                  onCancel={resetForm}
-                />
+                <div ref={playerFormRef}>
+                  <PlayerForm
+                    teamId={teamId}
+                    player={editingPlayer}
+                    onSave={handlePlayerSaved}
+                    onCancel={resetForm}
+                  />
+                </div>
               )}
 
               {/* Player Display */}

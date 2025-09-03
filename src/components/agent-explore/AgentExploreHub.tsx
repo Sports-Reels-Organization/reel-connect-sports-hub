@@ -102,7 +102,7 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
           {/* Contracts Tab */}
           <TabsContent value="contracts" className="mt-6">
-            <SimplifiedContractWorkflow contractId="demo-contract" />
+            <SimplifiedContractWorkflow />
           </TabsContent>
 
           {/* Market Insights Tab */}

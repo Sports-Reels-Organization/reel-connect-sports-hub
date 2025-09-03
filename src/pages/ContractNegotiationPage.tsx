@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,9 @@ import {
   ArrowLeft,
   Upload,
   Eye,
-  EyeOff
+  EyeOff,
+  Bell,
+  BellRing
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -99,6 +101,8 @@ const ContractNegotiationPage: React.FC = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
 
   const [contract, setContract] = useState<Contract | null>(null);
   const [messages, setMessages] = useState<ContractMessage[]>([]);
@@ -110,12 +114,134 @@ const ContractNegotiationPage: React.FC = () => {
   const [selectedAction, setSelectedAction] = useState<string>('');
   const [actionDetails, setActionDetails] = useState('');
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const messageChannelRef = useRef<any>(null);
+  const updateChannelRef = useRef<any>(null);
 
   useEffect(() => {
     if (contractId) {
       loadContractData();
+      setupRealtimeSubscription();
     }
+
+    return () => {
+      // Cleanup subscription on unmount
+      if (messageChannelRef.current) {
+        supabase.removeChannel(messageChannelRef.current);
+      }
+      if (updateChannelRef.current) {
+        supabase.removeChannel(updateChannelRef.current);
+      }
+    };
   }, [contractId]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Show notification for new messages
+  useEffect(() => {
+    if (hasNewMessages && messages.length > 0) {
+      const latestMessage = messages[messages.length - 1];
+      if (latestMessage.sender_id !== profile?.id) {
+        toast({
+          title: "New Message",
+          description: `${latestMessage.sender_profile?.full_name || 'Someone'} sent a message`,
+          duration: 3000,
+        });
+        setHasNewMessages(false);
+      }
+    }
+  }, [hasNewMessages, messages, profile?.id, toast]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const setupRealtimeSubscription = () => {
+    if (!contractId) return;
+
+    setConnectionStatus('connecting');
+
+    // Create message channel
+    const msgChannel = supabase
+      .channel(`contract-messages-${contractId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'contract_messages',
+          filter: `contract_id=eq.${contractId}`
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          setHasNewMessages(true);
+          
+          // Reload messages to get the latest data with profile information
+          loadMessages();
+        }
+      )
+      .subscribe((status) => {
+        console.log('Message subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          setIsConnected(true);
+          setConnectionStatus('connected');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setIsConnected(false);
+          setConnectionStatus('disconnected');
+        }
+      });
+
+    // Create update channel
+    const updChannel = supabase
+      .channel(`contract-updates-${contractId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'contracts',
+          filter: `id=eq.${contractId}`
+        },
+        (payload) => {
+          console.log('Contract updated:', payload);
+          
+          // Update contract state
+          setContract(prev => prev ? {
+            ...prev,
+            ...payload.new,
+            updated_at: new Date().toISOString()
+          } : null);
+
+          toast({
+            title: "Contract Updated",
+            description: "The contract has been updated",
+            duration: 3000,
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log('Update subscription status:', status);
+      });
+
+    // Store channel references
+    messageChannelRef.current = msgChannel;
+    updateChannelRef.current = updChannel;
+  };
+
+  const loadMessages = async () => {
+    if (!contractId) return;
+    
+    try {
+      const messagesData = await contractManagementService.getContractMessages(contractId);
+      setMessages(messagesData);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  };
 
   const loadContractData = async () => {
     setLoading(true);
@@ -125,8 +251,7 @@ const ContractNegotiationPage: React.FC = () => {
       setContract(contractData);
 
       // Load contract messages
-      const messagesData = await contractManagementService.getContractMessages(contractId!);
-      setMessages(messagesData);
+      await loadMessages();
 
       // Generate contract preview
       if (contractData) {
@@ -135,30 +260,40 @@ const ContractNegotiationPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading contract:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to load contract data";
       toast({
         title: "Error",
-        description: "Failed to load contract data",
+        description: errorMessage,
         variant: "destructive"
       });
+      
+      // If contract not found, navigate back to contracts page
+      if (errorMessage.includes('not found') || errorMessage.includes('permission')) {
+        setTimeout(() => {
+          navigate('/contracts');
+        }, 2000);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-
   const sendMessage = async () => {
     if (!newMessage.trim() || !contract) return;
+
+    const messageText = newMessage.trim();
+    setNewMessage(''); // Clear input immediately for better UX
 
     try {
       const data = await contractManagementService.addContractMessage(
         contractId!,
-        profile?.user_id!,
-        newMessage.trim(),
+        profile?.id!,
+        messageText,
         'discussion'
       );
 
+      // Optimistically add message to UI
       setMessages(prev => [...prev, data]);
-      setNewMessage('');
       
       toast({
         title: "Message sent",
@@ -166,6 +301,7 @@ const ContractNegotiationPage: React.FC = () => {
       });
     } catch (error) {
       console.error('Error sending message:', error);
+      setNewMessage(messageText); // Restore message on error
       toast({
         title: "Error",
         description: "Failed to send message",
@@ -194,8 +330,7 @@ const ContractNegotiationPage: React.FC = () => {
       } : null);
 
       // Reload messages to show the action message
-      const messagesData = await contractManagementService.getContractMessages(contractId!);
-      setMessages(messagesData);
+      await loadMessages();
 
       toast({
         title: "Success",
@@ -310,8 +445,8 @@ const ContractNegotiationPage: React.FC = () => {
       <Layout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading contract...</p>
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-rosegold" />
+            <p className="text-muted-foreground font-poppins">Loading contract...</p>
           </div>
         </div>
       </Layout>
@@ -324,9 +459,9 @@ const ContractNegotiationPage: React.FC = () => {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-500" />
-            <h3 className="text-lg font-semibold mb-2">Contract Not Found</h3>
-            <p className="text-muted-foreground mb-4">The contract you're looking for doesn't exist.</p>
-            <Button onClick={() => navigate('/contracts')}>
+            <h3 className="text-lg font-semibold mb-2 font-poppins">Contract Not Found</h3>
+            <p className="text-muted-foreground mb-4 font-poppins">The contract you're looking for doesn't exist.</p>
+            <Button onClick={() => navigate('/contracts')} className="font-poppins">
               Back to Contracts
             </Button>
           </div>
@@ -337,7 +472,7 @@ const ContractNegotiationPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto font-poppins">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
@@ -346,22 +481,36 @@ const ContractNegotiationPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => navigate('/contracts')}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 font-poppins"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to Contracts
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-white mb-2">Contract Negotiation</h1>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <h1 className="text-2xl font-bold text-white mb-2 font-poppins">Contract Negotiation</h1>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground font-poppins">
                   <span>Contract ID: {contractId}</span>
-                  <Badge variant="outline" className={getStatusColor(contract.status)}>
+                  <Badge variant="outline" className={`${getStatusColor(contract.status)} font-poppins`}>
                     {contract.status}
                   </Badge>
-                  <Badge variant="outline" className={getStepColor(contract.current_step)}>
+                  <Badge variant="outline" className={`${getStepColor(contract.current_step)} font-poppins`}>
                     {contract.current_step}
                   </Badge>
                   <span className="capitalize">{contract.transfer_type} Transfer</span>
+                  {/* Real-time connection status */}
+                  <div className="flex items-center gap-2">
+                    {isConnected ? (
+                      <>
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-xs text-green-500">Live</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span className="text-xs text-red-500">Offline</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -370,6 +519,7 @@ const ContractNegotiationPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowContractPreview(!showContractPreview)}
+                className="font-poppins"
               >
                 {showContractPreview ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
                 {showContractPreview ? 'Hide' : 'Show'} Contract
@@ -378,6 +528,7 @@ const ContractNegotiationPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={downloadContract}
+                className="font-poppins"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Download
@@ -392,7 +543,7 @@ const ContractNegotiationPage: React.FC = () => {
             <div className="lg:col-span-1">
               <Card className="h-full">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 font-poppins">
                     <FileText className="h-5 w-5" />
                     Contract Preview
                   </CardTitle>
@@ -400,7 +551,7 @@ const ContractNegotiationPage: React.FC = () => {
                 <CardContent>
                   <ScrollArea className="h-96">
                     <div 
-                      className="prose prose-sm max-w-none"
+                      className="prose prose-sm max-w-none font-poppins"
                       dangerouslySetInnerHTML={{ __html: contractPreview }}
                     />
                   </ScrollArea>
@@ -413,15 +564,15 @@ const ContractNegotiationPage: React.FC = () => {
           <div className={showContractPreview ? "lg:col-span-2" : "lg:col-span-3"}>
             <Tabs defaultValue="discussion" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="discussion" className="flex items-center gap-2">
+                <TabsTrigger value="discussion" className="flex items-center gap-2 font-poppins">
                   <MessageSquare className="h-4 w-4" />
                   Discussion
                 </TabsTrigger>
-                <TabsTrigger value="contract" className="flex items-center gap-2">
+                <TabsTrigger value="contract" className="flex items-center gap-2 font-poppins">
                   <FileText className="h-4 w-4" />
                   Contract
                 </TabsTrigger>
-                <TabsTrigger value="timeline" className="flex items-center gap-2">
+                <TabsTrigger value="timeline" className="flex items-center gap-2 font-poppins">
                   <Clock className="h-4 w-4" />
                   Timeline
                 </TabsTrigger>
@@ -430,45 +581,73 @@ const ContractNegotiationPage: React.FC = () => {
               <TabsContent value="discussion" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Contract Discussion</CardTitle>
+                    <CardTitle className="font-poppins flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      Contract Discussion
+                      {hasNewMessages && (
+                        <BellRing className="h-4 w-4 text-rosegold animate-pulse" />
+                      )}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ScrollArea className="h-96 mb-4">
                       <div className="space-y-4">
-                        {messages.map((message) => (
-                          <div
-                            key={message.id}
-                            className={`flex gap-3 ${
-                              message.sender_id === profile?.user_id ? 'flex-row-reverse' : ''
-                            }`}
-                          >
-                            <div className={`flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-medium ${
-                              message.sender_profile?.user_type === 'agent' ? 'bg-blue-500' : 'bg-green-500'
-                            }`}>
-                              {message.sender_profile?.full_name?.charAt(0) || 'U'}
-                            </div>
-                            <div className={`flex-1 max-w-xs ${
-                              message.sender_id === profile?.user_id ? 'text-right' : ''
-                            }`}>
-                              <div className={`inline-block p-3 rounded-lg ${
-                                message.sender_id === profile?.user_id 
-                                  ? 'bg-primary text-primary-foreground' 
-                                  : 'bg-muted'
+                        {messages.map((message) => {
+                          const isCurrentUser = message.sender_id === profile?.id;
+                          return (
+                            <div
+                              key={message.id}
+                              className={`flex gap-3 ${
+                                isCurrentUser ? 'justify-end' : 'justify-start'
+                              }`}
+                            >
+                              {!isCurrentUser && (
+                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium font-poppins ${
+                                  message.sender_profile?.user_type === 'agent' ? 'bg-blue-500' : 
+                                  message.sender_profile?.user_type === 'team' ? 'bg-green-500' : 
+                                  message.sender_profile?.user_type === 'system' ? 'bg-gray-500' : 'bg-rosegold'
+                                }`}>
+                                  {message.sender_profile?.full_name?.charAt(0) || 'U'}
+                                </div>
+                              )}
+                              <div className={`max-w-xs lg:max-w-md ${
+                                isCurrentUser ? 'order-first' : ''
                               }`}>
-                                <p className="text-sm font-medium mb-1">{message.sender_profile?.full_name || 'Unknown'}</p>
-                                <p className="text-sm">{message.content}</p>
-                                <p className="text-xs opacity-70 mt-1">
-                                  {new Date(message.created_at).toLocaleString()}
-                                </p>
-                                {message.message_type === 'action' && (
-                                  <Badge variant="outline" className="mt-1 text-xs">
-                                    {message.related_field}
-                                  </Badge>
-                                )}
+                                <div className={`inline-block p-3 rounded-lg font-poppins ${
+                                  isCurrentUser 
+                                    ? 'bg-rosegold text-white' 
+                                    : 'bg-muted text-foreground'
+                                }`}>
+                                  {!isCurrentUser && (
+                                    <p className="text-sm font-medium mb-1 opacity-80">
+                                      {message.sender_profile?.full_name || 'Unknown'}
+                                    </p>
+                                  )}
+                                  <p className="text-sm leading-relaxed">{message.content}</p>
+                                  <p className={`text-xs opacity-70 mt-1 ${
+                                    isCurrentUser ? 'text-right' : 'text-left'
+                                  }`}>
+                                    {new Date(message.created_at).toLocaleTimeString([], { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    })}
+                                  </p>
+                                  {message.message_type === 'action' && (
+                                    <Badge variant="outline" className="mt-1 text-xs font-poppins">
+                                      {message.related_field}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
+                              {isCurrentUser && (
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-rosegold flex items-center justify-center text-xs font-medium font-poppins">
+                                  {profile?.full_name?.charAt(0) || 'U'}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
+                        <div ref={messagesEndRef} />
                       </div>
                     </ScrollArea>
                     
@@ -478,12 +657,22 @@ const ContractNegotiationPage: React.FC = () => {
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                        className="flex-1"
+                        className="flex-1 font-poppins"
+                        disabled={!isConnected}
                       />
-                      <Button onClick={sendMessage} disabled={!newMessage.trim()}>
+                      <Button 
+                        onClick={sendMessage} 
+                        disabled={!newMessage.trim() || !isConnected}
+                        className="font-poppins"
+                      >
                         <Send className="h-4 w-4" />
                       </Button>
                     </div>
+                    {!isConnected && (
+                      <p className="text-xs text-muted-foreground mt-2 font-poppins">
+                        ⚠️ Connection lost. Messages may not be sent.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -491,36 +680,37 @@ const ContractNegotiationPage: React.FC = () => {
               <TabsContent value="contract" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Contract Details</CardTitle>
+                    <CardTitle className="font-poppins">Contract Details</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label className="text-sm font-medium">Player</Label>
-                          <p className="text-sm text-muted-foreground">{contract.pitch?.player?.full_name}</p>
+                          <Label className="text-sm font-medium font-poppins">Player</Label>
+                          <p className="text-sm text-muted-foreground font-poppins">{contract.pitch?.player?.full_name}</p>
                         </div>
                         <div>
-                          <Label className="text-sm font-medium">Position</Label>
-                          <p className="text-sm text-muted-foreground">{contract.pitch?.player?.position}</p>
+                          <Label className="text-sm font-medium font-poppins">Position</Label>
+                          <p className="text-sm text-muted-foreground font-poppins">{contract.pitch?.player?.position}</p>
                         </div>
                         <div>
-                          <Label className="text-sm font-medium">Transfer Type</Label>
-                          <p className="text-sm text-muted-foreground capitalize">{contract.transfer_type}</p>
+                          <Label className="text-sm font-medium font-poppins">Transfer Type</Label>
+                          <p className="text-sm text-muted-foreground font-poppins capitalize">{contract.transfer_type}</p>
                         </div>
                         <div>
-                          <Label className="text-sm font-medium">Contract Value</Label>
-                          <p className="text-sm text-muted-foreground">{contract.currency} {contract.contract_value?.toLocaleString()}</p>
+                          <Label className="text-sm font-medium font-poppins">Contract Value</Label>
+                          <p className="text-sm text-muted-foreground font-poppins">{contract.currency} {contract.contract_value?.toLocaleString()}</p>
                         </div>
                       </div>
                       
                       {contract.document_url && (
                         <div className="mt-4 p-4 bg-muted rounded-lg">
-                          <p className="text-sm font-medium mb-2">Uploaded Contract Document</p>
+                          <p className="text-sm font-medium mb-2 font-poppins">Uploaded Contract Document</p>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => window.open(contract.document_url, '_blank')}
+                            className="font-poppins"
                           >
                             <FileText className="h-4 w-4 mr-2" />
                             View Document
@@ -529,7 +719,7 @@ const ContractNegotiationPage: React.FC = () => {
                       )}
                       
                       <div 
-                        className="prose prose-sm max-w-none"
+                        className="prose prose-sm max-w-none font-poppins"
                         dangerouslySetInnerHTML={{ __html: contractPreview }}
                       />
                     </div>
@@ -540,15 +730,15 @@ const ContractNegotiationPage: React.FC = () => {
               <TabsContent value="timeline" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Contract Timeline</CardTitle>
+                    <CardTitle className="font-poppins">Contract Timeline</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                         <div>
-                          <p className="font-medium">Contract Created</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium font-poppins">Contract Created</p>
+                          <p className="text-sm text-muted-foreground font-poppins">
                             {new Date(contract.created_at).toLocaleString()}
                           </p>
                         </div>
@@ -556,8 +746,8 @@ const ContractNegotiationPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                         <div>
-                          <p className="font-medium">Under Review</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium font-poppins">Under Review</p>
+                          <p className="text-sm text-muted-foreground font-poppins">
                             Contract is being reviewed by both parties
                           </p>
                         </div>
@@ -565,8 +755,8 @@ const ContractNegotiationPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                         <div>
-                          <p className="font-medium">In Negotiation</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium font-poppins">In Negotiation</p>
+                          <p className="text-sm text-muted-foreground font-poppins">
                             Currently in negotiation phase
                           </p>
                         </div>
@@ -575,8 +765,8 @@ const ContractNegotiationPage: React.FC = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           <div>
-                            <p className="font-medium">Approved</p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="font-medium font-poppins">Approved</p>
+                            <p className="text-sm text-muted-foreground font-poppins">
                               Contract has been approved
                             </p>
                           </div>
@@ -586,8 +776,8 @@ const ContractNegotiationPage: React.FC = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                           <div>
-                            <p className="font-medium">Transfer Completed</p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="font-medium font-poppins">Transfer Completed</p>
+                            <p className="text-sm text-muted-foreground font-poppins">
                               Player transfer has been completed
                             </p>
                           </div>
@@ -602,7 +792,7 @@ const ContractNegotiationPage: React.FC = () => {
             {/* Quick Actions */}
             <Card className="mt-6">
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+                <CardTitle className="font-poppins">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -610,7 +800,7 @@ const ContractNegotiationPage: React.FC = () => {
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="outline"
-                        className="flex flex-col items-center gap-2 h-auto py-4"
+                        className="flex flex-col items-center gap-2 h-auto py-4 font-poppins"
                         onClick={() => {
                           setSelectedAction('approve');
                           setActionModalOpen(true);
@@ -622,14 +812,14 @@ const ContractNegotiationPage: React.FC = () => {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Approve Contract</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="font-poppins">Approve Contract</AlertDialogTitle>
+                        <AlertDialogDescription className="font-poppins">
                           Are you sure you want to approve this contract? This will move it to the finalization stage.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleContractAction('approve')}>
+                        <AlertDialogCancel className="font-poppins">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleContractAction('approve')} className="font-poppins">
                           Approve
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -640,7 +830,7 @@ const ContractNegotiationPage: React.FC = () => {
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="outline"
-                        className="flex flex-col items-center gap-2 h-auto py-4"
+                        className="flex flex-col items-center gap-2 h-auto py-4 font-poppins"
                         onClick={() => {
                           setSelectedAction('reject');
                           setActionModalOpen(true);
@@ -652,16 +842,16 @@ const ContractNegotiationPage: React.FC = () => {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Reject Contract</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="font-poppins">Reject Contract</AlertDialogTitle>
+                        <AlertDialogDescription className="font-poppins">
                           Are you sure you want to reject this contract? This action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel className="font-poppins">Cancel</AlertDialogCancel>
                         <AlertDialogAction 
                           onClick={() => handleContractAction('reject')}
-                          className="bg-red-600 hover:bg-red-700"
+                          className="bg-red-600 hover:bg-red-700 font-poppins"
                         >
                           Reject
                         </AlertDialogAction>
@@ -673,7 +863,7 @@ const ContractNegotiationPage: React.FC = () => {
                     <DialogTrigger asChild>
                       <Button
                         variant="outline"
-                        className="flex flex-col items-center gap-2 h-auto py-4"
+                        className="flex flex-col items-center gap-2 h-auto py-4 font-poppins"
                       >
                         <Edit className="h-5 w-5" />
                         <span className="text-sm">Request Changes</span>
@@ -681,25 +871,26 @@ const ContractNegotiationPage: React.FC = () => {
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Request Changes</DialogTitle>
-                        <DialogDescription>
+                        <DialogTitle className="font-poppins">Request Changes</DialogTitle>
+                        <DialogDescription className="font-poppins">
                           Please specify what changes you would like to request for this contract.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div>
-                          <Label htmlFor="changes">Changes Requested</Label>
+                          <Label htmlFor="changes" className="font-poppins">Changes Requested</Label>
                           <Textarea
                             id="changes"
                             placeholder="Describe the changes you would like to request..."
                             value={actionDetails}
                             onChange={(e) => setActionDetails(e.target.value)}
+                            className="font-poppins"
                           />
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline">Cancel</Button>
-                        <Button onClick={() => handleContractAction('request-changes')}>
+                        <Button variant="outline" className="font-poppins">Cancel</Button>
+                        <Button onClick={() => handleContractAction('request-changes')} className="font-poppins">
                           Submit Request
                         </Button>
                       </DialogFooter>
@@ -710,7 +901,7 @@ const ContractNegotiationPage: React.FC = () => {
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="outline"
-                        className="flex flex-col items-center gap-2 h-auto py-4"
+                        className="flex flex-col items-center gap-2 h-auto py-4 font-poppins"
                         onClick={() => {
                           setSelectedAction('complete');
                           setActionModalOpen(true);
@@ -722,16 +913,16 @@ const ContractNegotiationPage: React.FC = () => {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Complete Transfer</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="font-poppins">Complete Transfer</AlertDialogTitle>
+                        <AlertDialogDescription className="font-poppins">
                           Are you sure you want to complete this transfer? This will mark the player as transferred and remove them from the pitch.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel className="font-poppins">Cancel</AlertDialogCancel>
                         <AlertDialogAction 
                           onClick={() => handleContractAction('complete')}
-                          className="bg-green-600 hover:bg-green-700"
+                          className="bg-green-600 hover:bg-green-700 font-poppins"
                         >
                           Complete Transfer
                         </AlertDialogAction>

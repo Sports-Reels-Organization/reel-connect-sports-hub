@@ -116,7 +116,7 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
           </TabsContent>
 
           <TabsContent value="contracts" className="mt-6">
-            <SimplifiedContractWorkflow contractId="demo-contract" />
+            <SimplifiedContractWorkflow />
           </TabsContent>
 
           <TabsContent value="squad" className="mt-6">

@@ -1,143 +1,127 @@
-
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: string;
-  is_read: boolean;
-  created_at: string;
-  metadata?: any;
-}
+import { notificationService, NotificationData } from '@/services/notificationService';
 
 export const useNotifications = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Fetch notifications
-  const fetchNotifications = async () => {
+  // Set up toast for notification service
+  useEffect(() => {
+    notificationService.setToast(toast);
+  }, [toast]);
+
+  // Load initial notifications
+  const loadNotifications = useCallback(async () => {
     if (!profile?.user_id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', profile.user_id)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      setLoading(true);
+      const [notificationsData, unreadCountData] = await Promise.all([
+        notificationService.getUserNotifications(profile.user_id),
+        notificationService.getUnreadCount(profile.user_id)
+      ]);
 
-      if (error) throw error;
-
-      setNotifications(data || []);
-      const unread = (data || []).filter(n => !n.is_read).length;
-      setUnreadCount(unread);
+      setNotifications(notificationsData);
+      setUnreadCount(unreadCountData);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('Error loading notifications:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.user_id]);
+
+  // Load notifications on mount
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  // Subscribe to real-time notifications
+  useEffect(() => {
+    if (!profile?.user_id) return;
+
+    const channel = notificationService.subscribeToUserNotifications(
+      profile.user_id,
+      (notification) => {
+        setNotifications(prev => [notification, ...prev]);
+        setUnreadCount(prev => prev + 1);
+      }
+    );
+
+    return () => {
+      notificationService.unsubscribe(`user-notifications-${profile.user_id}`);
+    };
+  }, [profile?.user_id]);
 
   // Mark notification as read
-  const markAsRead = async (notificationId: string) => {
+  const markAsRead = useCallback(async (notificationId: string) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('id', notificationId);
-
-      if (error) throw error;
-
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      await notificationService.markAsRead(notificationId);
+      setNotifications(prev => 
+        prev.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, read: true }
+            : notification
+        )
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
-  };
+  }, []);
 
-  // Mark all as read
-  const markAllAsRead = async () => {
+  // Mark all notifications as read
+  const markAllAsRead = useCallback(async () => {
     if (!profile?.user_id) return;
 
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('user_id', profile.user_id)
-        .eq('is_read', false);
-
-      if (error) throw error;
-
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      const unreadNotifications = notifications.filter(n => !n.read);
+      await Promise.all(
+        unreadNotifications.map(notification => 
+          notificationService.markAsRead(notification.id)
+        )
+      );
+      
+      setNotifications(prev => 
+        prev.map(notification => ({ ...notification, read: true }))
+      );
       setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
-  };
+  }, [notifications, profile?.user_id]);
 
-  // Create notification
-  const createNotification = async (data: {
-    user_id: string;
-    title: string;
-    message: string;
-    type: string;
-    metadata?: any;
-  }) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert(data);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error creating notification:', error);
-    }
-  };
-
-  // Set up real-time subscription
-  useEffect(() => {
+  // Create a notification
+  const createNotification = useCallback(async (
+    type: NotificationData['type'],
+    title: string,
+    description: string,
+    data?: any
+  ) => {
     if (!profile?.user_id) return;
 
-    fetchNotifications();
-
-    const channel = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${profile.user_id}`
-        },
-        (payload) => {
-          const newNotification = payload.new as Notification;
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-          
-          // Show toast for new notification
-          toast({
-            title: newNotification.title,
-            description: newNotification.message,
-            duration: 4000,
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [profile?.user_id, toast]);
+    try {
+      const notification = await notificationService.createNotification({
+        type,
+        title,
+        description,
+        data,
+        user_id: profile.user_id
+      });
+      
+      setNotifications(prev => [notification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      
+      return notification;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  }, [profile?.user_id]);
 
   return {
     notifications,
@@ -146,6 +130,93 @@ export const useNotifications = () => {
     markAsRead,
     markAllAsRead,
     createNotification,
-    fetchNotifications
+    refreshNotifications: loadNotifications
+  };
+};
+
+// Hook for contract-specific notifications
+export const useContractNotifications = (contractId: string) => {
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    if (!contractId || !profile?.user_id) return;
+
+    // Subscribe to contract messages
+    const messageChannel = notificationService.subscribeToContractMessages(
+      contractId,
+      (message) => {
+        // Only show notification if message is not from current user
+        if (message.sender_id !== profile.id) {
+          toast({
+            title: "New Message",
+            description: "You have a new message in the contract discussion",
+            duration: 3000,
+          });
+        }
+      }
+    );
+
+    // Subscribe to contract updates
+    const updateChannel = notificationService.subscribeToContractUpdates(
+      contractId,
+      (contract) => {
+        toast({
+          title: "Contract Updated",
+          description: "The contract has been updated",
+          duration: 3000,
+        });
+      }
+    );
+
+    // Check connection status
+    const checkConnection = () => {
+      setIsConnected(true);
+    };
+
+    checkConnection();
+
+    return () => {
+      notificationService.unsubscribe(`contract-messages-${contractId}`);
+      notificationService.unsubscribe(`contract-updates-${contractId}`);
+    };
+  }, [contractId, profile?.user_id, profile?.id, toast]);
+
+  return {
+    isConnected
+  };
+};
+
+// Hook for transfer-specific notifications
+export const useTransferNotifications = (transferId: string) => {
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    if (!transferId || !profile?.user_id) return;
+
+    // Subscribe to transfer updates
+    const channel = notificationService.subscribeToTransferUpdates(
+      transferId,
+      (transfer) => {
+        toast({
+          title: "Transfer Update",
+          description: "A transfer you're involved in has been updated",
+          duration: 3000,
+        });
+      }
+    );
+
+    setIsConnected(true);
+
+    return () => {
+      notificationService.unsubscribe(`transfer-updates-${transferId}`);
+    };
+  }, [transferId, profile?.user_id, toast]);
+
+  return {
+    isConnected
   };
 };

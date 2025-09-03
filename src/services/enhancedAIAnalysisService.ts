@@ -106,7 +106,11 @@ export class EnhancedAIAnalysisService {
         throw new Error('User profile not found');
       }
 
-      if (videoData.teams.profile_id !== userProfile.id) {
+      // Check if user has permission through team ownership
+      const hasPermission = videoData.teams && videoData.teams.length > 0 && 
+        videoData.teams.some((team: any) => team.profile_id === userProfile.id);
+      
+      if (!hasPermission) {
         throw new Error('You do not have permission to analyze this video');
       }
 

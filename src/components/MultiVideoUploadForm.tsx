@@ -90,22 +90,20 @@ interface VideoUploadItem {
   uploadedVideoId?: string;
 }
 
-interface EnhancedVideoUploadFormProps {
+interface MultiVideoUploadFormProps {
   teamId: string;
-  onUploadComplete?: (videoId: string) => void;
+  onUploadComplete?: (videoIds: string[]) => void;
   onCancel?: () => void;
 }
 
-const MAX_VIDEOS = 6;
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-
-const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
+const MultiVideoUploadForm: React.FC<MultiVideoUploadFormProps> = ({
   teamId,
   onUploadComplete,
   onCancel
 }) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoCompressionService = new EnhancedVideoCompressionService();
   const blobUrlsRef = useRef<Set<string>>(new Set());
 
   const [videoItems, setVideoItems] = useState<VideoUploadItem[]>([]);
@@ -115,7 +113,8 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   const [overallProgress, setOverallProgress] = useState(0);
   const [loadingVideos, setLoadingVideos] = useState<Set<string>>(new Set());
 
-  const videoCompressionService = new EnhancedVideoCompressionService();
+  const MAX_VIDEOS = 6;
+  const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
   useEffect(() => {
     fetchTeamPlayers();
@@ -123,13 +122,13 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
   useEffect(() => {
     return () => {
-      // Clean up all blob URLs
+      // Clean up all blob URLs on component unmount
       blobUrlsRef.current.forEach(url => {
         URL.revokeObjectURL(url);
       });
       blobUrlsRef.current.clear();
     };
-  }, []);
+  }, []); // Empty dependency array - only run on unmount
 
   const fetchTeamPlayers = async () => {
     if (!teamId) return;
@@ -147,89 +146,54 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       console.error('Error fetching team players:', error);
       toast({
         title: "Error",
-        description: "Failed to load team players",
+        description: "Failed to fetch team players",
         variant: "destructive"
       });
     }
   };
 
-  const getVideoFileInfo = async (file: File, previewUrl: string): Promise<VideoFileInfo & { thumbnailUrl?: string }> => {
+  const getVideoFileInfo = async (file: File, blobUrl: string): Promise<VideoFileInfo & { thumbnailUrl?: string }> => {
     return new Promise((resolve) => {
       const video = document.createElement('video');
       video.preload = 'metadata';
-      video.crossOrigin = 'anonymous';
-      video.src = previewUrl;
-
-      const generateThumbnail = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          
-          // Set canvas size to video dimensions
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          
-          if (ctx) {
-            // Draw the current video frame to canvas
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
-            
-            resolve({
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              duration: video.duration,
-              dimensions: {
-                width: video.videoWidth,
-                height: video.videoHeight
-              },
-              thumbnailUrl
-            });
-          } else {
-            resolve({
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              duration: video.duration,
-              dimensions: {
-                width: video.videoWidth,
-                height: video.videoHeight
-              }
-            });
-          }
-        } catch (error) {
-          console.error('Error generating thumbnail:', error);
-          resolve({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            duration: video.duration,
-            dimensions: {
-              width: video.videoWidth,
-              height: video.videoHeight
-            }
-          });
-        }
-      };
+      video.src = blobUrl;
 
       video.onloadedmetadata = () => {
-        // Seek to 1 second or 10% of duration, whichever is smaller
-        const seekTime = Math.min(1, video.duration * 0.1);
-        video.currentTime = seekTime;
-      };
+        // Generate thumbnail using canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        
+        let thumbnailUrl: string | undefined;
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
+        }
 
-      video.onseeked = () => {
-        // Video frame is ready, generate thumbnail
-        generateThumbnail();
-      };
-
-      video.onerror = () => {
-        console.error('Error loading video for thumbnail generation');
         resolve({
           name: file.name,
           size: file.size,
-          type: file.type
+          type: file.type,
+          duration: Math.round(video.duration),
+          dimensions: {
+            width: video.videoWidth,
+            height: video.videoHeight
+          },
+          thumbnailUrl
         });
+        // ✅ Don't revoke blob URL here - it's used for preview
+      };
+
+      video.onerror = () => {
+        resolve({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          duration: 0,
+          dimensions: { width: 0, height: 0 }
+        });
+        // ✅ Don't revoke blob URL here either
       };
     });
   };
@@ -352,8 +316,8 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   const removeVideoItem = (id: string) => {
     setVideoItems(prev => {
       const item = prev.find(v => v.id === id);
-      if (item) {
-        // Revoke the blob URL
+      if (item?.previewUrl) {
+        // Clean up the blob URL immediately when removing
         URL.revokeObjectURL(item.previewUrl);
         blobUrlsRef.current.delete(item.previewUrl);
       }
@@ -361,63 +325,77 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
     });
   };
 
-  const toggleVideoExpanded = (id: string) => {
-    setVideoItems(prev => prev.map(v => 
-      v.id === id ? { ...v, isExpanded: !v.isExpanded } : v
+  const updateVideoMetadata = (id: string, updates: Partial<VideoMetadata>) => {
+    setVideoItems(prev => prev.map(item =>
+      item.id === id
+        ? { ...item, metadata: { ...item.metadata, ...updates } }
+        : item
     ));
   };
 
-  const updateVideoMetadata = (id: string, updates: Partial<VideoMetadata>) => {
-    setVideoItems(prev => prev.map(v => 
-      v.id === id ? { ...v, metadata: { ...v.metadata, ...updates } } : v
+  const toggleVideoExpanded = (id: string) => {
+    setVideoItems(prev => prev.map(item =>
+      item.id === id
+        ? { ...item, isExpanded: !item.isExpanded }
+        : item
     ));
   };
 
   const updateProcessingStatus = (id: string, stage: ProcessingStatus['stage'], progress: number, message: string) => {
-    setVideoItems(prev => prev.map(v => 
-      v.id === id ? { ...v, processingStatus: { stage, progress, message } } : v
+    setVideoItems(prev => prev.map(item =>
+      item.id === id
+        ? { ...item, processingStatus: { stage, progress, message } }
+        : item
+    ));
+  };
+
+  const updateCompressionStats = (id: string, stats: { originalSize: number; compressedSize: number; ratio: number }) => {
+    setVideoItems(prev => prev.map(item =>
+      item.id === id
+        ? { ...item, compressionStats: stats }
+        : item
     ));
   };
 
   const setUploadedVideoId = (id: string, videoId: string) => {
-    setVideoItems(prev => prev.map(v => 
-      v.id === id ? { ...v, uploadedVideoId: videoId } : v
+    setVideoItems(prev => prev.map(item =>
+      item.id === id
+        ? { ...item, uploadedVideoId: videoId }
+        : item
     ));
   };
 
-  // Utility function to sanitize filenames for storage
   const sanitizeFileName = (name: string): string => {
     return name
-      .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace special chars with underscore
-      .replace(/_+/g, '_') // Replace multiple underscores with single
-      .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+      .replace(/[^a-zA-Z0-9.-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
   };
 
   const uploadSingleVideo = async (videoItem: VideoUploadItem): Promise<string | null> => {
-    const { id, file, metadata } = videoItem;
+    const { file, metadata, id } = videoItem;
 
     try {
       // Step 1: Compress video
-      updateProcessingStatus(id, 'compressing', 30, 'Compressing video...');
+      updateProcessingStatus(id, 'compressing', 0, 'Compressing video...');
 
-      const compressionResult = await videoCompressionService.compressVideo(file, {
-        targetSizeMB: 10,
-        maxQuality: 'high',
-        maintainAspectRatio: true,
-        generateThumbnail: true
-      });
+      const compressionResult = await videoCompressionService.compressVideo(
+        file,
+        {
+          targetSizeMB: 10,
+          maxQuality: 'high',
+          maintainAspectRatio: true,
+          generateThumbnail: true
+        }
+      );
 
-      // Update compression stats
-      setVideoItems(prev => prev.map(v => 
-        v.id === id ? { 
-          ...v, 
-          compressionStats: {
-            originalSize: file.size,
-            compressedSize: compressionResult.compressedSizeMB * 1024 * 1024,
-            ratio: Math.round((1 - (compressionResult.compressedSizeMB * 1024 * 1024) / file.size) * 100)
-          }
-        } : v
-      ));
+      const compressionStats = {
+        originalSize: compressionResult.originalSizeMB * 1024 * 1024,
+        compressedSize: compressionResult.compressedSizeMB * 1024 * 1024,
+        ratio: Math.round(compressionResult.compressionRatio * 100)
+      };
+
+      updateCompressionStats(id, compressionStats);
 
       // Step 2: Upload to storage
       updateProcessingStatus(id, 'uploading', 70, 'Uploading to storage...');
@@ -439,30 +417,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         .from('match-videos')
         .getPublicUrl(filePath);
 
-      // Step 4: Upload thumbnail if available
-      let thumbnailUrl = null;
-      if (compressionResult.thumbnailBlob) {
-        updateProcessingStatus(id, 'uploading', 85, 'Uploading thumbnail...');
-        
-        const thumbnailFileName = `${sanitizeFileName(metadata.title)}_thumbnail_${Date.now()}.jpg`;
-        const thumbnailPath = `thumbnails/${thumbnailFileName}`;
-
-        const { error: thumbnailError } = await supabase.storage
-          .from('match-videos')
-          .upload(thumbnailPath, compressionResult.thumbnailBlob, {
-            contentType: 'image/jpeg',
-            upsert: false
-          });
-
-        if (!thumbnailError) {
-          const { data: { publicUrl: thumbnailPublicUrl } } = supabase.storage
-            .from('match-videos')
-            .getPublicUrl(thumbnailPath);
-          thumbnailUrl = thumbnailPublicUrl;
-        }
-      }
-
-      // Step 5: Save to database
+      // Step 4: Save to database
       updateProcessingStatus(id, 'uploading', 90, 'Saving video metadata...');
 
       // Format score for database (combine home and away scores)
@@ -487,7 +442,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           title: metadata.title,
           description: metadata.description,
           video_url: publicUrl,
-          thumbnail_url: thumbnailUrl,
           video_type: metadata.videoType,
           tagged_players: metadata.playerTags, // Use 'tagged_players' (JSONB column)
           opposing_team: metadata.matchDetails?.opposingTeam,
@@ -575,7 +529,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         blobUrlsRef.current.clear();
 
         if (onUploadComplete) {
-          onUploadComplete(uploadedVideoIds[0]); // Return first video ID for compatibility
+          onUploadComplete(uploadedVideoIds);
         }
       } else {
         toast({
@@ -859,6 +813,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                             <span className="ml-2">{formatDuration(videoItem.fileInfo.duration)}</span>
                           )}
                         </div>
+
                       </div>
                     </div>
                     <div className="relative bg-black rounded-lg overflow-hidden">
@@ -870,33 +825,15 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                           </div>
                         </div>
                       ) : videoItem.previewUrl ? (
-                        <div className="relative">
-                          {/* Thumbnail overlay */}
-                          {videoItem.fileInfo.thumbnailUrl && (
-                            <div 
-                              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                              style={{ 
-                                backgroundImage: `url(${videoItem.fileInfo.thumbnailUrl})`,
-                                zIndex: 1
-                              }}
-                            />
-                          )}
-                          <video
+                                                  <video
                             key={videoItem.id}
                             src={videoItem.previewUrl}
                             controls
-                            className="w-full h-48 object-cover relative z-10"
+                            className="w-full h-48 object-cover"
                             preload="metadata"
                             playsInline
                             muted
                             poster={videoItem.fileInfo.thumbnailUrl}
-                            onLoadStart={() => {
-                              // Hide thumbnail when video starts loading
-                              const thumbnail = document.querySelector(`[data-video-id="${videoItem.id}"] .thumbnail-overlay`);
-                              if (thumbnail) {
-                                (thumbnail as HTMLElement).style.display = 'none';
-                              }
-                            }}
                             onError={(e) => {
                               console.error('Video preview error:', e);
                               toast({
@@ -909,7 +846,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                           >
                             Your browser does not support the video tag.
                           </video>
-                        </div>
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-white text-center">
@@ -1062,18 +998,6 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               placeholder="0"
                             />
                           </div>
-                          <div>
-                            <Label htmlFor={`venue-${videoItem.id}`} className="text-white text-sm">Venue</Label>
-                            <Input
-                              id={`venue-${videoItem.id}`}
-                              value={videoItem.metadata.matchDetails?.venue || ''}
-                              onChange={(e) => updateVideoMetadata(videoItem.id, {
-                                matchDetails: { ...videoItem.metadata.matchDetails!, venue: e.target.value }
-                              })}
-                              className="bg-gray-700 text-white border-gray-600"
-                              placeholder="Stadium name"
-                            />
-                          </div>
                         </div>
                       </div>
                     )}
@@ -1084,8 +1008,24 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
           </Card>
         ))}
       </div>
+
+      {/* Summary */}
+      {videoItems.length > 0 && (
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-white">
+                <span className="font-semibold">{videoItems.length}</span> video(s) ready to upload
+              </div>
+              <div className="text-gray-400 text-sm">
+                Total size: {formatFileSize(videoItems.reduce((sum, item) => sum + item.fileInfo.size, 0))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
 
-export default EnhancedVideoUploadForm;
+export default MultiVideoUploadForm;

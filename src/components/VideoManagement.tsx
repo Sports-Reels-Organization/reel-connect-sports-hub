@@ -241,12 +241,12 @@ const VideoManagement: React.FC = () => {
           <DialogTrigger asChild>
             <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
               <Plus className="w-4 h-4 mr-2" />
-              Upload Video
+              Upload Videos
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Upload New Video</DialogTitle>
+              <DialogTitle>Upload Videos</DialogTitle>
             </DialogHeader>
             {teamId && (
               <EnhancedVideoUploadForm
@@ -256,9 +256,10 @@ const VideoManagement: React.FC = () => {
                   loadVideos();
                   toast({
                     title: "Upload Complete",
-                    description: "Video uploaded successfully!",
+                    description: "Video(s) uploaded successfully!",
                   });
                 }}
+                onCancel={() => setShowUploadDialog(false)}
               />
             )}
           </DialogContent>
@@ -339,12 +340,12 @@ const VideoManagement: React.FC = () => {
                 <DialogTrigger asChild>
                   <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
                     <Plus className="w-4 h-4 mr-2" />
-                    Upload Your First Video
+                    Upload Your First Videos
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Upload New Video</DialogTitle>
+                    <DialogTitle>Upload Videos</DialogTitle>
                   </DialogHeader>
                   {teamId && (
                     <EnhancedVideoUploadForm
@@ -354,9 +355,10 @@ const VideoManagement: React.FC = () => {
                         loadVideos();
                         toast({
                           title: "Upload Complete",
-                          description: "Video uploaded successfully!",
+                          description: "Video(s) uploaded successfully!",
                         });
                       }}
+                      onCancel={() => setShowUploadDialog(false)}
                     />
                   )}
                 </DialogContent>

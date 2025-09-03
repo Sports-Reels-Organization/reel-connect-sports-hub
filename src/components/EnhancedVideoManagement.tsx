@@ -289,7 +289,8 @@ const EnhancedVideoManagement = () => {
         </div>
         <EnhancedVideoUploadForm
           teamId={currentTeamId}
-          onUploadComplete={handleUploadComplete}
+          onUploadComplete={() => handleUploadComplete()}
+          onCancel={() => setShowUploadForm(false)}
         />
       </div>
     );

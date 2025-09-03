@@ -27,7 +27,7 @@ export const usePlayerVideoTags = (playerId: string) => {
       setLoading(true);
       setError(null);
 
-      // Search for videos where the player is tagged - use select() to get all matching rows
+      // Search for videos where the player is tagged - use proper JSONB operator
       const { data: videosData, error: videosError } = await supabase
         .from('videos')
         .select(`
@@ -39,12 +39,12 @@ export const usePlayerVideoTags = (playerId: string) => {
           tagged_players,
           teams(team_name)
         `)
-        .contains('tagged_players', [playerId])
+        .contains('tagged_players', `["${playerId}"]`)
         .order('created_at', { ascending: false });
 
       if (videosError) throw videosError;
 
-      // Also check match_videos table - use select() to get all matching rows
+      // Also check match_videos table - use proper JSONB operator
       const { data: matchVideosData, error: matchVideosError } = await supabase
         .from('match_videos')
         .select(`
@@ -54,9 +54,9 @@ export const usePlayerVideoTags = (playerId: string) => {
           thumbnail_url,
           created_at,
           tagged_players,
-          teams(team_name)
+          team_id
         `)
-        .contains('tagged_players::jsonb', [`"${playerId}"`])
+        .contains('tagged_players', `["${playerId}"]`)
         .order('created_at', { ascending: false });
 
       if (matchVideosError) {
@@ -79,7 +79,7 @@ export const usePlayerVideoTags = (playerId: string) => {
           video_url: video.video_url,
           thumbnail_url: video.thumbnail_url,
           created_at: video.created_at,
-          team_name: video.teams?.team_name
+          team_name: null // Team name not available from match_videos query
         }))
       ];
 

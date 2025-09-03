@@ -120,28 +120,122 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
     }
   };
 
+  // Helper function to enrich contract data with related information
+  const enrichContractData = async (contracts: any[]) => {
+    if (!contracts || contracts.length === 0) return [];
+
+    return Promise.all(
+      contracts.map(async (contract) => {
+        const [pitchData, agentData, teamData] = await Promise.all([
+          // Get pitch data
+          contract.pitch_id ? supabase
+            .from('transfer_pitches')
+            .select(`
+              id,
+              asking_price,
+              currency,
+              player_id,
+              team_id
+            `)
+            .eq('id', contract.pitch_id)
+            .single() : Promise.resolve({ data: null, error: null }),
+          
+          // Get agent data
+          contract.agent_id ? supabase
+            .from('agents')
+            .select(`
+              id,
+              profile_id
+            `)
+            .eq('id', contract.agent_id)
+            .single() : Promise.resolve({ data: null, error: null }),
+          
+          // Get team data
+          contract.team_id ? supabase
+            .from('teams')
+            .select(`
+              id,
+              team_name
+            `)
+            .eq('id', contract.team_id)
+            .single() : Promise.resolve({ data: null, error: null })
+        ]);
+
+        // Get player data if pitch has a player
+        let playerData = null;
+        if (pitchData.data?.player_id) {
+          const { data: player } = await supabase
+            .from('players')
+            .select(`
+              id,
+              full_name,
+              position
+            `)
+            .eq('id', pitchData.data.player_id)
+            .single();
+          playerData = player;
+        }
+
+        // Get pitch team data
+        let pitchTeamData = null;
+        if (pitchData.data?.team_id) {
+          const { data: pitchTeam } = await supabase
+            .from('teams')
+            .select(`
+              id,
+              team_name
+            `)
+            .eq('id', pitchData.data.team_id)
+            .single();
+          pitchTeamData = pitchTeam;
+        }
+
+        // Get agent profile data if agent exists
+        let agentProfileData = null;
+        if (agentData.data?.profile_id) {
+          const { data: agentProfile } = await supabase
+            .from('profiles')
+            .select(`
+              id,
+              full_name
+            `)
+            .eq('id', agentData.data.profile_id)
+            .single();
+          agentProfileData = agentProfile;
+        }
+
+        // Combine all data
+        return {
+          ...contract,
+          pitch: pitchData.data ? {
+            ...pitchData.data,
+            players: playerData,
+            teams: pitchTeamData
+          } : null,
+          agent: agentData.data ? {
+            ...agentData.data,
+            profile: agentProfileData
+          } : null,
+          team: teamData.data
+        };
+      })
+    );
+  };
+
   const fetchContractsByPitch = async () => {
     if (!pitchId) return;
 
     try {
       const { data, error } = await supabase
         .from('contracts')
-        .select(`
-          *,
-          pitch:transfer_pitches!contracts_pitch_id_fkey(
-            players!transfer_pitches_player_id_fkey(full_name, position),
-            teams(team_name),
-            asking_price,
-            currency
-          ),
-          team:teams!contracts_team_id_fkey(team_name),
-          agent:profiles!contracts_agent_id_fkey(full_name)
-        `)
+        .select('*')
         .eq('pitch_id', pitchId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setContracts(data || []);
+      
+      const enrichedContracts = await enrichContractData(data || []);
+      setContracts(enrichedContracts);
     } catch (error) {
       console.error('Error fetching contracts:', error);
     } finally {
@@ -149,32 +243,35 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
     }
   };
 
+  // Helper function to validate UUID format
+  const isValidUUID = (uuid: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  };
+
   const fetchContractById = async () => {
     if (!contractId) return;
+
+    // Validate UUID format before querying
+    if (!isValidUUID(contractId)) {
+      console.warn('Invalid contract ID format:', contractId);
+      setContracts([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
         .from('contracts')
-        .select(`
-          *,
-          pitch:transfer_pitches!contracts_pitch_id_fkey(
-            players!transfer_pitches_player_id_fkey(full_name, position),
-            teams(team_name),
-            asking_price,
-            currency
-          ),
-          team:teams!contracts_team_id_fkey(team_name),
-          agent:agents!contracts_agent_id_fkey(
-            profile:profiles(full_name)
-          )
-        `)
+        .select('*')
         .eq('id', contractId)
-        .maybeSingle(); // Changed from .single() to .maybeSingle()
+        .maybeSingle();
 
       if (error) throw error;
       
       if (data) {
-        setContracts([data]);
+        const enrichedContracts = await enrichContractData([data]);
+        setContracts(enrichedContracts);
       } else {
         // No contract found with this ID
         setContracts([]);
@@ -194,31 +291,43 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
     try {
       let query = supabase
         .from('contracts')
-        .select(`
-          *,
-          pitch:transfer_pitches!contracts_pitch_id_fkey(
-            players!transfer_pitches_player_id_fkey(full_name, position),
-            teams(team_name),
-            asking_price,
-            currency
-          ),
-          team:teams!contracts_team_id_fkey(team_name),
-          agent:agents!contracts_agent_id_fkey(
-            profile:profiles(full_name)
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      // Filter by user role
+      // Filter by user role - need to get the actual team/agent ID first
       if (profile.user_type === 'team') {
-        query = query.eq('team_id', profile.id);
+        const { data: team } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('profile_id', profile.id)
+          .single();
+        
+        if (team) {
+          query = query.eq('team_id', team.id);
+        } else {
+          setContracts([]);
+          return;
+        }
       } else if (profile.user_type === 'agent') {
-        query = query.eq('agent_id', profile.id);
+        const { data: agent } = await supabase
+          .from('agents')
+          .select('id')
+          .eq('profile_id', profile.id)
+          .single();
+        
+        if (agent) {
+          query = query.eq('agent_id', agent.id);
+        } else {
+          setContracts([]);
+          return;
+        }
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      setContracts(data || []);
+      
+      const enrichedContracts = await enrichContractData(data || []);
+      setContracts(enrichedContracts);
     } catch (error) {
       console.error('Error fetching contracts:', error);
     } finally {
@@ -391,10 +500,10 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                           Contract #{contract.id.slice(0, 8)}
                         </h3>
                         <p className="text-gray-400">
-                          {contract.pitch.players.full_name} ({contract.pitch.players.position})
+                          {contract.pitch?.players?.full_name || 'Unknown Player'} ({contract.pitch?.players?.position || 'Unknown Position'})
                         </p>
                         <p className="text-sm text-gray-500">
-                          {contract.pitch.teams.team_name} • {contract.team.team_name}
+                          {contract.pitch?.teams?.team_name || 'Unknown Team'} • {contract.team?.team_name || 'Unknown Team'}
                         </p>
                       </div>
                       <Badge variant="outline" className="text-xs">
@@ -408,14 +517,14 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                         <DollarSign className="w-6 h-6 mx-auto mb-2 text-green-400" />
                         <p className="text-sm text-gray-400">Contract Value</p>
                         <p className="text-lg font-bold text-white">
-                          {contract.contract_value.toLocaleString()} {contract.currency}
+                          {contract.contract_value ? contract.contract_value.toLocaleString() : '0'} {contract.currency || 'USD'}
                         </p>
                       </div>
                       <div className="text-center p-3 bg-gray-800 rounded-lg">
                         <Target className="w-6 h-6 mx-auto mb-2 text-blue-400" />
                         <p className="text-sm text-gray-400">Asking Price</p>
                         <p className="text-lg font-bold text-white">
-                          {contract.pitch.asking_price.toLocaleString()} {contract.pitch.currency}
+                          {contract.pitch?.asking_price ? contract.pitch.asking_price.toLocaleString() : '0'} {contract.pitch?.currency || 'USD'}
                         </p>
                       </div>
                       <div className="text-center p-3 bg-gray-800 rounded-lg">
@@ -471,9 +580,24 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                     {contract.terms && (
                       <div className="mb-6">
                         <h4 className="text-sm font-medium text-white mb-2">Contract Terms</h4>
-                        <p className="text-gray-300 text-sm bg-gray-800 p-3 rounded-lg">
-                          {contract.terms}
-                        </p>
+                        <div className="text-gray-300 text-sm bg-gray-800 p-3 rounded-lg">
+                          {typeof contract.terms === 'string' ? (
+                            <p>{contract.terms}</p>
+                          ) : typeof contract.terms === 'object' ? (
+                            <div className="space-y-2">
+                              {Object.entries(contract.terms).map(([key, value]) => (
+                                <div key={key} className="flex justify-between">
+                                  <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                  <span className="font-medium">
+                                    {typeof value === 'number' ? value.toLocaleString() : String(value)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p>{String(contract.terms)}</p>
+                          )}
+                        </div>
                       </div>
                     )}
 

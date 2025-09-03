@@ -97,7 +97,7 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
       const { data, error } = await supabase
         .from('videos')
         .select('*')
-        .contains('tagged_players', [player.full_name])
+        .contains('tagged_players', `["${player.full_name}"]`)
         .eq('is_public', true)
         .order('created_at', { ascending: false })
         .limit(10);

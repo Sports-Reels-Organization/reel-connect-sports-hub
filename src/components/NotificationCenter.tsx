@@ -19,7 +19,7 @@ import {
     Clock,
     X
 } from 'lucide-react';
-import { NotificationService, NotificationPreferences } from '@/services/notificationService';
+import { notificationService, NotificationPreferences } from '@/services/notificationService';
 import { Json } from '@/integrations/supabase/types';
 
 interface Notification {
@@ -76,7 +76,7 @@ const NotificationCenter: React.FC = () => {
         if (!profile?.user_id) return;
 
         try {
-            const prefs = await NotificationService.getNotificationPreferences(profile.user_id);
+            const prefs = await notificationService.getNotificationPreferences(profile.user_id);
             setPreferences(prefs);
         } catch (error) {
             console.error('Error fetching preferences:', error);
@@ -85,7 +85,7 @@ const NotificationCenter: React.FC = () => {
 
     const markAsRead = async (notificationId: string) => {
         try {
-            const success = await NotificationService.markAsRead(notificationId);
+            const success = await notificationService.markAsRead(notificationId);
             if (success) {
                 setNotifications(prev =>
                     prev.map(notif =>
@@ -104,7 +104,7 @@ const NotificationCenter: React.FC = () => {
         if (!profile?.user_id) return;
 
         try {
-            const success = await NotificationService.markAllAsRead(profile.user_id);
+            const success = await notificationService.markAllAsRead(profile.user_id);
             if (success) {
                 setNotifications(prev => prev.map(notif => ({ ...notif, is_read: true })));
                 toast({
@@ -124,7 +124,7 @@ const NotificationCenter: React.FC = () => {
 
     const deleteNotification = async (notificationId: string) => {
         try {
-            const success = await NotificationService.deleteNotification(notificationId);
+            const success = await notificationService.deleteNotification(notificationId);
             if (success) {
                 setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
                 toast({
@@ -147,7 +147,7 @@ const NotificationCenter: React.FC = () => {
 
         try {
             const updatedPrefs = { ...preferences, [key]: value };
-            const success = await NotificationService.updateNotificationPreferences(
+            const success = await notificationService.updateNotificationPreferences(
                 profile.user_id,
                 updatedPrefs
             );
