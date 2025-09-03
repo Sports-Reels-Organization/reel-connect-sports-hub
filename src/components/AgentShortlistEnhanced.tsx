@@ -68,18 +68,7 @@ const AgentShortlistEnhanced = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
 
-  // Check if user is an agent
-  if (profile?.user_type !== 'agent') {
-    return (
-      <div className="p-8 text-center">
-        <h2 className="text-2xl font-bold text-white mb-4">Access Denied</h2>
-        <p className="text-gray-400">
-          This page is only accessible to agents. Please log in with an agent account.
-        </p>
-      </div>
-    );
-  }
-
+  // All hooks must be declared before any conditional returns
   const [shortlistItems, setShortlistItems] = useState<ShortlistItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<ShortlistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +92,18 @@ const AgentShortlistEnhanced = () => {
 
   // Get player data for modal
   const { player: modalPlayer, loading: playerLoading } = usePlayerData(selectedPlayer);
+
+  // Check if user is an agent - now after all hooks are declared
+  if (profile?.user_type !== 'agent') {
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-2xl font-bold text-white mb-4">Access Denied</h2>
+        <p className="text-gray-400">
+          This page is only accessible to agents. Please log in with an agent account.
+        </p>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchShortlist();

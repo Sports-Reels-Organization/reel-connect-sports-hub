@@ -401,8 +401,8 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       updateProcessingStatus(id, 'compressing', 30, 'Compressing video...');
 
       const compressionResult = await videoCompressionService.compressVideo(file, {
-        targetSizeMB: 10,
-        maxQuality: 'high',
+        targetSizeMB: 5, // More aggressive compression target
+        maxQuality: 'medium', // Use medium quality for better compression
         maintainAspectRatio: true,
         generateThumbnail: true
       });
@@ -480,22 +480,40 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       const validHomeScore = homeScore && !isNaN(homeScore) ? homeScore : null;
       const validAwayScore = awayScore && !isNaN(awayScore) ? awayScore : null;
 
+      // Validate date fields - convert empty strings to null
+      const validMatchDate = metadata.matchDetails?.matchDate && metadata.matchDetails.matchDate.trim() !== '' 
+        ? metadata.matchDetails.matchDate 
+        : null;
+
+      // Validate other optional string fields
+      const validOpposingTeam = metadata.matchDetails?.opposingTeam && metadata.matchDetails.opposingTeam.trim() !== '' 
+        ? metadata.matchDetails.opposingTeam 
+        : null;
+      
+      const validHomeOrAway = metadata.matchDetails?.homeOrAway && metadata.matchDetails.homeOrAway.trim() !== '' 
+        ? metadata.matchDetails.homeOrAway 
+        : null;
+
+      const validDescription = metadata.description && metadata.description.trim() !== '' 
+        ? metadata.description 
+        : null;
+
       const { data: videoData, error: dbError } = await supabase
         .from('videos')
         .insert({
           team_id: teamId,
-          title: metadata.title,
-          description: metadata.description,
+          title: metadata.title || 'Untitled Video', // Ensure title is never empty
+          description: validDescription,
           video_url: publicUrl,
           thumbnail_url: thumbnailUrl,
           video_type: metadata.videoType,
           tagged_players: metadata.playerTags, // Use 'tagged_players' (JSONB column)
-          opposing_team: metadata.matchDetails?.opposingTeam,
-          match_date: metadata.matchDetails?.matchDate,
+          opposing_team: validOpposingTeam,
+          match_date: validMatchDate,
           score: formattedScore, // Combined score for display
           final_score_home: validHomeScore,
           final_score_away: validAwayScore,
-          home_or_away: metadata.matchDetails?.homeOrAway,
+          home_or_away: validHomeOrAway,
           file_size: compressionResult.compressedSizeMB * 1024 * 1024,
           duration: Math.round(videoItem.fileInfo.duration || 0), // Convert decimal seconds to integer, default to 0 if undefined
           is_public: true

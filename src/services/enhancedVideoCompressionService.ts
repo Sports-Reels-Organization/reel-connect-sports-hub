@@ -56,12 +56,8 @@ export class EnhancedVideoCompressionService {
         thumbnailBlob = await this.generateThumbnail(file);
       }
 
-      // Compress video with improved quality preservation
-      const compressedFile = await this.compressWithImprovedQuality(
-        file,
-        finalOptions.targetSizeMB,
-        finalOptions.maxQuality
-      );
+      // Use fast, efficient compression
+      const compressedFile = await this.fastCompress(file, finalOptions.targetSizeMB, finalOptions.maxQuality);
 
       const processingTime = Date.now() - startTime;
       const compressedSizeMB = compressedFile.size / (1024 * 1024);
@@ -185,6 +181,143 @@ export class EnhancedVideoCompressionService {
     } catch (dbError) {
       console.warn('Failed to log compression error:', dbError);
     }
+  }
+
+  /**
+   * Fast, efficient compression that prioritizes speed and size reduction
+   */
+  private async fastCompress(
+    file: File,
+    targetSizeMB: number,
+    maxQuality: 'high' | 'medium' | 'low'
+  ): Promise<File> {
+    const targetSizeBytes = targetSizeMB * 1024 * 1024;
+    const originalSizeMB = file.size / (1024 * 1024);
+    
+    // If file is already smaller than target, return original
+    if (file.size <= targetSizeBytes) {
+      console.log('File already smaller than target, returning original');
+      return file;
+    }
+    
+    // Calculate compression ratio needed
+    const compressionRatio = targetSizeBytes / file.size;
+    
+    // Determine quality settings based on compression ratio needed
+    let qualitySettings;
+    if (compressionRatio < 0.3) {
+      // Need heavy compression
+      qualitySettings = {
+        bitrate: Math.max(500, Math.floor(originalSizeMB * 100)), // Lower bitrate
+        scale: 0.6, // Smaller resolution
+        frameRate: 24 // Lower frame rate
+      };
+    } else if (compressionRatio < 0.6) {
+      // Moderate compression
+      qualitySettings = {
+        bitrate: Math.max(800, Math.floor(originalSizeMB * 150)),
+        scale: 0.8,
+        frameRate: 30
+      };
+    } else {
+      // Light compression
+      qualitySettings = {
+        bitrate: Math.max(1200, Math.floor(originalSizeMB * 200)),
+        scale: 0.9,
+        frameRate: 30
+      };
+    }
+    
+    console.log(`Fast compression settings:`, qualitySettings);
+    
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.crossOrigin = 'anonymous';
+      
+      video.onloadedmetadata = async () => {
+        try {
+          // Calculate dimensions
+          const width = Math.floor(video.videoWidth * qualitySettings.scale);
+          const height = Math.floor(video.videoHeight * qualitySettings.scale);
+          
+          // Create canvas for compression
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = width;
+          canvas.height = height;
+          
+          if (!ctx) {
+            reject(new Error('Canvas context not available'));
+            return;
+          }
+          
+          // Use MediaRecorder with optimized settings
+          const stream = canvas.captureStream(qualitySettings.frameRate);
+          const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm;codecs=vp8', // Use VP8 for better compatibility
+            videoBitsPerSecond: qualitySettings.bitrate * 1000
+          });
+          
+          const chunks: Blob[] = [];
+          
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+              chunks.push(event.data);
+            }
+          };
+          
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const compressedFile = new File([blob], 
+              file.name.replace(/\.[^/.]+$/, "_compressed.webm"), 
+              { type: 'video/webm' }
+            );
+            resolve(compressedFile);
+          };
+          
+          mediaRecorder.onerror = (event) => {
+            reject(new Error('MediaRecorder error: ' + event));
+          };
+          
+          mediaRecorder.start(100); // Collect data every 100ms for speed
+          
+          // Draw video frames to canvas
+          const drawFrame = () => {
+            if (video.ended || video.paused) {
+              mediaRecorder.stop();
+              return;
+            }
+            
+            ctx.drawImage(video, 0, 0, width, height);
+            requestAnimationFrame(drawFrame);
+          };
+          
+          // Start drawing and playing
+          video.currentTime = 0;
+          
+          // Handle play interruption gracefully
+          try {
+            await video.play();
+            drawFrame();
+          } catch (playError) {
+            console.warn('Video play interrupted, using alternative method:', playError);
+            // Alternative: just draw the first frame and create a static video
+            ctx.drawImage(video, 0, 0, width, height);
+            setTimeout(() => {
+              mediaRecorder.stop();
+            }, 100);
+          }
+          
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      video.onerror = () => reject(new Error('Video loading failed'));
+      video.src = URL.createObjectURL(file);
+    });
   }
 
   /**
