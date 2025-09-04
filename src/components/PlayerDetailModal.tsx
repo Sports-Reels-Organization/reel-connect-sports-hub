@@ -27,9 +27,12 @@ import {
   Plus,
   Trash2,
   Eye,
-  Download
+  Download,
+  BarChart3,
+  Brain
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
+import VideoAnalysisResults from './VideoAnalysisResults';
 
 type DatabasePlayer = Tables<'players'>;
 type DatabaseVideo = Tables<'videos'>;
@@ -64,6 +67,8 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   const [photoLoading, setPhotoLoading] = useState(false);
   const [age, setAge] = useState<number | null>(null);
   const [isOwnPlayer, setIsOwnPlayer] = useState(false);
+  const [showVideoAnalysis, setShowVideoAnalysis] = useState(false);
+  const [selectedVideoForAnalysis, setSelectedVideoForAnalysis] = useState<DatabaseVideo | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<PlayerPhoto | null>(null);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
 
@@ -95,11 +100,17 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
     if (!profile?.id) return;
 
     try {
-      const { data: team } = await supabase
+      const { data: team, error } = await supabase
         .from('teams')
         .select('id')
         .eq('profile_id', profile.id)
         .single();
+
+      // If user doesn't have a team profile, that's okay - they're not the owner
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking ownership:', error);
+        return;
+      }
 
       if (team && team.id === player.team_id) {
         setIsOwnPlayer(true);
@@ -112,6 +123,13 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   const fetchPlayerVideos = async () => {
     try {
       setLoading(true);
+      
+      // Only fetch videos if player has a valid team_id
+      if (!player.team_id) {
+        setVideos([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('videos')
         .select('*')
@@ -122,6 +140,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
       setVideos(data || []);
     } catch (error) {
       console.error('Error fetching videos:', error);
+      setVideos([]);
     } finally {
       setLoading(false);
     }
@@ -187,6 +206,16 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
     } finally {
       setPhotoLoading(false);
     }
+  };
+
+  const handleVideoAnalysis = (video: DatabaseVideo) => {
+    setSelectedVideoForAnalysis(video);
+    setShowVideoAnalysis(true);
+  };
+
+  const closeVideoAnalysis = () => {
+    setShowVideoAnalysis(false);
+    setSelectedVideoForAnalysis(null);
   };
 
   const getPhotoType = (filename: string): 'headshot' | 'action' | 'team' | 'other' => {
@@ -540,7 +569,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {videos.map((video) => (
-                      <Card key={video.id} className="bg-gray-800 border-gray-700 hover:border-rosegold/50 transition-colors group cursor-pointer">
+                      <Card key={video.id} className="bg-gray-800 border-gray-700 hover:border-rosegold/50 transition-colors group">
                         <CardContent className="p-4">
                           <div className="aspect-video bg-gray-700 rounded-lg mb-3 relative overflow-hidden">
                             {video.thumbnail_url ? (
@@ -555,7 +584,25 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                               </div>
                             )}
                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Play className="w-8 h-8 text-white" />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="bg-white/20 hover:bg-white/30 text-white border-0"
+                                  onClick={() => window.open(video.video_url, '_blank')}
+                                >
+                                  <Play className="w-4 h-4 mr-1" />
+                                  Play
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="bg-bright-pink/80 hover:bg-bright-pink text-white border-0"
+                                  onClick={() => handleVideoAnalysis(video)}
+                                >
+                                  <Brain className="w-4 h-4 mr-1" />
+                                  Analyze
+                                </Button>
+                              </div>
                             </div>
                           </div>
                           <h4 className="text-white font-polysans font-semibold truncate">{video.title}</h4>
@@ -778,6 +825,30 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                 <span>Type: {selectedPhoto.type}</span>
                 <span>Uploaded: {new Date(selectedPhoto.uploaded_at).toLocaleDateString()}</span>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Video Analysis Dialog */}
+      {showVideoAnalysis && selectedVideoForAnalysis && (
+        <Dialog open={showVideoAnalysis} onOpenChange={closeVideoAnalysis}>
+          <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden bg-gray-800 border-gray-700">
+            <DialogHeader className="flex flex-row items-center justify-between">
+              <DialogTitle className="text-white font-polysans text-xl flex items-center gap-2">
+                <Brain className="h-5 w-5 text-bright-pink" />
+                AI Video Analysis - {selectedVideoForAnalysis.title}
+              </DialogTitle>
+              <Button variant="ghost" size="sm" onClick={closeVideoAnalysis}>
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
+              <VideoAnalysisResults
+                videoId={selectedVideoForAnalysis.id}
+                videoType={selectedVideoForAnalysis.video_type as 'match' | 'training' | 'highlight' | 'interview' || 'highlight'}
+                teamId={selectedVideoForAnalysis.team_id || ''}
+              />
             </div>
           </DialogContent>
         </Dialog>

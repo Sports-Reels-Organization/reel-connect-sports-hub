@@ -411,10 +411,7 @@ const AgentDashboard = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-400">Active Pitches</p>
                   <p className="text-2xl font-bold text-white">{stats.activePitches}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Eye className="w-3 h-3 text-gray-400" />
-                    <span className="text-xs text-gray-400">{stats.pitchViews} views</span>
-                  </div>
+
                 </div>
                 <Target className="w-8 h-8 text-orange-600" />
               </div>
@@ -435,21 +432,12 @@ const AgentDashboard = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-400">Shortlisted Players</p>
                   <p className="text-2xl font-bold text-white">{stats.shortlistedPlayers}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="text-xs">
-                      {stats.completedAnalysis} Analyzed
-                    </Badge>
-                    {stats.pendingAnalysis > 0 && (
-                      <Badge variant="outline" className="text-xs text-orange-400">
-                        {stats.pendingAnalysis} Pending
-                      </Badge>
-                    )}
-                  </div>
+
                 </div>
                 <Heart className="w-8 h-8 text-red-500" />
               </div>
               <div className="mt-4">
-                <Link to="/shortlist">
+                <Link to="/agent-shortlist">
                   <Button variant="outline" size="sm" className="w-full">
                     View Shortlist
                   </Button>

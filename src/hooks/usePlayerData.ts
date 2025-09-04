@@ -1,49 +1,12 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types';
 
-interface Player {
-  id: string;
-  full_name: string;
-  sport_type: string;
-  position?: string;
-  age?: number;
-  nationality?: string;
-  team?: string;
-  height?: string;
-  weight?: string;
-  preferred_foot?: string;
-  market_value?: number;
-  profile_image?: string;
-  achievements?: string[];
-  bio?: string;
-  stats?: any;
-  // Additional required fields based on your requirements
-  gender?: string;
-  date_of_birth?: string;
-  jersey_number?: number;
-  citizenship?: string;
-  place_of_birth?: string;
-  foot?: string;
-  player_agent?: string;
-  current_club?: string;
-  joined_date?: string;
-  contract_expires?: string;
-  fifa_id?: string;
-  headshot_url?: string;
-  portrait_url?: string;
-  full_body_url?: string;
-  photo_url?: string;
-  leagues_participated?: string[];
-  titles_seasons?: string[];
-  transfer_history?: any;
-  international_duty?: any;
-  match_stats?: any;
-  ai_analysis?: any;
-}
+type DatabasePlayer = Tables<'players'>;
 
 export const usePlayerData = (playerId: string | null) => {
-  const [player, setPlayer] = useState<Player | null>(null);
+  const [player, setPlayer] = useState<DatabasePlayer | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

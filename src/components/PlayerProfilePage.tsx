@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { usePlayerData } from '@/hooks/usePlayerData';
 import { usePlayerVideoTags } from '@/hooks/usePlayerVideoTags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -21,9 +23,12 @@ import {
   Star,
   TrendingUp,
   Play,
-  Eye
+  Eye,
+  Brain,
+  X
 } from 'lucide-react';
 import Layout from './Layout';
+import VideoAnalysisResults from './VideoAnalysisResults';
 
 const PlayerProfilePage: React.FC = () => {
   const { playerId } = useParams<{ playerId: string }>();
@@ -32,6 +37,18 @@ const PlayerProfilePage: React.FC = () => {
 
   const { player, loading, error } = usePlayerData(playerId || null);
   const { videos, loading: videosLoading } = usePlayerVideoTags(playerId || '');
+  const [showVideoAnalysis, setShowVideoAnalysis] = useState(false);
+  const [selectedVideoForAnalysis, setSelectedVideoForAnalysis] = useState<any>(null);
+
+  const handleVideoAnalysis = (video: any) => {
+    setSelectedVideoForAnalysis(video);
+    setShowVideoAnalysis(true);
+  };
+
+  const closeVideoAnalysis = () => {
+    setShowVideoAnalysis(false);
+    setSelectedVideoForAnalysis(null);
+  };
 
   if (loading) {
     return (
@@ -294,7 +311,7 @@ const PlayerProfilePage: React.FC = () => {
                   {videos.map((video, index) => (
                     <div
                       key={video.id}
-                      className="group p-4 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl  border-0 transition-all duration-300 cursor-pointer"
+                      className="group p-4 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl border-0 transition-all duration-300"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
@@ -310,7 +327,25 @@ const PlayerProfilePage: React.FC = () => {
                             {new Date(video.created_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <Eye className="w-4 h-4 text-gray-500 group-hover:text-bright-pink transition-colors duration-200 flex-shrink-0 ml-2" />
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-transparent border-gray-600 hover:bg-gray-600 text-white"
+                            onClick={() => window.open(video.video_url, '_blank')}
+                          >
+                            <Play className="w-3 h-3 mr-1" />
+                            Play
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-bright-pink hover:bg-bright-pink/90 text-white"
+                            onClick={() => handleVideoAnalysis(video)}
+                          >
+                            <Brain className="w-3 h-3 mr-1" />
+                            Analyze
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -348,6 +383,30 @@ const PlayerProfilePage: React.FC = () => {
           </Card>
         )}
       </div>
+
+      {/* Video Analysis Dialog */}
+      {showVideoAnalysis && selectedVideoForAnalysis && (
+        <Dialog open={showVideoAnalysis} onOpenChange={closeVideoAnalysis}>
+          <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden bg-gray-800 border-gray-700">
+            <DialogHeader className="flex flex-row items-center justify-between">
+              <DialogTitle className="text-white font-polysans text-xl flex items-center gap-2">
+                <Brain className="h-5 w-5 text-bright-pink" />
+                AI Video Analysis - {selectedVideoForAnalysis.title}
+              </DialogTitle>
+              <Button variant="ghost" size="sm" onClick={closeVideoAnalysis}>
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
+              <VideoAnalysisResults
+                videoId={selectedVideoForAnalysis.id}
+                videoType={selectedVideoForAnalysis.video_type as 'match' | 'training' | 'highlight' | 'interview' || 'highlight'}
+                teamId={selectedVideoForAnalysis.team_id || ''}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Layout>
   );
 };

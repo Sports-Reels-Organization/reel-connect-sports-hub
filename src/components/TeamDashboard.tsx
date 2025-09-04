@@ -394,16 +394,7 @@ const TeamDashboard = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-400">Total Videos</p>
                   <p className="text-2xl font-bold text-white">{stats.totalVideos}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge className="text-xs bg-transparent">
-                      {stats.completedAnalysis} Analyzed
-                    </Badge>
-                    {stats.pendingAnalysis > 0 && (
-                      <Badge variant="outline" className="text-xs text-orange-400">
-                        {stats.pendingAnalysis} Pending
-                      </Badge>
-                    )}
-                  </div>
+
                 </div>
                 <Video className="w-8 h-8 text-blue-900" />
               </div>
@@ -424,10 +415,7 @@ const TeamDashboard = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-400">Active Pitches</p>
                   <p className="text-2xl font-bold text-white">{stats.activePitches}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Eye className="w-3 h-3 text-gray-400" />
-                    <span className="text-xs text-gray-400">{stats.pitchViews} views</span>
-                  </div>
+
                 </div>
                 <Target className="w-8 h-8 text-orange-900" />
               </div>
