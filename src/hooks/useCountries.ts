@@ -41,7 +41,11 @@ export const useCountries = (): UseCountriesReturn => {
         const data = await response.json();
         
         if (Array.isArray(data)) {
-          setCountries(data);
+          // Sort countries alphabetically by common name
+          const sortedCountries = data.sort((a, b) => 
+            a.name.common.localeCompare(b.name.common)
+          );
+          setCountries(sortedCountries);
         } else {
           throw new Error('Invalid data format received');
         }
@@ -49,32 +53,8 @@ export const useCountries = (): UseCountriesReturn => {
         console.error('Error fetching countries:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch countries');
         
-        // Provide fallback countries data
+        // Provide fallback countries data (already in alphabetical order)
         setCountries([
-          {
-            name: { common: 'United States' },
-            cca2: 'US',
-            cca3: 'USA',
-            flag: '🇺🇸',
-            languages: { eng: 'English' },
-            region: 'Americas'
-          },
-          {
-            name: { common: 'United Kingdom' },
-            cca2: 'GB',
-            cca3: 'GBR',
-            flag: '🇬🇧',
-            languages: { eng: 'English' },
-            region: 'Europe'
-          },
-          {
-            name: { common: 'Spain' },
-            cca2: 'ES',
-            cca3: 'ESP',
-            flag: '🇪🇸',
-            languages: { spa: 'Spanish' },
-            region: 'Europe'
-          },
           {
             name: { common: 'France' },
             cca2: 'FR',
@@ -90,6 +70,30 @@ export const useCountries = (): UseCountriesReturn => {
             flag: '🇩🇪',
             languages: { deu: 'German' },
             region: 'Europe'
+          },
+          {
+            name: { common: 'Spain' },
+            cca2: 'ES',
+            cca3: 'ESP',
+            flag: '🇪🇸',
+            languages: { spa: 'Spanish' },
+            region: 'Europe'
+          },
+          {
+            name: { common: 'United Kingdom' },
+            cca2: 'GB',
+            cca3: 'GBR',
+            flag: '🇬🇧',
+            languages: { eng: 'English' },
+            region: 'Europe'
+          },
+          {
+            name: { common: 'United States' },
+            cca2: 'US',
+            cca3: 'USA',
+            flag: '🇺🇸',
+            languages: { eng: 'English' },
+            region: 'Americas'
           }
         ]);
       } finally {

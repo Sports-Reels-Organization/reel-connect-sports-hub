@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -95,8 +96,8 @@ export const AgentExploreFilters: React.FC<FilterProps> = ({
 
         const countriesArray = Object.entries(countryCounts)
           .map(([country, count]) => ({ country, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 20); // Top 20 countries
+          .sort((a, b) => a.country.localeCompare(b.country)) // Sort alphabetically
+          .slice(0, 50); // Top 50 countries
 
         setPositions(positionsArray);
         setCountries(countriesArray);
@@ -210,19 +211,20 @@ export const AgentExploreFilters: React.FC<FilterProps> = ({
           {/* Nationality */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-200">Nationality</label>
-            <Select value={nationality} onValueChange={setNationality}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                <SelectValue placeholder="All countries" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-700 border-gray-600">
-                <SelectItem value="all">All Countries</SelectItem>
-                {countries.map(country => (
-                  <SelectItem key={country.country} value={country.country}>
-                    {country.country} ({country.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={nationality}
+              onValueChange={setNationality}
+              placeholder="All countries"
+              options={countries.map(country => ({
+                value: country.country,
+                label: country.country,
+                count: country.count
+              }))}
+              triggerClassName="bg-gray-700 border-gray-600 text-white"
+              contentClassName="bg-gray-700 border-gray-600"
+              showAllOption={true}
+              allOptionLabel="All Countries"
+            />
           </div>
 
           {/* Transfer Type */}

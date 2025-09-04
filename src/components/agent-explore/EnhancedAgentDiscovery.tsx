@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useToast } from '@/hooks/use-toast';
 import {
   Search, Filter, Grid3X3, List, Eye, MessageCircle, Heart, Star,
@@ -702,19 +703,19 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
 
                 <div className="space-y-2">
                   <label className="text-xs text-gray-400">Country</label>
-                  <Select value={smartFilter.teamCountry} onValueChange={(value) => setSmartFilter(prev => ({ ...prev, teamCountry: value }))}>
-                    <SelectTrigger className="text-white text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-600">
-                      <SelectItem value="all">All Countries</SelectItem>
-                      {availableCountries.map(country => (
-                        <SelectItem key={country} value={country}>
-                          {country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={smartFilter.teamCountry}
+                    onValueChange={(value) => setSmartFilter(prev => ({ ...prev, teamCountry: value }))}
+                    placeholder="All Countries"
+                    options={availableCountries.map(country => ({
+                      value: country,
+                      label: country
+                    }))}
+                    triggerClassName="text-white text-xs"
+                    contentClassName="bg-gray-800 border-gray-600"
+                    showAllOption={true}
+                    allOptionLabel="All Countries"
+                  />
                 </div>
 
                 <div className="space-y-2">

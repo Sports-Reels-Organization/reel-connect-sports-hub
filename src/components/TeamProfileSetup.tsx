@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CountrySelect } from '@/components/ui/CountrySelect';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -18,10 +19,6 @@ const leagues = [
   'NLO', 'NNL', 'NPFL', 'N-YOUTH LEAGUE', 'TCC', 'FEDERATION CUP', 'FA CUP'
 ];
 
-const countries = [
-  'Nigeria', 'Ghana', 'Kenya', 'South Africa', 'Egypt', 'Morocco', 'Algeria', 'Tunisia',
-  'United Kingdom', 'Germany', 'France', 'Spain', 'Italy', 'Brazil', 'Argentina', 'USA'
-];
 
 interface TeamData {
   team_name: string;
@@ -502,21 +499,13 @@ const TeamProfileSetup: React.FC = () => {
 
             <div className="space-y-2">
               <Label className="text-white">Country *</Label>
-              <Select
+              <CountrySelect
                 value={teamData.country}
                 onValueChange={(value) => setTeamData(prev => ({ ...prev, country: value }))}
-              >
-                <SelectTrigger className="bg-background border-border text-white">
-                  <SelectValue placeholder="Select country" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {countries.map((country) => (
-                    <SelectItem key={country} value={country} className="text-white">
-                      {country}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select country"
+                triggerClassName="bg-background border-border text-white"
+                contentClassName="bg-card border-border"
+              />
             </div>
 
             <div className="space-y-2">

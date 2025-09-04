@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CountrySelect } from '@/components/ui/CountrySelect';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,10 +24,6 @@ interface PlayerFormProps {
   teamId: string;
 }
 
-const countries = [
-  'Nigeria', 'Ghana', 'Kenya', 'South Africa', 'Egypt', 'Morocco', 'Algeria', 'Tunisia',
-  'United Kingdom', 'Germany', 'France', 'Spain', 'Italy', 'Brazil', 'Argentina', 'USA'
-];
 
 interface TransferHistory {
   year: string;
@@ -387,18 +384,13 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
 
                 <div className="space-y-2">
                   <Label htmlFor="citizenship" className="text-white">Citizenship *</Label>
-                  <Select value={formData.citizenship} onValueChange={(value) => setFormData({ ...formData, citizenship: value })}>
-                    <SelectTrigger className="bg-[#111111] border-0 text-white">
-                      <SelectValue placeholder="Select citizenship" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#1a1a1a] border-0">
-                      {countries.map((country) => (
-                        <SelectItem key={country} value={country} className="text-white">
-                          {country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CountrySelect
+                    value={formData.citizenship}
+                    onValueChange={(value) => setFormData({ ...formData, citizenship: value })}
+                    placeholder="Select citizenship"
+                    triggerClassName="bg-[#111111] border-0 text-white"
+                    contentClassName="bg-[#1a1a1a] border-0"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -701,18 +693,13 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
                     placeholder="Category"
                     className="bg-[#111111] border-0 text-white"
                   />
-                  <Select value={newInternational.country} onValueChange={(value) => setNewInternational({ ...newInternational, country: value })}>
-                    <SelectTrigger className="bg-[#111111] border-0 text-white">
-                      <SelectValue placeholder="Country" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#1a1a1a] border-0">
-                      {countries.map((country) => (
-                        <SelectItem key={country} value={country} className="text-white">
-                          {country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CountrySelect
+                    value={newInternational.country}
+                    onValueChange={(value) => setNewInternational({ ...newInternational, country: value })}
+                    placeholder="Country"
+                    triggerClassName="bg-[#111111] border-0 text-white"
+                    contentClassName="bg-[#1a1a1a] border-0"
+                  />
                   <Input
                     value={newInternational.debut}
                     onChange={(e) => setNewInternational({ ...newInternational, debut: e.target.value })}

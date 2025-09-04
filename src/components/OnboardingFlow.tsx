@@ -11,6 +11,7 @@ import { useSports } from '@/hooks/useSports';
 import { useCountries } from '@/hooks/useCountries';
 import { useCountryCodes } from '@/hooks/useCountryCodes';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CountrySelect } from '@/components/ui/CountrySelect';
 import { AllowedSportType, requiresFifaId, isAllowedSportType } from '@/services/sportsService';
 import { ArrowLeft, User, Building, Users } from 'lucide-react';
 
@@ -399,26 +400,13 @@ const OnboardingFlow = () => {
                 </div>
                 <div className="space-y-2 text-start">
                   <Label htmlFor="country" className="text-gray-500 font-medium">Country</Label>
-                  <Select
+                  <CountrySelect
                     value={basicInfo.country}
                     onValueChange={handleCountryChange}
-                  >
-                    <SelectTrigger className="bg-white border-0 outline-none">
-                      <SelectValue placeholder="Select your country" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60  z-50">
-                      {countries.map((country) => (
-                        <SelectItem key={country.cca2} value={country.name.common}>
-                          <div className="flex border-0 outline-none items-center gap-2">
-                            {country.flag && (
-                              <span className="text-sm">{country.flag}</span>
-                            )}
-                            <span>{country.name.common}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select your country"
+                    triggerClassName="bg-white border-0 outline-none"
+                    contentClassName="max-h-60 z-50"
+                  />
                   {countriesError && (
                     <p className="text-sm text-red-600">{countriesError}</p>
                   )}
