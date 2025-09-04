@@ -390,11 +390,24 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
 
   const updateContractStatus = async (contractId: string, newStatus: string) => {
     try {
+      // Map status to appropriate deal_stage
+      const getDealStage = (status: string): string => {
+        switch (status) {
+          case 'draft': return 'draft';
+          case 'sent': return 'negotiating';
+          case 'under_review': return 'under_review';
+          case 'negotiating': return 'negotiating';
+          case 'finalizing': return 'under_review';
+          case 'completed': return 'signed';
+          default: return 'draft';
+        }
+      };
+
       const { error } = await supabase
         .from('contracts')
         .update({ 
           status: newStatus, 
-          deal_stage: newStatus,
+          deal_stage: getDealStage(newStatus),
           updated_at: new Date().toISOString() 
         })
         .eq('id', contractId);

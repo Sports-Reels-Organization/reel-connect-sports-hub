@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import {
   MessageCircle, FileText, Send, Clock, User, Video, DollarSign,
-  TrendingUp, AlertCircle, CheckCircle, X, Plus, Search, Heart, Eye, Upload
+  TrendingUp, AlertCircle, CheckCircle, X, Plus, Search, Heart, Eye, Upload, Trash2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { contractService, PermanentTransferContract, LoanTransferContract } from '@/services/contractService';
@@ -242,15 +242,36 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
       // Fetch messages where user is sender or receiver
       const { data: messages, error: messageError } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender_profile:profiles!messages_sender_id_fkey(full_name, user_type),
-          receiver_profile:profiles!messages_receiver_id_fkey(full_name, user_type)
-        `)
+        .select('*')
         .or(`sender_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
         .order('created_at', { ascending: false });
 
       if (messageError) throw messageError;
+
+      // Fetch profile information for each message
+      const messagesWithProfiles = await Promise.all(
+        (messages || []).map(async (message) => {
+          // Get sender profile
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('full_name, user_type')
+            .eq('id', message.sender_id)
+            .single();
+
+          // Get receiver profile
+          const { data: receiverProfile } = await supabase
+            .from('profiles')
+            .select('full_name, user_type')
+            .eq('id', message.receiver_id)
+            .single();
+
+          return {
+            ...message,
+            sender_profile: senderProfile || { full_name: 'Unknown', user_type: 'unknown' },
+            receiver_profile: receiverProfile || { full_name: 'Unknown', user_type: 'unknown' }
+          };
+        })
+      );
 
       // Fetch agent interest for teams
       if (profile.user_type === 'team') {
@@ -273,23 +294,49 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
             
             const { data: interest, error: interestError } = await supabase
               .from('agent_interest')
-              .select(`
-                *,
-                agent:agents!agent_interest_agent_id_fkey(
-                  profile:profiles!agents_profile_id_fkey(full_name, user_type)
-                ),
-                pitch:transfer_pitches(
-                  players(full_name, position),
-                  teams(team_name),
-                  asking_price,
-                  currency
-                )
-              `)
+              .select('*')
               .in('pitch_id', pitchIds)
               .order('created_at', { ascending: false });
 
             if (interestError) throw interestError;
-            setAgentInterest(interest || []);
+
+            // Fetch related data separately
+            const interestWithDetails = await Promise.all(
+              (interest || []).map(async (item) => {
+                // Get agent profile
+                const { data: agentData } = await supabase
+                  .from('agents')
+                  .select('profile_id')
+                  .eq('id', item.agent_id)
+                  .single();
+
+                const { data: profileData } = await supabase
+                  .from('profiles')
+                  .select('full_name, user_type')
+                  .eq('id', agentData?.profile_id)
+                  .single();
+
+                // Get pitch details
+                const { data: pitchData } = await supabase
+                  .from('transfer_pitches')
+                  .select(`
+                    players!transfer_pitches_player_id_fkey(full_name, position),
+                    teams(team_name),
+                    asking_price,
+                    currency
+                  `)
+                  .eq('id', item.pitch_id)
+                  .single();
+
+                return {
+                  ...item,
+                  agent: { profile: profileData || { full_name: 'Unknown', user_type: 'unknown' } },
+                  pitch: pitchData || { players: { full_name: 'Unknown', position: 'Unknown' }, teams: { team_name: 'Unknown' }, asking_price: 0, currency: 'USD' }
+                };
+              })
+            );
+
+            setAgentInterest(interestWithDetails || []);
           } else {
             setAgentInterest([]);
           }
@@ -305,7 +352,7 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
       if (contractError) throw contractError;
 
-      setMessages(messages || []);
+      setMessages(messagesWithProfiles || []);
       setContracts(contracts || []);
     } catch (error) {
       console.error('Error fetching communications:', error);
@@ -449,23 +496,49 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
     try {
       const { data, error } = await supabase
         .from('agent_interest')
-        .select(`
-          *,
-          agent:agents!agent_interest_agent_id_fkey(
-            profile:profiles!agents_profile_id_fkey(full_name, user_type)
-          ),
-          pitch:transfer_pitches(
-            players(full_name, position),
-            teams(team_name),
-            asking_price,
-            currency
-          )
-        `)
+        .select('*')
         .eq('pitch_id', pitchId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setAgentInterest(data || []);
+
+      // Fetch related data separately
+      const interestWithDetails = await Promise.all(
+        (data || []).map(async (item) => {
+          // Get agent profile
+          const { data: agentData } = await supabase
+            .from('agents')
+            .select('profile_id')
+            .eq('id', item.agent_id)
+            .single();
+
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, user_type')
+            .eq('id', agentData?.profile_id)
+            .single();
+
+          // Get pitch details
+          const { data: pitchData } = await supabase
+            .from('transfer_pitches')
+            .select(`
+              players!transfer_pitches_player_id_fkey(full_name, position),
+              teams(team_name),
+              asking_price,
+              currency
+            `)
+            .eq('id', item.pitch_id)
+            .single();
+
+          return {
+            ...item,
+            agent: { profile: profileData || { full_name: 'Unknown', user_type: 'unknown' } },
+            pitch: pitchData || { players: { full_name: 'Unknown', position: 'Unknown' }, teams: { team_name: 'Unknown' }, asking_price: 0, currency: 'USD' }
+          };
+        })
+      );
+
+      setAgentInterest(interestWithDetails || []);
     } catch (error) {
       console.error('Error fetching agent interest:', error);
     }
@@ -538,11 +611,14 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
     message.receiver_profile.full_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredInterest = agentInterest.filter(interest =>
-    (interest.agent?.profile?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    interest.pitch.players.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    interest.status.toLowerCase().includes(searchTerm.toLowerCase())
-  ).filter(interest => interest.agent?.profile?.full_name); // Only show interests with valid agent profiles
+  const filteredInterest = agentInterest.filter(interest => {
+    const hasValidAgent = interest.agent?.profile?.full_name;
+    const matchesSearch = (interest.agent?.profile?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (interest.pitch?.players?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      interest.status.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return hasValidAgent && matchesSearch;
+  });
 
   // Enhanced function to handle contract creation from interest
   const handleCreateContract = async (interest: AgentInterest) => {
@@ -808,12 +884,6 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                  {filteredInterest.length === 0 ? (
                    <div className="text-center py-8">
                      <p className="text-gray-400 mb-2">No agent interest found</p>
-                     {agentInterest.length > 0 && filteredInterest.length === 0 && (
-                       <p className="text-xs text-red-400">
-                         Some records may be invalid and have been filtered out. 
-                         Use the "Clean Invalid Records" button to remove them.
-                       </p>
-                     )}
                    </div>
                  ) : (
                   filteredInterest.map((interest) => (
@@ -825,10 +895,10 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                               {interest.agent?.profile?.full_name || `Agent #${interest.agent_id.slice(0, 8)}`}
                             </h4>
                             <p className="text-sm text-gray-400">
-                              Interested in {interest.pitch.players.full_name} ({interest.pitch.players.position})
+                              Interested in {interest.pitch?.players?.full_name || 'Unknown Player'} ({interest.pitch?.players?.position || 'Unknown Position'})
                             </p>
                             <p className="text-xs text-gray-500">
-                              {interest.pitch.teams.team_name} • {interest.pitch.asking_price.toLocaleString()} {interest.pitch.currency}
+                              {interest.pitch?.teams?.team_name || 'Unknown Team'} • {interest.pitch?.asking_price?.toLocaleString() || '0'} {interest.pitch?.currency || 'USD'}
                             </p>
                           </div>
                           <Badge variant="outline" className="text-xs">
@@ -1368,52 +1438,34 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                           // Get the agent data and verify it exists
                           const { data: agentData, error: agentError } = await supabase
                             .from('agents')
-                            .select(`
-                              id,
-                              profile_id,
-                              profile:profiles!agents_profile_id_fkey(id, full_name, user_type)
-                            `)
+                            .select('id, profile_id')
                             .eq('id', selectedInterest.agent_id)
                             .maybeSingle();
-                          
+
                           if (agentError) {
                             console.error('Error fetching agent data:', agentError);
                             throw new Error(`Agent not found: ${agentError.message}`);
                           }
-                          
+
                           if (!agentData) {
                             console.error('Agent not found for agent_id:', selectedInterest.agent_id);
-                            
-                            // Show user-friendly error and skip this interest
-                            toast({
-                              title: "Invalid Agent Record",
-                              description: "This agent interest references an agent that no longer exists. The record will be skipped.",
-                              variant: "destructive"
-                            });
-                            
-                            // Close modal and return early
-                            setShowContractModal(false);
-                            setSelectedInterest(null);
-                            return;
+                            throw new Error('Agent not found');
+                          }
+
+                          // Get the profile data separately
+                          const { data: profileData, error: profileError } = await supabase
+                            .from('profiles')
+                            .select('id, full_name, user_type')
+                            .eq('id', agentData.profile_id)
+                            .single();
+
+                          if (profileError) {
+                            console.error('Error fetching profile data:', profileError);
+                            throw new Error(`Profile not found: ${profileError.message}`);
                           }
                           
                           console.log('Agent found:', agentData);
-                          
-                          // Get the profile data from the agent record
-                          const profileData = agentData.profile;
-                          if (!profileData) {
-                            console.error('Profile not found for agent:', agentData.id);
-                            
-                            toast({
-                              title: "Invalid Agent Profile",
-                              description: "This agent has no associated profile. The record will be skipped.",
-                              variant: "destructive"
-                            });
-                            
-                            setShowContractModal(false);
-                            setSelectedInterest(null);
-                            return;
-                          }
+                          console.log('Profile found:', profileData);
                           
                           // Now we have the agent data, continue with contract creation
                           agentId = agentData.id;
