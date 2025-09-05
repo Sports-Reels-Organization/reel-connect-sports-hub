@@ -43,6 +43,14 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
   const [teamSportType, setTeamSportType] = useState<string>('football');
   const sportData = useSportData(teamSportType);
   
+  console.log('🏈 PlayerFilters: Sport data debug:', {
+    teamSportType,
+    sportData: sportData ? {
+      positions: sportData.positions,
+      positionsCount: sportData.positions?.length
+    } : 'No sport data'
+  });
+  
   const [filters, setFilters] = useState<FilterState>({
     search: '',
     position: 'all',
@@ -79,7 +87,10 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
         }
 
         if (data?.sport_type) {
+          console.log('🏈 PlayerFilters: Team sport type fetched:', data.sport_type);
           setTeamSportType(data.sport_type);
+        } else {
+          console.log('🏈 PlayerFilters: No sport type found in team data:', data);
         }
       } catch (error) {
         console.error('Error fetching team sport type:', error);
@@ -92,19 +103,39 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
   const applyFilters = (filterState: FilterState = filters) => {
     let filtered = [...players];
 
+    console.log('🔍 Applying filters:', {
+      search: filterState.search,
+      totalPlayers: players.length,
+      initialFiltered: filtered.length
+    });
+
     // Search filter
     if (filterState.search) {
       const searchLower = filterState.search.toLowerCase();
+      const beforeSearch = filtered.length;
       filtered = filtered.filter(player => 
         player.full_name?.toLowerCase().includes(searchLower) ||
         player.position?.toLowerCase().includes(searchLower) ||
         player.citizenship?.toLowerCase().includes(searchLower)
       );
+      console.log('🔍 Search filter applied:', {
+        searchTerm: filterState.search,
+        beforeSearch,
+        afterSearch: filtered.length,
+        matches: filtered.map(p => p.full_name)
+      });
     }
 
     // Position filter
     if (filterState.position && filterState.position !== 'all') {
+      const beforePosition = filtered.length;
       filtered = filtered.filter(player => player.position === filterState.position);
+      console.log('🏈 Position filter applied:', {
+        position: filterState.position,
+        beforePosition,
+        afterPosition: filtered.length,
+        matches: filtered.map(p => ({ name: p.full_name, position: p.position }))
+      });
     }
 
     // Age range filter
@@ -168,10 +199,16 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
       });
     }
 
+    console.log('📤 Sending filtered players to parent:', {
+      filteredCount: filtered.length,
+      totalCount: players.length,
+      searchTerm: filterState.search
+    });
     onFilteredPlayersChange(filtered);
   };
 
   const updateFilter = (key: keyof FilterState, value: string | string[]) => {
+    console.log('🔄 Filter update:', { key, value, currentFilters: filters });
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     applyFilters(newFilters);
@@ -287,11 +324,17 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All positions</SelectItem>
-                {sportData.positions.map((position) => (
-                  <SelectItem key={position} value={position.toLowerCase()}>
-                    {position}
+                {sportData?.positions?.length > 0 ? (
+                  sportData.positions.map((position) => (
+                    <SelectItem key={position} value={position}>
+                      {position}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-positions" disabled>
+                    Loading positions...
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </div>

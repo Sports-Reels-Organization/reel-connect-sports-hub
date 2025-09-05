@@ -91,7 +91,12 @@
   } */
   [class*="bg-gray-"] {
     background-color: #1a1a1a !important;
-    /* force dark background */
+
+  }
+
+  [class*="bg-gray-700"] {
+    background-color: #121212c8 !important;
+
   }
 
   body {
@@ -111,10 +116,17 @@
   }
 
   /* Ensure form elements have dark theme */
-  input,
+  /* input,
   textarea,
   select {
     background-color: #1a1a1a !important;
+    color: hsl(0 0% 95%) !important;
+    border: none !important;
+
+  } */
+  input,
+  textarea,
+  select {
     color: hsl(0 0% 95%) !important;
     border: none !important;
 
@@ -212,4 +224,6 @@
     border: none !important;
 
   }
+
+  
 }

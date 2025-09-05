@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Eye, User } from 'lucide-react';
+import { Edit, Eye, User, Trash2 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
 type DatabasePlayer = Tables<'players'>;
@@ -12,9 +12,10 @@ interface PlayerCardProps {
   player: DatabasePlayer;
   onEdit: (player: DatabasePlayer) => void;
   onView: (player: DatabasePlayer) => void;
+  onDelete?: (player: DatabasePlayer) => void;
 }
 
-const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onView }) => {
+const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onView, onDelete }) => {
   const calculateAge = (birthDate: string | null) => {
     if (!birthDate) return null;
     const today = new Date();
@@ -109,6 +110,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onView }) => {
           >
             <Edit className="w-4 h-4" />
           </Button>
+          {onDelete && (
+            <Button
+              onClick={() => onDelete(player)}
+              size="sm"
+              variant="outline"
+              className="border-red-600 text-red-400 hover:bg-red-700 hover:text-white"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -11,13 +11,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  MessageSquare, 
-  FileText, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Edit, 
+import {
+  MessageSquare,
+  FileText,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Edit,
   Download,
   Send,
   User,
@@ -179,7 +179,7 @@ const ContractNegotiationPage: React.FC = () => {
         (payload) => {
           console.log('New message received:', payload);
           setHasNewMessages(true);
-          
+
           // Reload messages to get the latest data with profile information
           loadMessages();
         }
@@ -208,7 +208,7 @@ const ContractNegotiationPage: React.FC = () => {
         },
         (payload) => {
           console.log('Contract updated:', payload);
-          
+
           // Update contract state
           setContract(prev => prev ? {
             ...prev,
@@ -234,7 +234,7 @@ const ContractNegotiationPage: React.FC = () => {
 
   const loadMessages = async () => {
     if (!contractId) return;
-    
+
     try {
       const messagesData = await contractManagementService.getContractMessages(contractId);
       setMessages(messagesData);
@@ -266,7 +266,7 @@ const ContractNegotiationPage: React.FC = () => {
         description: errorMessage,
         variant: "destructive"
       });
-      
+
       // If contract not found, navigate back to contracts page
       if (errorMessage.includes('not found') || errorMessage.includes('permission')) {
         setTimeout(() => {
@@ -294,7 +294,7 @@ const ContractNegotiationPage: React.FC = () => {
 
       // Optimistically add message to UI
       setMessages(prev => [...prev, data]);
-      
+
       toast({
         title: "Message sent",
         description: "Your message has been sent successfully"
@@ -490,10 +490,10 @@ const ContractNegotiationPage: React.FC = () => {
                 <h1 className="text-2xl font-bold text-white mb-2 font-poppins">Contract Negotiation</h1>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground font-poppins">
                   <span>Contract ID: {contractId}</span>
-                  <Badge variant="outline" className={`${getStatusColor(contract.status)} font-poppins`}>
+                  <Badge variant="outline" className={`${getStatusColor(contract.status)} border-0 font-poppins`}>
                     {contract.status}
                   </Badge>
-                  <Badge variant="outline" className={`${getStepColor(contract.current_step)} font-poppins`}>
+                  <Badge variant="outline" className={`${getStepColor(contract.current_step)} border-0 font-poppins`}>
                     {contract.current_step}
                   </Badge>
                   <span className="capitalize">{contract.transfer_type} Transfer</span>
@@ -537,20 +537,20 @@ const ContractNegotiationPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3  gap-6">
           {/* Left Panel - Contract Preview */}
           {showContractPreview && (
-            <div className="lg:col-span-1">
-              <Card className="h-full">
+            <div className="lg:col-span-1 ">
+              <Card className="h-full border-0">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 font-poppins">
+                  <CardTitle className="flex items-center gap-2  font-poppins">
                     <FileText className="h-5 w-5" />
                     Contract Preview
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-96">
-                    <div 
+                    <div
                       className="prose prose-sm max-w-none font-poppins"
                       dangerouslySetInnerHTML={{ __html: contractPreview }}
                     />
@@ -579,7 +579,7 @@ const ContractNegotiationPage: React.FC = () => {
               </TabsList>
 
               <TabsContent value="discussion" className="space-y-4">
-                <Card>
+                <Card className='border-0'>
                   <CardHeader>
                     <CardTitle className="font-poppins flex items-center gap-2">
                       <MessageSquare className="h-5 w-5" />
@@ -597,39 +597,34 @@ const ContractNegotiationPage: React.FC = () => {
                           return (
                             <div
                               key={message.id}
-                              className={`flex gap-3 ${
-                                isCurrentUser ? 'justify-end' : 'justify-start'
-                              }`}
+                              className={`flex gap-3 ${isCurrentUser ? 'justify-end' : 'justify-start'
+                                }`}
                             >
                               {!isCurrentUser && (
-                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium font-poppins ${
-                                  message.sender_profile?.user_type === 'agent' ? 'bg-blue-500' : 
-                                  message.sender_profile?.user_type === 'team' ? 'bg-green-500' : 
-                                  message.sender_profile?.user_type === 'system' ? 'bg-gray-500' : 'bg-rosegold'
-                                }`}>
+                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium font-poppins ${message.sender_profile?.user_type === 'agent' ? 'bg-blue-500' :
+                                  message.sender_profile?.user_type === 'team' ? 'bg-green-500' :
+                                    message.sender_profile?.user_type === 'system' ? 'bg-gray-500' : 'bg-rosegold'
+                                  }`}>
                                   {message.sender_profile?.full_name?.charAt(0) || 'U'}
                                 </div>
                               )}
-                              <div className={`max-w-xs lg:max-w-md ${
-                                isCurrentUser ? 'order-first' : ''
-                              }`}>
-                                <div className={`inline-block p-3 rounded-lg font-poppins ${
-                                  isCurrentUser 
-                                    ? 'bg-rosegold text-white' 
-                                    : 'bg-muted text-foreground'
+                              <div className={`max-w-xs lg:max-w-md ${isCurrentUser ? 'order-first' : ''
                                 }`}>
+                                <div className={`inline-block p-3 rounded-lg font-poppins ${isCurrentUser
+                                  ? 'bg-rosegold text-white'
+                                  : 'bg-muted text-foreground'
+                                  }`}>
                                   {!isCurrentUser && (
                                     <p className="text-sm font-medium mb-1 opacity-80">
                                       {message.sender_profile?.full_name || 'Unknown'}
                                     </p>
                                   )}
                                   <p className="text-sm leading-relaxed">{message.content}</p>
-                                  <p className={`text-xs opacity-70 mt-1 ${
-                                    isCurrentUser ? 'text-right' : 'text-left'
-                                  }`}>
-                                    {new Date(message.created_at).toLocaleTimeString([], { 
-                                      hour: '2-digit', 
-                                      minute: '2-digit' 
+                                  <p className={`text-xs opacity-70 mt-1 ${isCurrentUser ? 'text-right' : 'text-left'
+                                    }`}>
+                                    {new Date(message.created_at).toLocaleTimeString([], {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
                                     })}
                                   </p>
                                   {message.message_type === 'action' && (
@@ -650,7 +645,7 @@ const ContractNegotiationPage: React.FC = () => {
                         <div ref={messagesEndRef} />
                       </div>
                     </ScrollArea>
-                    
+
                     <div className="flex gap-2">
                       <Textarea
                         placeholder="Type your message..."
@@ -660,8 +655,8 @@ const ContractNegotiationPage: React.FC = () => {
                         className="flex-1 font-poppins"
                         disabled={!isConnected}
                       />
-                      <Button 
-                        onClick={sendMessage} 
+                      <Button
+                        onClick={sendMessage}
                         disabled={!newMessage.trim() || !isConnected}
                         className="font-poppins"
                       >
@@ -678,7 +673,7 @@ const ContractNegotiationPage: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="contract" className="space-y-4">
-                <Card>
+                <Card className='border-0'>
                   <CardHeader>
                     <CardTitle className="font-poppins">Contract Details</CardTitle>
                   </CardHeader>
@@ -702,7 +697,7 @@ const ContractNegotiationPage: React.FC = () => {
                           <p className="text-sm text-muted-foreground font-poppins">{contract.currency} {contract.contract_value?.toLocaleString()}</p>
                         </div>
                       </div>
-                      
+
                       {contract.document_url && (
                         <div className="mt-4 p-4 bg-muted rounded-lg">
                           <p className="text-sm font-medium mb-2 font-poppins">Uploaded Contract Document</p>
@@ -717,8 +712,8 @@ const ContractNegotiationPage: React.FC = () => {
                           </Button>
                         </div>
                       )}
-                      
-                      <div 
+
+                      <div
                         className="prose prose-sm max-w-none font-poppins"
                         dangerouslySetInnerHTML={{ __html: contractPreview }}
                       />
@@ -728,7 +723,7 @@ const ContractNegotiationPage: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="timeline" className="space-y-4">
-                <Card>
+                <Card className='border-0'>
                   <CardHeader>
                     <CardTitle className="font-poppins">Contract Timeline</CardTitle>
                   </CardHeader>
@@ -790,7 +785,7 @@ const ContractNegotiationPage: React.FC = () => {
             </Tabs>
 
             {/* Quick Actions */}
-            <Card className="mt-6">
+            <Card className="mt-6 border-0">
               <CardHeader>
                 <CardTitle className="font-poppins">Quick Actions</CardTitle>
               </CardHeader>
@@ -849,7 +844,7 @@ const ContractNegotiationPage: React.FC = () => {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel className="font-poppins">Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
+                        <AlertDialogAction
                           onClick={() => handleContractAction('reject')}
                           className="bg-red-600 hover:bg-red-700 font-poppins"
                         >
@@ -920,7 +915,7 @@ const ContractNegotiationPage: React.FC = () => {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel className="font-poppins">Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
+                        <AlertDialogAction
                           onClick={() => handleContractAction('complete')}
                           className="bg-green-600 hover:bg-green-700 font-poppins"
                         >

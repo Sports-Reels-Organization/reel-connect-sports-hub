@@ -9,17 +9,43 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus, Users, Target, AlertCircle, Video, BarChart3, Download,
-  User, TrendingUp, Activity, Award, Heart, FileText
+  User, TrendingUp, Activity, Award, Heart, FileText, List, Upload, Trash2
 } from 'lucide-react';
-import { Tables } from '@/integrations/supabase/types';
+import { Database } from '@/integrations/supabase/types';
+
+type Tables = Database['public']['Tables'];
+type DatabasePlayer = Tables['players']['Row'] & {
+  age?: number;
+  height?: number;
+  weight?: number;
+  contract_expires?: string;
+  bio?: string;
+  jersey_number?: number;
+  place_of_birth?: string;
+  foot?: string;
+  fifa_id?: string;
+  player_agent?: string;
+  current_club?: string;
+  joined_date?: string;
+  gender?: string;
+  headshot_url?: string;
+  portrait_url?: string;
+  full_body_url?: string;
+  leagues_participated?: any[];
+  titles_seasons?: any[];
+  transfer_history?: any[];
+  international_duty?: any[];
+  match_stats?: any;
+  ai_analysis?: any;
+};
 import PlayerCard from './PlayerCard';
 import PlayerForm from './PlayerForm';
 import PlayerDetailModal from './PlayerDetailModal';
 import PlayerFilters from './PlayerFilters';
 import PlayerRosterView from './PlayerRosterView';
 import PlayerComparison from './PlayerComparison';
-
-type DatabasePlayer = Tables<'players'>;
+import BulkPlayerUpload from './BulkPlayerUpload';
+import PlayerHistory from './PlayerHistory';
 
 const PlayerManagement: React.FC = () => {
   const { profile } = useAuth();
@@ -35,6 +61,10 @@ const PlayerManagement: React.FC = () => {
   const [eligiblePlayers, setEligiblePlayers] = useState<DatabasePlayer[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'roster'>('cards');
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [teamSportType, setTeamSportType] = useState<string>('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [playerToDelete, setPlayerToDelete] = useState<DatabasePlayer | null>(null);
   const playerFormRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,6 +79,10 @@ const PlayerManagement: React.FC = () => {
   }, [teamId]);
 
   useEffect(() => {
+    console.log('🔄 PlayerManagement: Players updated, setting filtered players:', {
+      totalPlayers: players.length,
+      playerNames: players.map(p => p.full_name)
+    });
     setFilteredPlayers(players);
   }, [players]);
 
@@ -56,9 +90,9 @@ const PlayerManagement: React.FC = () => {
   useEffect(() => {
     if (showAddForm && playerFormRef.current) {
       setTimeout(() => {
-        playerFormRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
+        playerFormRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
         });
       }, 100); // Small delay to ensure the form is rendered
     }
@@ -70,7 +104,7 @@ const PlayerManagement: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('teams')
-        .select('id')
+        .select('id, sport_type')
         .eq('profile_id', profile.id)
         .single();
 
@@ -81,6 +115,7 @@ const PlayerManagement: React.FC = () => {
 
       if (data) {
         setTeamId(data.id);
+        setTeamSportType(data.sport_type);
       }
     } catch (error) {
       console.error('Error fetching team:', error);
@@ -160,6 +195,90 @@ const PlayerManagement: React.FC = () => {
   const handlePlayerSaved = () => {
     fetchPlayers();
     resetForm();
+  };
+
+  const handleBulkUploadComplete = () => {
+    fetchPlayers();
+    setShowBulkUpload(false);
+  };
+
+  const handleBulkUploadClick = () => {
+    setShowAddForm(false); // Close add player form
+    setShowBulkUpload(true);
+    // Smooth scroll to bulk upload section
+    setTimeout(() => {
+      const bulkUploadElement = document.getElementById('bulk-upload-section');
+      if (bulkUploadElement) {
+        bulkUploadElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    }, 100);
+  };
+
+  const handleAddPlayerClick = () => {
+    setShowBulkUpload(false); // Close bulk upload
+    setShowAddForm(true);
+    // Smooth scroll to add player form
+    setTimeout(() => {
+      if (playerFormRef.current) {
+        playerFormRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    }, 100);
+  };
+
+  const handleDeletePlayer = (player: DatabasePlayer) => {
+    setPlayerToDelete(player);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeletePlayer = async () => {
+    if (!playerToDelete) return;
+
+    try {
+      console.log('Deleting player:', playerToDelete.full_name, 'ID:', playerToDelete.id);
+      
+      // Log activity before deletion
+      const { PlayerActivityService } = await import('@/services/playerActivityService');
+      const activityService = new PlayerActivityService(teamId);
+      console.log('Logging player deletion activity...');
+      await activityService.logPlayerDeleted(playerToDelete);
+      console.log('Player deletion activity logged successfully');
+
+      const { error } = await supabase
+        .from('players')
+        .delete()
+        .eq('id', playerToDelete.id);
+
+      if (error) throw error;
+
+      console.log('Player deleted from database successfully');
+
+      toast({
+        title: "Player Deleted",
+        description: `${playerToDelete.full_name} has been removed from the roster`,
+      });
+
+      fetchPlayers(); // Refresh the player list
+      setShowDeleteConfirm(false);
+      setPlayerToDelete(null);
+    } catch (error) {
+      console.error('Error deleting player:', error);
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete player. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const cancelDeletePlayer = () => {
+    setShowDeleteConfirm(false);
+    setPlayerToDelete(null);
   };
 
   const handleExportPlayers = async (playersToExport: DatabasePlayer[]) => {
@@ -381,7 +500,15 @@ const PlayerManagement: React.FC = () => {
             Compare Players
           </Button>
           <Button
-            onClick={() => setShowAddForm(true)}
+            onClick={handleBulkUploadClick}
+            variant="outline"
+            className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Bulk Upload
+          </Button>
+          <Button
+            onClick={handleAddPlayerClick}
             className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -392,7 +519,7 @@ const PlayerManagement: React.FC = () => {
 
       {/* Tabs for Player Management Organization */}
       <Tabs defaultValue="roster" className="w-full">
-        <TabsList className="grid w-full grid-cols-7 bg-gray-800">
+        <TabsList className="grid w-full grid-cols-8 bg-gray-800">
           <TabsTrigger value="roster" className="text-white">
             <Users className="h-4 w-4 mr-1" />
             Roster & Squad
@@ -421,6 +548,10 @@ const PlayerManagement: React.FC = () => {
             <FileText className="h-4 w-4 mr-1" />
             Notes
           </TabsTrigger>
+          <TabsTrigger value="history" className="text-white">
+            <FileText className="h-4 w-4 mr-1" />
+            History
+          </TabsTrigger>
         </TabsList>
 
         {/* Roster & Squad Tab - Main roster management interface */}
@@ -439,7 +570,14 @@ const PlayerManagement: React.FC = () => {
               {/* Player Filters */}
               <PlayerFilters
                 players={players}
-                onFilteredPlayersChange={setFilteredPlayers}
+                onFilteredPlayersChange={(filtered) => {
+                  console.log('📥 PlayerManagement: Received filtered players:', {
+                    filteredCount: filtered.length,
+                    totalCount: players.length,
+                    filteredNames: filtered.map(p => p.full_name)
+                  });
+                  setFilteredPlayers(filtered);
+                }}
                 onExportPlayers={handleExportPlayers}
 
               />
@@ -462,6 +600,17 @@ const PlayerManagement: React.FC = () => {
                 </Button>
               </div>
 
+              {showBulkUpload && (
+                <div id="bulk-upload-section">
+                  <BulkPlayerUpload
+                    teamId={teamId}
+                    sportType={teamSportType as any}
+                    onUploadComplete={handleBulkUploadComplete}
+                    onCancel={() => setShowBulkUpload(false)}
+                  />
+                </div>
+              )}
+
               {showAddForm && (
                 <div ref={playerFormRef}>
                   <PlayerForm
@@ -479,9 +628,10 @@ const PlayerManagement: React.FC = () => {
                   players={filteredPlayers}
                   onEditPlayer={handleEditPlayer}
                   onViewPlayer={handleViewPlayer}
+                  onDeletePlayer={handleDeletePlayer}
                 />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
                   {filteredPlayers.map((player) => {
                     const completionStatus = getPlayerCompletionStatus(player);
                     return (
@@ -490,6 +640,7 @@ const PlayerManagement: React.FC = () => {
                           player={player}
                           onEdit={handleEditPlayer}
                           onView={handleViewPlayer}
+                          onDelete={handleDeletePlayer}
                         />
                         {/* Profile Completion Indicator */}
                         <div className="absolute top-2 right-2">
@@ -674,6 +825,11 @@ const PlayerManagement: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* History Tab */}
+        <TabsContent value="history" className="space-y-4">
+          <PlayerHistory teamId={teamId} />
+        </TabsContent>
       </Tabs>
 
       {/* Player Comparison Modal */}
@@ -695,6 +851,53 @@ const PlayerManagement: React.FC = () => {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-md bg-gray-800 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white font-polysans flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              Delete Player
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <Trash2 className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-white mb-2">
+                Are you sure you want to delete this player?
+              </h3>
+              <p className="text-gray-300 mb-4">
+                This will permanently delete <span className="font-semibold text-white">{playerToDelete?.full_name}</span> from your roster. 
+                This action cannot be undone.
+              </p>
+              <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 mb-4">
+                <p className="text-yellow-300 text-sm">
+                  <strong>Note:</strong> Player activity history will be preserved for record keeping.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={cancelDeletePlayer}
+                className="text-white border-gray-600 hover:bg-gray-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeletePlayer}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Player
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

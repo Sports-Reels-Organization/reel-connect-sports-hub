@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Grid, List, MoreHorizontal, Edit, Eye, Tag } from 'lucide-react';
+import { Grid, List, MoreHorizontal, Edit, Eye, Tag, Trash2 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
 import { PlayerTagManager } from './PlayerTagManager';
@@ -19,12 +19,14 @@ interface PlayerRosterViewProps {
   players: DatabasePlayer[];
   onEditPlayer: (player: DatabasePlayer) => void;
   onViewPlayer: (player: DatabasePlayer) => void;
+  onDeletePlayer?: (player: DatabasePlayer) => void;
 }
 
 const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
   players,
   onEditPlayer,
-  onViewPlayer
+  onViewPlayer,
+  onDeletePlayer
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [sortBy, setSortBy] = useState<keyof DatabasePlayer>('full_name');
@@ -250,6 +252,15 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                             <Tag className="h-4 w-4 mr-2" />
                             Manage Tags
                           </DropdownMenuItem>
+                          {onDeletePlayer && (
+                            <DropdownMenuItem 
+                              onClick={() => onDeletePlayer(player)}
+                              className="text-red-400 focus:text-red-300"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Player
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

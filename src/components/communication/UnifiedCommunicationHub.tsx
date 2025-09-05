@@ -4,14 +4,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
-  MessageCircle, FileText, Send, Clock, User, Video, DollarSign,
-  TrendingUp, AlertCircle, CheckCircle, X, Plus, Search, Heart, Eye, Upload, Trash2
+  FileText,
+  MessageCircle,
+  Clock,
+  User,
+  Video,
+  DollarSign,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+  X,
+  Plus,
+  Search,
+  Heart,
+  Eye,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { contractService, PermanentTransferContract, LoanTransferContract } from '@/services/contractService';
@@ -24,25 +37,6 @@ interface UnifiedCommunicationHubProps {
   receiverId?: string;
 }
 
-interface Message {
-  id: string;
-  content: string;
-  sender_id: string;
-  receiver_id: string;
-  pitch_id?: string;
-  player_id?: string;
-  message_type: string;
-  created_at: string;
-  read_at?: string;
-  sender_profile: {
-    full_name: string;
-    user_type: string;
-  };
-  receiver_profile: {
-    full_name: string;
-    user_type: string;
-  };
-}
 
 interface Contract {
   id: string;
@@ -100,11 +94,9 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
   const { profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'messages' | 'contracts' | 'interest'>('messages');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [activeTab, setActiveTab] = useState<'interest' | 'contracts'>('interest');
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [agentInterest, setAgentInterest] = useState<AgentInterest[]>([]);
-  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -224,7 +216,6 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
   useEffect(() => {
     if (pitchId || playerId) {
-      fetchMessages();
       fetchContracts();
       fetchAgentInterest();
     } else {
@@ -238,44 +229,10 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
     try {
       setLoading(true);
-      
-      // Fetch messages where user is sender or receiver
-      const { data: messages, error: messageError } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`sender_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
-        .order('created_at', { ascending: false });
 
-      if (messageError) throw messageError;
-
-      // Fetch profile information for each message
-      const messagesWithProfiles = await Promise.all(
-        (messages || []).map(async (message) => {
-          // Get sender profile
-          const { data: senderProfile } = await supabase
-            .from('profiles')
-            .select('full_name, user_type')
-            .eq('id', message.sender_id)
-            .single();
-
-          // Get receiver profile
-          const { data: receiverProfile } = await supabase
-            .from('profiles')
-            .select('full_name, user_type')
-            .eq('id', message.receiver_id)
-            .single();
-
-          return {
-            ...message,
-            sender_profile: senderProfile || { full_name: 'Unknown', user_type: 'unknown' },
-            receiver_profile: receiverProfile || { full_name: 'Unknown', user_type: 'unknown' }
-          };
-        })
-      );
-
-      // Fetch agent interest for teams
+      // Fetch agent interest based on user type
       if (profile.user_type === 'team') {
-        // First get the team ID for the current user
+        // For teams: show interest in their pitches
         const { data: teamData } = await supabase
           .from('teams')
           .select('id')
@@ -283,7 +240,6 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
           .single();
 
         if (teamData) {
-          // First get the pitch IDs for this team
           const { data: teamPitches } = await supabase
             .from('transfer_pitches')
             .select('id')
@@ -300,10 +256,8 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
             if (interestError) throw interestError;
 
-            // Fetch related data separately
             const interestWithDetails = await Promise.all(
               (interest || []).map(async (item) => {
-                // Get agent profile
                 const { data: agentData } = await supabase
                   .from('agents')
                   .select('profile_id')
@@ -316,12 +270,11 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                   .eq('id', agentData?.profile_id)
                   .single();
 
-                // Get pitch details
                 const { data: pitchData } = await supabase
                   .from('transfer_pitches')
                   .select(`
-                    players!transfer_pitches_player_id_fkey(full_name, position),
-                    teams(team_name),
+                    players!transfer_pitches_player_id_fkey(full_name, position, citizenship),
+                    teams(team_name, country),
                     asking_price,
                     currency
                   `)
@@ -331,7 +284,12 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                 return {
                   ...item,
                   agent: { profile: profileData || { full_name: 'Unknown', user_type: 'unknown' } },
-                  pitch: pitchData || { players: { full_name: 'Unknown', position: 'Unknown' }, teams: { team_name: 'Unknown' }, asking_price: 0, currency: 'USD' }
+                  pitch: pitchData || { 
+                    players: { full_name: 'Unknown', position: 'Unknown', citizenship: '' }, 
+                    teams: { team_name: 'Unknown', country: '' }, 
+                    asking_price: 0, 
+                    currency: 'USD' 
+                  }
                 };
               })
             );
@@ -340,6 +298,52 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
           } else {
             setAgentInterest([]);
           }
+        }
+      } else if (profile.user_type === 'agent') {
+        // For agents: show their own interest submissions
+        const { data: agentData } = await supabase
+          .from('agents')
+          .select('id')
+          .eq('profile_id', profile.id)
+          .single();
+
+        if (agentData) {
+          const { data: interest, error: interestError } = await supabase
+            .from('agent_interest')
+            .select('*')
+            .eq('agent_id', agentData.id)
+            .order('created_at', { ascending: false });
+
+          if (interestError) throw interestError;
+
+          const interestWithDetails = await Promise.all(
+            (interest || []).map(async (item) => {
+              // Get pitch details
+              const { data: pitchData } = await supabase
+                .from('transfer_pitches')
+                .select(`
+                  players!transfer_pitches_player_id_fkey(full_name, position, citizenship),
+                  teams(team_name, country),
+                  asking_price,
+                  currency
+                `)
+                .eq('id', item.pitch_id)
+                .single();
+
+              return {
+                ...item,
+                agent: { profile: { full_name: profile.full_name || 'You', user_type: 'agent' } },
+                pitch: pitchData || { 
+                  players: { full_name: 'Unknown', position: 'Unknown', citizenship: '' }, 
+                  teams: { team_name: 'Unknown', country: '' }, 
+                  asking_price: 0, 
+                  currency: 'USD' 
+                }
+              };
+            })
+          );
+
+          setAgentInterest(interestWithDetails || []);
         }
       }
 
@@ -352,7 +356,6 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
       if (contractError) throw contractError;
 
-      setMessages(messagesWithProfiles || []);
       setContracts(contracts || []);
     } catch (error) {
       console.error('Error fetching communications:', error);
@@ -361,25 +364,6 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
     }
   };
 
-  const fetchMessages = async () => {
-    try {
-      let query = supabase
-        .from('messages')
-        .select(`
-          *,
-          sender_profile:profiles!messages_sender_id_fkey(full_name, user_type),
-          receiver_profile:profiles!messages_receiver_id_fkey(full_name, user_type)
-        `)
-        .or(`pitch_id.eq.${pitchId || 'null'},player_id.eq.${playerId || 'null'}`)
-        .order('created_at', { ascending: false });
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setMessages(data || []);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
-  };
 
   const fetchContracts = async () => {
     try {
@@ -544,42 +528,6 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
     }
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !profile?.id) return;
-
-    try {
-      const messageData = {
-        sender_id: profile.id,
-        receiver_id: receiverId || '',
-        pitch_id: pitchId || null,
-        player_id: playerId || null,
-        content: newMessage.trim(),
-        message_type: 'general',
-        created_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('messages')
-        .insert(messageData);
-
-      if (error) throw error;
-
-      setNewMessage('');
-      fetchMessages();
-      
-      toast({
-        title: "Message sent!",
-        description: "Your message has been delivered.",
-      });
-    } catch (error: any) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send message",
-        variant: "destructive"
-      });
-    }
-  };
 
   const updateInterestStatus = async (interestId: string, newStatus: 'interested' | 'requested' | 'negotiating') => {
     try {
@@ -605,11 +553,31 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
     }
   };
 
-  const filteredMessages = messages.filter(message =>
-    message.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    message.sender_profile.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    message.receiver_profile.full_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const withdrawInterest = async (interestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('agent_interest')
+        .delete()
+        .eq('id', interestId);
+
+      if (error) throw error;
+
+      // Refresh the data
+      fetchAgentInterest();
+      toast({
+        title: "Interest withdrawn",
+        description: "Your interest has been withdrawn successfully",
+      });
+    } catch (error: any) {
+      console.error('Error withdrawing interest:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to withdraw interest",
+        variant: "destructive"
+      });
+    }
+  };
+
 
   const filteredInterest = agentInterest.filter(interest => {
     const hasValidAgent = interest.agent?.profile?.full_name;
@@ -727,44 +695,59 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
     setShowContractModal(true);
   };
 
-  // Handle direct message to agent
+  // Handle direct message to agent - route to contract negotiation
   const handleSendMessage = async (interest: AgentInterest) => {
     try {
-      // Get agent profile ID from agent_id
-      const { data: agentData, error: agentError } = await supabase
-        .from('agents')
-        .select('profile_id')
-        .eq('id', interest.agent_id)
+      // Check if there's already a contract for this interest
+      const { data: existingContract } = await supabase
+        .from('contracts')
+        .select('id')
+        .eq('pitch_id', interest.pitch_id)
+        .eq('agent_id', interest.agent_id)
         .single();
 
-      if (agentError) throw agentError;
+      if (existingContract) {
+        // Navigate to existing contract negotiation
+        navigate(`/contract-negotiation/${existingContract.id}`);
+        return;
+      }
 
-             const messageData = {
-         sender_id: profile?.id,
-         receiver_id: agentData.profile_id,
-         pitch_id: interest.pitch_id,
-         content: `Regarding your interest in ${interest.pitch.players.full_name}. Let's discuss the details.`,
-         message_type: 'negotiation', // Reverted back to 'negotiation' since it should be valid
-         created_at: new Date().toISOString()
-       };
+      // Create a new contract for negotiation
+      const contractData = {
+        pitch_id: interest.pitch_id,
+        agent_id: interest.agent_id,
+        team_id: profile?.user_type === 'team' ? 
+          (await supabase.from('teams').select('id').eq('profile_id', profile.id).single()).data?.id : 
+          null,
+        status: 'draft',
+        deal_stage: 'negotiating',
+        contract_value: interest.pitch.asking_price,
+        currency: interest.pitch.currency,
+        created_at: new Date().toISOString(),
+        last_activity: new Date().toISOString()
+      };
 
-      const { error } = await supabase
-        .from('messages')
-        .insert(messageData);
+      const { data: newContract, error: contractError } = await supabase
+        .from('contracts')
+        .insert(contractData)
+        .select('id')
+        .single();
 
-      if (error) throw error;
+      if (contractError) throw contractError;
+
+      // Navigate to the new contract negotiation
+      navigate(`/contract-negotiation/${newContract.id}`);
 
       toast({
-        title: "Message sent!",
-        description: "Your message has been delivered to the agent.",
+        title: "Contract created!",
+        description: "Redirecting to contract negotiation room.",
       });
 
-      fetchMessages();
     } catch (error: any) {
-      console.error('Error sending message:', error);
+      console.error('Error creating contract negotiation:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to send message",
+        description: error.message || "Failed to start negotiation",
         variant: "destructive"
       });
     }
@@ -783,15 +766,8 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
           </p>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as 'messages' | 'interest' | 'contracts')} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 border-0">
-              <TabsTrigger
-                value="messages"
-                className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
-              >
-                <MessageCircle className="w-4 h-4" />
-                Messages
-              </TabsTrigger>
+          <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as 'interest' | 'contracts')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 border-0">
               <TabsTrigger
                 value="interest"
                 className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
@@ -808,100 +784,76 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
               </TabsTrigger>
             </TabsList>
 
-            {/* Messages Tab */}
-            <TabsContent value="messages" className="mt-6 space-y-4">
+
+            {/* Agent Interest Tab */}
+            <TabsContent value="interest" className="mt-6 space-y-4">
               <div className="flex gap-2">
                 <Input
-                  placeholder="Search messages..."
+                  placeholder={profile?.user_type === 'agent' ? "Search your interests..." : "Search agent interest..."}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="border-gray-600 bg-gray-800 text-white"
                 />
               </div>
 
-              {/* Send Message */}
-              {pitchId && (
-                <div className="space-y-2">
-                  <Textarea
-                    placeholder="Type your message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    className="border-gray-600 bg-gray-800 text-white min-h-[100px]"
-                  />
-                  <Button
-                    onClick={sendMessage}
-                    disabled={!newMessage.trim()}
-                    className="bg-rosegold hover:bg-rosegold/90 text-white"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Message
-                  </Button>
-                </div>
-              )}
-
-              {/* Messages List */}
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {filteredMessages.length === 0 ? (
-                  <p className="text-gray-400 text-center py-8">No messages found</p>
+                {filteredInterest.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 mb-2">
+                      {profile?.user_type === 'agent' 
+                        ? "No interest submissions found" 
+                        : "No agent interest found"
+                      }
+                    </p>
+                    {profile?.user_type === 'agent' && (
+                      <p className="text-sm text-gray-500">
+                        Express interest in transfer pitches to see them here
+                      </p>
+                    )}
+                  </div>
                 ) : (
-                  filteredMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`p-3 rounded-lg ${
-                        message.sender_id === profile?.id
-                          ? 'bg-blue-600/20 border border-blue-600/30 ml-8'
-                          : 'bg-gray-700/50 border border-gray-600/30 mr-8'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-white">
-                          {message.sender_profile.full_name}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                        </span>
-                      </div>
-                      <p className="text-gray-200">{message.content}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </TabsContent>
-
-                         {/* Agent Interest Tab */}
-             <TabsContent value="interest" className="mt-6 space-y-4">
-               <div className="flex gap-2">
-                 <Input
-                   placeholder="Search agent interest..."
-                   value={searchTerm}
-                   onChange={(e) => setSearchTerm(e.target.value)}
-                   className="border-gray-600 bg-gray-800 text-white"
-                 />
-                 
-               </div>
-
-                             <div className="space-y-3 max-h-96 overflow-y-auto">
-                 {filteredInterest.length === 0 ? (
-                   <div className="text-center py-8">
-                     <p className="text-gray-400 mb-2">No agent interest found</p>
-                   </div>
-                 ) : (
                   filteredInterest.map((interest) => (
                     <Card key={interest.id} className="border-gray-600">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div>
-                            <h4 className="font-semibold text-white">
-                              {interest.agent?.profile?.full_name || `Agent #${interest.agent_id.slice(0, 8)}`}
-                            </h4>
-                            <p className="text-sm text-gray-400">
-                              Interested in {interest.pitch?.players?.full_name || 'Unknown Player'} ({interest.pitch?.players?.position || 'Unknown Position'})
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {interest.pitch?.teams?.team_name || 'Unknown Team'} • {interest.pitch?.asking_price?.toLocaleString() || '0'} {interest.pitch?.currency || 'USD'}
-                            </p>
+                            {profile?.user_type === 'agent' ? (
+                              // Agent view - show their interest in other teams' pitches
+                              <>
+                                <h4 className="font-semibold text-white">
+                                  Your Interest in {interest.pitch?.players?.full_name || 'Unknown Player'}
+                                </h4>
+                                <p className="text-sm text-gray-400">
+                                  {interest.pitch?.players?.position || 'Unknown Position'} • {interest.pitch?.teams?.team_name || 'Unknown Team'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {interest.pitch?.teams?.country || 'Unknown Country'} • {interest.pitch?.asking_price?.toLocaleString() || '0'} {interest.pitch?.currency || 'USD'}
+                                </p>
+                              </>
+                            ) : (
+                              // Team view - show agents interested in their pitches
+                              <>
+                                <h4 className="font-semibold text-white">
+                                  {interest.agent?.profile?.full_name || `Agent #${interest.agent_id.slice(0, 8)}`}
+                                </h4>
+                                <p className="text-sm text-gray-400">
+                                  Interested in {interest.pitch?.players?.full_name || 'Unknown Player'} ({interest.pitch?.players?.position || 'Unknown Position'})
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {interest.pitch?.teams?.team_name || 'Unknown Team'} • {interest.pitch?.asking_price?.toLocaleString() || '0'} {interest.pitch?.currency || 'USD'}
+                                </p>
+                              </>
+                            )}
                           </div>
-                          <Badge variant="outline" className="text-xs">
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${
+                              interest.status === 'interested' ? 'border-blue-500 text-blue-400' :
+                              interest.status === 'negotiating' ? 'border-yellow-500 text-yellow-400' :
+                              interest.status === 'requested' ? 'border-orange-500 text-orange-400' :
+                              'border-gray-500 text-gray-400'
+                            }`}
+                          >
                             {interest.status}
                           </Badge>
                         </div>
@@ -915,9 +867,9 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                             {formatDistanceToNow(new Date(interest.created_at), { addSuffix: true })}
                           </span>
                           
-                          {profile?.user_type === 'team' && (
+                          {profile?.user_type === 'team' ? (
+                            // Team actions
                             <div className="flex gap-2 flex-wrap">
-                              {/* Status-based actions */}
                               {interest.status === 'interested' && (
                                 <>
                                   <Button
@@ -973,6 +925,56 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                                 </Button>
                               )}
                             </div>
+                          ) : (
+                            // Agent actions
+                            <div className="flex gap-2 flex-wrap">
+                              {interest.status === 'interested' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSendMessage(interest)}
+                                  className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
+                                >
+                                  <MessageCircle className="w-3 h-3 mr-1" />
+                                  Follow Up
+                                </Button>
+                              )}
+                              
+                              {interest.status === 'negotiating' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleSendMessage(interest)}
+                                    className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
+                                  >
+                                    <MessageCircle className="w-3 h-3 mr-1" />
+                                    Continue Discussion
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => withdrawInterest(interest.id)}
+                                    className="border-gray-600 text-gray-400 hover:bg-gray-600 hover:text-white"
+                                  >
+                                    <X className="w-3 h-3 mr-1" />
+                                    Withdraw Interest
+                                  </Button>
+                                </>
+                              )}
+                              
+                              {interest.status === 'requested' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSendMessage(interest)}
+                                  className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
+                                >
+                                  <MessageCircle className="w-3 h-3 mr-1" />
+                                  Provide Info
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </CardContent>
@@ -985,8 +987,10 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
             {/* Enhanced Contracts Tab */}
             <TabsContent value="contracts" className="mt-6 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">Contract Management</h3>
-                {profile?.user_type === 'team' && (
+                <h3 className="text-lg font-semibold text-white">
+                  {profile?.user_type === 'agent' ? 'Your Contracts' : 'Contract Management'}
+                </h3>
+                {profile?.user_type === 'team' ? (
                   <div className="flex gap-2">
                     <Button
                       disabled={loading}
@@ -1029,41 +1033,115 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                       )}
                     </Button>
                   </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      disabled={loading}
+                      onClick={() => {
+                        setContractType('upload');
+                        setShowContractModal(true);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Contract
+                    </Button>
+                  </div>
                 )}
               </div>
               
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {contracts.length === 0 ? (
-                  <p className="text-gray-400 text-center py-8">No contracts found</p>
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 mb-2">
+                      {profile?.user_type === 'agent' 
+                        ? "No contracts found" 
+                        : "No contracts found"
+                      }
+                    </p>
+                    {profile?.user_type === 'agent' && (
+                      <p className="text-sm text-gray-500">
+                        Contracts you're involved in will appear here
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   contracts.map((contract) => (
                     <Card key={contract.id} className="border-gray-600">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-white">Contract #{contract.id.slice(0, 8)}</h4>
-                          <Badge variant="outline" className="text-xs">
+                          <h4 className="font-semibold text-white">
+                            {profile?.user_type === 'agent' 
+                              ? `Contract #${contract.id.slice(0, 8)}` 
+                              : `Contract #${contract.id.slice(0, 8)}`
+                            }
+                          </h4>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${
+                              contract.status === 'draft' ? 'border-gray-500 text-gray-400' :
+                              contract.status === 'under_review' ? 'border-yellow-500 text-yellow-400' :
+                              contract.status === 'negotiating' ? 'border-blue-500 text-blue-400' :
+                              contract.status === 'signed' ? 'border-green-500 text-green-400' :
+                              contract.status === 'completed' ? 'border-green-600 text-green-500' :
+                              'border-gray-500 text-gray-400'
+                            }`}
+                          >
                             {contract.status}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-400 mb-2">
-                          Value: {contract.contract_value.toLocaleString()} {contract.currency}
-                        </p>
-                        <p className="text-sm text-gray-400 mb-2">
-                          Stage: {contract.deal_stage}
-                        </p>
+                        
+                        <div className="space-y-2 mb-3">
+                          <p className="text-sm text-gray-400">
+                            <span className="font-medium">Value:</span> {contract.contract_value?.toLocaleString() || '0'} {contract.currency || 'USD'}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            <span className="font-medium">Stage:</span> {contract.deal_stage || 'Unknown'}
+                          </p>
+                          {profile?.user_type === 'agent' && (
+                            <p className="text-sm text-gray-400">
+                              <span className="font-medium">Role:</span> Agent
+                            </p>
+                          )}
+                        </div>
+                        
                         <p className="text-xs text-gray-500 mb-3">
-                          Last activity: {formatDistanceToNow(new Date(contract.last_activity), { addSuffix: true })}
+                          Last activity: {formatDistanceToNow(new Date(contract.last_activity || contract.created_at), { addSuffix: true })}
                         </p>
-                        <div className="flex justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate(`/contract-negotiation/${contract.id}`)}
-                            className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
-                          >
-                            <Eye className="w-3 h-3 mr-1" />
-                            View Contract
-                          </Button>
+                        
+                        <div className="flex justify-between items-center">
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate(`/contract-negotiation/${contract.id}`)}
+                              className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              View Contract
+                            </Button>
+                            {profile?.user_type === 'agent' && contract.status === 'under_review' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/contract-negotiation/${contract.id}`)}
+                                className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
+                              >
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Review
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {profile?.user_type === 'agent' && (
+                            <div className="text-xs text-gray-500">
+                              {contract.status === 'draft' && 'Awaiting team review'}
+                              {contract.status === 'under_review' && 'Your review needed'}
+                              {contract.status === 'negotiating' && 'In negotiation'}
+                              {contract.status === 'signed' && 'Contract signed'}
+                              {contract.status === 'completed' && 'Contract completed'}
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

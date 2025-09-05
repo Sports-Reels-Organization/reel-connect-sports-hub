@@ -161,21 +161,39 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
         match_stats: formData.match_stats
       };
 
-      let error;
+      let result;
       if (player) {
-        const result = await supabase
+        // Log activity for update
+        const { PlayerActivityService } = await import('@/services/playerActivityService');
+        const activityService = new PlayerActivityService(teamId);
+        
+        const changedFields = PlayerActivityService.getChangedFields(player, playerData);
+        if (changedFields.length > 0) {
+          await activityService.logPlayerUpdated(player.id, player, playerData, changedFields);
+        }
+
+        result = await supabase
           .from('players')
           .update(playerData)
-          .eq('id', player.id);
-        error = result.error;
+          .eq('id', player.id)
+          .select()
+          .single();
       } else {
-        const result = await supabase
+        result = await supabase
           .from('players')
-          .insert(playerData);
-        error = result.error;
+          .insert(playerData)
+          .select()
+          .single();
+
+        // Log activity for creation
+        if (result.data) {
+          const { PlayerActivityService } = await import('@/services/playerActivityService');
+          const activityService = new PlayerActivityService(teamId);
+          await activityService.logPlayerCreated(result.data);
+        }
       }
 
-      if (error) throw error;
+      if (result.error) throw result.error;
 
       toast({
         title: "Success",

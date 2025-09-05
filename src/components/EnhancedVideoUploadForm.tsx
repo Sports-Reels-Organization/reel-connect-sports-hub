@@ -164,16 +164,16 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         try {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          
+
           // Set canvas size to video dimensions
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
-          
+
           if (ctx) {
             // Draw the current video frame to canvas
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
-            
+
             resolve({
               name: file.name,
               size: file.size,
@@ -271,7 +271,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
         // Create blob URL first
         const previewUrl = URL.createObjectURL(file);
         blobUrlsRef.current.add(previewUrl); // Track the blob URL
-        
+
         // Get file info and thumbnail using the same blob URL
         const fileInfo = await getVideoFileInfo(file, previewUrl);
 
@@ -362,25 +362,25 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   };
 
   const toggleVideoExpanded = (id: string) => {
-    setVideoItems(prev => prev.map(v => 
+    setVideoItems(prev => prev.map(v =>
       v.id === id ? { ...v, isExpanded: !v.isExpanded } : v
     ));
   };
 
   const updateVideoMetadata = (id: string, updates: Partial<VideoMetadata>) => {
-    setVideoItems(prev => prev.map(v => 
+    setVideoItems(prev => prev.map(v =>
       v.id === id ? { ...v, metadata: { ...v.metadata, ...updates } } : v
     ));
   };
 
   const updateProcessingStatus = (id: string, stage: ProcessingStatus['stage'], progress: number, message: string) => {
-    setVideoItems(prev => prev.map(v => 
+    setVideoItems(prev => prev.map(v =>
       v.id === id ? { ...v, processingStatus: { stage, progress, message } } : v
     ));
   };
 
   const setUploadedVideoId = (id: string, videoId: string) => {
-    setVideoItems(prev => prev.map(v => 
+    setVideoItems(prev => prev.map(v =>
       v.id === id ? { ...v, uploadedVideoId: videoId } : v
     ));
   };
@@ -408,9 +408,9 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       });
 
       // Update compression stats
-      setVideoItems(prev => prev.map(v => 
-        v.id === id ? { 
-          ...v, 
+      setVideoItems(prev => prev.map(v =>
+        v.id === id ? {
+          ...v,
           compressionStats: {
             originalSize: file.size,
             compressedSize: compressionResult.compressedSizeMB * 1024 * 1024,
@@ -443,7 +443,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       let thumbnailUrl = null;
       if (compressionResult.thumbnailBlob) {
         updateProcessingStatus(id, 'uploading', 85, 'Uploading thumbnail...');
-        
+
         const thumbnailFileName = `${sanitizeFileName(metadata.title)}_thumbnail_${Date.now()}.jpg`;
         const thumbnailPath = `thumbnails/${thumbnailFileName}`;
 
@@ -481,21 +481,21 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       const validAwayScore = awayScore && !isNaN(awayScore) ? awayScore : null;
 
       // Validate date fields - convert empty strings to null
-      const validMatchDate = metadata.matchDetails?.matchDate && metadata.matchDetails.matchDate.trim() !== '' 
-        ? metadata.matchDetails.matchDate 
+      const validMatchDate = metadata.matchDetails?.matchDate && metadata.matchDetails.matchDate.trim() !== ''
+        ? metadata.matchDetails.matchDate
         : null;
 
       // Validate other optional string fields
-      const validOpposingTeam = metadata.matchDetails?.opposingTeam && metadata.matchDetails.opposingTeam.trim() !== '' 
-        ? metadata.matchDetails.opposingTeam 
-        : null;
-      
-      const validHomeOrAway = metadata.matchDetails?.homeOrAway && metadata.matchDetails.homeOrAway.trim() !== '' 
-        ? metadata.matchDetails.homeOrAway 
+      const validOpposingTeam = metadata.matchDetails?.opposingTeam && metadata.matchDetails.opposingTeam.trim() !== ''
+        ? metadata.matchDetails.opposingTeam
         : null;
 
-      const validDescription = metadata.description && metadata.description.trim() !== '' 
-        ? metadata.description 
+      const validHomeOrAway = metadata.matchDetails?.homeOrAway && metadata.matchDetails.homeOrAway.trim() !== ''
+        ? metadata.matchDetails.homeOrAway
+        : null;
+
+      const validDescription = metadata.description && metadata.description.trim() !== ''
+        ? metadata.description
         : null;
 
       const { data: videoData, error: dbError } = await supabase
@@ -891,9 +891,9 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                         <div className="relative">
                           {/* Thumbnail overlay */}
                           {videoItem.fileInfo.thumbnailUrl && (
-                            <div 
+                            <div
                               className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                              style={{ 
+                              style={{
                                 backgroundImage: `url(${videoItem.fileInfo.thumbnailUrl})`,
                                 zIndex: 1
                               }}
@@ -947,7 +947,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                         id={`title-${videoItem.id}`}
                         value={videoItem.metadata.title}
                         onChange={(e) => updateVideoMetadata(videoItem.id, { title: e.target.value })}
-                        className={`bg-gray-700 text-white border-gray-600 ${!videoItem.metadata.title.trim() ? 'border-red-500' : ''}`}
+                        className={` text-white border-gray-600 ${!videoItem.metadata.title.trim() ? 'border-red-500' : ''}`}
                         placeholder="Enter video title"
                       />
                     </div>
@@ -958,7 +958,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                         id={`description-${videoItem.id}`}
                         value={videoItem.metadata.description}
                         onChange={(e) => updateVideoMetadata(videoItem.id, { description: e.target.value })}
-                        className={`bg-gray-700 text-white border-gray-600 ${!videoItem.metadata.description.trim() ? 'border-red-500' : ''}`}
+                        className={` text-white border-gray-600 ${!videoItem.metadata.description.trim() ? 'border-red-500' : ''}`}
                         placeholder="Enter video description"
                         rows={3}
                       />
@@ -972,7 +972,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                           updateVideoMetadata(videoItem.id, { videoType: value })
                         }
                       >
-                        <SelectTrigger className="bg-gray-700 text-white border-gray-600">
+                        <SelectTrigger className=" text-white border-gray-600">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1024,7 +1024,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, opposingTeam: e.target.value }
                               })}
-                              className={`bg-gray-700 text-white border-gray-600 ${!videoItem.metadata.matchDetails?.opposingTeam.trim() ? 'border-red-500' : ''}`}
+                              className={` text-white border-gray-600 ${!videoItem.metadata.matchDetails?.opposingTeam.trim() ? 'border-red-500' : ''}`}
                               placeholder="Team name"
                             />
                           </div>
@@ -1037,7 +1037,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, matchDate: e.target.value }
                               })}
-                              className={`bg-gray-700 text-white border-gray-600 ${!videoItem.metadata.matchDetails?.matchDate ? 'border-red-500' : ''}`}
+                              className={` text-white border-gray-600 ${!videoItem.metadata.matchDetails?.matchDate ? 'border-red-500' : ''}`}
                             />
                           </div>
                           <div>
@@ -1048,7 +1048,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, league: e.target.value }
                               })}
-                              className={`bg-gray-700 text-white border-gray-600 ${!videoItem.metadata.matchDetails?.league.trim() ? 'border-red-500' : ''}`}
+                              className={` text-white border-gray-600 ${!videoItem.metadata.matchDetails?.league.trim() ? 'border-red-500' : ''}`}
                               placeholder="League name"
                             />
                           </div>
@@ -1062,7 +1062,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, homeScore: e.target.value }
                               })}
-                              className={`bg-gray-700 text-white border-gray-600 ${!videoItem.metadata.matchDetails?.homeScore.trim() ? 'border-red-500' : ''}`}
+                              className={` text-white border-gray-600 ${!videoItem.metadata.matchDetails?.homeScore.trim() ? 'border-red-500' : ''}`}
                               placeholder="0"
                             />
                           </div>
@@ -1076,7 +1076,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, awayScore: e.target.value }
                               })}
-                              className={`bg-gray-700 text-white border-gray-600 ${!videoItem.metadata.matchDetails?.awayScore.trim() ? 'border-red-500' : ''}`}
+                              className={` text-white border-gray-600 ${!videoItem.metadata.matchDetails?.awayScore.trim() ? 'border-red-500' : ''}`}
                               placeholder="0"
                             />
                           </div>
@@ -1088,7 +1088,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, venue: e.target.value }
                               })}
-                              className="bg-gray-700 text-white border-gray-600"
+                              className=" text-white border-gray-600"
                               placeholder="Stadium name"
                             />
                           </div>

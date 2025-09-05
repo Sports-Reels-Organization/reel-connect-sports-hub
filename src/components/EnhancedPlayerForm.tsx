@@ -179,6 +179,15 @@ export const EnhancedPlayerForm: React.FC<EnhancedPlayerFormProps> = ({
 
       let result;
       if (player?.id) {
+        // Log activity for update
+        const { PlayerActivityService } = await import('@/services/playerActivityService');
+        const activityService = new PlayerActivityService(teamId);
+        
+        const changedFields = PlayerActivityService.getChangedFields(player, playerData);
+        if (changedFields.length > 0) {
+          await activityService.logPlayerUpdated(player.id, player, playerData, changedFields);
+        }
+
         result = await supabase
           .from('players')
           .update(playerData)
@@ -191,6 +200,13 @@ export const EnhancedPlayerForm: React.FC<EnhancedPlayerFormProps> = ({
           .insert(playerData)
           .select()
           .single();
+
+        // Log activity for creation
+        if (result.data) {
+          const { PlayerActivityService } = await import('@/services/playerActivityService');
+          const activityService = new PlayerActivityService(teamId);
+          await activityService.logPlayerCreated(result.data);
+        }
       }
 
       if (result.error) throw result.error;
