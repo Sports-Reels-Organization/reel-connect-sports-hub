@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import {
   FileText,
@@ -15,7 +16,10 @@ import {
   CheckCircle,
   Clock,
   Calendar,
-  User
+  User,
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -50,6 +54,17 @@ const PlayerHistory: React.FC<{ teamId: string }> = ({ teamId }) => {
   const [playerActivity, setPlayerActivity] = useState<PlayerActivity[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedUpload, setSelectedUpload] = useState<UploadHistory | null>(null);
+  
+  // Search and filter states
+  const [uploadSearchTerm, setUploadSearchTerm] = useState('');
+  const [activitySearchTerm, setActivitySearchTerm] = useState('');
+  const [uploadDateFilter, setUploadDateFilter] = useState('');
+  const [activityDateFilter, setActivityDateFilter] = useState('');
+  
+  // Pagination states
+  const [uploadCurrentPage, setUploadCurrentPage] = useState(1);
+  const [activityCurrentPage, setActivityCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
   useEffect(() => {
     console.log('PlayerHistory useEffect triggered, teamId:', teamId);
@@ -262,6 +277,60 @@ const PlayerHistory: React.FC<{ teamId: string }> = ({ teamId }) => {
     return type === 'bulk' ? <Upload className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />;
   };
 
+  // Filter functions
+  const filterUploadHistory = (uploads: UploadHistory[]) => {
+    return uploads.filter(upload => {
+      const filename = upload.filename || '';
+      const uploadType = upload.upload_type || '';
+      
+      const matchesSearch = filename.toLowerCase().includes(uploadSearchTerm.toLowerCase()) ||
+                           uploadType.toLowerCase().includes(uploadSearchTerm.toLowerCase());
+      
+      const matchesDate = !uploadDateFilter || 
+                         (upload.uploaded_at && new Date(upload.uploaded_at).toDateString() === new Date(uploadDateFilter).toDateString());
+      
+      return matchesSearch && matchesDate;
+    });
+  };
+
+  const filterPlayerActivity = (activities: PlayerActivity[]) => {
+    return activities.filter(activity => {
+      const playerName = activity.player_name || '';
+      const action = activity.action || '';
+      const details = activity.details || '';
+      
+      const matchesSearch = playerName.toLowerCase().includes(activitySearchTerm.toLowerCase()) ||
+                           action.toLowerCase().includes(activitySearchTerm.toLowerCase()) ||
+                           details.toLowerCase().includes(activitySearchTerm.toLowerCase());
+      
+      const matchesDate = !activityDateFilter || 
+                         (activity.timestamp && new Date(activity.timestamp).toDateString() === new Date(activityDateFilter).toDateString());
+      
+      return matchesSearch && matchesDate;
+    });
+  };
+
+  // Pagination functions
+  const getPaginatedData = <T,>(data: T[], currentPage: number) => {
+    const startIndex = (currentPage - 1) * recordsPerPage;
+    const endIndex = startIndex + recordsPerPage;
+    return data.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = (data: any[]) => {
+    return Math.ceil(data.length / recordsPerPage);
+  };
+
+  // Get filtered and paginated data
+  const filteredUploadHistory = filterUploadHistory(uploadHistory || []);
+  const filteredPlayerActivity = filterPlayerActivity(playerActivity || []);
+  
+  const paginatedUploadHistory = getPaginatedData(filteredUploadHistory, uploadCurrentPage);
+  const paginatedPlayerActivity = getPaginatedData(filteredPlayerActivity, activityCurrentPage);
+
+  const uploadTotalPages = getTotalPages(filteredUploadHistory);
+  const activityTotalPages = getTotalPages(filteredPlayerActivity);
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="uploads" className="w-full">
@@ -282,11 +351,40 @@ const PlayerHistory: React.FC<{ teamId: string }> = ({ teamId }) => {
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Upload History
+                Upload History ({filteredUploadHistory.length})
               </CardTitle>
               <p className="text-gray-400 text-sm">
                 Track all bulk uploads and manual player additions
               </p>
+              
+              {/* Search and Filter Controls */}
+              <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search uploads..."
+                      value={uploadSearchTerm}
+                      onChange={(e) => {
+                        setUploadSearchTerm(e.target.value);
+                        setUploadCurrentPage(1); // Reset to first page when searching
+                      }}
+                      className="pl-10 bg-gray-700 border-gray-600 text-white"
+                    />
+                  </div>
+                </div>
+                <div className="sm:w-48">
+                  <Input
+                    type="date"
+                    value={uploadDateFilter}
+                    onChange={(e) => {
+                      setUploadDateFilter(e.target.value);
+                      setUploadCurrentPage(1); // Reset to first page when filtering
+                    }}
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -294,14 +392,17 @@ const PlayerHistory: React.FC<{ teamId: string }> = ({ teamId }) => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
                   <p className="text-gray-400 mt-2">Loading history...</p>
                 </div>
-              ) : uploadHistory.length === 0 ? (
+              ) : filteredUploadHistory.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-400">No upload history found</p>
+                  <p className="text-gray-400">
+                    {uploadHistory.length === 0 ? 'No upload history found' : 'No uploads match your search criteria'}
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {uploadHistory.map((upload) => (
+                <>
+                  <div className="space-y-4">
+                    {paginatedUploadHistory.map((upload) => (
                     <div key={upload.id} className="bg-gray-700 p-4 rounded-lg">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
@@ -395,8 +496,43 @@ const PlayerHistory: React.FC<{ teamId: string }> = ({ teamId }) => {
                         </Badge>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  
+                  {/* Pagination Controls */}
+                  {uploadTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-700">
+                      <div className="text-sm text-gray-400">
+                        Showing {((uploadCurrentPage - 1) * recordsPerPage) + 1} to {Math.min(uploadCurrentPage * recordsPerPage, filteredUploadHistory.length)} of {filteredUploadHistory.length} uploads
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUploadCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={uploadCurrentPage === 1}
+                          className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm text-gray-400 px-3">
+                          Page {uploadCurrentPage} of {uploadTotalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUploadCurrentPage(prev => Math.min(prev + 1, uploadTotalPages))}
+                          disabled={uploadCurrentPage === uploadTotalPages}
+                          className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                        >
+                          Next
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -405,185 +541,75 @@ const PlayerHistory: React.FC<{ teamId: string }> = ({ teamId }) => {
         {/* Player Activity Tab */}
         <TabsContent value="activity" className="space-y-4">
           <Card className="bg-gray-800 border-gray-700">
-                          <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Player Activity Log ({playerActivity.length})
-                </CardTitle>
-                <p className="text-gray-400 text-sm">
-                  Track individual player changes and updates
-                </p>
-                <div className="flex gap-2 mt-2">
-                  <Button 
-                    onClick={async () => {
-                      console.log('Manual fetch triggered for teamId:', teamId);
-                      setLoading(true);
-                      await fetchPlayerActivity();
-                      setLoading(false);
-                    }}
-                    size="sm"
-                    variant="outline"
-                  >
-                    Refresh Activities
-                  </Button>
-                  <Button 
-                    onClick={async () => {
-                      console.log('Testing manual deletion insert...');
-                      try {
-                        const { data: { user } } = await supabase.auth.getUser();
-                        const { data: testDelete, error: testDeleteError } = await supabase
-                          .from('player_activities')
-                          .insert({
-                            team_id: teamId,
-                            player_id: `manual-test-${Date.now()}`,
-                            player_name: 'Manual Test Player',
-                            action: 'deleted',
-                            old_data: { full_name: 'Manual Test Player', position: 'Midfielder' },
-                            details: 'Player Manual Test Player was removed from the roster',
-                            performed_by: user?.id
-                          })
-                          .select();
-                        
-                        console.log('Manual deletion insert result:', { data: testDelete, error: testDeleteError });
-                        
-                        if (!testDeleteError) {
-                          toast({
-                            title: "Test Success",
-                            description: "Manual deletion record inserted successfully",
-                          });
-                          // Refresh the activities
-                          fetchPlayerActivity();
-                        }
-                      } catch (err) {
-                        console.error('Manual deletion test error:', err);
-                      }
-                    }}
-                    size="sm"
-                    variant="outline"
-                    className="text-red-400 border-red-400 hover:bg-red-700"
-                  >
-                    Test Deletion Insert
-                  </Button>
-                  <Button 
-                    onClick={async () => {
-                      console.log('Testing database connection...');
-                      try {
-                        // Test 1: Check if we can read from the table
-                        const { data: readData, error: readError } = await supabase
-                          .from('player_activities')
-                          .select('count')
-                          .eq('team_id', teamId);
-                        
-                        console.log('Read test result:', { data: readData, error: readError });
-
-                        // Test 2: Check current user
-                        const { data: { user }, error: userError } = await supabase.auth.getUser();
-                        console.log('Current user:', { user: user?.id, error: userError });
-
-                        // Test 3: Check team relationship
-                        const { data: teamData, error: teamError } = await supabase
-                          .from('teams')
-                          .select('id, profile_id')
-                          .eq('id', teamId)
-                          .single();
-                        console.log('Team data:', { teamData, error: teamError });
-
-                        // Test 4: Check profile relationship
-                        if (teamData?.profile_id) {
-                          const { data: profileData, error: profileError } = await supabase
-                            .from('profiles')
-                            .select('id, user_id')
-                            .eq('id', teamData.profile_id)
-                            .single();
-                          console.log('Profile data:', { profileData, error: profileError });
-                        }
-
-                        // Test 5: Try to insert a test record
-                        const { data: insertData, error: insertError } = await supabase
-                          .from('player_activities')
-                          .insert({
-                            team_id: teamId,
-                            player_id: 'test-player-id',
-                            player_name: 'Test Player',
-                            action: 'test',
-                            details: 'Test insertion',
-                            performed_by: user?.id
-                          })
-                          .select();
-                        
-                        console.log('Insert test result:', { data: insertData, error: insertError });
-
-                        // Test 6: Try minimal insert (only required fields)
-                        const { data: minimalInsert, error: minimalError } = await supabase
-                          .from('player_activities')
-                          .insert({
-                            team_id: teamId,
-                            player_id: 'minimal-test-id',
-                            player_name: 'Minimal Test',
-                            action: 'created'
-                          })
-                          .select();
-                        
-                        console.log('Minimal insert test:', { data: minimalInsert, error: minimalError });
-
-                        // Test 7: Check what's actually in the database
-                        const { data: allRecords, error: allRecordsError } = await supabase
-                          .from('player_activities')
-                          .select('*')
-                          .eq('team_id', teamId)
-                          .order('performed_at', { ascending: false });
-                        
-                        console.log('All records in database:', { data: allRecords, error: allRecordsError, count: allRecords?.length || 0 });
-
-                        // Test 8: Check table structure
-                        const { data: tableInfo, error: tableError } = await supabase
-                          .from('player_activities')
-                          .select('*')
-                          .limit(1);
-                        
-                        console.log('Table structure test:', { data: tableInfo, error: tableError });
-
-                        // Test 9: Test manual deletion insert
-                        const { data: testDelete, error: testDeleteError } = await supabase
-                          .from('player_activities')
-                          .insert({
-                            team_id: teamId,
-                            player_id: 'test-delete-player-id',
-                            player_name: 'Test Deleted Player',
-                            action: 'deleted',
-                            old_data: { full_name: 'Test Deleted Player', position: 'Forward' },
-                            details: 'Player Test Deleted Player was removed from the roster',
-                            performed_by: user?.id
-                          })
-                          .select();
-                        
-                        console.log('Manual deletion test:', { data: testDelete, error: testDeleteError });
-                      } catch (err) {
-                        console.error('Database test error:', err);
-                      }
-                    }}
-                    size="sm"
-                    variant="outline"
-                  >
-                    Test DB
-                  </Button>
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Player Activity Log ({filteredPlayerActivity.length})
+              </CardTitle>
+              <p className="text-gray-400 text-sm">
+                Track individual player changes and updates
+              </p>
+              
+              {/* Search and Filter Controls */}
+              <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search activities..."
+                      value={activitySearchTerm}
+                      onChange={(e) => {
+                        setActivitySearchTerm(e.target.value);
+                        setActivityCurrentPage(1); // Reset to first page when searching
+                      }}
+                      className="pl-10 bg-gray-700 border-gray-600 text-white"
+                    />
+                  </div>
                 </div>
-              </CardHeader>
+                <div className="sm:w-48">
+                  <Input
+                    type="date"
+                    value={activityDateFilter}
+                    onChange={(e) => {
+                      setActivityDateFilter(e.target.value);
+                      setActivityCurrentPage(1); // Reset to first page when filtering
+                    }}
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+                <Button 
+                  onClick={async () => {
+                    console.log('Manual fetch triggered for teamId:', teamId);
+                    setLoading(true);
+                    await fetchPlayerActivity();
+                    setLoading(false);
+                  }}
+                  size="sm"
+                  variant="outline"
+                  className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                >
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rosegold mx-auto"></div>
                   <p className="text-gray-400 mt-2">Loading activities...</p>
                 </div>
-              ) : playerActivity.length === 0 ? (
+              ) : filteredPlayerActivity.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-400">No player activity found</p>
+                  <p className="text-gray-400">
+                    {playerActivity.length === 0 ? 'No player activity found' : 'No activities match your search criteria'}
+                  </p>
                   <p className="text-gray-500 text-sm mt-2">Try creating, editing, or deleting a player</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {playerActivity.map((activity) => (
+                <>
+                  <div className="space-y-3">
+                    {paginatedPlayerActivity.map((activity) => (
                     <div key={activity.id} className={`bg-gray-700 p-4 rounded-lg ${activity.is_deleted_player ? 'border-l-4 border-red-500' : ''}`}>
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getActionColor(activity.action)}`}>
@@ -611,8 +637,43 @@ const PlayerHistory: React.FC<{ teamId: string }> = ({ teamId }) => {
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  
+                  {/* Pagination Controls */}
+                  {activityTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-700">
+                      <div className="text-sm text-gray-400">
+                        Showing {((activityCurrentPage - 1) * recordsPerPage) + 1} to {Math.min(activityCurrentPage * recordsPerPage, filteredPlayerActivity.length)} of {filteredPlayerActivity.length} activities
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setActivityCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={activityCurrentPage === 1}
+                          className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm text-gray-400 px-3">
+                          Page {activityCurrentPage} of {activityTotalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setActivityCurrentPage(prev => Math.min(prev + 1, activityTotalPages))}
+                          disabled={activityCurrentPage === activityTotalPages}
+                          className="bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                        >
+                          Next
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -663,12 +724,6 @@ const PlayerHistory: React.FC<{ teamId: string }> = ({ teamId }) => {
                   <p className="text-white capitalize">{selectedUpload.upload_type}</p>
                 </div>
               </div>
-              {selectedUpload.details && (
-                <div>
-                  <label className="text-gray-400 text-sm">Details</label>
-                  <p className="text-white text-sm bg-gray-700 p-3 rounded">{selectedUpload.details}</p>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

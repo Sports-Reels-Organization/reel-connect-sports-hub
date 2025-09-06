@@ -53,6 +53,12 @@ const BulkPlayerUpload: React.FC<BulkPlayerUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadService = new BulkPlayerUploadService(teamId, sportType);
 
+  // Simple helper function for date display (text inputs don't need conversion)
+  const formatDateForDisplay = (dateString: string | null | undefined): string => {
+    if (!dateString) return '';
+    return dateString; // Keep as is since we're using text inputs
+  };
+
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadSummary, setUploadSummary] = useState<UploadSummary | null>(null);
@@ -602,9 +608,10 @@ const BulkPlayerUpload: React.FC<BulkPlayerUploadProps> = ({
                     <div>
                       <Label className="text-gray-400 text-xs">Date of Birth</Label>
                       <Input
-                        type="date"
+                        type="text"
                         value={player.date_of_birth || ''}
                         onChange={(e) => updatePlayer(index, 'date_of_birth', e.target.value)}
+                        placeholder="MM/DD/YYYY"
                         className="bg-gray-600 text-white border-gray-500 text-sm"
                       />
                     </div>
@@ -665,18 +672,20 @@ const BulkPlayerUpload: React.FC<BulkPlayerUploadProps> = ({
                     <div>
                       <Label className="text-gray-400 text-xs">Joined Date</Label>
                       <Input
-                        type="date"
+                        type="text"
                         value={player.joined_date || ''}
                         onChange={(e) => updatePlayer(index, 'joined_date', e.target.value)}
+                        placeholder="MM/DD/YYYY"
                         className="bg-gray-600 text-white border-gray-500 text-sm"
                       />
                     </div>
                     <div>
                       <Label className="text-gray-400 text-xs">Contract Expires</Label>
                       <Input
-                        type="date"
+                        type="text"
                         value={player.contract_expires || ''}
                         onChange={(e) => updatePlayer(index, 'contract_expires', e.target.value)}
+                        placeholder="MM/DD/YYYY"
                         className="bg-gray-600 text-white border-gray-500 text-sm"
                       />
                     </div>

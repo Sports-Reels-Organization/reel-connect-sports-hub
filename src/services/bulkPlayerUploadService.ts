@@ -56,6 +56,7 @@ export class BulkPlayerUploadService {
    * Parse CSV or Excel file and extract player data
    */
   async parseFile(file: File): Promise<PlayerUploadData[]> {
+    console.log(`📁 Parsing file: ${file.name} (${file.size} bytes)`);
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
     
     if (fileExtension === 'csv') {
@@ -77,23 +78,31 @@ export class BulkPlayerUploadService {
       reader.onload = (e) => {
         try {
           const csv = e.target?.result as string;
+          console.log(`📄 Raw CSV content (first 500 chars):`, csv.substring(0, 500));
+          
           const lines = csv.split('\n').filter(line => line.trim());
+          console.log(`📊 Total lines found: ${lines.length}`);
           
           if (lines.length < 2) {
             throw new Error('CSV file must contain at least a header row and one data row');
           }
 
           const headers = this.parseCSVLine(lines[0]);
+          console.log(`📋 Headers found:`, headers);
+          
           const players: PlayerUploadData[] = [];
 
           for (let i = 1; i < lines.length; i++) {
             const values = this.parseCSVLine(lines[i]);
+            console.log(`📝 Row ${i + 1} values:`, values);
             const player = this.mapRowToPlayer(headers, values, i + 1);
             players.push(player);
           }
 
+          console.log(`✅ Successfully parsed ${players.length} players`);
           resolve(players);
         } catch (error) {
+          console.error('❌ Error parsing CSV:', error);
           reject(error);
         }
       };
@@ -173,57 +182,280 @@ export class BulkPlayerUploadService {
   private mapRowToPlayer(headers: string[], values: any[], rowNumber: number): PlayerUploadData {
     const player: any = {};
     
+    console.log(`🔍 Parsing row ${rowNumber}:`, { headers, values });
+    
     headers.forEach((header, index) => {
       const value = values[index];
-      const normalizedHeader = header.toLowerCase().trim().replace(/\s+/g, '_');
+      const normalizedHeader = header.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
       
-      // Map common header variations
+      // Map common header variations with more comprehensive matching
       const fieldMap: { [key: string]: string } = {
+        // Name variations
         'name': 'full_name',
         'full_name': 'full_name',
         'player_name': 'full_name',
+        'playername': 'full_name',
+        'first_name': 'full_name',
+        'last_name': 'full_name',
+        
+        // Position variations
         'position': 'position',
+        'pos': 'position',
+        'role': 'position',
+        
+        // Jersey number variations
         'jersey_number': 'jersey_number',
         'jersey': 'jersey_number',
         'number': 'jersey_number',
+        'jersey_no': 'jersey_number',
+        'jerseynum': 'jersey_number',
+        'shirt_number': 'jersey_number',
+        'shirt_no': 'jersey_number',
+        
+        // Age variations
         'age': 'age',
+        'years_old': 'age',
+        'years': 'age',
+        
+        // Height variations
         'height': 'height',
+        'height_cm': 'height',
+        'heightcm': 'height',
+        'height_in_cm': 'height',
+        'tall': 'height',
+        'stature': 'height',
+        
+        // Weight variations
         'weight': 'weight',
+        'weight_kg': 'weight',
+        'weightkg': 'weight',
+        'weight_in_kg': 'weight',
+        'mass': 'weight',
+        
+        // Citizenship variations
         'citizenship': 'citizenship',
         'nationality': 'citizenship',
         'country': 'citizenship',
+        'nation': 'citizenship',
+        'origin': 'citizenship',
+        
+        // Gender variations
         'gender': 'gender',
         'sex': 'gender',
+        'm_f': 'gender',
+        'male_female': 'gender',
+        
+        // Date of birth variations
         'date_of_birth': 'date_of_birth',
         'dob': 'date_of_birth',
         'birth_date': 'date_of_birth',
+        'birthdate': 'date_of_birth',
+        'date_of_birth_yyyy_mm_dd': 'date_of_birth',
+        'birthday': 'date_of_birth',
+        'born': 'date_of_birth',
+        'born_date': 'date_of_birth',
+        
+        // Place of birth variations
         'place_of_birth': 'place_of_birth',
         'birth_place': 'place_of_birth',
+        'birthplace': 'place_of_birth',
+        'born_in': 'place_of_birth',
+        'birth_city': 'place_of_birth',
+        'birth_country': 'place_of_birth',
+        
+        // Foot variations
         'foot': 'foot',
         'preferred_foot': 'foot',
+        'foot_preference': 'foot',
+        'strong_foot': 'foot',
+        'dominant_foot': 'foot',
+        
+        // FIFA ID variations
         'fifa_id': 'fifa_id',
         'fifa': 'fifa_id',
+        'fifaid': 'fifa_id',
+        'fifa_number': 'fifa_id',
+        
+        // Bio variations
         'bio': 'bio',
         'biography': 'bio',
+        'description': 'bio',
+        'notes': 'bio',
+        'comments': 'bio',
+        
+        // Market value variations
         'market_value': 'market_value',
         'value': 'market_value',
+        'marketvalue': 'market_value',
+        'price': 'market_value',
+        'worth': 'market_value',
+        'transfer_value': 'market_value',
+        
+        // Agent variations
         'agent': 'player_agent',
         'player_agent': 'player_agent',
+        'representative': 'player_agent',
+        'manager': 'player_agent',
+        
+        // Club variations
         'current_club': 'current_club',
         'club': 'current_club',
+        'team': 'current_club',
+        'current_team': 'current_club',
+        'present_club': 'current_club',
+        
+        // Joined date variations
         'joined_date': 'joined_date',
         'join_date': 'joined_date',
+        'joined': 'joined_date',
+        'join': 'joined_date',
+        'start_date': 'joined_date',
+        'contract_start': 'joined_date',
+        
+        // Contract expiry variations
         'contract_expires': 'contract_expires',
-        'contract_end': 'contract_expires'
+        'contract_end': 'contract_expires',
+        'contract_expiry': 'contract_expires',
+        'expires': 'contract_expires',
+        'end_date': 'contract_expires',
+        'contract_end_date': 'contract_expires'
       };
 
       const fieldName = fieldMap[normalizedHeader];
       if (fieldName) {
-        player[fieldName] = this.parseValue(value, fieldName);
+        const parsedValue = this.parseValue(value, fieldName);
+        player[fieldName] = parsedValue;
+        console.log(`  ✅ Mapped "${header}" -> "${fieldName}": "${value}" -> "${parsedValue}"`);
+      } else {
+        console.log(`  ❌ Unmapped field: "${header}" (normalized: "${normalizedHeader}")`);
       }
     });
 
+    console.log(`📋 Final player object for row ${rowNumber}:`, player);
     return player as PlayerUploadData;
+  }
+
+  /**
+   * Parse date from various formats
+   */
+  private parseDate(dateString: string): string | null {
+    if (!dateString || dateString.trim() === '') return null;
+    
+    const cleanDate = dateString.trim();
+    console.log(`🗓️ Parsing date: "${cleanDate}"`);
+    
+    // Try parsing YYYY-MM-DD format first (ISO format) and convert to MM/DD/YYYY
+    const yyyy_mm_dd = cleanDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (yyyy_mm_dd) {
+      const [, year, month, day] = yyyy_mm_dd;
+      // Convert YYYY-MM-DD to MM/DD/YYYY format
+      const result = `${month}/${day}/${year}`;
+      console.log(`✅ YYYY-MM-DD converted: "${cleanDate}" -> "${result}"`);
+      return result;
+    }
+    
+    // Try parsing YYYY/MM/DD format and convert to MM/DD/YYYY
+    const yyyy_mm_dd_slash = cleanDate.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+    if (yyyy_mm_dd_slash) {
+      const [, year, month, day] = yyyy_mm_dd_slash;
+      // Convert YYYY/MM/DD to MM/DD/YYYY format
+      const result = `${month}/${day}/${year}`;
+      console.log(`✅ YYYY/MM/DD converted: "${cleanDate}" -> "${result}"`);
+      return result;
+    }
+    
+    // Try parsing DD/MM/YYYY format and convert to MM/DD/YYYY
+    const dd_mm_yyyy = cleanDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dd_mm_yyyy) {
+      const [, day, month, year] = dd_mm_yyyy;
+      // Convert DD/MM/YYYY to MM/DD/YYYY format
+      const result = `${month}/${day}/${year}`;
+      console.log(`✅ DD/MM/YYYY converted: "${cleanDate}" -> "${result}"`);
+      return result;
+    }
+    
+    // Try parsing MM/DD/YYYY format (already in correct format)
+    const mm_dd_yyyy = cleanDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mm_dd_yyyy) {
+      const [, month, day, year] = mm_dd_yyyy;
+      // Already in MM/DD/YYYY format, just return as is
+      const result = `${month}/${day}/${year}`;
+      console.log(`✅ MM/DD/YYYY (already correct): "${cleanDate}" -> "${result}"`);
+      return result;
+    }
+    
+    // Try parsing DD-MM-YYYY format and convert to MM/DD/YYYY
+    const dd_mm_yyyy_dash = cleanDate.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (dd_mm_yyyy_dash) {
+      const [, day, month, year] = dd_mm_yyyy_dash;
+      // Convert DD-MM-YYYY to MM/DD/YYYY format
+      const result = `${month}/${day}/${year}`;
+      console.log(`✅ DD-MM-YYYY converted: "${cleanDate}" -> "${result}"`);
+      return result;
+    }
+    
+    // Try parsing MM-DD-YYYY format and convert to MM/DD/YYYY
+    const mm_dd_yyyy_dash = cleanDate.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (mm_dd_yyyy_dash) {
+      const [, month, day, year] = mm_dd_yyyy_dash;
+      // Convert MM-DD-YYYY to MM/DD/YYYY format
+      const result = `${month}/${day}/${year}`;
+      console.log(`✅ MM-DD-YYYY converted: "${cleanDate}" -> "${result}"`);
+      return result;
+    }
+    
+    // Try parsing DD.MM.YYYY format and convert to MM/DD/YYYY
+    const dd_mm_yyyy_dot = cleanDate.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (dd_mm_yyyy_dot) {
+      const [, day, month, year] = dd_mm_yyyy_dot;
+      // Convert DD.MM.YYYY to MM/DD/YYYY format
+      const result = `${month}/${day}/${year}`;
+      console.log(`✅ DD.MM.YYYY converted: "${cleanDate}" -> "${result}"`);
+      return result;
+    }
+    
+    // Try parsing DD MMM YYYY format (e.g., "15 Jan 1999") and convert to MM/DD/YYYY
+    const dd_mmm_yyyy = cleanDate.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/);
+    if (dd_mmm_yyyy) {
+      const [, day, monthName, year] = dd_mmm_yyyy;
+      const parsedDate = new Date(cleanDate);
+      if (!isNaN(parsedDate.getTime())) {
+        // Convert to MM/DD/YYYY format
+        const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(parsedDate.getDate()).padStart(2, '0');
+        const result = `${month}/${dayStr}/${parsedDate.getFullYear()}`;
+        console.log(`✅ DD MMM YYYY converted: "${cleanDate}" -> "${result}"`);
+        return result;
+      }
+    }
+    
+    // Try parsing MMM DD, YYYY format (e.g., "Jan 15, 1999") and convert to MM/DD/YYYY
+    const mmm_dd_yyyy = cleanDate.match(/^([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})$/);
+    if (mmm_dd_yyyy) {
+      const parsedDate = new Date(cleanDate);
+      if (!isNaN(parsedDate.getTime())) {
+        // Convert to MM/DD/YYYY format
+        const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(parsedDate.getDate()).padStart(2, '0');
+        const result = `${month}/${dayStr}/${parsedDate.getFullYear()}`;
+        console.log(`✅ MMM DD, YYYY converted: "${cleanDate}" -> "${result}"`);
+        return result;
+      }
+    }
+    
+    // Last resort: try direct Date constructor and convert to MM/DD/YYYY
+    const directDate = new Date(cleanDate);
+    if (!isNaN(directDate.getTime())) {
+      // Convert to MM/DD/YYYY format
+      const month = String(directDate.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(directDate.getDate()).padStart(2, '0');
+      const result = `${month}/${dayStr}/${directDate.getFullYear()}`;
+      console.log(`✅ Direct parsing converted: "${cleanDate}" -> "${result}"`);
+      return result;
+    }
+    
+    console.warn(`⚠️ Could not parse date: "${cleanDate}"`);
+    return null;
   }
 
   /**
@@ -266,8 +498,7 @@ export class BulkPlayerUploadService {
       case 'joined_date':
       case 'contract_expires':
         // Try to parse various date formats
-        const date = new Date(stringValue);
-        return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+        return this.parseDate(stringValue);
       
       default:
         return stringValue;

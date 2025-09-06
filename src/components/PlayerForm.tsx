@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { useSports } from '@/hooks/useSports';
 import { useSportData, getSportDisplayName, getSportIcon } from '@/hooks/useSportData';
-import { Plus, X, Upload, MapPin, Trophy, Users, Calendar, DollarSign, Flag } from 'lucide-react';
+import { Plus, X, Upload, MapPin, Trophy, Users, Calendar, DollarSign, Flag, Image, FileImage } from 'lucide-react';
 
 type DatabasePlayer = Tables<'players'>;
 
@@ -86,6 +86,14 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
     season: '', category: '', country: '', debut: '', appearances: 0, goals: 0, assists: 0, yellow_cards: 0, second_yellow: 0, red_cards: 0
   });
 
+  // File upload states
+  const [uploadingFiles, setUploadingFiles] = useState({
+    photo: false,
+    headshot: false,
+    portrait: false,
+    fullBody: false
+  });
+
   // Get sport-specific data based on team sport and player gender
   const sportData = useSportData(teamSport, formData.gender);
 
@@ -115,6 +123,143 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
   // Helper function to check if sport is football
   const isFootballSport = (sportType: string): boolean => {
     return sportType === 'football';
+  };
+
+  // Image compression function using FileReader and Canvas
+  const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.8): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      console.log('Starting compression for file:', file.name, 'Size:', file.size);
+      
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        console.error('Canvas context not available');
+        reject(new Error('Canvas context not available'));
+        return;
+      }
+
+      // Use FileReader to read the file
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        console.log('FileReader loaded, creating image...');
+        const img = new window.Image();
+        
+        img.onload = () => {
+          try {
+            console.log('Image loaded, original dimensions:', img.width, 'x', img.height);
+            
+            // Calculate new dimensions
+            let { width, height } = img;
+            
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+              console.log('Resizing to:', width, 'x', height);
+            }
+
+            // Set canvas dimensions
+            canvas.width = width;
+            canvas.height = height;
+
+            // Draw and compress
+            ctx.drawImage(img, 0, 0, width, height);
+            console.log('Image drawn to canvas');
+            
+            // Convert to base64 with compression
+            const base64 = canvas.toDataURL('image/jpeg', quality);
+            console.log('Base64 generated, length:', base64.length);
+            resolve(base64);
+          } catch (error) {
+            console.error('Error in image processing:', error);
+            reject(new Error('Failed to process image: ' + error));
+          }
+        };
+
+        img.onerror = (error) => {
+          console.error('Image load error:', error);
+          reject(new Error('Failed to load image'));
+        };
+        
+        console.log('Setting image source...');
+        img.src = e.target?.result as string;
+      };
+
+      reader.onerror = (error) => {
+        console.error('FileReader error:', error);
+        reject(new Error('Failed to read file'));
+      };
+      
+      console.log('Starting FileReader...');
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // File upload handler with base64 compression
+  const handleFileUpload = async (file: File, fieldName: 'photo_url' | 'headshot_url' | 'portrait_url' | 'full_body_url') => {
+    console.log('File upload started:', { file, fieldName, fileSize: file.size, fileType: file.type });
+    
+    if (!file) {
+      console.log('No file provided');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      console.log('Invalid file type:', file.type);
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload an image file (JPG, PNG, GIF, etc.)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB before compression)
+    if (file.size > 5 * 1024 * 1024) {
+      console.log('File too large:', file.size);
+      toast({
+        title: "File Too Large",
+        description: "Please upload an image smaller than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      console.log('Starting image compression...');
+      setUploadingFiles(prev => ({ ...prev, [fieldName.replace('_url', '')]: true }));
+
+      // Compress image to base64
+      const compressedBase64 = await compressImage(file, 800, 0.8);
+      console.log('Image compressed successfully, base64 length:', compressedBase64.length);
+
+      // Update form data with the compressed base64 image
+      setFormData(prev => {
+        const updated = {
+          ...prev,
+          [fieldName]: compressedBase64
+        };
+        console.log('Form data updated:', { fieldName, hasValue: !!updated[fieldName] });
+        return updated;
+      });
+
+      toast({
+        title: "Image Processed",
+        description: `${fieldName.replace('_url', '').replace('_', ' ')} compressed and ready`,
+      });
+
+    } catch (error: any) {
+      console.error('Error processing image:', error);
+      toast({
+        title: "Processing Failed",
+        description: `Failed to process ${fieldName.replace('_url', '').replace('_', ' ')}: ${error.message}`,
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingFiles(prev => ({ ...prev, [fieldName.replace('_url', '')]: false }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -805,50 +950,239 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
             {/* Media Tab */}
             <TabsContent value="media" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Player Photo Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="photo_url" className="text-white">Player Photo URL</Label>
-                  <Input
-                    id="photo_url"
-                    value={formData.photo_url}
-                    onChange={(e) => setFormData({ ...formData, photo_url: e.target.value })}
-                    className="bg-[#111111] border-0 text-white"
-                    placeholder="Main player photo URL"
-                  />
+                  <Label className="text-white">Player Photo</Label>
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-rosegold transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'photo_url');
+                      }}
+                      className="hidden"
+                      id="photo-upload"
+                      disabled={uploadingFiles.photo}
+                    />
+                    <label htmlFor="photo-upload" className="cursor-pointer">
+                      {formData.photo_url ? (
+                        <div className="space-y-2">
+                          <div className="w-32 h-32 mx-auto overflow-hidden rounded-lg border-2 border-gray-600">
+                            <img 
+                              src={formData.photo_url} 
+                              alt="Player photo" 
+                              className="w-full h-full object-cover object-center"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-400 text-center">Click to change photo</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Image className="w-12 h-12 text-gray-400 mx-auto" />
+                          <p className="text-gray-400 text-center">Upload player photo</p>
+                          <p className="text-xs text-gray-500 text-center">JPG, PNG, GIF up to 5MB</p>
+                        </div>
+                      )}
+                    </label>
+                    {uploadingFiles.photo && (
+                      <div className="mt-2">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-rosegold mx-auto"></div>
+                        <p className="text-sm text-gray-400 mt-1">Processing...</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* Headshot Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="headshot_url" className="text-white">Headshot URL</Label>
-                  <Input
-                    id="headshot_url"
-                    value={formData.headshot_url}
-                    onChange={(e) => setFormData({ ...formData, headshot_url: e.target.value })}
-                    className="bg-[#111111] border-0 text-white"
-                    placeholder="Professional headshot URL"
-                  />
+                  <Label className="text-white">Professional Headshot</Label>
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-rosegold transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'headshot_url');
+                      }}
+                      className="hidden"
+                      id="headshot-upload"
+                      disabled={uploadingFiles.headshot}
+                    />
+                    <label htmlFor="headshot-upload" className="cursor-pointer">
+                      {formData.headshot_url ? (
+                        <div className="space-y-2">
+                          <div className="w-32 h-32 mx-auto overflow-hidden rounded-lg border-2 border-gray-600">
+                            <img
+                              src={formData.headshot_url}
+                              alt="Headshot"
+                              className="w-full h-full object-cover object-center"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-400 text-center">Click to change headshot</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <FileImage className="w-12 h-12 text-gray-400 mx-auto" />
+                          <p className="text-gray-400 text-center">Upload headshot</p>
+                          <p className="text-xs text-gray-500 text-center">JPG, PNG, GIF up to 5MB</p>
+                        </div>
+                      )}
+                    </label>
+                    {uploadingFiles.headshot && (
+                      <div className="mt-2">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-rosegold mx-auto"></div>
+                        <p className="text-sm text-gray-400 mt-1">Processing...</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* Portrait Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="portrait_url" className="text-white">Portrait URL</Label>
-                  <Input
-                    id="portrait_url"
-                    value={formData.portrait_url}
-                    onChange={(e) => setFormData({ ...formData, portrait_url: e.target.value })}
-                    className="bg-[#111111] border-0 text-white"
-                    placeholder="Portrait photo URL"
-                  />
+                  <Label className="text-white">Portrait Photo</Label>
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-rosegold transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'portrait_url');
+                      }}
+                      className="hidden"
+                      id="portrait-upload"
+                      disabled={uploadingFiles.portrait}
+                    />
+                    <label htmlFor="portrait-upload" className="cursor-pointer">
+                      {formData.portrait_url ? (
+                        <div className="space-y-2">
+                          <div className="w-32 h-32 mx-auto overflow-hidden rounded-lg border-2 border-gray-600">
+                            <img
+                              src={formData.portrait_url}
+                              alt="Portrait"
+                              className="w-full h-full object-cover object-center"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-400 text-center">Click to change portrait</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Image className="w-12 h-12 text-gray-400 mx-auto" />
+                          <p className="text-gray-400 text-center">Upload portrait</p>
+                          <p className="text-xs text-gray-500 text-center">JPG, PNG, GIF up to 5MB</p>
+                        </div>
+                      )}
+                    </label>
+                    {uploadingFiles.portrait && (
+                      <div className="mt-2">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-rosegold mx-auto"></div>
+                        <p className="text-sm text-gray-400 mt-1">Processing...</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* Full Body Photo Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="full_body_url" className="text-white">Full Body Photo URL</Label>
-                  <Input
-                    id="full_body_url"
-                    value={formData.full_body_url}
-                    onChange={(e) => setFormData({ ...formData, full_body_url: e.target.value })}
-                    className="bg-[#111111] border-0 text-white"
-                    placeholder="Full body photo URL"
-                  />
+                  <Label className="text-white">Full Body Photo</Label>
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-rosegold transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'full_body_url');
+                      }}
+                      className="hidden"
+                      id="fullbody-upload"
+                      disabled={uploadingFiles.fullBody}
+                    />
+                    <label htmlFor="fullbody-upload" className="cursor-pointer">
+                      {formData.full_body_url ? (
+                        <div className="space-y-2">
+                          <div className="w-32 h-32 mx-auto overflow-hidden rounded-lg border-2 border-gray-600">
+                            <img
+                              src={formData.full_body_url}
+                              alt="Full body photo"
+                              className="w-full h-full object-cover object-center"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-400 text-center">Click to change full body photo</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Users className="w-12 h-12 text-gray-400 mx-auto" />
+                          <p className="text-gray-400 text-center">Upload full body photo</p>
+                          <p className="text-xs text-gray-500 text-center">JPG, PNG, GIF up to 5MB</p>
+                        </div>
+                      )}
+                    </label>
+                    {uploadingFiles.fullBody && (
+                      <div className="mt-2">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-rosegold mx-auto"></div>
+                        <p className="text-sm text-gray-400 mt-1">Processing...</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {/* Image Preview Section */}
+              {(formData.photo_url || formData.headshot_url || formData.portrait_url || formData.full_body_url) && (
+                <div className="mt-6">
+                  <h3 className="text-white text-lg font-semibold mb-4">Image Previews</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {formData.photo_url && (
+                      <div className="text-center">
+                        <div className="w-full h-24 overflow-hidden rounded-lg border border-gray-600 mb-2">
+                          <img
+                            src={formData.photo_url}
+                            alt="Player photo"
+                            className="w-full h-full object-cover object-center"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-400">Player Photo</p>
+                      </div>
+                    )}
+                    {formData.headshot_url && (
+                      <div className="text-center">
+                        <div className="w-full h-24 overflow-hidden rounded-lg border border-gray-600 mb-2">
+                          <img
+                            src={formData.headshot_url}
+                            alt="Headshot"
+                            className="w-full h-full object-cover object-center"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-400">Headshot</p>
+                      </div>
+                    )}
+                    {formData.portrait_url && (
+                      <div className="text-center">
+                        <div className="w-full h-24 overflow-hidden rounded-lg border border-gray-600 mb-2">
+                          <img
+                            src={formData.portrait_url}
+                            alt="Portrait"
+                            className="w-full h-full object-cover object-center"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-400">Portrait</p>
+                      </div>
+                    )}
+                    {formData.full_body_url && (
+                      <div className="text-center">
+                        <div className="w-full h-24 overflow-hidden rounded-lg border border-gray-600 mb-2">
+                          <img
+                            src={formData.full_body_url}
+                            alt="Full body"
+                            className="w-full h-full object-cover object-center"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-400">Full Body</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
 

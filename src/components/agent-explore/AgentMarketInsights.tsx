@@ -5,12 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Globe, 
-  Users, 
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Globe,
+  Users,
   Target,
   BarChart3
 } from 'lucide-react';
@@ -20,9 +20,9 @@ export const AgentMarketInsights: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [marketData, setMarketData] = useState({
     avgBudget: 0,
-    topPositions: [] as Array<{position: string, count: number}>,
-    regions: [] as Array<{country: string, count: number}>,
-    trends: [] as Array<{category: string, change: number}>
+    topPositions: [] as Array<{ position: string, count: number }>,
+    regions: [] as Array<{ country: string, count: number }>,
+    trends: [] as Array<{ category: string, change: number }>
   });
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export const AgentMarketInsights: React.FC = () => {
   const fetchMarketData = async () => {
     try {
       setLoading(true);
-      
+
       // Use placeholder data since new tables might not be synchronized yet
       setMarketData({
         avgBudget: 2500000,
@@ -91,7 +91,7 @@ export const AgentMarketInsights: React.FC = () => {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className='border-0'>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <DollarSign className="w-8 h-8 text-green-500" />
@@ -105,7 +105,7 @@ export const AgentMarketInsights: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className='border-0'>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <Target className="w-8 h-8 text-blue-500" />
@@ -117,7 +117,7 @@ export const AgentMarketInsights: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className='border-0'>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <Users className="w-8 h-8 text-purple-500" />
@@ -129,7 +129,7 @@ export const AgentMarketInsights: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className='border-0'>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <Globe className="w-8 h-8 text-orange-500" />
@@ -145,7 +145,7 @@ export const AgentMarketInsights: React.FC = () => {
       {/* Charts and Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Most Requested Positions */}
-        <Card>
+        <Card className='border-0'>
           <CardHeader>
             <CardTitle>Most Requested Positions</CardTitle>
           </CardHeader>
@@ -163,7 +163,7 @@ export const AgentMarketInsights: React.FC = () => {
         </Card>
 
         {/* Regional Activity */}
-        <Card>
+        <Card className='border-0'>
           <CardHeader>
             <CardTitle>Regional Activity</CardTitle>
           </CardHeader>
@@ -182,7 +182,7 @@ export const AgentMarketInsights: React.FC = () => {
       </div>
 
       {/* Market Trends */}
-      <Card>
+      <Card className='border-0'>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5" />
@@ -192,7 +192,7 @@ export const AgentMarketInsights: React.FC = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {marketData.trends.map((trend, index) => (
-              <div key={trend.category} className="flex items-center justify-between p-4 border rounded-lg">
+              <div key={trend.category} className="flex items-center border-0 justify-between p-4 bg-[#111111] rounded-lg">
                 <div>
                   <p className="font-medium text-sm">{trend.category}</p>
                   <div className="flex items-center gap-1 mt-1">
@@ -201,9 +201,8 @@ export const AgentMarketInsights: React.FC = () => {
                     ) : (
                       <TrendingDown className="w-4 h-4 text-red-500" />
                     )}
-                    <span className={`text-sm font-bold ${
-                      trend.change > 0 ? 'text-green-500' : 'text-red-500'
-                    }`}>
+                    <span className={`text-sm font-bold ${trend.change > 0 ? 'text-green-500' : 'text-red-500'
+                      }`}>
                       {trend.change > 0 ? '+' : ''}{trend.change}%
                     </span>
                   </div>

@@ -40,7 +40,7 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 border-0">
+          <TabsList className="grid w-full grid-cols-5 border-0">
             <TabsTrigger
               value="timeline"
               className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
@@ -76,13 +76,7 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
               <Search className="w-4 h-4" />
               Market Insights
             </TabsTrigger>
-            <TabsTrigger
-              value="analytics"
-              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
-            >
-              <BarChart3 className="w-4 h-4" />
-              Analytics
-            </TabsTrigger>
+
           </TabsList>
 
           {/* Transfer Timeline Tab */}
@@ -110,10 +104,7 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
             <AgentMarketInsights />
           </TabsContent>
 
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="mt-6">
-            <TransferPerformanceAnalytics />
-          </TabsContent>
+
         </Tabs>
       </div>
     </div>
