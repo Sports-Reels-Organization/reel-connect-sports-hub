@@ -18,7 +18,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import EnhancedVideoAnalysis from './EnhancedVideoAnalysis';
 import { usePlayerData } from '@/hooks/usePlayerData';
-import PlayerDetailModal from './PlayerDetailModal';
+import { useNavigate } from 'react-router-dom';
 
 interface ShortlistItem {
   id: string;
@@ -67,6 +67,7 @@ interface ShortlistStats {
 const AgentShortlistEnhanced = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // All hooks must be declared before any conditional returns
   const [shortlistItems, setShortlistItems] = useState<ShortlistItem[]>([]);
@@ -90,8 +91,6 @@ const AgentShortlistEnhanced = () => {
     recentActivity: 0
   });
 
-  // Get player data for modal
-  const { player: modalPlayer, loading: playerLoading } = usePlayerData(selectedPlayer);
 
   // Function definitions must be before useEffect hooks
   const fetchShortlist = async () => {
@@ -644,7 +643,7 @@ const AgentShortlistEnhanced = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setSelectedPlayer(item.player.id)}
+                      onClick={() => navigate(`/player/${item.player.id}`)}
                       className="border-gray-600 text-gray-300 hover:bg-gray-700"
                     >
                       <Eye className="w-4 h-4 mr-1" />
@@ -679,34 +678,6 @@ const AgentShortlistEnhanced = () => {
         </div>
       )}
 
-      {/* Player Detail Modal */}
-      {selectedPlayer && (
-        <>
-          {playerLoading ? (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-gray-800 p-6 rounded-lg">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-bright-pink mx-auto mb-4"></div>
-                <p className="text-white">Loading player details...</p>
-              </div>
-            </div>
-          ) : modalPlayer ? (
-            <PlayerDetailModal
-              player={modalPlayer}
-              isOpen={!!selectedPlayer}
-              onClose={() => setSelectedPlayer(null)}
-            />
-          ) : (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-gray-800 p-6 rounded-lg">
-                <p className="text-white mb-4">Player not found</p>
-                <Button onClick={() => setSelectedPlayer(null)}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
     </div>
   );
 };

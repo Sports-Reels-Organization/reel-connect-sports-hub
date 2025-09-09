@@ -1,7 +1,6 @@
 import Layout from '@/components/Layout';
-import NotificationCenter from '@/components/NotificationCenter'
-import NotificationTest from '@/components/NotificationTest';
-import React from 'react'
+import NotificationCenter from '@/components/NotificationCenter';
+import React from 'react';
 
 const Notification = () => {
     return (
@@ -10,7 +9,7 @@ const Notification = () => {
                 <NotificationCenter />
             </div>
         </Layout>
-    )
-}
+    );
+};
 
-export default Notification
+export default Notification;

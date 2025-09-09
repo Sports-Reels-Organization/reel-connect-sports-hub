@@ -8,8 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, Search, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,49 +20,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { profile, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { unreadCount } = useNotifications();
   const [searchQuery, setSearchQuery] = useState('');
-  const [unreadCount, setUnreadCount] = useState(0);
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile?.user_id) {
-      fetchUnreadNotifications();
       fetchProfileImage();
-
-      // Set up real-time subscription for notifications
-      const channel = supabase
-        .channel('notifications-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${profile.user_id}`
-          },
-          () => {
-            fetchUnreadNotifications();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     }
   }, [profile]);
 
-  const fetchUnreadNotifications = async () => {
-    if (!profile?.user_id) return;
-
-    try {
-      const { notificationService } = await import('@/services/notificationService');
-      const count = await notificationService.getUnreadCount(profile.user_id);
-      setUnreadCount(count);
-    } catch (error) {
-      console.error('Error fetching unread notifications:', error);
-    }
-  };
 
   const fetchProfileImage = async () => {
     if (!profile?.id) return;

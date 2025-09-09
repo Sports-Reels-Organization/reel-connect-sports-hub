@@ -40,7 +40,7 @@ type DatabasePlayer = Tables['players']['Row'] & {
 };
 import PlayerCard from './PlayerCard';
 import PlayerForm from './PlayerForm';
-import PlayerDetailModal from './PlayerDetailModal';
+import { useNavigate } from 'react-router-dom';
 import PlayerFilters from './PlayerFilters';
 import PlayerRosterView from './PlayerRosterView';
 import PlayerComparison from './PlayerComparison';
@@ -50,13 +50,13 @@ import PlayerHistory from './PlayerHistory';
 const PlayerManagement: React.FC = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [players, setPlayers] = useState<DatabasePlayer[]>([]);
   const [filteredPlayers, setFilteredPlayers] = useState<DatabasePlayer[]>([]);
   const [teamId, setTeamId] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<DatabasePlayer | null>(null);
-  const [selectedPlayer, setSelectedPlayer] = useState<DatabasePlayer | null>(null);
   const [videoRequirements, setVideoRequirements] = useState<{ video_count: number } | null>(null);
   const [eligiblePlayers, setEligiblePlayers] = useState<DatabasePlayer[]>([]);
   const [showComparison, setShowComparison] = useState(false);
@@ -184,7 +184,7 @@ const PlayerManagement: React.FC = () => {
   };
 
   const handleViewPlayer = (player: DatabasePlayer) => {
-    setSelectedPlayer(player);
+    navigate(`/player/${player.id}`);
   };
 
   const resetForm = () => {
@@ -839,18 +839,6 @@ const PlayerManagement: React.FC = () => {
         onClose={() => setShowComparison(false)}
       />
 
-      {selectedPlayer && (
-        <PlayerDetailModal
-          player={selectedPlayer}
-          isOpen={!!selectedPlayer}
-          onClose={() => setSelectedPlayer(null)}
-          onEdit={() => {
-            setEditingPlayer(selectedPlayer);
-            setSelectedPlayer(null);
-            setShowAddForm(true);
-          }}
-        />
-      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

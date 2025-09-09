@@ -9,6 +9,7 @@ export const useNotifications = () => {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
 
   // Set up toast for notification service
   useEffect(() => {
@@ -30,6 +31,14 @@ export const useNotifications = () => {
       setUnreadCount(unreadCountData);
     } catch (error) {
       console.error('Error loading notifications:', error);
+      
+      // If there's a network error, try again after a short delay
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.log('Network error detected, retrying in 2 seconds...');
+        setTimeout(() => {
+          loadNotifications();
+        }, 2000);
+      }
     } finally {
       setLoading(false);
     }
@@ -40,6 +49,47 @@ export const useNotifications = () => {
     loadNotifications();
   }, [loadNotifications]);
 
+  // Recalculate unread count whenever notifications change
+  useEffect(() => {
+    const calculatedUnreadCount = notifications.filter(n => !n.read).length;
+    setUnreadCount(calculatedUnreadCount);
+  }, [notifications, lastUpdate]);
+
+  // Polling fallback to ensure data stays in sync (every 30 seconds)
+  useEffect(() => {
+    if (!profile?.user_id) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const [notificationsData, unreadCountData] = await Promise.all([
+          notificationService.getUserNotifications(profile.user_id),
+          notificationService.getUnreadCount(profile.user_id)
+        ]);
+        
+        // Only update if there are actual changes to avoid unnecessary re-renders
+        setNotifications(prev => {
+          if (JSON.stringify(prev) !== JSON.stringify(notificationsData)) {
+            return notificationsData;
+          }
+          return prev;
+        });
+        
+        setUnreadCount(prev => {
+          if (prev !== unreadCountData) {
+            return unreadCountData;
+          }
+          return prev;
+        });
+      } catch (error) {
+        console.error('Error during polling:', error);
+      }
+    }, 30000); // Poll every 30 seconds
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [profile?.user_id]);
+
   // Subscribe to real-time notifications
   useEffect(() => {
     if (!profile?.user_id) return;
@@ -47,8 +97,30 @@ export const useNotifications = () => {
     const channel = notificationService.subscribeToUserNotifications(
       profile.user_id,
       (notification) => {
-        setNotifications(prev => [notification, ...prev]);
-        setUnreadCount(prev => prev + 1);
+        setNotifications(prev => {
+          // Check if this is a deletion
+          if ((notification as any)._deleted) {
+            // Remove the deleted notification
+            return prev.filter(n => n.id !== notification.id);
+          }
+          
+          // Check if this is an update to an existing notification
+          const existingIndex = prev.findIndex(n => n.id === notification.id);
+          
+          if (existingIndex >= 0) {
+            // Update existing notification
+            const updated = [...prev];
+            updated[existingIndex] = notification;
+            return updated;
+          } else {
+            // Add new notification
+            const updated = [notification, ...prev];
+            return updated;
+          }
+        });
+        
+        // Force immediate re-render by updating a timestamp
+        setLastUpdate(Date.now());
       }
     );
 
@@ -60,7 +132,7 @@ export const useNotifications = () => {
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
-      await notificationService.markAsRead(notificationId);
+      // Update UI immediately for better responsiveness
       setNotifications(prev => 
         prev.map(notification => 
           notification.id === notificationId 
@@ -68,9 +140,24 @@ export const useNotifications = () => {
             : notification
         )
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      // Force immediate re-render
+      setLastUpdate(Date.now());
+      
+      // Then update the database
+      await notificationService.markAsRead(notificationId);
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      
+      // Revert the UI change if database update failed
+      setNotifications(prev => 
+        prev.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, read: false }
+            : notification
+        )
+      );
+      setLastUpdate(Date.now());
     }
   }, []);
 
@@ -80,18 +167,29 @@ export const useNotifications = () => {
 
     try {
       const unreadNotifications = notifications.filter(n => !n.read);
+      
+      // Update UI immediately for better responsiveness
+      setNotifications(prev => 
+        prev.map(notification => ({ ...notification, read: true }))
+      );
+      
+      // Force immediate re-render
+      setLastUpdate(Date.now());
+      
+      // Then update the database
       await Promise.all(
         unreadNotifications.map(notification => 
           notificationService.markAsRead(notification.id)
         )
       );
-      
-      setNotifications(prev => 
-        prev.map(notification => ({ ...notification, read: true }))
-      );
-      setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+      
+      // Revert the UI change if database update failed
+      setNotifications(prev => 
+        prev.map(notification => ({ ...notification, read: false }))
+      );
+      setLastUpdate(Date.now());
     }
   }, [notifications, profile?.user_id]);
 
@@ -114,7 +212,6 @@ export const useNotifications = () => {
       });
       
       setNotifications(prev => [notification, ...prev]);
-      setUnreadCount(prev => prev + 1);
       
       return notification;
     } catch (error) {
@@ -123,6 +220,26 @@ export const useNotifications = () => {
     }
   }, [profile?.user_id]);
 
+  // Delete notification
+  const deleteNotification = useCallback(async (notificationId: string) => {
+    try {
+      const success = await notificationService.deleteNotification(notificationId);
+      if (success) {
+        // Remove notification from local state
+        setNotifications(prev => 
+          prev.filter(notification => notification.id !== notificationId)
+        );
+        
+        // Force immediate re-render
+        setLastUpdate(Date.now());
+      }
+      return success;
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      return false;
+    }
+  }, []);
+
   return {
     notifications,
     unreadCount,
@@ -130,6 +247,7 @@ export const useNotifications = () => {
     markAsRead,
     markAllAsRead,
     createNotification,
+    deleteNotification,
     refreshNotifications: loadNotifications
   };
 };

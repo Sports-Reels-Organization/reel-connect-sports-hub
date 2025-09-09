@@ -18,8 +18,8 @@ import {
   Heart,
   Info
 } from 'lucide-react';
-import PlayerDetailModal from '@/components/PlayerDetailModal';
 import MessagePlayerModal from '@/components/MessagePlayerModal';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -76,10 +76,10 @@ const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({
   onUntag
 }) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [player, setPlayer] = useState<TaggedPlayer | null>(null);
   const [transferPitch, setTransferPitch] = useState<TransferPitch | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
 
   useEffect(() => {
@@ -154,7 +154,9 @@ const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({
   };
 
   const handleViewPlayer = () => {
-    setShowPlayerModal(true);
+    if (player?.id) {
+      navigate(`/player/${player.id}`);
+    }
   };
 
   const handleMessagePlayer = () => {
@@ -275,46 +277,6 @@ const TaggedPlayerCard: React.FC<TaggedPlayerCardProps> = ({
       </Card>
 
       {/* Modals */}
-      {showPlayerModal && player && (
-        <PlayerDetailModal
-          isOpen={showPlayerModal}
-          onClose={() => setShowPlayerModal(false)}
-          player={{
-            age: player.age,
-            ai_analysis: null,
-            bio: `Professional ${player.position}`,
-            citizenship: player.citizenship,
-            contract_expires: player.contract_expires,
-            created_at: new Date().toISOString(),
-            current_club: player.current_club,
-            date_of_birth: new Date(Date.now() - player.age * 365 * 24 * 60 * 60 * 1000).toISOString(),
-            fifa_id: player.id,
-            foot: player.foot,
-            full_name: player.full_name,
-            height: player.height,
-            id: player.id,
-            market_value: player.market_value,
-            photo_url: null,
-            position: player.position,
-            team_id: null,
-            updated_at: new Date().toISOString(),
-            weight: player.weight,
-            full_body_url: null,
-            gender: null,
-            headshot_url: null,
-            international_duty: null,
-            jersey_number: null,
-            joined_date: null,
-            leagues_participated: null,
-            match_stats: null,
-            place_of_birth: null,
-            player_agent: null,
-            portrait_url: null,
-            titles_seasons: null,
-            transfer_history: null
-          }}
-        />
-      )}
 
       {showMessageModal && player && (
         <MessagePlayerModal

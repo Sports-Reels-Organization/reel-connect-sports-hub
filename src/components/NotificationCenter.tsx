@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,60 +16,36 @@ import {
     User,
     TrendingUp,
     Clock,
-    X
+    X,
+    RefreshCw
 } from 'lucide-react';
-import { notificationService, NotificationPreferences } from '@/services/notificationService';
+import { useNotifications } from '@/hooks/useNotifications';
+import { notificationService, NotificationPreferences, NotificationData } from '@/services/notificationService';
 import { Json } from '@/integrations/supabase/types';
 
 interface Notification {
     id: string;
     title: string;
-    message: string;
+    description: string;
     type: string;
-    is_read: boolean;
+    read: boolean;
     created_at: string;
-    metadata?: Json;
+    data?: any;
 }
 
 const NotificationCenter: React.FC = () => {
     const { profile } = useAuth();
     const { toast } = useToast();
-    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const { notifications, unreadCount, markAsRead, markAllAsRead, loading, refreshNotifications, deleteNotification } = useNotifications();
     const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
-    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('all');
 
     useEffect(() => {
         if (profile?.user_id) {
-            fetchNotifications();
             fetchPreferences();
         }
     }, [profile]);
 
-    const fetchNotifications = async () => {
-        if (!profile?.user_id) return;
-
-        try {
-            const { data, error } = await supabase
-                .from('notifications')
-                .select('*')
-                .eq('user_id', profile.user_id)
-                .order('created_at', { ascending: false })
-                .limit(50);
-
-            if (error) throw error;
-            setNotifications(data || []);
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch notifications",
-                variant: "destructive"
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const fetchPreferences = async () => {
         if (!profile?.user_id) return;
@@ -83,35 +58,21 @@ const NotificationCenter: React.FC = () => {
         }
     };
 
-    const markAsRead = async (notificationId: string) => {
+    const handleMarkAsRead = async (notificationId: string) => {
         try {
-            const success = await notificationService.markAsRead(notificationId);
-            if (success) {
-                setNotifications(prev =>
-                    prev.map(notif =>
-                        notif.id === notificationId
-                            ? { ...notif, is_read: true }
-                            : notif
-                    )
-                );
-            }
+            await markAsRead(notificationId);
         } catch (error) {
             console.error('Error marking notification as read:', error);
         }
     };
 
-    const markAllAsRead = async () => {
-        if (!profile?.user_id) return;
-
+    const handleMarkAllAsRead = async () => {
         try {
-            const success = await notificationService.markAllAsRead(profile.user_id);
-            if (success) {
-                setNotifications(prev => prev.map(notif => ({ ...notif, is_read: true })));
-                toast({
-                    title: "Success",
-                    description: "All notifications marked as read",
-                });
-            }
+            await markAllAsRead();
+            toast({
+                title: "Success",
+                description: "All notifications marked as read",
+            });
         } catch (error) {
             console.error('Error marking all notifications as read:', error);
             toast({
@@ -122,14 +83,19 @@ const NotificationCenter: React.FC = () => {
         }
     };
 
-    const deleteNotification = async (notificationId: string) => {
+    const handleDeleteNotification = async (notificationId: string) => {
         try {
-            const success = await notificationService.deleteNotification(notificationId);
+            const success = await deleteNotification(notificationId);
             if (success) {
-                setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
                 toast({
                     title: "Success",
                     description: "Notification deleted",
+                });
+            } else {
+                toast({
+                    title: "Error",
+                    description: "Failed to delete notification",
+                    variant: "destructive"
                 });
             }
         } catch (error) {
@@ -226,11 +192,9 @@ const NotificationCenter: React.FC = () => {
 
     const filteredNotifications = notifications.filter(notification => {
         if (activeTab === 'all') return true;
-        if (activeTab === 'unread') return !notification.is_read;
+        if (activeTab === 'unread') return !notification.read;
         return notification.type === activeTab;
     });
-
-    const unreadCount = notifications.filter(n => !n.is_read).length;
 
     if (loading) {
         return (
@@ -259,17 +223,35 @@ const NotificationCenter: React.FC = () => {
                         Stay updated with your latest activities and messages
                     </p>
                 </div>
-                {unreadCount > 0 && (
+                <div className="flex gap-2">
                     <Button
-                        onClick={markAllAsRead}
+                        onClick={refreshNotifications}
                         variant="outline"
-                        className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
+                        className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        disabled={loading}
                     >
-                        <Check className="h-4 w-4 mr-2" />
-                        Mark All Read
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
                     </Button>
-                )}
+                    {unreadCount > 0 && (
+                        <Button
+                            onClick={handleMarkAllAsRead}
+                            variant="outline"
+                            className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
+                        >
+                            <Check className="h-4 w-4 mr-2" />
+                            Mark All Read
+                        </Button>
+                    )}
+                </div>
             </div>
+
+            {loading && (
+                <div className="flex items-center justify-center py-4">
+                    <RefreshCw className="h-6 w-6 animate-spin text-rosegold mr-2" />
+                    <span className="text-gray-400">Updating notifications...</span>
+                </div>
+            )}
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 <TabsList className="grid w-full grid-cols-5 bg-card border-0">
@@ -295,8 +277,8 @@ const NotificationCenter: React.FC = () => {
                         <NotificationItem
                             key={notification.id}
                             notification={notification}
-                            onMarkAsRead={markAsRead}
-                            onDelete={deleteNotification}
+                            onMarkAsRead={handleMarkAsRead}
+                            onDelete={handleDeleteNotification}
                             getNotificationIcon={getNotificationIcon}
                             getNotificationBadge={getNotificationBadge}
                             formatTimeAgo={formatTimeAgo}
@@ -309,8 +291,8 @@ const NotificationCenter: React.FC = () => {
                         <NotificationItem
                             key={notification.id}
                             notification={notification}
-                            onMarkAsRead={markAsRead}
-                            onDelete={deleteNotification}
+                            onMarkAsRead={handleMarkAsRead}
+                            onDelete={handleDeleteNotification}
                             getNotificationIcon={getNotificationIcon}
                             getNotificationBadge={getNotificationBadge}
                             formatTimeAgo={formatTimeAgo}
@@ -323,8 +305,8 @@ const NotificationCenter: React.FC = () => {
                         <NotificationItem
                             key={notification.id}
                             notification={notification}
-                            onMarkAsRead={markAsRead}
-                            onDelete={deleteNotification}
+                            onMarkAsRead={handleMarkAsRead}
+                            onDelete={handleDeleteNotification}
                             getNotificationIcon={getNotificationIcon}
                             getNotificationBadge={getNotificationBadge}
                             formatTimeAgo={formatTimeAgo}
@@ -337,8 +319,8 @@ const NotificationCenter: React.FC = () => {
                         <NotificationItem
                             key={notification.id}
                             notification={notification}
-                            onMarkAsRead={markAsRead}
-                            onDelete={deleteNotification}
+                            onMarkAsRead={handleMarkAsRead}
+                            onDelete={handleDeleteNotification}
                             getNotificationIcon={getNotificationIcon}
                             getNotificationBadge={getNotificationBadge}
                             formatTimeAgo={formatTimeAgo}
@@ -460,7 +442,7 @@ const NotificationCenter: React.FC = () => {
 };
 
 interface NotificationItemProps {
-    notification: Notification;
+    notification: NotificationData;
     onMarkAsRead: (id: string) => void;
     onDelete: (id: string) => void;
     getNotificationIcon: (type: string) => React.ReactNode;
@@ -477,7 +459,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
     formatTimeAgo
 }) => {
     return (
-        <Card className={`border-gray-700 ${!notification.is_read ? 'bg-gray-800/50' : ''}`}>
+        <Card className={`border-gray-700 ${!notification.read ? 'bg-gray-800/50' : ''}`}>
             <CardContent className="p-4">
                 <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 mt-1">
@@ -488,13 +470,13 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <h4 className={`font-polysans font-semibold ${!notification.is_read ? 'text-white' : 'text-gray-300'}`}>
+                                    <h4 className={`font-polysans font-semibold ${!notification.read ? 'text-white' : 'text-gray-300'}`}>
                                         {notification.title}
                                     </h4>
                                     {getNotificationBadge(notification.type)}
                                 </div>
                                 <p className="text-gray-400 text-sm mb-2">
-                                    {notification.message}
+                                    {notification.description}
                                 </p>
                                 <div className="flex items-center gap-2 text-xs text-gray-500">
                                     <Clock className="h-3 w-3" />
@@ -503,7 +485,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                             </div>
 
                             <div className="flex items-center gap-1">
-                                {!notification.is_read && (
+                                {!notification.read && (
                                     <Button
                                         size="sm"
                                         variant="ghost"

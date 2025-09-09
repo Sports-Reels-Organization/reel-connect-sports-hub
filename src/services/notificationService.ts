@@ -7,6 +7,7 @@ export interface NotificationData {
   title: string;
   description: string;
   data?: any;
+  user_id: string;
   created_at: string;
   read: boolean;
 }
@@ -119,7 +120,12 @@ export class NotificationService {
     }
 
     const channel = supabase
-      .channel(channelName)
+      .channel(channelName, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: userId }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -129,21 +135,69 @@ export class NotificationService {
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          console.log('New notification:', payload);
-          onNotification(payload.new as NotificationData);
+          // Normalize the notification data to match our interface
+          const normalizedNotification = {
+            ...payload.new,
+            read: payload.new.is_read ?? false,
+            description: payload.new.message ?? '',
+            data: payload.new.metadata || {}
+          };
+          
+          // Call the callback immediately
+          onNotification(normalizedNotification as NotificationData);
           
           if (this.toast) {
             this.toast({
               title: payload.new.title,
-              description: payload.new.description,
+              description: payload.new.message || payload.new.description,
               duration: 5000,
             });
           }
         }
       )
-      .subscribe((status) => {
-        console.log(`User notifications subscription status: ${status}`);
-      });
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          // Notify about the update (this will help sync read status)
+          const updatedNotification = {
+            ...payload.new,
+            read: payload.new.is_read ?? false,
+            description: payload.new.message ?? '',
+            data: payload.new.metadata || {}
+          };
+          
+          // Call the callback immediately
+          onNotification(updatedNotification as NotificationData);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          // Notify about the deletion
+          const deletedNotification = {
+            ...payload.old,
+            read: payload.old.is_read ?? false,
+            description: payload.old.message ?? '',
+            data: payload.old.metadata || {}
+          };
+          
+          // Call the callback with a special flag to indicate deletion
+          onNotification({ ...deletedNotification, _deleted: true } as any);
+        }
+      )
+      .subscribe();
 
     this.subscriptions.set(channelName, channel);
     return channel;
@@ -211,8 +265,12 @@ export class NotificationService {
       const { data, error } = await supabase
         .from('notifications')
         .insert({
-          ...notification,
-          read: false,
+          user_id: notification.user_id,
+          title: notification.title,
+          message: notification.description,
+          type: notification.type,
+          metadata: notification.data || {},
+          is_read: false,
           created_at: new Date().toISOString()
         })
         .select()
@@ -231,10 +289,15 @@ export class NotificationService {
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({
+          is_read: true
+        })
         .eq('id', notificationId);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
+
       return true;
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -261,9 +324,40 @@ export class NotificationService {
         }
         throw error;
       }
-      return data;
+      
+      // Normalize the data to ensure consistent field names
+      return data?.map(notification => ({
+        ...notification,
+        read: notification.is_read ?? false,
+        description: notification.message ?? '',
+        data: notification.metadata || {}
+      })) || [];
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      
+      // If it's a network error, try a simpler approach
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.log('Network error detected in getUserNotifications, trying alternative approach...');
+        try {
+          const { data: notifications } = await supabase
+            .from('notifications')
+            .select('id, title, message, is_read, created_at, type, metadata')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+          
+          return notifications?.map(notification => ({
+            ...notification,
+            read: notification.is_read ?? false,
+            description: notification.message ?? '',
+            data: notification.metadata || {}
+          })) || [];
+        } catch (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError);
+          return [];
+        }
+      }
+      
       return [];
     }
   }
@@ -271,24 +365,54 @@ export class NotificationService {
   // Get unread notification count
   async getUnreadCount(userId: string) {
     try {
+      // First try with count query
       const { count, error } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('read', false);
+        .eq('is_read', false);
 
       if (error) {
-        console.error('Error fetching unread count:', error);
-        // If table doesn't exist, return 0 instead of throwing
-        if (error.message?.includes('relation "notifications" does not exist')) {
-          console.warn('Notifications table does not exist yet. Please run the database setup script.');
+        console.error('Error with count query:', error);
+        
+        // If count query fails, try fetching all notifications and counting manually
+        console.log('Falling back to manual count...');
+        const { data: notifications, error: fetchError } = await supabase
+          .from('notifications')
+          .select('id, is_read')
+          .eq('user_id', userId);
+
+        if (fetchError) {
+          console.error('Error fetching notifications for manual count:', fetchError);
           return 0;
         }
-        throw error;
+
+        const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
+        console.log('Manual count result:', unreadCount);
+        return unreadCount;
       }
+
       return count || 0;
     } catch (error) {
       console.error('Error fetching unread count:', error);
+      
+      // If it's a network error, try a simpler approach
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.log('Network error detected, trying alternative approach...');
+        try {
+          const { data: notifications } = await supabase
+            .from('notifications')
+            .select('id, is_read')
+            .eq('user_id', userId)
+            .limit(100); // Limit to avoid large queries
+          
+          return notifications?.filter(n => !n.is_read).length || 0;
+        } catch (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError);
+          return 0;
+        }
+      }
+      
       return 0;
     }
   }
@@ -298,11 +422,16 @@ export class NotificationService {
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({
+          is_read: true
+        })
         .eq('user_id', userId)
-        .eq('read', false);
+        .eq('is_read', false);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
+
       return true;
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -358,6 +487,27 @@ export class NotificationService {
       return true;
     } catch (error) {
       console.error('Error updating notification preferences:', error);
+      return false;
+    }
+  }
+
+  // Test Supabase connection
+  async testConnection() {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('count')
+        .limit(1);
+      
+      if (error) {
+        console.error('Supabase connection test failed:', error);
+        return false;
+      }
+      
+      console.log('Supabase connection test successful');
+      return true;
+    } catch (error) {
+      console.error('Supabase connection test error:', error);
       return false;
     }
   }
