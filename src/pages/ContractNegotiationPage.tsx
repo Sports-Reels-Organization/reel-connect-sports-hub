@@ -35,7 +35,13 @@ import {
   Eye,
   EyeOff,
   Bell,
-  BellRing
+  BellRing,
+  HandHeart,
+  Handshake,
+  X,
+  Minus,
+  Plus,
+  ArrowRight
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -63,14 +69,22 @@ interface Contract {
   agent_id: string;
   team_id: string;
   transfer_type: 'permanent' | 'loan';
-  status: 'draft' | 'pending' | 'approved' | 'rejected' | 'completed';
-  current_step: 'draft' | 'review' | 'negotiation' | 'finalization' | 'completed';
+  status: 'draft' | 'sent' | 'under_review' | 'negotiating' | 'finalized' | 'completed' | 'rejected' | 'withdrawn';
+  current_step: 'draft' | 'under_review' | 'negotiating' | 'signed' | 'rejected' | 'expired';
   contract_value: number;
   currency: string;
   document_url?: string;
   last_activity: string;
   created_at: string;
   updated_at: string;
+  negotiation_rounds?: number;
+  terms?: {
+    salary?: number;
+    signOnBonus?: number;
+    performanceBonus?: number;
+    duration?: string;
+    [key: string]: any;
+  };
   pitch?: {
     id: string;
     transfer_type: string;
@@ -88,6 +102,8 @@ interface Contract {
       full_name: string;
       email: string;
     };
+    agency_name?: string;
+    logo_url?: string;
   };
   team?: {
     team_name: string;
@@ -114,6 +130,16 @@ const ContractNegotiationPage: React.FC = () => {
   const [selectedAction, setSelectedAction] = useState<string>('');
   const [actionDetails, setActionDetails] = useState('');
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [userRole, setUserRole] = useState<'team' | 'agent' | null>(null);
+  const [counterOfferTerms, setCounterOfferTerms] = useState({
+    contractValue: 0,
+    salary: 0,
+    signOnBonus: 0,
+    performanceBonus: 0,
+    duration: ''
+  });
+  const [pendingProposals, setPendingProposals] = useState<{ [messageId: string]: any }>({});
+  const [respondedProposals, setRespondedProposals] = useState<Set<string>>(new Set());
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const messageChannelRef = useRef<any>(null);
@@ -135,6 +161,35 @@ const ContractNegotiationPage: React.FC = () => {
       }
     };
   }, [contractId]);
+
+  // Determine user role based on contract data and auto-update draft contracts
+  useEffect(() => {
+    if (contract && profile) {
+      if (profile.user_type === 'team') {
+        setUserRole('team');
+      } else if (profile.user_type === 'agent') {
+        setUserRole('agent');
+      }
+
+      // Auto-update draft contracts to sent status for better UX
+      if (contract.status === 'draft' && contract.current_step === 'draft') {
+        updateContractStatusToSent();
+      }
+    }
+  }, [contract, profile]);
+
+  // Initialize counter offer terms from contract
+  useEffect(() => {
+    if (contract) {
+      setCounterOfferTerms({
+        contractValue: contract.contract_value || 0,
+        salary: (contract.terms as any)?.salary || 0,
+        signOnBonus: (contract.terms as any)?.signOnBonus || 0,
+        performanceBonus: (contract.terms as any)?.performanceBonus || 0,
+        duration: (contract.terms as any)?.duration || ''
+      });
+    }
+  }, [contract]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -238,6 +293,30 @@ const ContractNegotiationPage: React.FC = () => {
     try {
       const messagesData = await contractManagementService.getContractMessages(contractId);
       setMessages(messagesData);
+
+      // Check which proposals have been responded to
+      const respondedIds = new Set<string>();
+      const proposalMessages = messagesData.filter(msg =>
+        msg.message_type === 'action' &&
+        (msg.content.includes('counter-proposal') || msg.content.includes('counter-offer'))
+      );
+
+      // Look for response messages that come after proposals
+      proposalMessages.forEach(proposal => {
+        const proposalTime = new Date(proposal.created_at).getTime();
+        const hasResponse = messagesData.some(msg =>
+          new Date(msg.created_at).getTime() > proposalTime &&
+          msg.message_type === 'action' &&
+          (msg.content.includes('accepted') || msg.content.includes('rejected') ||
+            msg.content.includes('counter-offer') || msg.content.includes('counter-proposal'))
+        );
+
+        if (hasResponse) {
+          respondedIds.add(proposal.id);
+        }
+      });
+
+      setRespondedProposals(respondedIds);
     } catch (error) {
       console.error('Error loading messages:', error);
     }
@@ -310,31 +389,184 @@ const ContractNegotiationPage: React.FC = () => {
     }
   };
 
-  const handleContractAction = async (action: string) => {
+  // Get workflow stages for progress bar
+  const getWorkflowStages = () => {
+    return [
+      { key: 'draft', label: 'Draft', description: 'Contract created' },
+      { key: 'under_review', label: 'Under Review', description: 'Agent reviewing' },
+      { key: 'negotiating', label: 'Negotiating', description: 'Terms discussion' },
+      { key: 'signed', label: 'Signed', description: 'Terms agreed' },
+      { key: 'completed', label: 'Completed', description: 'Transfer executed' }
+    ];
+  };
+
+  const getCurrentStageIndex = () => {
+    const stages = getWorkflowStages();
+    const currentStage = contract?.current_step || 'draft';
+    return stages.findIndex(stage => stage.key === currentStage);
+  };
+
+  const handleContractAction = async (action: string, customDetails?: any) => {
     if (!contract) return;
 
     try {
-      const result = await contractManagementService.handleContractAction({
-        contractId: contractId!,
-        action: action as any,
-        details: actionDetails,
-        userId: profile?.user_id!
-      });
+      let newStatus = contract.status;
+      let newStep = contract.current_step;
+      let actionMessage = '';
 
+      // Determine new status based on action and user role
+      switch (action) {
+        case 'accept-offer':
+          newStatus = 'finalized';
+          newStep = 'signed';
+          actionMessage = 'Agent accepted the contract offer';
+          break;
+        case 'negotiate-terms':
+          newStatus = 'negotiating';
+          newStep = 'negotiating';
+          actionMessage = 'Agent requested term negotiations';
+          break;
+        case 'reject-offer':
+          newStatus = 'rejected';
+          newStep = 'rejected';
+          actionMessage = 'Agent rejected the contract offer';
+          break;
+        case 'submit-counter-proposal':
+          newStatus = 'negotiating';
+          newStep = 'negotiating';
+          // Create detailed message with proposal terms
+          if (customDetails) {
+            const termsDetails = [
+              customDetails.contractValue ? `Contract Value: ${contract.currency} ${customDetails.contractValue?.toLocaleString()}` : null,
+              customDetails.salary ? `Annual Salary: ${contract.currency} ${customDetails.salary?.toLocaleString()}` : null,
+              customDetails.signOnBonus ? `Sign-on Bonus: ${contract.currency} ${customDetails.signOnBonus?.toLocaleString()}` : null,
+              customDetails.performanceBonus ? `Performance Bonus: ${contract.currency} ${customDetails.performanceBonus?.toLocaleString()}` : null,
+              customDetails.duration ? `Contract Duration: ${customDetails.duration}` : null
+            ].filter(Boolean).join(' • ');
+
+            actionMessage = `Agent submitted a counter-proposal:\n\n${termsDetails}`;
+          } else {
+            actionMessage = 'Agent submitted a counter-proposal';
+          }
+          break;
+        case 'counter-offer':
+          newStatus = 'negotiating';
+          newStep = 'negotiating';
+          // Create detailed message with offer terms
+          if (customDetails) {
+            const termsDetails = [
+              customDetails.contractValue ? `Contract Value: ${contract.currency} ${customDetails.contractValue?.toLocaleString()}` : null,
+              customDetails.salary ? `Annual Salary: ${contract.currency} ${customDetails.salary?.toLocaleString()}` : null,
+              customDetails.signOnBonus ? `Sign-on Bonus: ${contract.currency} ${customDetails.signOnBonus?.toLocaleString()}` : null,
+              customDetails.performanceBonus ? `Performance Bonus: ${contract.currency} ${customDetails.performanceBonus?.toLocaleString()}` : null,
+              customDetails.duration ? `Contract Duration: ${customDetails.duration}` : null
+            ].filter(Boolean).join(' • ');
+
+            actionMessage = `Team sent a counter-offer:\n\n${termsDetails}`;
+          } else {
+            actionMessage = 'Team sent a counter-offer';
+          }
+          break;
+        case 'accept-agent-terms':
+          newStatus = 'finalized';
+          newStep = 'signed';
+          actionMessage = 'Team accepted agent terms';
+          // When accepting agent terms, we need to apply the latest agent proposal
+          if (!customDetails) {
+            customDetails = getLatestAgentProposal();
+          }
+          break;
+        case 'withdraw-offer':
+          newStatus = 'withdrawn';
+          newStep = 'expired';
+          actionMessage = 'Team withdrew the contract offer';
+          break;
+        case 'finalize-deal':
+          newStatus = 'finalized';
+          newStep = 'signed';
+          actionMessage = 'Deal finalized - ready for completion';
+          break;
+        case 'complete-transfer':
+          newStatus = 'completed';
+          newStep = 'signed';
+          actionMessage = 'Transfer completed successfully';
+          break;
+        case 'reopen-negotiation':
+          newStatus = 'negotiating';
+          newStep = 'negotiating';
+          actionMessage = 'Team reopened negotiations';
+          break;
+        case 'request-renegotiation':
+          newStatus = 'negotiating';
+          newStep = 'negotiating';
+          actionMessage = 'Agent requested renegotiation';
+          break;
+        default:
+          throw new Error('Unknown action');
+      }
+
+      // Update contract in database - try both current_step and deal_stage
+      const updateData: any = {
+        status: newStatus,
+        current_step: newStep,
+        deal_stage: newStep, // Also update deal_stage for compatibility
+        last_activity: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        negotiation_rounds: (contract.negotiation_rounds || 0) + 1
+      };
+
+      // Only update terms if provided and it's not a counter-proposal (which should only update when accepted)
+      if (customDetails && !['submit-counter-proposal', 'counter-offer'].includes(action)) {
+        updateData.terms = { ...(contract.terms as any), ...customDetails };
+        // Also update contract_value if it's in the terms
+        if (customDetails.contractValue) {
+          updateData.contract_value = customDetails.contractValue;
+        }
+      }
+
+      const { data: updatedContract, error } = await supabase
+        .from('contracts')
+        .update(updateData)
+        .eq('id', contractId!)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Contract update failed:', error);
+        throw error;
+      }
+
+      // Add action message
+      const messageContent = actionMessage + (actionDetails ? ` - ${actionDetails}` : '');
+
+      await contractManagementService.addContractMessage(
+        contractId!,
+        profile?.id!,
+        messageContent,
+        'action'
+      );
+
+      // Update local state
       setContract(prev => prev ? {
         ...prev,
-        status: result.newStatus,
-        current_step: result.newStep,
+        status: newStatus,
+        current_step: newStep,
         last_activity: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        negotiation_rounds: (prev.negotiation_rounds || 0) + 1,
+        ...(customDetails && { terms: { ...(prev.terms as any), ...customDetails } }),
+        ...(customDetails?.contractValue && { contract_value: customDetails.contractValue })
       } : null);
 
-      // Reload messages to show the action message
-      await loadMessages();
+      // Reload messages and contract data
+      await Promise.all([
+        loadMessages(),
+        loadContractData() // Reload contract to ensure UI is in sync
+      ]);
 
       toast({
         title: "Success",
-        description: `Contract ${action.replace('-', ' ')} successfully`
+        description: actionMessage
       });
 
       setActionModalOpen(false);
@@ -347,6 +579,386 @@ const ContractNegotiationPage: React.FC = () => {
         description: "Failed to update contract",
         variant: "destructive"
       });
+    }
+  };
+
+  // Get available actions based on user role and contract status
+  const getAvailableActions = () => {
+    if (!contract || !userRole) return [];
+
+    const status = contract.status;
+
+    if (userRole === 'team') {
+      switch (status) {
+        case 'draft':
+          return [
+            { key: 'counter-offer', label: 'Send Offer', icon: Send, variant: 'default', color: 'bg-blue-600 hover:bg-blue-700' },
+            { key: 'withdraw-offer', label: 'Cancel Draft', icon: X, variant: 'outline', color: 'border-red-500 text-red-600 hover:bg-red-50' }
+          ];
+        case 'sent':
+        case 'under_review':
+        case 'negotiating':
+          return [
+            { key: 'counter-offer', label: 'Send Counter-Offer', icon: RefreshCw, variant: 'outline', color: 'border-blue-500 text-blue-600 hover:bg-blue-50' },
+            { key: 'accept-agent-terms', label: 'Accept Agent Terms', icon: CheckCircle, variant: 'default', color: 'bg-green-600 hover:bg-green-700' },
+            { key: 'withdraw-offer', label: 'Withdraw Offer', icon: X, variant: 'outline', color: 'border-red-500 text-red-600 hover:bg-red-50' }
+          ];
+        case 'finalized':
+          return [
+            { key: 'reopen-negotiation', label: 'Reopen Negotiation', icon: Edit, variant: 'outline', color: 'border-yellow-500 text-yellow-600 hover:bg-yellow-50' },
+            { key: 'complete-transfer', label: 'Complete Transfer', icon: Trophy, variant: 'default', color: 'bg-green-600 hover:bg-green-700' }
+          ];
+        default:
+          return [];
+      }
+    } else if (userRole === 'agent') {
+      switch (status) {
+        case 'draft':
+        case 'sent':
+        case 'under_review':
+          return [
+            { key: 'accept-offer', label: 'Accept Offer', icon: CheckCircle, variant: 'default', color: 'bg-green-600 hover:bg-green-700' },
+            { key: 'negotiate-terms', label: 'Negotiate Terms', icon: Edit, variant: 'outline', color: 'border-blue-500 text-blue-600 hover:bg-blue-50' },
+            { key: 'reject-offer', label: 'Reject Offer', icon: XCircle, variant: 'outline', color: 'border-red-500 text-red-600 hover:bg-red-50' }
+          ];
+        case 'negotiating':
+          return [
+            { key: 'submit-counter-proposal', label: 'Submit Counter-Proposal', icon: Send, variant: 'default', color: 'bg-blue-600 hover:bg-blue-700' },
+            { key: 'accept-offer', label: 'Accept Current Terms', icon: CheckCircle, variant: 'outline', color: 'border-green-500 text-green-600 hover:bg-green-50' },
+            { key: 'reject-offer', label: 'Reject Offer', icon: XCircle, variant: 'outline', color: 'border-red-500 text-red-600 hover:bg-red-50' }
+          ];
+        case 'finalized':
+          return [
+            { key: 'request-renegotiation', label: 'Request Renegotiation', icon: RefreshCw, variant: 'outline', color: 'border-yellow-500 text-yellow-600 hover:bg-yellow-50' }
+          ];
+        default:
+          return [];
+      }
+    }
+
+    return [];
+  };
+
+  // Render modern progress bar
+  const renderProgressBar = () => {
+    const stages = getWorkflowStages();
+    const currentIndex = getCurrentStageIndex();
+    const isRejectedOrWithdrawn = contract?.status === 'rejected' || contract?.status === 'withdrawn';
+    const progressPercentage = currentIndex > 0 ? (currentIndex / (stages.length - 1)) * 100 : 0;
+
+    return (
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-gray-100">Contract Progress</h3>
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-600">
+              Step {currentIndex + 1} of {stages.length}
+            </div>
+            <Badge
+              variant={isRejectedOrWithdrawn ? 'destructive' : currentIndex === stages.length - 1 ? 'default' : 'secondary'}
+              className="px-3 py-1 font-medium"
+            >
+              {contract?.status?.replace('_', ' ').replace('-', ' ').toUpperCase()}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Modern Progress Track */}
+        <div className="relative mb-8">
+          {/* Background Track */}
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            {/* Progress Fill */}
+            <div
+              className={`h-full rounded-full transition-all duration-1000 ease-out ${isRejectedOrWithdrawn
+                ? 'bg-gradient-to-r from-red-400 to-red-500'
+                : 'bg-gradient-to-r from-green-500 to-green-600'
+                }`}
+              style={{ width: `${progressPercentage}%` }}
+            ></div>
+          </div>
+
+          {/* Stage Indicators */}
+          <div className="absolute -top-3 left-0 right-0">
+            <div className="flex justify-between">
+              {stages.map((stage, index) => {
+                const isActive = index === currentIndex;
+                const isCompleted = index < currentIndex && !isRejectedOrWithdrawn;
+                const isRejected = isRejectedOrWithdrawn && index >= currentIndex;
+
+                return (
+                  <div key={stage.key} className="flex flex-col items-center">
+                    {/* Modern Circle Indicator */}
+                    <div className={`relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${isRejected
+                      ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' :
+                      isActive
+                        ? 'bg-green-500 text-white shadow-lg shadow-green-500/40 ring-4 ring-green-500/20 scale-110' :
+                        isCompleted
+                          ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' :
+                          'bg-white border-2 border-gray-300 text-gray-400 shadow-sm'
+                      }`}>
+                      {isCompleted ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : isRejected ? (
+                        <XCircle className="w-4 h-4" />
+                      ) : isActive ? (
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                      ) : (
+                        index + 1
+                      )}
+
+                      {/* Pulse animation for active stage */}
+                      {isActive && (
+                        <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20"></div>
+                      )}
+                    </div>
+
+                    {/* Stage Label */}
+                    <div className="mt-4 text-center">
+                      <div className={`text-sm font-semibold transition-all duration-300 ${isActive ? 'text-rosegold scale-105' :
+                        isCompleted ? 'text-green-600' :
+                          isRejected ? 'text-red-600' :
+                            'text-gray-500'
+                        }`}>
+                        {stage.label}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1 leading-tight hidden sm:block">
+                        {stage.description}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render role-specific action buttons
+  const renderActionButtons = () => {
+    const actions = getAvailableActions();
+
+    if (actions.length === 0) {
+      return (
+        <div className="text-center py-4">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3">
+            <CheckCircle className="w-6 h-6 text-gray-400" />
+          </div>
+          <p className="text-gray-500 text-sm font-medium">
+            {contract?.status === 'completed' ? 'Transfer completed!' :
+              contract?.status === 'rejected' ? 'Contract rejected' :
+                contract?.status === 'withdrawn' ? 'Contract withdrawn' :
+                  'No actions available'}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {actions.map((action) => {
+          const IconComponent = action.icon;
+          const isPrimary = action.variant === 'default';
+
+          return (
+            <Button
+              key={action.key}
+              variant={action.variant as any}
+              className={`w-full h-11 flex items-center justify-center gap-2 font-medium transition-all duration-200 ${isPrimary
+                ? action.color || 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
+                : action.color || 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              onClick={() => {
+                setSelectedAction(action.key);
+                if (action.key === 'counter-offer' || action.key === 'submit-counter-proposal' || action.key === 'negotiate-terms') {
+                  setActionModalOpen(true);
+                } else {
+                  handleContractAction(action.key);
+                }
+              }}
+            >
+              <IconComponent className="w-4 h-4" />
+              <span className="text-sm">{action.label}</span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Extract proposal terms from message content
+  const extractProposalTerms = (messageContent: string) => {
+    const terms: any = {};
+
+    // Extract contract value
+    const contractValueMatch = messageContent.match(/Contract Value: [A-Z]+ ([\d,]+)/);
+    if (contractValueMatch) {
+      terms.contractValue = parseFloat(contractValueMatch[1].replace(/,/g, ''));
+    }
+
+    // Extract salary
+    const salaryMatch = messageContent.match(/Annual Salary: [A-Z]+ ([\d,]+)/);
+    if (salaryMatch) {
+      terms.salary = parseFloat(salaryMatch[1].replace(/,/g, ''));
+    }
+
+    // Extract sign-on bonus
+    const signOnBonusMatch = messageContent.match(/Sign-on Bonus: [A-Z]+ ([\d,]+)/);
+    if (signOnBonusMatch) {
+      terms.signOnBonus = parseFloat(signOnBonusMatch[1].replace(/,/g, ''));
+    }
+
+    // Extract performance bonus
+    const performanceBonusMatch = messageContent.match(/Performance Bonus: [A-Z]+ ([\d,]+)/);
+    if (performanceBonusMatch) {
+      terms.performanceBonus = parseFloat(performanceBonusMatch[1].replace(/,/g, ''));
+    }
+
+    // Extract duration
+    const durationMatch = messageContent.match(/Contract Duration: ([^\u2022\n]+)/);
+    if (durationMatch) {
+      terms.duration = durationMatch[1].trim();
+    }
+
+    return terms;
+  };
+
+  // Accept a specific proposal from a message
+  const acceptProposal = async (messageId: string, messageContent: string) => {
+    const proposalTerms = extractProposalTerms(messageContent);
+
+    // Apply the proposal terms to the contract
+    const updateData: any = {
+      status: 'finalized',
+      current_step: 'signed',
+      deal_stage: 'signed',
+      last_activity: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      negotiation_rounds: (contract?.negotiation_rounds || 0) + 1
+    };
+
+    if (Object.keys(proposalTerms).length > 0) {
+      updateData.terms = { ...(contract?.terms as any), ...proposalTerms };
+      if (proposalTerms.contractValue) {
+        updateData.contract_value = proposalTerms.contractValue;
+      }
+    }
+
+    try {
+      const { error } = await supabase
+        .from('contracts')
+        .update(updateData)
+        .eq('id', contractId!);
+
+      if (error) throw error;
+
+      // Add acceptance message
+      await contractManagementService.addContractMessage(
+        contractId!,
+        profile?.id!,
+        `${userRole === 'team' ? 'Team' : 'Agent'} accepted the proposal`,
+        'action'
+      );
+
+      // Mark proposal as responded to
+      setRespondedProposals(prev => new Set([...prev, messageId]));
+
+      // Reload data
+      await Promise.all([
+        loadMessages(),
+        loadContractData()
+      ]);
+
+      toast({
+        title: "Success",
+        description: "Proposal accepted successfully"
+      });
+    } catch (error) {
+      console.error('Error accepting proposal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to accept proposal",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Reject a specific proposal from a message
+  const rejectProposal = async (messageId: string) => {
+    try {
+      // Mark proposal as responded to
+      setRespondedProposals(prev => new Set([...prev, messageId]));
+
+      await contractManagementService.addContractMessage(
+        contractId!,
+        profile?.id!,
+        `${userRole === 'team' ? 'Team' : 'Agent'} rejected the proposal`,
+        'action'
+      );
+
+      await loadMessages();
+
+      toast({
+        title: "Proposal Rejected",
+        description: "The proposal has been rejected"
+      });
+    } catch (error) {
+      console.error('Error rejecting proposal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reject proposal",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Counter a specific proposal from a message
+  const counterProposal = async (messageId: string) => {
+    // Mark proposal as responded to
+    setRespondedProposals(prev => new Set([...prev, messageId]));
+
+    // Open counter-offer modal
+    setSelectedAction('counter-offer');
+    setActionModalOpen(true);
+  };
+
+  // Get the latest agent counter-proposal terms
+  const getLatestAgentProposal = () => {
+    // For now, return the counterOfferTerms as they contain the latest values
+    return counterOfferTerms;
+  };
+
+  // Auto-update draft contracts to sent status
+  const updateContractStatusToSent = async () => {
+    if (!contractId) return;
+
+    try {
+      const { error } = await supabase
+        .from('contracts')
+        .update({
+          status: 'sent',
+          current_step: 'under_review',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', contractId);
+
+      if (error) {
+        console.error('Error updating contract status:', error);
+        return;
+      }
+
+      // Update local state
+      setContract(prev => prev ? {
+        ...prev,
+        status: 'sent',
+        current_step: 'under_review',
+        updated_at: new Date().toISOString()
+      } : null);
+
+      console.log('Contract status updated from draft to sent');
+    } catch (error) {
+      console.error('Error updating contract status:', error);
     }
   };
 
@@ -422,7 +1034,7 @@ const ContractNegotiationPage: React.FC = () => {
     switch (status) {
       case 'draft': return 'bg-gray-500';
       case 'pending': return 'bg-yellow-500';
-      case 'approved': return 'bg-green-500';
+      case 'finalized': return 'bg-green-500';
       case 'rejected': return 'bg-red-500';
       case 'completed': return 'bg-blue-500';
       default: return 'bg-gray-500';
@@ -472,96 +1084,154 @@ const ContractNegotiationPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto font-poppins">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/contracts')}
-                className="flex items-center gap-2 font-poppins"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Contracts
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-white mb-2 font-poppins">Contract Negotiation</h1>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground font-poppins">
-                  <span>Contract ID: {contractId}</span>
-                  <Badge variant="outline" className={`${getStatusColor(contract.status)} border-0 font-poppins`}>
-                    {contract.status}
-                  </Badge>
-                  <Badge variant="outline" className={`${getStepColor(contract.current_step)} border-0 font-poppins`}>
-                    {contract.current_step}
-                  </Badge>
-                  <span className="capitalize">{contract.transfer_type} Transfer</span>
-                  {/* Real-time connection status */}
-                  <div className="flex items-center gap-2">
-                    {isConnected ? (
-                      <>
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-xs text-green-500">Live</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                        <span className="text-xs text-red-500">Offline</span>
-                      </>
-                    )}
+      <div className="min-h-screen bg-gradient-to-br ">
+        {/* Modern Header */}
+        <div className="border-0 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/contracts')}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Contracts
+                </Button>
+                <div className="h-6 w-px bg-gray-300"></div>
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-100">Contract Negotiation</h1>
+                  <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                    <span>{contract.pitch?.player?.full_name}</span>
+                    <span>•</span>
+                    <span className="capitalize">{contract.transfer_type} Transfer</span>
+                    <span>•</span>
+                    <Badge variant="outline" className="text-xs">
+                      {contract.status.replace('_', ' ').toUpperCase()}
+                    </Badge>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowContractPreview(!showContractPreview)}
-                className="font-poppins"
-              >
-                {showContractPreview ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                {showContractPreview ? 'Hide' : 'Show'} Contract
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={downloadContract}
-                className="font-poppins"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
+              <div className="flex items-center gap-3">
+                {/* Connection Status */}
+                <div className="flex items-center gap-2 text-sm">
+                  {isConnected ? (
+                    <>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-green-600 font-medium">Live</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <span className="text-red-600 font-medium">Offline</span>
+                    </>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadContract}
+                  className="bg-destructive text-white hover:bg-destructive/90 flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3  gap-6">
-          {/* Left Panel - Contract Preview */}
-          {showContractPreview && (
-            <div className="lg:col-span-1 ">
-              <Card className="h-full border-0">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2  font-poppins">
-                    <FileText className="h-5 w-5" />
-                    Contract Preview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-96">
-                    <div
-                      className="prose prose-sm max-w-none font-poppins"
-                      dangerouslySetInnerHTML={{ __html: contractPreview }}
-                    />
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+        {/* Progress Bar */}
+        <Card className="mb-6 shadow-sm border-0">
+          <CardContent className="pb-[4rem] pt-6">
+            {renderProgressBar()}
+          </CardContent>
+        </Card>
 
-          {/* Right Panel - Main Content */}
-          <div className={showContractPreview ? "lg:col-span-2" : "lg:col-span-3"}>
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-280px)]">
+          {/* Left Sidebar - Contract Info & Actions */}
+          <div className="lg:col-span-1 space-y-4">
+            {/* Contract Details */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardHeader className="border-b border-gray-600 pb-3">
+                <CardTitle className="text-gray-100 flex items-center gap-2 text-base">
+                  <FileText className="w-4 h-4 text-gray-100" />
+                  Contract Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="space-y-4">
+                  {/* Player Info */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <h5 className="font-medium text-gray-100 mb-2 text-sm">Player</h5>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2">
+                        <User className="w-3 h-3 text-gray-400" />
+                        <span className="font-medium">{contract?.pitch?.player?.full_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-3 h-3 text-gray-400" />
+                        <span>{contract?.pitch?.player?.position}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Financial Terms */}
+                  <div className="bg-[#111111] rounded-lg p-3">
+                    <h5 className="font-medium  mb-2 text-sm">Financial Terms</h5>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="">Transfer Fee</span>
+                        <span className="font-semibold text-green-700">
+                          {contract?.currency} {contract?.contract_value?.toLocaleString()}
+                        </span>
+                      </div>
+                      {(contract?.terms as any)?.salary && (
+                        <div className="flex justify-between items-center">
+                          <span className="">Salary</span>
+                          <span className="font-medium">
+                            {contract?.currency} {(contract.terms as any).salary?.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      {(contract?.terms as any)?.signOnBonus && (
+                        <div className="flex justify-between items-center">
+                          <span className="">Sign-on</span>
+                          <span className="font-medium">
+                            {contract?.currency} {(contract.terms as any).signOnBonus?.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      {(contract?.terms as any)?.duration && (
+                        <div className="flex justify-between items-center">
+                          <span className="">Duration</span>
+                          <span className="font-medium">{(contract.terms as any).duration}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Buttons */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardHeader className="border-b border-gray-600 pb-3">
+                <CardTitle className="text-gray-100 flex items-center gap-2 text-base">
+                  <Handshake className="w-4 h-4 text-green-600" />
+                  {userRole === 'team' ? 'Team Actions' : 'Agent Actions'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                {renderActionButtons()}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Panel - Chat Interface */}
+          <div className="lg:col-span-3">
             <Tabs defaultValue="discussion" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="discussion" className="flex items-center gap-2 font-poppins">
@@ -601,11 +1271,39 @@ const ContractNegotiationPage: React.FC = () => {
                                 }`}
                             >
                               {!isCurrentUser && (
-                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium font-poppins ${message.sender_profile?.user_type === 'agent' ? 'bg-blue-500' :
-                                  message.sender_profile?.user_type === 'team' ? 'bg-green-500' :
-                                    message.sender_profile?.user_type === 'system' ? 'bg-gray-500' : 'bg-rosegold'
-                                  }`}>
-                                  {message.sender_profile?.full_name?.charAt(0) || 'U'}
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden">
+                                  {/* Show logo if available */}
+                                  {message.sender_profile?.user_type === 'team' && contract?.team?.logo_url ? (
+                                    <img
+                                      src={contract.team.logo_url}
+                                      alt="Team logo"
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        // Fallback to initials if image fails to load
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                      }}
+                                    />
+                                  ) : message.sender_profile?.user_type === 'agent' && contract?.agent?.logo_url ? (
+                                    <img
+                                      src={contract.agent.logo_url}
+                                      alt="Agent logo"
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        // Fallback to initials if image fails to load
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                      }}
+                                    />
+                                  ) : null}
+
+                                  {/* Fallback initials */}
+                                  <div className={`w-full h-full flex items-center justify-center text-xs font-medium font-poppins ${message.sender_profile?.user_type === 'agent' ? 'bg-blue-500' :
+                                    message.sender_profile?.user_type === 'team' ? 'bg-green-500' :
+                                      message.sender_profile?.user_type === 'system' ? 'bg-gray-500' : 'bg-rosegold'
+                                    } ${(message.sender_profile?.user_type === 'team' && contract?.team?.logo_url) || (message.sender_profile?.user_type === 'agent' && contract?.agent?.logo_url) ? 'hidden' : ''}`}>
+                                    {message.sender_profile?.full_name?.charAt(0) || 'U'}
+                                  </div>
                                 </div>
                               )}
                               <div className={`max-w-xs lg:max-w-md ${isCurrentUser ? 'order-first' : ''
@@ -619,7 +1317,54 @@ const ContractNegotiationPage: React.FC = () => {
                                       {message.sender_profile?.full_name || 'Unknown'}
                                     </p>
                                   )}
-                                  <p className="text-sm leading-relaxed">{message.content}</p>
+                                  <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
+
+                                  {/* Action buttons for counter-proposals */}
+                                  {!isCurrentUser && message.message_type === 'action' &&
+                                    (message.content.includes('counter-proposal') || message.content.includes('counter-offer')) &&
+                                    !respondedProposals.has(message.id) && (
+                                      <div className="flex gap-2 mt-3">
+                                        <Button
+                                          size="sm"
+                                          className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700"
+                                          onClick={() => acceptProposal(message.id, message.content)}
+                                        >
+                                          <CheckCircle className="w-3 h-3 mr-1" />
+                                          Accept
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 px-3 text-xs border-red-500 text-red-600 hover:bg-red-50"
+                                          onClick={() => rejectProposal(message.id)}
+                                        >
+                                          <XCircle className="w-3 h-3 mr-1" />
+                                          Reject
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 px-3 text-xs"
+                                          onClick={() => counterProposal(message.id)}
+                                        >
+                                          <RefreshCw className="w-3 h-3 mr-1" />
+                                          Counter
+                                        </Button>
+                                      </div>
+                                    )}
+
+                                  {/* Show responded status */}
+                                  {!isCurrentUser && message.message_type === 'action' &&
+                                    (message.content.includes('counter-proposal') || message.content.includes('counter-offer')) &&
+                                    respondedProposals.has(message.id) && (
+                                      <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                                        <div className="flex items-center gap-2">
+                                          <CheckCircle className="w-4 h-4 text-green-500" />
+                                          <span className="text-xs text-gray-600 font-medium">This proposal has been responded to</span>
+                                        </div>
+                                      </div>
+                                    )}
+
                                   <p className={`text-xs opacity-70 mt-1 ${isCurrentUser ? 'text-right' : 'text-left'
                                     }`}>
                                     {new Date(message.created_at).toLocaleTimeString([], {
@@ -629,14 +1374,40 @@ const ContractNegotiationPage: React.FC = () => {
                                   </p>
                                   {message.message_type === 'action' && (
                                     <Badge variant="outline" className="mt-1 text-xs font-poppins">
-                                      {message.related_field}
+                                      Action
                                     </Badge>
                                   )}
                                 </div>
                               </div>
                               {isCurrentUser && (
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-rosegold flex items-center justify-center text-xs font-medium font-poppins">
-                                  {profile?.full_name?.charAt(0) || 'U'}
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden">
+                                  {/* Show current user logo if available */}
+                                  {profile?.user_type === 'team' && contract?.team?.logo_url ? (
+                                    <img
+                                      src={contract.team.logo_url}
+                                      alt="Your team logo"
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                      }}
+                                    />
+                                  ) : profile?.user_type === 'agent' && contract?.agent?.logo_url ? (
+                                    <img
+                                      src={contract.agent.logo_url}
+                                      alt="Your agency logo"
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                      }}
+                                    />
+                                  ) : null}
+
+                                  {/* Fallback initials */}
+                                  <div className={`w-full h-full bg-rosegold flex items-center justify-center text-xs font-medium font-poppins ${(profile?.user_type === 'team' && contract?.team?.logo_url) || (profile?.user_type === 'agent' && contract?.agent?.logo_url) ? 'hidden' : ''}`}>
+                                    {profile?.full_name?.charAt(0) || 'U'}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -672,7 +1443,7 @@ const ContractNegotiationPage: React.FC = () => {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="contract" className="space-y-4">
+              <TabsContent value="contract" className="space-y-4 ">
                 <Card className='border-0'>
                   <CardHeader>
                     <CardTitle className="font-poppins">Contract Details</CardTitle>
@@ -756,13 +1527,13 @@ const ContractNegotiationPage: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      {contract.status === 'approved' && (
+                      {contract.status === 'finalized' && (
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           <div>
-                            <p className="font-medium font-poppins">Approved</p>
+                            <p className="font-medium font-poppins">Finalized</p>
                             <p className="text-sm text-muted-foreground font-poppins">
-                              Contract has been approved
+                              Contract has been finalized
                             </p>
                           </div>
                         </div>
@@ -784,152 +1555,130 @@ const ContractNegotiationPage: React.FC = () => {
               </TabsContent>
             </Tabs>
 
-            {/* Quick Actions */}
-            <Card className="mt-6 border-0">
-              <CardHeader>
-                <CardTitle className="font-poppins">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <AlertDialog open={actionModalOpen} onOpenChange={setActionModalOpen}>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="flex flex-col items-center gap-2 h-auto py-4 font-poppins"
-                        onClick={() => {
-                          setSelectedAction('approve');
-                          setActionModalOpen(true);
-                        }}
-                      >
-                        <ThumbsUp className="h-5 w-5" />
-                        <span className="text-sm">Approve</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="font-poppins">Approve Contract</AlertDialogTitle>
-                        <AlertDialogDescription className="font-poppins">
-                          Are you sure you want to approve this contract? This will move it to the finalization stage.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="font-poppins">Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleContractAction('approve')} className="font-poppins">
-                          Approve
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="flex flex-col items-center gap-2 h-auto py-4 font-poppins"
-                        onClick={() => {
-                          setSelectedAction('reject');
-                          setActionModalOpen(true);
-                        }}
-                      >
-                        <ThumbsDown className="h-5 w-5" />
-                        <span className="text-sm">Reject</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="font-poppins">Reject Contract</AlertDialogTitle>
-                        <AlertDialogDescription className="font-poppins">
-                          Are you sure you want to reject this contract? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="font-poppins">Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleContractAction('reject')}
-                          className="bg-red-600 hover:bg-red-700 font-poppins"
-                        >
-                          Reject
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="flex flex-col items-center gap-2 h-auto py-4 font-poppins"
-                      >
-                        <Edit className="h-5 w-5" />
-                        <span className="text-sm">Request Changes</span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle className="font-poppins">Request Changes</DialogTitle>
-                        <DialogDescription className="font-poppins">
-                          Please specify what changes you would like to request for this contract.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="changes" className="font-poppins">Changes Requested</Label>
-                          <Textarea
-                            id="changes"
-                            placeholder="Describe the changes you would like to request..."
-                            value={actionDetails}
-                            onChange={(e) => setActionDetails(e.target.value)}
-                            className="font-poppins"
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" className="font-poppins">Cancel</Button>
-                        <Button onClick={() => handleContractAction('request-changes')} className="font-poppins">
-                          Submit Request
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="flex flex-col items-center gap-2 h-auto py-4 font-poppins"
-                        onClick={() => {
-                          setSelectedAction('complete');
-                          setActionModalOpen(true);
-                        }}
-                      >
-                        <CheckCircle className="h-5 w-5" />
-                        <span className="text-sm">Complete Transfer</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="font-poppins">Complete Transfer</AlertDialogTitle>
-                        <AlertDialogDescription className="font-poppins">
-                          Are you sure you want to complete this transfer? This will mark the player as transferred and remove them from the pitch.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="font-poppins">Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleContractAction('complete')}
-                          className="bg-green-600 hover:bg-green-700 font-poppins"
-                        >
-                          Complete Transfer
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Legacy Quick Actions removed - replaced with role-specific action buttons above */}
           </div>
         </div>
       </div>
+
+      {/* Enhanced Action Modal for Counter-offers and Counter-proposals */}
+      <Dialog open={actionModalOpen} onOpenChange={setActionModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-poppins">
+              {selectedAction === 'counter-offer' ? 'Team Counter-Offer' :
+                selectedAction === 'submit-counter-proposal' ? 'Agent Counter-Proposal' :
+                  selectedAction === 'negotiate-terms' ? 'Negotiate Terms' : 'Action Details'}
+            </DialogTitle>
+            <DialogDescription className="font-poppins">
+              {selectedAction === 'counter-offer' ? 'Adjust the contract terms and send a counter-offer to the agent.' :
+                selectedAction === 'submit-counter-proposal' ? 'Propose alternative terms to the team.' :
+                  selectedAction === 'negotiate-terms' ? 'Specify what terms you would like to negotiate.' :
+                    'Please provide additional details for this action.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {(selectedAction === 'counter-offer' || selectedAction === 'submit-counter-proposal') ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="contractValue" className="font-poppins">Contract Value ({contract?.currency})</Label>
+                  <Input
+                    id="contractValue"
+                    type="number"
+                    value={counterOfferTerms.contractValue}
+                    onChange={(e) => setCounterOfferTerms(prev => ({ ...prev, contractValue: parseFloat(e.target.value) || 0 }))}
+                    className="font-poppins"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="salary" className="font-poppins">Annual Salary ({contract?.currency})</Label>
+                  <Input
+                    id="salary"
+                    type="number"
+                    value={counterOfferTerms.salary}
+                    onChange={(e) => setCounterOfferTerms(prev => ({ ...prev, salary: parseFloat(e.target.value) || 0 }))}
+                    className="font-poppins"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="signOnBonus" className="font-poppins">Sign-on Bonus ({contract?.currency})</Label>
+                  <Input
+                    id="signOnBonus"
+                    type="number"
+                    value={counterOfferTerms.signOnBonus}
+                    onChange={(e) => setCounterOfferTerms(prev => ({ ...prev, signOnBonus: parseFloat(e.target.value) || 0 }))}
+                    className="font-poppins"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="performanceBonus" className="font-poppins">Performance Bonus ({contract?.currency})</Label>
+                  <Input
+                    id="performanceBonus"
+                    type="number"
+                    value={counterOfferTerms.performanceBonus}
+                    onChange={(e) => setCounterOfferTerms(prev => ({ ...prev, performanceBonus: parseFloat(e.target.value) || 0 }))}
+                    className="font-poppins"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="duration" className="font-poppins">Contract Duration</Label>
+                <Input
+                  id="duration"
+                  value={counterOfferTerms.duration}
+                  onChange={(e) => setCounterOfferTerms(prev => ({ ...prev, duration: e.target.value }))}
+                  placeholder="e.g., 2 years"
+                  className="font-poppins"
+                />
+              </div>
+              <div>
+                <Label htmlFor="actionDetails" className="font-poppins">Additional Notes</Label>
+                <Textarea
+                  id="actionDetails"
+                  placeholder="Add any additional notes or explanations..."
+                  value={actionDetails}
+                  onChange={(e) => setActionDetails(e.target.value)}
+                  className="font-poppins"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="actionDetails" className="font-poppins">Details</Label>
+                <Textarea
+                  id="actionDetails"
+                  placeholder="Please provide details for this action..."
+                  value={actionDetails}
+                  onChange={(e) => setActionDetails(e.target.value)}
+                  className="font-poppins"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActionModalOpen(false)} className="font-poppins">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedAction === 'counter-offer' || selectedAction === 'submit-counter-proposal') {
+                  handleContractAction(selectedAction, counterOfferTerms);
+                } else {
+                  handleContractAction(selectedAction);
+                }
+              }}
+              className="font-poppins"
+            >
+              {selectedAction === 'counter-offer' ? 'Send Counter-Offer' :
+                selectedAction === 'submit-counter-proposal' ? 'Submit Proposal' :
+                  selectedAction === 'negotiate-terms' ? 'Request Negotiation' :
+                    'Confirm Action'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

@@ -24,6 +24,7 @@ export interface CreateContractData {
   playerId?: string; // Added for permanent transfer
 }
 
+// Legacy contract action interface
 export interface ContractAction {
   contractId: string;
   action: 'approve' | 'reject' | 'request-changes' | 'finalize' | 'complete';
@@ -31,10 +32,20 @@ export interface ContractAction {
   userId: string;
 }
 
+// New role-specific contract action interface
+export interface RoleSpecificContractAction {
+  contractId: string;
+  action: 'accept-offer' | 'negotiate-terms' | 'reject-offer' | 'submit-counter-proposal' | 'counter-offer' | 'accept-agent-terms' | 'withdraw-offer' | 'finalize-deal' | 'complete-transfer';
+  details?: string;
+  userId: string;
+  customTerms?: any;
+}
+
 export interface ContractActionResult {
   success: boolean;
-  newStatus: 'draft' | 'pending' | 'approved' | 'rejected' | 'completed';
-  newStep: 'draft' | 'review' | 'negotiation' | 'finalization' | 'completed';
+  newStatus: 'draft' | 'sent' | 'under_review' | 'negotiating' | 'finalized' | 'completed' | 'rejected' | 'withdrawn';
+  newStep: 'draft' | 'sent' | 'review' | 'negotiation' | 'finalization' | 'completion' | 'rejected' | 'withdrawn';
+  message: string;
 }
 
 export const contractManagementService = {
@@ -87,8 +98,8 @@ export const contractManagementService = {
           agent_id: agentId,
           team_id: teamId,
           contract_type: contractType,
-          status: 'draft',
-          deal_stage: 'draft',
+          status: 'sent',
+          deal_stage: 'under_review',
           contract_value: data.contractValue,
           currency: data.currency,
           terms: terms,
@@ -159,7 +170,9 @@ export const contractManagementService = {
           .from('agents')
           .select(`
             id,
-            profile_id
+            profile_id,
+            agency_name,
+            logo_url
           `)
           .eq('id', contract.agent_id)
           .single() : Promise.resolve({ data: null, error: null }),
@@ -508,30 +521,26 @@ export const contractManagementService = {
   // Handle contract action (approve, reject, etc.)
   async handleContractAction(actionData: ContractAction): Promise<ContractActionResult> {
     try {
-      let newStatus: 'draft' | 'pending' | 'approved' | 'rejected' | 'completed' = 'draft';
-      let newStep: 'draft' | 'review' | 'negotiation' | 'finalization' | 'completed' = 'draft';
+      let newStatus: 'draft' | 'sent' | 'under_review' | 'negotiating' | 'finalized' | 'completed' | 'rejected' | 'withdrawn' = 'draft';
+      let newStep: 'draft' | 'sent' | 'review' | 'negotiation' | 'finalization' | 'completion' | 'rejected' | 'withdrawn' = 'draft';
 
-      switch (actionData.action) {
-        case 'approve':
-          newStatus = 'approved';
-          newStep = 'finalization';
-          break;
-        case 'reject':
-          newStatus = 'rejected';
-          newStep = 'completed';
-          break;
-        case 'request-changes':
-          newStatus = 'pending';
-          newStep = 'negotiation';
-          break;
-        case 'finalize':
-          newStatus = 'completed';
-          newStep = 'completed';
-          break;
-        case 'complete':
-          newStatus = 'completed';
-          newStep = 'completed';
-          break;
+      // Convert legacy actions to new status
+      const legacyActionMap: Record<string, { 
+        status: 'draft' | 'sent' | 'under_review' | 'negotiating' | 'finalized' | 'completed' | 'rejected' | 'withdrawn', 
+        step: 'draft' | 'sent' | 'review' | 'negotiation' | 'finalization' | 'completion' | 'rejected' | 'withdrawn' 
+      }> = {
+        'approve': { status: 'finalized', step: 'finalization' },
+        'reject': { status: 'rejected', step: 'rejected' },
+        'request-changes': { status: 'negotiating', step: 'negotiation' },
+        'finalize': { status: 'completed', step: 'completion' },
+        'complete': { status: 'completed', step: 'completion' }
+      };
+
+      if (legacyActionMap[actionData.action]) {
+        newStatus = legacyActionMap[actionData.action].status;
+        newStep = legacyActionMap[actionData.action].step;
+      } else {
+        // This is redundant with the mapping above, remove duplicate logic
       }
 
       // Update contract status
@@ -546,9 +555,108 @@ export const contractManagementService = {
         actionData.action
       );
 
-      return { success: true, newStatus, newStep };
+      return { success: true, newStatus, newStep, message: `Contract ${actionData.action.replace('-', ' ')}` };
     } catch (error) {
       console.error('Error handling contract action:', error);
+      throw error;
+    }
+  },
+
+  // Handle role-specific contract actions
+  async handleRoleSpecificAction(action: RoleSpecificContractAction): Promise<ContractActionResult> {
+    try {
+      let newStatus: ContractActionResult['newStatus'] = 'draft';
+      let newStep: ContractActionResult['newStep'] = 'draft';
+      let actionMessage = '';
+
+      // Determine new status based on action
+      switch (action.action) {
+        case 'accept-offer':
+          newStatus = 'finalized';
+          newStep = 'finalization';
+          actionMessage = 'Agent accepted the contract offer';
+          break;
+        case 'negotiate-terms':
+          newStatus = 'negotiating';
+          newStep = 'negotiation';
+          actionMessage = 'Agent requested term negotiations';
+          break;
+        case 'reject-offer':
+          newStatus = 'rejected';
+          newStep = 'rejected';
+          actionMessage = 'Agent rejected the contract offer';
+          break;
+        case 'submit-counter-proposal':
+          newStatus = 'negotiating';
+          newStep = 'negotiation';
+          actionMessage = 'Agent submitted a counter-proposal';
+          break;
+        case 'counter-offer':
+          newStatus = 'negotiating';
+          newStep = 'negotiation';
+          actionMessage = 'Team sent a counter-offer';
+          break;
+        case 'accept-agent-terms':
+          newStatus = 'finalized';
+          newStep = 'finalization';
+          actionMessage = 'Team accepted agent terms';
+          break;
+        case 'withdraw-offer':
+          newStatus = 'withdrawn';
+          newStep = 'withdrawn';
+          actionMessage = 'Team withdrew the contract offer';
+          break;
+        case 'finalize-deal':
+          newStatus = 'finalized';
+          newStep = 'finalization';
+          actionMessage = 'Deal finalized - ready for completion';
+          break;
+        case 'complete-transfer':
+          newStatus = 'completed';
+          newStep = 'completion';
+          actionMessage = 'Transfer completed successfully';
+          break;
+        default:
+          throw new Error(`Unknown action: ${action.action}`);
+      }
+
+      // Update contract in database
+      const updateData: any = {
+        status: newStatus,
+        deal_stage: newStep,
+        last_activity: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // Add custom terms if provided
+      if (action.customTerms) {
+        updateData.terms = action.customTerms;
+        updateData.contract_value = action.customTerms.contractValue || updateData.contract_value;
+      }
+
+      const { error } = await supabase
+        .from('contracts')
+        .update(updateData)
+        .eq('id', action.contractId);
+
+      if (error) throw error;
+
+      // Add action message
+      await this.addContractMessage(
+        action.contractId,
+        action.userId,
+        actionMessage + (action.details ? ` - ${action.details}` : ''),
+        'action'
+      );
+
+      return {
+        success: true,
+        newStatus,
+        newStep,
+        message: actionMessage
+      };
+    } catch (error) {
+      console.error('Error handling role-specific contract action:', error);
       throw error;
     }
   },
