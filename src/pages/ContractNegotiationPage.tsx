@@ -31,6 +31,9 @@ import {
   ThumbsDown,
   RefreshCw,
   ArrowLeft,
+  FileSignature,
+  CreditCard,
+  Wallet,
   Upload,
   Eye,
   EyeOff,
@@ -46,6 +49,10 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { contractManagementService } from '@/services/contractManagementService';
+import DigitalSignature from '@/components/contracts/DigitalSignature';
+import PaymentOptions from '@/components/contracts/PaymentOptions';
+import TeamWallet from '@/components/wallet/TeamWallet';
+import AgentPaymentHistory from '@/components/wallet/AgentPaymentHistory';
 import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout';
 
@@ -69,8 +76,8 @@ interface Contract {
   agent_id: string;
   team_id: string;
   transfer_type: 'permanent' | 'loan';
-  status: 'draft' | 'sent' | 'under_review' | 'negotiating' | 'finalized' | 'completed' | 'rejected' | 'withdrawn';
-  current_step: 'draft' | 'under_review' | 'negotiating' | 'signed' | 'rejected' | 'expired';
+  status: 'draft' | 'sent' | 'under_review' | 'negotiating' | 'finalized' | 'completed' | 'rejected' | 'withdrawn' | 'contract_signing' | 'payment_pending';
+  current_step: 'draft' | 'under_review' | 'negotiating' | 'signed' | 'rejected' | 'expired' | 'contract_signing' | 'payment_pending';
   contract_value: number;
   currency: string;
   document_url?: string;
@@ -78,6 +85,12 @@ interface Contract {
   created_at: string;
   updated_at: string;
   negotiation_rounds?: number;
+  signatures?: {
+    agent_signed_at?: string;
+    agent_signature_id?: string;
+    team_confirmed_at?: string;
+    team_confirmation_id?: string;
+  };
   terms?: {
     salary?: number;
     signOnBonus?: number;
@@ -140,6 +153,10 @@ const ContractNegotiationPage: React.FC = () => {
   });
   const [pendingProposals, setPendingProposals] = useState<{ [messageId: string]: any }>({});
   const [respondedProposals, setRespondedProposals] = useState<Set<string>>(new Set());
+  const [showDigitalSignature, setShowDigitalSignature] = useState(false);
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [showTeamWallet, setShowTeamWallet] = useState(false);
+  const [showAgentPaymentHistory, setShowAgentPaymentHistory] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const messageChannelRef = useRef<any>(null);
@@ -395,8 +412,9 @@ const ContractNegotiationPage: React.FC = () => {
       { key: 'draft', label: 'Draft', description: 'Contract created' },
       { key: 'under_review', label: 'Under Review', description: 'Agent reviewing' },
       { key: 'negotiating', label: 'Negotiating', description: 'Terms discussion' },
-      { key: 'signed', label: 'Signed', description: 'Terms agreed' },
-      { key: 'completed', label: 'Completed', description: 'Transfer executed' }
+      { key: 'contract_signing', label: 'Contract Signing', description: 'Digital signatures' },
+      { key: 'payment_pending', label: 'Payment Processing', description: 'Transfer payment' },
+      { key: 'completed', label: 'Transferred', description: 'Player transferred' }
     ];
   };
 
@@ -501,6 +519,55 @@ const ContractNegotiationPage: React.FC = () => {
           newStep = 'negotiating';
           actionMessage = 'Agent requested renegotiation';
           break;
+        case 'initiate-signing':
+          newStatus = 'contract_signing';
+          newStep = 'contract_signing';
+          actionMessage = 'Team initiated contract signing phase';
+          setShowDigitalSignature(true);
+          break;
+        case 'sign-contract':
+          // Handle digital signature
+          newStatus = 'contract_signing';
+          newStep = 'contract_signing';
+          actionMessage = 'Agent signed the contract digitally';
+          // Update contract with signature timestamp
+          if (!customDetails) {
+            customDetails = {
+              signatures: {
+                agent_signed_at: new Date().toISOString(),
+                agent_signature_id: `sig_${Date.now()}`
+              }
+            };
+          }
+          break;
+        case 'confirm-agent-signature':
+          newStatus = 'payment_pending';
+          newStep = 'payment_pending';
+          actionMessage = 'Team confirmed agent signature - payment phase started';
+          // Update contract with team confirmation
+          if (!customDetails) {
+            customDetails = {
+              signatures: {
+                ...contract.signatures,
+                team_confirmed_at: new Date().toISOString(),
+                team_confirmation_id: `conf_${Date.now()}`
+              }
+            };
+          }
+          setShowPaymentOptions(true);
+          break;
+        case 'make-payment':
+          setShowPaymentOptions(true);
+          return; // Don't update contract status, just open modal
+        case 'view-payment-status':
+          setShowPaymentOptions(true);
+          return;
+        case 'view-payment-history':
+          setShowAgentPaymentHistory(true);
+          return;
+        case 'open-wallet':
+          setShowTeamWallet(true);
+          return;
         default:
           throw new Error('Unknown action');
       }
@@ -605,8 +672,17 @@ const ContractNegotiationPage: React.FC = () => {
           ];
         case 'finalized':
           return [
-            { key: 'reopen-negotiation', label: 'Reopen Negotiation', icon: Edit, variant: 'outline', color: 'border-yellow-500 text-yellow-600 hover:bg-yellow-50' },
-            { key: 'complete-transfer', label: 'Complete Transfer', icon: Trophy, variant: 'default', color: 'bg-green-600 hover:bg-green-700' }
+            { key: 'initiate-signing', label: 'Initiate Contract Signing', icon: FileSignature, variant: 'default', color: 'bg-purple-600 hover:bg-purple-700' },
+            { key: 'reopen-negotiation', label: 'Reopen Negotiation', icon: Edit, variant: 'outline', color: 'border-yellow-500 text-yellow-600 hover:bg-yellow-50' }
+          ];
+        case 'contract_signing':
+          return [
+            { key: 'confirm-agent-signature', label: 'Confirm Agent Signature', icon: CheckCircle, variant: 'default', color: 'bg-green-600 hover:bg-green-700' }
+          ];
+        case 'payment_pending':
+          return [
+            { key: 'view-payment-status', label: 'View Payment Status', icon: CreditCard, variant: 'outline', color: 'border-blue-500 text-blue-600 hover:bg-blue-50' },
+            { key: 'open-wallet', label: 'Open Team Wallet', icon: Wallet, variant: 'outline', color: 'border-green-500 text-green-600 hover:bg-green-50' }
           ];
         default:
           return [];
@@ -630,6 +706,15 @@ const ContractNegotiationPage: React.FC = () => {
         case 'finalized':
           return [
             { key: 'request-renegotiation', label: 'Request Renegotiation', icon: RefreshCw, variant: 'outline', color: 'border-yellow-500 text-yellow-600 hover:bg-yellow-50' }
+          ];
+        case 'contract_signing':
+          return [
+            { key: 'sign-contract', label: 'Sign Contract Digitally', icon: FileSignature, variant: 'default', color: 'bg-purple-600 hover:bg-purple-700' }
+          ];
+        case 'payment_pending':
+          return [
+            { key: 'make-payment', label: 'Make Payment', icon: CreditCard, variant: 'default', color: 'bg-green-600 hover:bg-green-700' },
+            { key: 'view-payment-history', label: 'Payment History', icon: Wallet, variant: 'outline', color: 'border-blue-500 text-blue-600 hover:bg-blue-50' }
           ];
         default:
           return [];
@@ -1094,7 +1179,7 @@ const ContractNegotiationPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate('/contracts')}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                  className="flex items-center gap-2 text-gray-100 hover:text-gray-300"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Back to Contracts
@@ -1677,6 +1762,89 @@ const ContractNegotiationPage: React.FC = () => {
                     'Confirm Action'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Digital Signature Modal */}
+      <Dialog open={showDigitalSignature} onOpenChange={setShowDigitalSignature}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-poppins">Digital Contract Signing</DialogTitle>
+            <DialogDescription className="font-poppins">
+              Complete the digital signature process for this contract.
+            </DialogDescription>
+          </DialogHeader>
+          <DigitalSignature
+            contract={contract}
+            userRole={userRole!}
+            onSign={async () => {
+              await handleContractAction('sign-contract');
+              setShowDigitalSignature(false);
+            }}
+            onConfirm={async () => {
+              await handleContractAction('confirm-agent-signature');
+              setShowDigitalSignature(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Options Modal */}
+      <Dialog open={showPaymentOptions} onOpenChange={setShowPaymentOptions}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-poppins">Payment Processing</DialogTitle>
+            <DialogDescription className="font-poppins">
+              Complete the transfer payment to finalize the contract.
+            </DialogDescription>
+          </DialogHeader>
+          <PaymentOptions
+            contract={contract}
+            userRole={userRole!}
+            onMakePayment={async (paymentData) => {
+              console.log('Processing payment:', paymentData);
+              // Implement Paystack integration here
+              setShowPaymentOptions(false);
+              // After successful payment, update contract status to completed
+              await handleContractAction('complete-transfer');
+            }}
+            onViewWallet={() => {
+              setShowPaymentOptions(false);
+              setShowTeamWallet(true);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Team Wallet Modal */}
+      <Dialog open={showTeamWallet} onOpenChange={setShowTeamWallet}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-poppins">Team Wallet</DialogTitle>
+            <DialogDescription className="font-poppins">
+              View your team's financial overview and transaction history.
+            </DialogDescription>
+          </DialogHeader>
+          <TeamWallet
+            teamId={contract?.team_id || ''}
+            onClose={() => setShowTeamWallet(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Agent Payment History Modal */}
+      <Dialog open={showAgentPaymentHistory} onOpenChange={setShowAgentPaymentHistory}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-poppins">Payment History</DialogTitle>
+            <DialogDescription className="font-poppins">
+              View your complete payment history and active installments.
+            </DialogDescription>
+          </DialogHeader>
+          <AgentPaymentHistory
+            agentId={contract?.agent_id || ''}
+            onClose={() => setShowAgentPaymentHistory(false)}
+          />
         </DialogContent>
       </Dialog>
     </Layout>

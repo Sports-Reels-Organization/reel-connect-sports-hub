@@ -27,6 +27,9 @@ import VideoShowcase from "./pages/VideoShowcase";
 import Notification from "./pages/Notification";
 import NotFound from "./pages/NotFound";
 import ContractNegotiationPage from "./pages/ContractNegotiationPage";
+import WalletPage from "./pages/WalletPage";
+import DebugWalletPage from "./pages/DebugWalletPage";
+import SimpleWalletTest from "./pages/SimpleWalletTest";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +44,7 @@ function App() {
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Index />} />
                 <Route path="/players" element={<Players />} />
                 <Route path="/videos" element={<Videos />} />
                 <Route path="/videos/:videoTitle" element={<VideoAnalysisResults />} />
@@ -56,6 +60,9 @@ function App() {
                 <Route path="/agent-shortlist" element={<AgentShortlist />} />
                 <Route path="/contracts" element={<Contracts />} />
                 <Route path="/contract-negotiation/:contractId" element={<ContractNegotiationPage />} />
+                <Route path="/wallet" element={<WalletPage />} />
+                <Route path="/wallet-test" element={<SimpleWalletTest />} />
+                <Route path="/wallet-debug" element={<DebugWalletPage />} />
                 <Route path="/user-management" element={<UserManagement />} />
                 <Route path="/news" element={<News />} />
                 <Route path="/video-showcase" element={<VideoShowcase />} />

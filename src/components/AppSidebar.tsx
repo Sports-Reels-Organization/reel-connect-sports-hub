@@ -29,7 +29,8 @@ import {
   Clock,
   Newspaper,
   Heart,
-  Target
+  Target,
+  Wallet
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -64,6 +65,11 @@ export function AppSidebar() {
       title: t('contracts'),
       url: "/contracts",
       icon: FileText,
+    },
+    {
+      title: t('wallet'),
+      url: "/wallet",
+      icon: Wallet,
     },
     {
       title: t('profile'),
