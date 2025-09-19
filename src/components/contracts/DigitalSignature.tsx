@@ -1,24 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { FileSignature, Check, Clock, User, Calendar } from 'lucide-react';
+import { FileSignature, Check, Clock, User, Calendar, ArrowLeft, Eye, Download } from 'lucide-react';
+import HandDrawnSignature from './HandDrawnSignature';
 
 interface DigitalSignatureProps {
   contract: any;
   userRole: 'team' | 'agent';
-  onSign: () => void;
+  onSign: (signatureData?: string) => void;
   onConfirm: () => void;
+  onGoBack?: () => void;
+  contractPreview?: string;
 }
 
 const DigitalSignature: React.FC<DigitalSignatureProps> = ({
   contract,
   userRole,
   onSign,
-  onConfirm
+  onConfirm,
+  onGoBack,
+  contractPreview
 }) => {
   const [isSigningInProgress, setIsSigningInProgress] = useState(false);
+  const [showSignatureCanvas, setShowSignatureCanvas] = useState(false);
+  const signatureRef = useRef<HTMLDivElement>(null);
 
   const handleSign = async () => {
     setIsSigningInProgress(true);
@@ -80,7 +87,16 @@ const DigitalSignature: React.FC<DigitalSignatureProps> = ({
             </div>
             {userRole === 'agent' && !agentSigned && (
               <Button
-                onClick={handleSign}
+                onClick={() => {
+                  setShowSignatureCanvas(true);
+                  // Smooth scroll to signature section after a short delay
+                  setTimeout(() => {
+                    signatureRef.current?.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'start'
+                    });
+                  }, 100);
+                }}
                 disabled={isSigningInProgress}
                 className="bg-purple-600 hover:bg-purple-700"
               >
@@ -147,6 +163,325 @@ const DigitalSignature: React.FC<DigitalSignatureProps> = ({
           </div>
         </div>
 
+        {/* Go Back to Negotiating Button */}
+        {onGoBack && (
+          <div className="flex justify-center pt-4">
+            <Button
+              variant="outline"
+              onClick={onGoBack}
+              className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:border-orange-600"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Go Back to Negotiating
+            </Button>
+          </div>
+        )}
+
+        {/* Signature Actions - Preview and Download */}
+        {agentSigned && (
+          <div className="space-y-3">
+            <h4 className="font-semibold text-gray-900">Signed Contract Actions</h4>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Generate contract preview with signature
+                  const contractData = {
+                    title: contract?.player?.full_name ? `${contract.player.full_name} Transfer Contract` : 'Contract Agreement',
+                    agentSignature: contract?.signatures?.agent_signature_data,
+                    agentSignedAt: contract?.signatures?.agent_signed_at,
+                    teamConfirmed: teamConfirmed,
+                    contract: contract
+                  };
+                  
+                  
+                  // Open preview in new window
+                  const previewWindow = window.open('', '_blank', 'width=900,height=700');
+                  if (previewWindow) {
+                    previewWindow.document.write(`
+                      <!DOCTYPE html>
+                      <html>
+                        <head>
+                          <title>Contract Preview - ${contractData.title}</title>
+                          <style>
+                            body { 
+                              font-family: Arial, sans-serif; 
+                              margin: 20px; 
+                              line-height: 1.6;
+                              color: #333;
+                            }
+                            .contract-header { 
+                              text-align: center; 
+                              margin-bottom: 30px;
+                              border-bottom: 2px solid #ddd;
+                              padding-bottom: 20px;
+                            }
+                            .contract-content {
+                              margin-bottom: 30px;
+                            }
+                            .signature-section { 
+                              margin: 30px 0; 
+                              padding: 20px; 
+                              border: 2px solid #4a5568;
+                              border-radius: 8px;
+                              background-color: #f7fafc;
+                            }
+                            .signature-block {
+                              margin: 20px 0;
+                              padding: 15px 0;
+                              border-bottom: 1px solid #e2e8f0;
+                            }
+                            .signature-block:last-child {
+                              border-bottom: none;
+                            }
+                            .signature-label {
+                              font-weight: bold;
+                              font-size: 14px;
+                              color: #2d3748;
+                              margin-bottom: 10px;
+                            }
+                            .signature-container {
+                              min-height: 60px;
+                              display: flex;
+                              align-items: center;
+                              justify-content: flex-start;
+                              margin: 10px 0;
+                            }
+                            .signature-image-black { 
+                              max-width: 250px; 
+                              max-height: 60px;
+                              border: 1px solid #000;
+                              background-color: white;
+                              filter: contrast(1.2) brightness(0.9);
+                            }
+                            .signature-line {
+                              border-bottom: 1px solid #000;
+                              width: 250px;
+                              height: 40px;
+                              margin: 10px 0;
+                            }
+                            .signature-date {
+                              font-size: 12px;
+                              color: #4a5568;
+                              margin-top: 5px;
+                            }
+                            h1 { color: #2d3748; }
+                            h3 { color: #4a5568; margin-top: 0; }
+                            .signature-status {
+                              font-weight: bold;
+                              padding: 5px 10px;
+                              border-radius: 4px;
+                              display: inline-block;
+                            }
+                            .confirmed { background-color: #c6f6d5; color: #22543d; }
+                            .pending { background-color: #fef5e7; color: #744210; }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="contract-header">
+                            <h1>${contractData.title}</h1>
+                            <p><strong>Contract Value:</strong> ${contract?.currency} ${contract?.contract_value?.toLocaleString() || 'N/A'}</p>
+                            <p><strong>Transfer Type:</strong> ${contract?.transfer_type || 'N/A'}</p>
+                            <p><strong>Generated:</strong> ${new Date().toLocaleDateString()}</p>
+                          </div>
+                          
+                          <div class="contract-content">
+                            ${contractPreview || '<p>Contract details not available</p>'}
+                          </div>
+                          
+                          <div class="signature-section">
+                            <h3>Contract Signatures</h3>
+                            
+                            <div class="signature-block">
+                              <div class="signature-label">Agent Signature</div>
+                            ${contractData.agentSignature && contractData.agentSignature !== 'null' ? 
+                              `<div class="signature-container">
+                                 <img src="${contractData.agentSignature}" class="signature-image-black" alt="Agent Signature" onerror="console.log('Signature image failed to load:', this.src); this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                                 <div style="display:none; color:red; font-size:12px;">Signature image failed to load</div>
+                               </div>` : 
+                              '<div class="signature-line">________________________</div>'
+                            }
+                              <div class="signature-date">Date: ${contractData.agentSignedAt ? new Date(contractData.agentSignedAt).toLocaleDateString() : '_______________'}</div>
+                            </div>
+                            
+                            <div class="signature-block">
+                              <div class="signature-label">Player Signature</div>
+                              <div class="signature-line">________________________</div>
+                              <div class="signature-date">Date: _______________</div>
+                            </div>
+                            
+                            <div class="signature-block">
+                              <div class="signature-label">Club Representative</div>
+                              <div class="signature-line">________________________</div>
+                              <div class="signature-date">Date: _______________</div>
+                            </div>
+                          </div>
+                        </body>
+                      </html>
+                    `);
+                    previewWindow.document.close();
+                  }
+                }}
+                className="border-blue-500 text-blue-600 hover:bg-blue-50"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Preview Contract
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Generate downloadable contract
+                  const contractData = {
+                    title: contract?.player?.full_name ? `${contract.player.full_name} Transfer Contract` : 'Contract Agreement',
+                    agentSignature: contract?.signatures?.agent_signature_data,
+                    agentSignedAt: contract?.signatures?.agent_signed_at,
+                    teamConfirmed: teamConfirmed,
+                    contract: contract
+                  };
+                  
+                  
+                  const contractHtml = `
+                    <!DOCTYPE html>
+                    <html>
+                      <head>
+                        <title>${contractData.title}</title>
+                        <style>
+                          body { 
+                            font-family: Arial, sans-serif; 
+                            margin: 20px; 
+                            line-height: 1.6;
+                            color: #333;
+                          }
+                          .contract-header { 
+                            text-align: center; 
+                            margin-bottom: 30px;
+                            border-bottom: 2px solid #ddd;
+                            padding-bottom: 20px;
+                          }
+                          .contract-content {
+                            margin-bottom: 30px;
+                          }
+                          .signature-section { 
+                            margin: 30px 0; 
+                            padding: 20px; 
+                            border: 2px solid #4a5568;
+                            border-radius: 8px;
+                            background-color: #f7fafc;
+                          }
+                          .signature-block {
+                            margin: 20px 0;
+                            padding: 15px 0;
+                            border-bottom: 1px solid #e2e8f0;
+                          }
+                          .signature-block:last-child {
+                            border-bottom: none;
+                          }
+                          .signature-label {
+                            font-weight: bold;
+                            font-size: 14px;
+                            color: #2d3748;
+                            margin-bottom: 10px;
+                          }
+                          .signature-container {
+                            min-height: 60px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: flex-start;
+                            margin: 10px 0;
+                          }
+                          .signature-image-black { 
+                            max-width: 250px; 
+                            max-height: 60px;
+                            border: 1px solid #000;
+                            background-color: white;
+                            filter: contrast(1.2) brightness(0.9);
+                          }
+                          .signature-line {
+                            border-bottom: 1px solid #000;
+                            width: 250px;
+                            height: 40px;
+                            margin: 10px 0;
+                          }
+                          .signature-date {
+                            font-size: 12px;
+                            color: #4a5568;
+                            margin-top: 5px;
+                          }
+                          h1 { color: #2d3748; }
+                          h3 { color: #4a5568; margin-top: 0; }
+                          .signature-status {
+                            font-weight: bold;
+                            padding: 5px 10px;
+                            border-radius: 4px;
+                            display: inline-block;
+                          }
+                          .confirmed { background-color: #c6f6d5; color: #22543d; }
+                          .pending { background-color: #fef5e7; color: #744210; }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="contract-header">
+                          <h1>${contractData.title}</h1>
+                          <p><strong>Contract Value:</strong> ${contract?.currency} ${contract?.contract_value?.toLocaleString() || 'N/A'}</p>
+                          <p><strong>Transfer Type:</strong> ${contract?.transfer_type || 'N/A'}</p>
+                          <p><strong>Generated:</strong> ${new Date().toLocaleDateString()}</p>
+                        </div>
+                        
+                        <div class="contract-content">
+                          ${contractPreview || '<p>Contract details not available</p>'}
+                        </div>
+                        
+                        <div class="signature-section">
+                          <h3>Contract Signatures</h3>
+                          
+                          <div class="signature-block">
+                            <div class="signature-label">Agent Signature</div>
+                            ${contractData.agentSignature && contractData.agentSignature !== 'null' ? 
+                              `<div class="signature-container">
+                                 <img src="${contractData.agentSignature}" class="signature-image-black" alt="Agent Signature" onerror="console.log('Download signature image failed to load:', this.src); this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                                 <div style="display:none; color:red; font-size:12px;">Signature image failed to load</div>
+                               </div>` : 
+                              '<div class="signature-line">________________________</div>'
+                            }
+                            <div class="signature-date">Date: ${contractData.agentSignedAt ? new Date(contractData.agentSignedAt).toLocaleDateString() : '_______________'}</div>
+                          </div>
+                          
+                          <div class="signature-block">
+                            <div class="signature-label">Player Signature</div>
+                            <div class="signature-line">________________________</div>
+                            <div class="signature-date">Date: _______________</div>
+                          </div>
+                          
+                          <div class="signature-block">
+                            <div class="signature-label">Club Representative</div>
+                            <div class="signature-line">________________________</div>
+                            <div class="signature-date">Date: _______________</div>
+                          </div>
+                        </div>
+                      </body>
+                    </html>
+                  `;
+                  
+                  const blob = new Blob([contractHtml], { type: 'text/html' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${contractData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_signed.html`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
+                className="border-green-500 text-green-600 hover:bg-green-50"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download Contract
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Separator />
 
         {/* Contract Summary */}
@@ -205,6 +540,23 @@ const DigitalSignature: React.FC<DigitalSignatureProps> = ({
           </div>
         )}
       </CardContent>
+      
+      {/* Hand-Drawn Signature Component */}
+      {showSignatureCanvas && (
+        <div ref={signatureRef} className="mt-6">
+          <HandDrawnSignature
+            onSignatureComplete={(signatureData) => {
+              // Process the signature data and call onSign
+              console.log('Signature completed:', signatureData);
+              setShowSignatureCanvas(false);
+              onSign(signatureData);
+            }}
+            onCancel={() => setShowSignatureCanvas(false)}
+            userRole={userRole}
+            contractTitle={`${contract?.player?.full_name || 'Player'} Transfer Contract`}
+          />
+        </div>
+      )}
     </Card>
   );
 };

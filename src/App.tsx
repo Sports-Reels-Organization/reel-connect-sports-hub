@@ -28,8 +28,6 @@ import Notification from "./pages/Notification";
 import NotFound from "./pages/NotFound";
 import ContractNegotiationPage from "./pages/ContractNegotiationPage";
 import WalletPage from "./pages/WalletPage";
-import DebugWalletPage from "./pages/DebugWalletPage";
-import SimpleWalletTest from "./pages/SimpleWalletTest";
 
 const queryClient = new QueryClient();
 
@@ -61,8 +59,6 @@ function App() {
                 <Route path="/contracts" element={<Contracts />} />
                 <Route path="/contract-negotiation/:contractId" element={<ContractNegotiationPage />} />
                 <Route path="/wallet" element={<WalletPage />} />
-                <Route path="/wallet-test" element={<SimpleWalletTest />} />
-                <Route path="/wallet-debug" element={<DebugWalletPage />} />
                 <Route path="/user-management" element={<UserManagement />} />
                 <Route path="/news" element={<News />} />
                 <Route path="/video-showcase" element={<VideoShowcase />} />

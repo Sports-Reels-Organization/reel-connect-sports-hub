@@ -340,7 +340,14 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <h3 className="text-white font-semibold text-sm">{player.full_name}</h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-white font-semibold text-sm">{player.full_name}</h3>
+                        {player.status === 'transferred' && (
+                          <Badge className="bg-red-600 text-white text-xs px-1.5 py-0.5">
+                            TRANSFERRED
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-gray-400 text-xs">{player.position}</p>
                       {player.jersey_number && (
                         <p className="text-rosegold text-xs">#{player.jersey_number}</p>

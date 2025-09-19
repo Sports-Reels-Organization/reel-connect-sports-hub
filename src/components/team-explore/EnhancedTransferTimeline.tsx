@@ -53,6 +53,7 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
   // Edit Modal State
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPitchForEdit, setSelectedPitchForEdit] = useState<TransferPitch | null>(null);
+  const [showTransferred, setShowTransferred] = useState(true);
 
   // Enable contract notifications
   useContractNotifications();
@@ -251,6 +252,7 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
       case 'active': return 'bg-green-600';
       case 'expired': return 'bg-red-600';
       case 'completed': return 'bg-blue-600';
+      case 'transferred': return 'bg-red-700'; // Red for transferred players
       default: return 'bg-gray-600';
     }
   };
@@ -284,9 +286,24 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
           <h2 className="text-2xl font-polysans font-bold text-white">
             {userType === 'team' ? 'My Transfer Pitches' : 'Available Transfer Pitches'}
           </h2>
-          <Badge variant="outline" className="text-white border-white">
-            {pitches.length} Active Pitches
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Button
+              variant={showTransferred ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowTransferred(!showTransferred)}
+              className={`text-xs ${
+                showTransferred 
+                  ? 'bg-red-600 hover:bg-red-700 text-white' 
+                  : 'border-red-500 text-red-400 hover:bg-red-600 hover:text-white'
+              }`}
+            >
+              {showTransferred ? 'Hide' : 'Show'} Transferred
+            </Button>
+            <Badge variant="outline" className="text-white border-white">
+              {pitches.filter(p => showTransferred || p.players.status !== 'transferred').length} 
+              {showTransferred ? 'Total' : 'Active'} Pitches
+            </Badge>
+          </div>
         </div>
 
         {pitches.length === 0 ? (
@@ -306,12 +323,26 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
           </Card>
         ) : (
           <div className="grid gap-6">
-            {pitches.map((pitch) => {
+            {pitches
+              .filter(pitch => showTransferred || pitch.players.status !== 'transferred')
+              .map((pitch) => {
               const daysLeft = getDaysUntilExpiry(pitch.expires_at);
               const isOwner = userType === 'team' && pitch.teams.profile_id === profile?.user_id;
+              const isPlayerTransferred = pitch.players.status === 'transferred';
               
               return (
-                <Card key={pitch.id} className="border-gray-700 bg-gray-800/50 hover:bg-gray-800/70 transition-colors">
+                <Card key={pitch.id} className={`border-gray-700 transition-colors relative ${
+                  isPlayerTransferred 
+                    ? 'bg-red-900/20 border-red-500/30 opacity-75' 
+                    : 'bg-gray-800/50 hover:bg-gray-800/70'
+                }`}>
+                  {isPlayerTransferred && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <div className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">
+                        TRANSFERRED
+                      </div>
+                    </div>
+                  )}
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="space-y-2">
@@ -331,9 +362,15 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        <Badge className={`${getStatusColor(pitch.status)} text-white`}>
-                          {pitch.status.toUpperCase()}
-                        </Badge>
+                        {isPlayerTransferred ? (
+                          <Badge className="bg-red-600 text-white border-red-500">
+                            TRANSFERRED
+                          </Badge>
+                        ) : (
+                          <Badge className={`${getStatusColor(pitch.status)} text-white`}>
+                            {pitch.status.toUpperCase()}
+                          </Badge>
+                        )}
                         {daysLeft <= 7 && (
                           <Badge variant="destructive">
                             {daysLeft} days left
@@ -414,7 +451,7 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {userType === 'agent' && (
+                        {userType === 'agent' && !isPlayerTransferred && (
                           <Button
                             onClick={() => handleMessageClick(pitch)}
                             size="sm"
@@ -423,6 +460,14 @@ const EnhancedTransferTimeline: React.FC<EnhancedTransferTimelineProps> = ({ use
                             <MessageCircle className="w-4 h-4 mr-2" />
                             Express Interest
                           </Button>
+                        )}
+                        
+                        {isPlayerTransferred && (
+                          <div className="text-center py-2">
+                            <Badge className="bg-red-600 text-white px-3 py-1">
+                              Player Already Transferred
+                            </Badge>
+                          </div>
                         )}
                         
                         {isOwner && (

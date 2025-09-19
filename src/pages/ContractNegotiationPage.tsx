@@ -73,11 +73,12 @@ interface ContractMessage {
 interface Contract {
   id: string;
   pitch_id: string;
+  player_id?: string;
   agent_id: string;
   team_id: string;
   transfer_type: 'permanent' | 'loan';
   status: 'draft' | 'sent' | 'under_review' | 'negotiating' | 'finalized' | 'completed' | 'rejected' | 'withdrawn' | 'contract_signing' | 'payment_pending';
-  current_step: 'draft' | 'under_review' | 'negotiating' | 'signed' | 'rejected' | 'expired' | 'contract_signing' | 'payment_pending';
+  current_step: 'draft' | 'under_review' | 'negotiating' | 'signed' | 'rejected' | 'expired' | 'contract_signing' | 'payment_pending' | 'completed';
   contract_value: number;
   currency: string;
   document_url?: string;
@@ -105,6 +106,7 @@ interface Contract {
     currency: string;
     status: string;
     player?: {
+      id: string;
       full_name: string;
       position: string;
       citizenship: string;
@@ -116,7 +118,7 @@ interface Contract {
       email: string;
     };
     agency_name?: string;
-    logo_url?: string;
+    // Note: agents table doesn't have logo_url column
   };
   team?: {
     team_name: string;
@@ -159,6 +161,8 @@ const ContractNegotiationPage: React.FC = () => {
   const [showAgentPaymentHistory, setShowAgentPaymentHistory] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [connectionRetries, setConnectionRetries] = useState(0);
+  const [shouldReload, setShouldReload] = useState(false);
   const messageChannelRef = useRef<any>(null);
   const updateChannelRef = useRef<any>(null);
 
@@ -171,13 +175,71 @@ const ContractNegotiationPage: React.FC = () => {
     return () => {
       // Cleanup subscription on unmount
       if (messageChannelRef.current) {
+        try {
         supabase.removeChannel(messageChannelRef.current);
+        } catch (error) {
+          console.warn('Error removing message channel:', error);
+        }
+        messageChannelRef.current = null;
       }
       if (updateChannelRef.current) {
+        try {
         supabase.removeChannel(updateChannelRef.current);
+        } catch (error) {
+          console.warn('Error removing update channel:', error);
+        }
+        updateChannelRef.current = null;
       }
     };
   }, [contractId]);
+
+  // Note: Auto-showing of modals is now handled by real-time subscription for better synchronization
+
+  // Auto-reload page when connection fails multiple times
+  useEffect(() => {
+    if (connectionRetries >= 3 && !isConnected) {
+      toast({
+        title: "Connection Issues Detected",
+        description: "Reloading page to restore connection...",
+        duration: 2000,
+      });
+      
+      // Small delay to show the toast, then reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    }
+  }, [connectionRetries, isConnected]);
+
+  // Connection health check
+  useEffect(() => {
+    if (!contractId) return;
+    
+    const healthCheckInterval = setInterval(async () => {
+      try {
+        // Test connection by attempting a simple query
+        const { error } = await supabase
+          .from('contracts')
+          .select('id')
+          .eq('id', contractId)
+          .limit(1);
+        
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is ok
+          console.warn('Connection health check failed:', error);
+          
+          // If we've been disconnected for a while, trigger reconnection
+          if (!isConnected && connectionRetries < 3) {
+            setConnectionRetries(prev => prev + 1);
+            setupRealtimeSubscription();
+          }
+        }
+      } catch (error) {
+        console.warn('Health check error:', error);
+      }
+    }, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(healthCheckInterval);
+  }, [contractId, isConnected, connectionRetries]);
 
   // Determine user role based on contract data and auto-update draft contracts
   useEffect(() => {
@@ -232,6 +294,48 @@ const ContractNegotiationPage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Update player status to transferred
+  const updatePlayerStatusToTransferred = async (playerId: string) => {
+    try {
+      const { error } = await supabase
+        .from('players')
+        .update({
+          status: 'transferred',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', playerId);
+
+      if (error) {
+        console.error('Error updating player status:', error);
+      } else {
+        console.log('Player status updated to transferred');
+      }
+    } catch (error) {
+      console.error('Exception updating player status:', error);
+    }
+  };
+
+  // Update transfer pitch status
+  const updateTransferPitchStatus = async (pitchId: string, status: string) => {
+    try {
+      const { error } = await supabase
+        .from('transfer_pitches')
+        .update({
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pitchId);
+
+      if (error) {
+        console.error('Error updating transfer pitch status:', error);
+      } else {
+        console.log('Transfer pitch status updated to:', status);
+      }
+    } catch (error) {
+      console.error('Exception updating transfer pitch status:', error);
+    }
+  };
+
   const setupRealtimeSubscription = () => {
     if (!contractId) return;
 
@@ -261,9 +365,28 @@ const ContractNegotiationPage: React.FC = () => {
         if (status === 'SUBSCRIBED') {
           setIsConnected(true);
           setConnectionStatus('connected');
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setConnectionRetries(0); // Reset retry counter on successful connection
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           setIsConnected(false);
           setConnectionStatus('disconnected');
+          
+          // Increment retry counter
+          setConnectionRetries(prev => prev + 1);
+          
+          // Show connection error toast
+          toast({
+            title: "Connection Lost",
+            description: `Attempting to reconnect... (${connectionRetries + 1}/3)`,
+            variant: "destructive",
+            duration: 3000,
+          });
+          
+          // Attempt to reconnect after a delay
+          if (connectionRetries < 2) {
+            setTimeout(() => {
+              setupRealtimeSubscription();
+            }, 2000 + (connectionRetries * 1000)); // Exponential backoff
+          }
         }
       });
 
@@ -282,21 +405,120 @@ const ContractNegotiationPage: React.FC = () => {
           console.log('Contract updated:', payload);
 
           // Update contract state
-          setContract(prev => prev ? {
+          const updatedContract = prev => prev ? {
             ...prev,
             ...payload.new,
             updated_at: new Date().toISOString()
-          } : null);
+          } : null;
+          setContract(updatedContract);
 
+          // Handle real-time UI updates based on status changes
+          const newStatus = payload.new.status;
+          const oldStatus = payload.old.status;
+
+          // Auto-open digital signature dialog when team initiates contract signing
+          if (newStatus === 'contract_signing' && oldStatus !== 'contract_signing') {
+            setShowDigitalSignature(true);
+            toast({
+              title: "Contract Signing Phase Started",
+              description: "The contract has moved to the signing phase",
+              duration: 5000,
+            });
+          }
+
+          // Close dialogs when contract goes back to negotiating
+          if (newStatus === 'negotiating' && oldStatus !== 'negotiating') {
+            setShowDigitalSignature(false);
+            setShowPaymentOptions(false);
+            setShowTeamWallet(false);
+            setShowAgentPaymentHistory(false);
+            toast({
+              title: "Negotiations Reopened",
+              description: "The contract has been reopened for negotiations",
+              duration: 3000,
+            });
+          }
+
+          // Auto-open payment dialog when contract moves to payment phase
+          if (newStatus === 'payment_pending' && oldStatus !== 'payment_pending') {
+            setShowPaymentOptions(true);
+            toast({
+              title: "Payment Phase Started",
+              description: "The contract has moved to the payment phase",
+              duration: 5000,
+            });
+          }
+
+          // Handle signature changes in real-time
+          const newSignatures = payload.new.signatures;
+          const oldSignatures = payload.old.signatures;
+          
+          // If signatures changed and digital signature dialog is open, refresh it
+          if (JSON.stringify(newSignatures) !== JSON.stringify(oldSignatures) && showDigitalSignature) {
+            // Force re-render of digital signature dialog by closing and reopening
+            setShowDigitalSignature(false);
+            setTimeout(() => {
+              setShowDigitalSignature(true);
+            }, 100);
+            
+            // Show notification about signature change
+            const agentSigned = newSignatures?.agent_signed_at;
+            const oldAgentSigned = oldSignatures?.agent_signed_at;
+            
+            if (oldAgentSigned && !agentSigned) {
+              toast({
+                title: "Agent Signature Cancelled",
+                description: "The agent has cancelled their signature",
+                variant: "destructive",
+                duration: 5000,
+              });
+            } else if (!oldAgentSigned && agentSigned) {
+              toast({
+                title: "Agent Signed Contract",
+                description: "The agent has signed the contract",
+                duration: 5000,
+              });
+            }
+          }
+
+          // Show general contract update toast for other changes
+          if (!['contract_signing', 'negotiating', 'payment_pending'].includes(newStatus) || 
+              newStatus === oldStatus) {
           toast({
             title: "Contract Updated",
             description: "The contract has been updated",
             duration: 3000,
           });
+          }
         }
       )
       .subscribe((status) => {
         console.log('Update subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          setIsConnected(true);
+          setConnectionStatus('connected');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setIsConnected(false);
+          setConnectionStatus('disconnected');
+          
+          // Increment retry counter for update channel failures
+          setConnectionRetries(prev => prev + 1);
+          
+          // Show connection error toast
+          toast({
+            title: "Connection Lost",
+            description: `Update channel disconnected. Attempting to reconnect... (${connectionRetries + 1}/3)`,
+            variant: "destructive",
+            duration: 3000,
+          });
+          
+          // Attempt to reconnect after a delay
+          if (connectionRetries < 2) {
+            setTimeout(() => {
+              setupRealtimeSubscription();
+            }, 2000 + (connectionRetries * 1000)); // Exponential backoff
+          }
+        }
       });
 
     // Store channel references
@@ -421,7 +643,30 @@ const ContractNegotiationPage: React.FC = () => {
   const getCurrentStageIndex = () => {
     const stages = getWorkflowStages();
     const currentStage = contract?.current_step || 'draft';
-    return stages.findIndex(stage => stage.key === currentStage);
+    let stageIndex = stages.findIndex(stage => stage.key === currentStage);
+    
+    // Handle special case where current_step is 'signed' but workflow stage is 'contract_signing'
+    if (stageIndex === -1 && currentStage === 'signed') {
+      stageIndex = stages.findIndex(stage => stage.key === 'contract_signing');
+    }
+    
+    // If stage still not found in workflow stages, try to map based on status
+    if (stageIndex === -1) {
+      const status = contract?.status;
+      
+      // Map status to stage index based on our 6-stage workflow
+      switch (status) {
+        case 'finalized': return 3; // Contract Signing stage (when finalized, ready for signing)
+        case 'contract_signing': return 3; // Contract Signing stage
+        case 'payment_pending': return 4; // Payment Processing stage
+        case 'completed': return 5; // Transferred stage
+        case 'rejected':
+        case 'withdrawn': return Math.max(stages.findIndex(s => s.key === 'negotiating'), 0);
+        default: return 0; // Default to first stage
+      }
+    }
+    
+    return stageIndex;
   };
 
   const handleContractAction = async (action: string, customDetails?: any) => {
@@ -506,13 +751,29 @@ const ContractNegotiationPage: React.FC = () => {
           break;
         case 'complete-transfer':
           newStatus = 'completed';
-          newStep = 'signed';
+          newStep = 'completed';
           actionMessage = 'Transfer completed successfully';
+          // Update player status to transferred
+          // Get player_id from contract or fetch from pitch
+          let playerId = (contract as any).player_id;
+          if (!playerId && contract.pitch_id) {
+            // Fetch player_id from the transfer pitch
+            const { data: pitchData } = await supabase
+              .from('transfer_pitches')
+              .select('player_id')
+              .eq('id', contract.pitch_id)
+              .single();
+            playerId = pitchData?.player_id;
+          }
+          
+          if (playerId) {
+            await updatePlayerStatusToTransferred(playerId);
+          }
           break;
         case 'reopen-negotiation':
           newStatus = 'negotiating';
           newStep = 'negotiating';
-          actionMessage = 'Team reopened negotiations';
+          actionMessage = userRole === 'agent' ? 'Agent reopened negotiations' : 'Team reopened negotiations';
           break;
         case 'request-renegotiation':
           newStatus = 'negotiating';
@@ -523,24 +784,64 @@ const ContractNegotiationPage: React.FC = () => {
           newStatus = 'contract_signing';
           newStep = 'contract_signing';
           actionMessage = 'Team initiated contract signing phase';
-          setShowDigitalSignature(true);
+          // Don't open modal immediately, let the status update first
           break;
         case 'sign-contract':
           // Handle digital signature
           newStatus = 'contract_signing';
           newStep = 'contract_signing';
           actionMessage = 'Agent signed the contract digitally';
-          // Update contract with signature timestamp
+          
+          // Update contract with signature data
+          const signatureData = customDetails?.signatureData;
+          
           if (!customDetails) {
             customDetails = {
               signatures: {
+                ...contract?.signatures,
                 agent_signed_at: new Date().toISOString(),
-                agent_signature_id: `sig_${Date.now()}`
+                agent_signature_id: `sig_${Date.now()}`,
+                agent_signature_data: signatureData || null
+              }
+            };
+          } else {
+            // If customDetails contains signature data, use it
+            customDetails.signatures = {
+              ...contract?.signatures,
+              agent_signed_at: new Date().toISOString(),
+              agent_signature_id: `sig_${Date.now()}`,
+              agent_signature_data: signatureData || null
+            };
+          }
+          break;
+        case 'cancel-signature':
+          // Handle signature cancellation
+          newStatus = 'contract_signing';
+          newStep = 'contract_signing';
+          actionMessage = 'Agent cancelled their signature';
+          // Remove agent signature from contract
+          if (!customDetails) {
+            customDetails = {
+              signatures: {
+                ...contract?.signatures,
+                agent_signed_at: null,
+                agent_signature_id: null
               }
             };
           }
           break;
         case 'confirm-agent-signature':
+          // Validate that agent signature still exists
+          if (!contract?.signatures?.agent_signed_at) {
+            toast({
+              title: "Agent Signature Not Found",
+              description: "The agent signature has been cancelled. Please refresh the page to see the latest status.",
+              variant: "destructive",
+              duration: 7000,
+            });
+            return; // Exit without updating contract
+          }
+          
           newStatus = 'payment_pending';
           newStep = 'payment_pending';
           actionMessage = 'Team confirmed agent signature - payment phase started';
@@ -548,13 +849,13 @@ const ContractNegotiationPage: React.FC = () => {
           if (!customDetails) {
             customDetails = {
               signatures: {
-                ...contract.signatures,
+                ...contract?.signatures,
                 team_confirmed_at: new Date().toISOString(),
                 team_confirmation_id: `conf_${Date.now()}`
               }
             };
           }
-          setShowPaymentOptions(true);
+          // Don't open payment modal immediately, let the status update first
           break;
         case 'make-payment':
           setShowPaymentOptions(true);
@@ -568,26 +869,48 @@ const ContractNegotiationPage: React.FC = () => {
         case 'open-wallet':
           setShowTeamWallet(true);
           return;
+        case 'view-signature-status':
+          setShowDigitalSignature(true);
+          return;
         default:
           throw new Error('Unknown action');
       }
 
       // Update contract in database - try both current_step and deal_stage
+      // Map new statuses to allowed deal_stage values
+      const mapToDealStage = (step: string) => {
+        switch (step) {
+          case 'contract_signing': return 'signed';
+          case 'payment_pending': return 'signed';
+          case 'completed': return 'signed';
+          default: return step;
+        }
+      };
+
       const updateData: any = {
         status: newStatus,
         current_step: newStep,
-        deal_stage: newStep, // Also update deal_stage for compatibility
+        deal_stage: mapToDealStage(newStep), // Map to allowed deal_stage values
         last_activity: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         negotiation_rounds: (contract.negotiation_rounds || 0) + 1
       };
 
+      // Update signatures if provided
+      if (customDetails?.signatures) {
+        updateData.signatures = customDetails.signatures;
+      }
+
       // Only update terms if provided and it's not a counter-proposal (which should only update when accepted)
       if (customDetails && !['submit-counter-proposal', 'counter-offer'].includes(action)) {
-        updateData.terms = { ...(contract.terms as any), ...customDetails };
-        // Also update contract_value if it's in the terms
-        if (customDetails.contractValue) {
-          updateData.contract_value = customDetails.contractValue;
+        // Don't include signatures in terms
+        const { signatures, ...termsData } = customDetails;
+        if (Object.keys(termsData).length > 0) {
+          updateData.terms = { ...(contract.terms as any), ...termsData };
+          // Also update contract_value if it's in the terms
+          if (customDetails.contractValue) {
+            updateData.contract_value = customDetails.contractValue;
+          }
         }
       }
 
@@ -676,8 +999,18 @@ const ContractNegotiationPage: React.FC = () => {
             { key: 'reopen-negotiation', label: 'Reopen Negotiation', icon: Edit, variant: 'outline', color: 'border-yellow-500 text-yellow-600 hover:bg-yellow-50' }
           ];
         case 'contract_signing':
+          const agentSigned = contract?.signatures?.agent_signed_at;
+          
           return [
-            { key: 'confirm-agent-signature', label: 'Confirm Agent Signature', icon: CheckCircle, variant: 'default', color: 'bg-green-600 hover:bg-green-700' }
+            { key: 'view-signature-status', label: 'View Signature Status', icon: FileSignature, variant: 'outline', color: 'border-purple-500 text-purple-600 hover:bg-purple-50' },
+            { 
+              key: 'confirm-agent-signature', 
+              label: 'Confirm Agent Signature', 
+              icon: CheckCircle, 
+              variant: 'default', 
+              color: agentSigned ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed',
+              disabled: !agentSigned
+            }
           ];
         case 'payment_pending':
           return [
@@ -708,9 +1041,24 @@ const ContractNegotiationPage: React.FC = () => {
             { key: 'request-renegotiation', label: 'Request Renegotiation', icon: RefreshCw, variant: 'outline', color: 'border-yellow-500 text-yellow-600 hover:bg-yellow-50' }
           ];
         case 'contract_signing':
-          return [
-            { key: 'sign-contract', label: 'Sign Contract Digitally', icon: FileSignature, variant: 'default', color: 'bg-purple-600 hover:bg-purple-700' }
+          const agentSigned = contract?.signatures?.agent_signed_at;
+          const teamConfirmed = contract?.signatures?.team_confirmed_at;
+          
+          const actions = [
+            { key: 'view-signature-status', label: 'View Signature Status', icon: FileSignature, variant: 'outline', color: 'border-purple-500 text-purple-600 hover:bg-purple-50' }
           ];
+          
+          // If agent hasn't signed yet, show sign button
+          if (!agentSigned) {
+            actions.push({ key: 'sign-contract', label: 'Sign Contract Digitally', icon: FileSignature, variant: 'default', color: 'bg-purple-600 hover:bg-purple-700' });
+          }
+          
+          // If agent has signed but team hasn't confirmed, show cancel signature button
+          if (agentSigned && !teamConfirmed) {
+            actions.push({ key: 'cancel-signature', label: 'Cancel Signature', icon: X, variant: 'outline', color: 'border-red-500 text-red-600 hover:bg-red-50' });
+          }
+          
+          return actions;
         case 'payment_pending':
           return [
             { key: 'make-payment', label: 'Make Payment', icon: CreditCard, variant: 'default', color: 'bg-green-600 hover:bg-green-700' },
@@ -729,19 +1077,39 @@ const ContractNegotiationPage: React.FC = () => {
     const stages = getWorkflowStages();
     const currentIndex = getCurrentStageIndex();
     const isRejectedOrWithdrawn = contract?.status === 'rejected' || contract?.status === 'withdrawn';
-    const progressPercentage = currentIndex > 0 ? (currentIndex / (stages.length - 1)) * 100 : 0;
+    const progressPercentage = currentIndex >= 0 ? (currentIndex / (stages.length - 1)) * 100 : 0;
 
     return (
       <div className="mb-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold text-gray-100">Contract Progress</h3>
           <div className="flex items-center gap-3">
+            {/* Connection Status Indicator */}
+            <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-xs ${
+              connectionStatus === 'connected' ? 'bg-green-100 text-green-700' :
+              connectionStatus === 'connecting' ? 'bg-yellow-100 text-yellow-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${
+                connectionStatus === 'connected' ? 'bg-green-500' :
+                connectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+                'bg-red-500'
+              }`}></div>
+              {connectionStatus === 'connected' ? 'Connected' :
+               connectionStatus === 'connecting' ? 'Connecting...' :
+               'Disconnected'}
+            </div>
+            
             <div className="text-sm text-gray-600">
-              Step {currentIndex + 1} of {stages.length}
+              Step {Math.max(currentIndex + 1, 1)} of {stages.length}
             </div>
             <Badge
-              variant={isRejectedOrWithdrawn ? 'destructive' : currentIndex === stages.length - 1 ? 'default' : 'secondary'}
-              className="px-3 py-1 font-medium"
+              variant={isRejectedOrWithdrawn ? 'destructive' : currentIndex >= 0 && currentIndex === stages.length - 1 ? 'default' : 'secondary'}
+              className={`px-3 py-1 font-medium ${
+                contract?.status === 'contract_signing' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                contract?.status === 'payment_pending' ? 'bg-green-100 text-green-700 border-green-200' :
+                ''
+              }`}
             >
               {contract?.status?.replace('_', ' ').replace('-', ' ').toUpperCase()}
             </Badge>
@@ -766,9 +1134,9 @@ const ContractNegotiationPage: React.FC = () => {
           <div className="absolute -top-3 left-0 right-0">
             <div className="flex justify-between">
               {stages.map((stage, index) => {
-                const isActive = index === currentIndex;
-                const isCompleted = index < currentIndex && !isRejectedOrWithdrawn;
-                const isRejected = isRejectedOrWithdrawn && index >= currentIndex;
+                const isActive = index === currentIndex && currentIndex >= 0;
+                const isCompleted = currentIndex >= 0 && index < currentIndex && !isRejectedOrWithdrawn;
+                const isRejected = isRejectedOrWithdrawn && currentIndex >= 0 && index >= currentIndex;
 
                 return (
                   <div key={stage.key} className="flex flex-col items-center">
@@ -850,11 +1218,14 @@ const ContractNegotiationPage: React.FC = () => {
             <Button
               key={action.key}
               variant={action.variant as any}
+              disabled={action.disabled || false}
               className={`w-full h-11 flex items-center justify-center gap-2 font-medium transition-all duration-200 ${isPrimary
                 ? action.color || 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
                 : action.color || 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+                } ${action.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={() => {
+                if (action.disabled) return; // Prevent action if button is disabled
+                
                 setSelectedAction(action.key);
                 if (action.key === 'counter-offer' || action.key === 'submit-counter-proposal' || action.key === 'negotiate-terms') {
                   setActionModalOpen(true);
@@ -917,7 +1288,7 @@ const ContractNegotiationPage: React.FC = () => {
     const updateData: any = {
       status: 'finalized',
       current_step: 'signed',
-      deal_stage: 'signed',
+      deal_stage: 'signed', // This is already a valid deal_stage value
       last_activity: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       negotiation_rounds: (contract?.negotiation_rounds || 0) + 1
@@ -1173,24 +1544,24 @@ const ContractNegotiationPage: React.FC = () => {
         {/* Modern Header */}
         <div className="border-0 shadow-sm">
           <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/contracts')}
+                size="sm"
+                onClick={() => navigate('/contracts')}
                   className="flex items-center gap-2 text-gray-100 hover:text-gray-300"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to Contracts
-                </Button>
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Contracts
+              </Button>
                 <div className="h-6 w-px bg-gray-300"></div>
-                <div>
+              <div>
                   <h1 className="text-xl font-semibold text-gray-100">Contract Negotiation</h1>
                   <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
                     <span>{contract.pitch?.player?.full_name}</span>
                     <span>•</span>
-                    <span className="capitalize">{contract.transfer_type} Transfer</span>
+                  <span className="capitalize">{contract.transfer_type} Transfer</span>
                     <span>•</span>
                     <Badge variant="outline" className="text-xs">
                       {contract.status.replace('_', ' ').toUpperCase()}
@@ -1201,27 +1572,27 @@ const ContractNegotiationPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 {/* Connection Status */}
                 <div className="flex items-center gap-2 text-sm">
-                  {isConnected ? (
-                    <>
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    {isConnected ? (
+                      <>
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                       <span className="text-green-600 font-medium">Live</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                       <span className="text-red-600 font-medium">Offline</span>
-                    </>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={downloadContract}
+                      </>
+                    )}
+                  </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadContract}
                   className="bg-destructive text-white hover:bg-destructive/90 flex items-center"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
               </div>
             </div>
           </div>
@@ -1244,8 +1615,8 @@ const ContractNegotiationPage: React.FC = () => {
                 <CardTitle className="text-gray-100 flex items-center gap-2 text-base">
                   <FileText className="w-4 h-4 text-gray-100" />
                   Contract Details
-                </CardTitle>
-              </CardHeader>
+                  </CardTitle>
+                </CardHeader>
               <CardContent className="p-4">
                 <div className="space-y-4">
                   {/* Player Info */}
@@ -1311,9 +1682,9 @@ const ContractNegotiationPage: React.FC = () => {
               </CardHeader>
               <CardContent className="p-4">
                 {renderActionButtons()}
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+            </div>
 
           {/* Right Panel - Chat Interface */}
           <div className="lg:col-span-3">
@@ -1369,9 +1740,9 @@ const ContractNegotiationPage: React.FC = () => {
                                         e.currentTarget.nextElementSibling?.classList.remove('hidden');
                                       }}
                                     />
-                                  ) : message.sender_profile?.user_type === 'agent' && contract?.agent?.logo_url ? (
+                                  ) : false ? (
                                     <img
-                                      src={contract.agent.logo_url}
+                                      src=""
                                       alt="Agent logo"
                                       className="w-full h-full object-cover"
                                       onError={(e) => {
@@ -1384,10 +1755,10 @@ const ContractNegotiationPage: React.FC = () => {
 
                                   {/* Fallback initials */}
                                   <div className={`w-full h-full flex items-center justify-center text-xs font-medium font-poppins ${message.sender_profile?.user_type === 'agent' ? 'bg-blue-500' :
-                                    message.sender_profile?.user_type === 'team' ? 'bg-green-500' :
-                                      message.sender_profile?.user_type === 'system' ? 'bg-gray-500' : 'bg-rosegold'
-                                    } ${(message.sender_profile?.user_type === 'team' && contract?.team?.logo_url) || (message.sender_profile?.user_type === 'agent' && contract?.agent?.logo_url) ? 'hidden' : ''}`}>
-                                    {message.sender_profile?.full_name?.charAt(0) || 'U'}
+                                  message.sender_profile?.user_type === 'team' ? 'bg-green-500' :
+                                    message.sender_profile?.user_type === 'system' ? 'bg-gray-500' : 'bg-rosegold'
+                                    } ${(message.sender_profile?.user_type === 'team' && contract?.team?.logo_url) || (false) ? 'hidden' : ''}`}>
+                                  {message.sender_profile?.full_name?.charAt(0) || 'U'}
                                   </div>
                                 </div>
                               )}
@@ -1477,9 +1848,9 @@ const ContractNegotiationPage: React.FC = () => {
                                         e.currentTarget.nextElementSibling?.classList.remove('hidden');
                                       }}
                                     />
-                                  ) : profile?.user_type === 'agent' && contract?.agent?.logo_url ? (
+                                  ) : false ? (
                                     <img
-                                      src={contract.agent.logo_url}
+                                      src=""
                                       alt="Your agency logo"
                                       className="w-full h-full object-cover"
                                       onError={(e) => {
@@ -1490,8 +1861,8 @@ const ContractNegotiationPage: React.FC = () => {
                                   ) : null}
 
                                   {/* Fallback initials */}
-                                  <div className={`w-full h-full bg-rosegold flex items-center justify-center text-xs font-medium font-poppins ${(profile?.user_type === 'team' && contract?.team?.logo_url) || (profile?.user_type === 'agent' && contract?.agent?.logo_url) ? 'hidden' : ''}`}>
-                                    {profile?.full_name?.charAt(0) || 'U'}
+                                  <div className={`w-full h-full bg-rosegold flex items-center justify-center text-xs font-medium font-poppins ${(profile?.user_type === 'team' && contract?.team?.logo_url) || (false) ? 'hidden' : ''}`}>
+                                  {profile?.full_name?.charAt(0) || 'U'}
                                   </div>
                                 </div>
                               )}
@@ -1648,24 +2019,24 @@ const ContractNegotiationPage: React.FC = () => {
       {/* Enhanced Action Modal for Counter-offers and Counter-proposals */}
       <Dialog open={actionModalOpen} onOpenChange={setActionModalOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader>
+                      <DialogHeader>
             <DialogTitle className="font-poppins">
               {selectedAction === 'counter-offer' ? 'Team Counter-Offer' :
                 selectedAction === 'submit-counter-proposal' ? 'Agent Counter-Proposal' :
                   selectedAction === 'negotiate-terms' ? 'Negotiate Terms' : 'Action Details'}
             </DialogTitle>
-            <DialogDescription className="font-poppins">
+                        <DialogDescription className="font-poppins">
               {selectedAction === 'counter-offer' ? 'Adjust the contract terms and send a counter-offer to the agent.' :
                 selectedAction === 'submit-counter-proposal' ? 'Propose alternative terms to the team.' :
                   selectedAction === 'negotiate-terms' ? 'Specify what terms you would like to negotiate.' :
                     'Please provide additional details for this action.'}
-            </DialogDescription>
-          </DialogHeader>
+                        </DialogDescription>
+                      </DialogHeader>
 
           {(selectedAction === 'counter-offer' || selectedAction === 'submit-counter-proposal') ? (
-            <div className="space-y-4">
+                      <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                        <div>
                   <Label htmlFor="contractValue" className="font-poppins">Contract Value ({contract?.currency})</Label>
                   <Input
                     id="contractValue"
@@ -1718,15 +2089,15 @@ const ContractNegotiationPage: React.FC = () => {
               </div>
               <div>
                 <Label htmlFor="actionDetails" className="font-poppins">Additional Notes</Label>
-                <Textarea
+                          <Textarea
                   id="actionDetails"
                   placeholder="Add any additional notes or explanations..."
-                  value={actionDetails}
-                  onChange={(e) => setActionDetails(e.target.value)}
-                  className="font-poppins"
-                />
-              </div>
-            </div>
+                            value={actionDetails}
+                            onChange={(e) => setActionDetails(e.target.value)}
+                            className="font-poppins"
+                          />
+                        </div>
+                      </div>
           ) : (
             <div className="space-y-4">
               <div>
@@ -1742,12 +2113,12 @@ const ContractNegotiationPage: React.FC = () => {
             </div>
           )}
 
-          <DialogFooter>
+                      <DialogFooter>
             <Button variant="outline" onClick={() => setActionModalOpen(false)} className="font-poppins">
               Cancel
-            </Button>
-            <Button
-              onClick={() => {
+                        </Button>
+                      <Button
+                        onClick={() => {
                 if (selectedAction === 'counter-offer' || selectedAction === 'submit-counter-proposal') {
                   handleContractAction(selectedAction, counterOfferTerms);
                 } else {
@@ -1760,7 +2131,7 @@ const ContractNegotiationPage: React.FC = () => {
                 selectedAction === 'submit-counter-proposal' ? 'Submit Proposal' :
                   selectedAction === 'negotiate-terms' ? 'Request Negotiation' :
                     'Confirm Action'}
-            </Button>
+                      </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1777,12 +2148,27 @@ const ContractNegotiationPage: React.FC = () => {
           <DigitalSignature
             contract={contract}
             userRole={userRole!}
-            onSign={async () => {
-              await handleContractAction('sign-contract');
+            contractPreview={contractPreview}
+            onSign={async (signatureData) => {
+              // Extract the actual signature data from the JSON metadata
+              let actualSignatureData = signatureData;
+              if (signatureData) {
+                try {
+                  const signatureMetadata = JSON.parse(signatureData);
+                  actualSignatureData = signatureMetadata.signatureData;
+                } catch (error) {
+                  actualSignatureData = signatureData;
+                }
+              }
+              await handleContractAction('sign-contract', { signatureData: actualSignatureData });
               setShowDigitalSignature(false);
             }}
             onConfirm={async () => {
               await handleContractAction('confirm-agent-signature');
+              setShowDigitalSignature(false);
+            }}
+            onGoBack={async () => {
+              await handleContractAction('reopen-negotiation');
               setShowDigitalSignature(false);
             }}
           />
@@ -1805,8 +2191,15 @@ const ContractNegotiationPage: React.FC = () => {
               console.log('Processing payment:', paymentData);
               // Implement Paystack integration here
               setShowPaymentOptions(false);
+              
               // After successful payment, update contract status to completed
+              // This will automatically update player status to transferred
               await handleContractAction('complete-transfer');
+              
+              // Also update the transfer pitch status to completed
+              if (contract?.pitch_id) {
+                await updateTransferPitchStatus(contract.pitch_id, 'completed');
+              }
             }}
             onViewWallet={() => {
               setShowPaymentOptions(false);

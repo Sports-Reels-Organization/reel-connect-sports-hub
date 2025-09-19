@@ -224,8 +224,7 @@ export const contractManagementService = {
           .select(`
             id,
             profile_id,
-            agency_name,
-            logo_url
+            agency_name
           `)
           .eq('id', contract.agent_id)
           .maybeSingle()
@@ -236,8 +235,7 @@ export const contractManagementService = {
                 data: {
                   id: contract.agent_id,
                   profile_id: null,
-                  agency_name: 'Unknown Agency',
-                  logo_url: null
+                  agency_name: 'Unknown Agency'
                 }, 
                 error: null 
               };
@@ -747,7 +745,7 @@ export const contractManagementService = {
       // Update contract in database
       const updateData: any = {
         status: newStatus,
-        deal_stage: newStep,
+        deal_stage: (['contract_signing', 'payment_pending', 'completed'].includes(newStep)) ? 'signed' : newStep,
         last_activity: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };

@@ -47,9 +47,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onView, onDelet
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-polysans font-semibold text-white mb-1 truncate">
-                {player.full_name}
-              </h3>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-polysans font-semibold text-white truncate">
+                  {player.full_name}
+                </h3>
+                {player.status === 'transferred' && (
+                  <Badge className="bg-red-600 text-white text-xs px-2 py-0.5">
+                    TRANSFERRED
+                  </Badge>
+                )}
+              </div>
               <p className="text-sm text-gray-400 font-poppins">{player.position}</p>
               {player.jersey_number && (
                 <Badge variant="outline" className="text-rosegold border-rosegold mt-1">
