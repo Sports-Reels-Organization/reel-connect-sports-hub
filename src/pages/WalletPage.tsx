@@ -3,9 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import TeamWalletPage from './TeamWalletPage';
 import AgentWalletPage from './AgentWalletPage';
-import SimpleAgentWallet from './SimpleAgentWallet';
-import SimpleTeamWallet from './SimpleTeamWallet';
-
 const WalletPage: React.FC = () => {
   const { profile, user, loading } = useAuth();
 
