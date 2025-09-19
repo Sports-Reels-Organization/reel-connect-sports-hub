@@ -16,6 +16,8 @@ import {
   TrendingUp, MapPin, Users, Target, Star, Clock, AlertCircle, Plus, X, CheckCircle, Edit, FileText
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { EnhancedNotificationService } from '@/services/enhancedNotificationService';
+import { usePlayerStatusRealtime } from '@/hooks/usePlayerStatusRealtime';
 
 interface TimelinePitch {
   id: string;
@@ -68,6 +70,10 @@ const TransferTimeline = () => {
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPitchForEdit, setSelectedPitchForEdit] = useState<TimelinePitch | null>(null);
+  
+  // Real-time player status and interest management
+  const { getStatusBadgeProps, incrementInterestCount, decrementInterestCount } = usePlayerStatusRealtime();
+  
   const [showInterestModal, setShowInterestModal] = useState(false);
   const [selectedPitchForInterest, setSelectedPitchForInterest] = useState<TimelinePitch | null>(null);
   const [interestMessage, setInterestMessage] = useState('');
@@ -78,6 +84,57 @@ const TransferTimeline = () => {
   useEffect(() => {
     fetchPitches();
   }, []);
+
+  // Listen for immediate updates from agent actions
+  useEffect(() => {
+    if (!profile?.user_id || profile.user_type !== 'team') return;
+
+    console.log('🎯 Setting up immediate team event listeners');
+
+    // Listen for unified workflow updates
+    const handleWorkflowUpdate = (event: CustomEvent) => {
+      const { type, pitchId, playerName, agentName, teamProfileId } = event.detail;
+      
+      console.log('⚡ TEAM: Workflow update received:', type);
+      
+      if (type === 'agent_interest_expressed' && teamProfileId === profile.id) {
+        // Update player status badge immediately
+        incrementInterestCount(pitchId, '');
+        
+        // Immediate toast notification
+        toast({
+          title: "🎯 New Agent Interest!",
+          description: `${agentName} has expressed interest in ${playerName}`,
+          duration: 5000,
+        });
+
+        // Immediate refresh
+        setTimeout(() => fetchPitches(), 500);
+        
+      } else if (type === 'agent_interest_cancelled') {
+        // Update player status badge immediately
+        decrementInterestCount(pitchId, '');
+        
+        // Immediate toast notification
+        toast({
+          title: "Interest Cancelled",
+          description: `${agentName} has cancelled their interest`,
+          duration: 4000,
+        });
+
+        // Immediate refresh
+        setTimeout(() => fetchPitches(), 500);
+      }
+    };
+
+    window.addEventListener('workflowUpdate', handleWorkflowUpdate as EventListener);
+
+    return () => {
+      console.log('🧹 TEAM: Cleaning up workflow event listeners');
+      window.removeEventListener('workflowUpdate', handleWorkflowUpdate as EventListener);
+    };
+  }, [profile?.user_id, profile?.user_type, profile?.id, toast]);
+
 
   const fetchPitches = async () => {
     try {
@@ -109,11 +166,12 @@ const TransferTimeline = () => {
             .eq('id', pitch.player_id)
             .single();
 
-          // Fetch agent interest data
+          // Fetch agent interest data (exclude withdrawn/rejected from timeline)
           const { data: interestData } = await supabase
             .from('agent_interest')
             .select('id, agent_id, status, created_at')
-            .eq('pitch_id', pitch.id);
+            .eq('pitch_id', pitch.id)
+            .not('status', 'in', '(withdrawn,rejected)'); // Exclude withdrawn/rejected from timeline
 
           // Enrich agent interest with profile data
           const enrichedInterest = await Promise.all(
@@ -163,6 +221,7 @@ const TransferTimeline = () => {
       setLoading(false);
     }
   };
+
 
   const handleInterestInPitch = async (pitch: TimelinePitch) => {
     if (!profile?.id) {

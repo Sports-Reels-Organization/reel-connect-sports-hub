@@ -16,6 +16,10 @@ import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useSportData } from '@/hooks/useSportData';
 import MessagePlayerModal from '../MessagePlayerModal';
+import { EnhancedNotificationService } from '@/services/enhancedNotificationService';
+import { useAgentInterestRealtime } from '@/hooks/useAgentInterestRealtime';
+import { usePlayerStatusRealtime } from '@/hooks/usePlayerStatusRealtime';
+import { SmoothWorkflowService } from '@/services/smoothWorkflowService';
 
 interface TimelinePitch {
   id: string;
@@ -75,6 +79,12 @@ const AgentTransferTimeline = () => {
   const [interestType, setInterestType] = useState<'interested' | 'requested'>('interested');
   const [expressedInterests, setExpressedInterests] = useState<Set<string>>(new Set());
   const [existingInterestData, setExistingInterestData] = useState<{ status: string, message: string } | null>(null);
+  
+  // Real-time interest management
+  const { cancelInterest } = useAgentInterestRealtime();
+  
+  // Real-time player status management
+  const { incrementInterestCount, decrementInterestCount, getStatusBadgeProps } = usePlayerStatusRealtime();
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -184,7 +194,8 @@ const AgentTransferTimeline = () => {
       const { data, error } = await supabase
         .from('agent_interest')
         .select('pitch_id')
-        .eq('agent_id', agentData.id);
+        .eq('agent_id', agentData.id)
+        .not('status', 'in', '(withdrawn,rejected)'); // Exclude withdrawn/rejected from timeline
 
       if (error) {
         console.error('Error fetching expressed interests:', error);
@@ -474,6 +485,112 @@ const AgentTransferTimeline = () => {
     setShowInterestModal(true);
   };
 
+  const handleCancelInterest = async (pitchId: string) => {
+    try {
+      // Get agent ID first
+      const { data: agentData } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('profile_id', profile?.id)
+        .single();
+
+      if (!agentData) return;
+
+      // Find the interest record for this pitch
+      const { data: interestRecord } = await supabase
+        .from('agent_interest')
+        .select('id')
+        .eq('pitch_id', pitchId)
+        .eq('agent_id', agentData.id)
+        .single();
+
+      if (interestRecord) {
+        // Get pitch details with separate queries to avoid RLS issues
+        const { data: pitchData } = await supabase
+          .from('transfer_pitches')
+          .select('id, player_id, team_id')
+          .eq('id', pitchId)
+          .single();
+
+        if (!pitchData) {
+          console.error('❌ Could not find pitch data');
+          return;
+        }
+
+        // Get team data separately
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('team_name, profile_id')
+          .eq('id', pitchData.team_id)
+          .single();
+
+        // Get player data separately
+        const { data: playerData } = await supabase
+          .from('players')
+          .select('full_name')
+          .eq('id', pitchData.player_id)
+          .single();
+
+        console.log('🔍 Cancel interest - Pitch data:', pitchData);
+        console.log('🔍 Cancel interest - Team data:', teamData);
+        console.log('🔍 Cancel interest - Player data:', playerData);
+
+        if (!teamData?.profile_id) {
+          console.error('❌ No team profile_id found in pitch data');
+          toast({
+            title: "Error",
+            description: "Could not find team information for this pitch",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Update status to 'withdrawn' with message - this keeps the record for display
+        const { error: updateError } = await supabase
+          .rpc('update_agent_interest_status', {
+            interest_id: interestRecord.id,
+            new_status: 'withdrawn',
+            status_msg: `Agent ${profile?.full_name || 'Unknown'} has withdrawn their interest in ${playerData?.full_name || 'this player'} on ${new Date().toLocaleString()}`
+          });
+
+        if (updateError) throw updateError;
+
+        console.log('✅ Agent interest status updated to withdrawn - database trigger will handle team notification');
+
+        // Update local state
+        setExpressedInterests(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(pitchId);
+          return newSet;
+        });
+
+        // Update player status immediately
+        decrementInterestCount(pitchId, '');
+
+        // Trigger team update
+        window.dispatchEvent(new CustomEvent('workflowUpdate', {
+          detail: {
+            type: 'agent_interest_cancelled',
+            pitchId: pitchId,
+            agentName: profile?.full_name || 'Unknown'
+          }
+        }));
+
+        toast({
+          title: "Interest Cancelled",
+          description: "Your interest has been cancelled and the team has been notified.",
+        });
+      }
+    } catch (error) {
+      console.error('Error cancelling interest:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel interest",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleInterestInPitch = async (pitch: TimelinePitch) => {
     if (!profile?.id) {
       toast({
@@ -537,6 +654,15 @@ const AgentTransferTimeline = () => {
       }
 
       if (existingInterest) {
+        // Check if we're reactivating a withdrawn/rejected interest
+        const isReactivating = existingInterest.status === 'withdrawn' || existingInterest.status === 'rejected';
+        
+        console.log('🔄 Updating existing interest:', {
+          existingStatus: existingInterest.status,
+          newStatus: interestType,
+          isReactivating: isReactivating
+        });
+
         const { error: updateError } = await supabase
           .from('agent_interest')
           .update({
@@ -548,12 +674,58 @@ const AgentTransferTimeline = () => {
 
         if (updateError) throw updateError;
 
+        // If reactivating from withdrawn/rejected, create manual team notification
+        // because the database trigger UPDATE path notifies the agent, not the team
+        if (isReactivating) {
+          console.log('🔄 Reactivating interest - creating manual team notification');
+          
+          try {
+            if (pitch.teams.profile_id) {
+              const { data: teamProfile } = await supabase
+                .from('profiles')
+                .select('user_id')
+                .eq('id', pitch.teams.profile_id)
+                .single();
+
+              if (teamProfile?.user_id) {
+                await EnhancedNotificationService.createNotification({
+                  user_id: teamProfile.user_id,
+                  title: "🎯 Agent Interest Renewed",
+                  message: `Agent ${profile?.full_name || 'Unknown'} has renewed their interest in ${pitch.players.full_name}`,
+                  type: "agent_interest",
+                  action_url: `/team-explore?tab=communication`,
+                  action_text: "View Communication",
+                  metadata: {
+                    pitch_id: pitch.id,
+                    player_name: pitch.players.full_name,
+                    team_name: pitch.teams.team_name,
+                    agent_name: profile?.full_name || 'Unknown',
+                    interest_type: interestType,
+                    interest_message: interestMessage,
+                    source: 'reactivation_manual',
+                    previous_status: existingInterest.status
+                  }
+                });
+
+                console.log('✅ Manual team notification created for reactivated interest');
+              }
+            }
+          } catch (notificationError) {
+            console.error('Error creating reactivation notification:', notificationError);
+          }
+        }
+
         toast({
-          title: "Interest Updated!",
-          description: "Your interest has been updated successfully.",
+          title: isReactivating ? "Interest Renewed!" : "Interest Updated!",
+          description: isReactivating 
+            ? "Your interest has been renewed and the team has been notified." 
+            : "Your interest has been updated successfully.",
         });
       } else {
-        const { error: interestError } = await supabase
+        // Direct approach - create interest and notification
+        console.log('🎯 Creating new agent interest for pitch:', pitch.id);
+        
+        const { error: insertError } = await supabase
           .from('agent_interest')
           .insert({
             pitch_id: pitch.id,
@@ -563,11 +735,27 @@ const AgentTransferTimeline = () => {
             created_at: new Date().toISOString()
           });
 
-        if (interestError) throw interestError;
+        if (insertError) throw insertError;
+
+        console.log('✅ Agent interest created - original working database trigger will handle team notification');
+
+        // Trigger immediate UI update for team
+        window.dispatchEvent(new CustomEvent('agentInterestExpressed', {
+          detail: {
+            pitchId: pitch.id,
+            playerId: pitch.players.id,
+            playerName: pitch.players.full_name,
+            teamProfileId: pitch.teams.profile_id,
+            agentName: profile?.full_name || 'Unknown'
+          }
+        }));
+
+        // Update player status immediately
+        incrementInterestCount(pitch.id, pitch.players.id);
 
         toast({
           title: "Success!",
-          description: "Interest expressed successfully.",
+          description: "Interest expressed successfully. The team has been notified.",
         });
       }
 
@@ -965,15 +1153,26 @@ const AgentTransferTimeline = () => {
                             Interest
                           </Button>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white text-xs h-8"
-                            onClick={() => handleOpenInterestModal(pitch)}
-                          >
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Update
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white text-xs h-8"
+                              onClick={() => handleOpenInterestModal(pitch)}
+                            >
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Update
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white text-xs h-8"
+                              onClick={() => handleCancelInterest(pitch.id)}
+                            >
+                              <HeartOff className="w-3 h-3 mr-1" />
+                              Cancel
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>

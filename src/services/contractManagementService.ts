@@ -151,7 +151,7 @@ export const contractManagementService = {
 
       // Get related data separately to avoid foreign key relationship issues
       const [pitchData, agentData, teamData] = await Promise.all([
-        // Get pitch data
+        // Get pitch data with error handling for RLS issues
         contract.pitch_id ? supabase
           .from('transfer_pitches')
           .select(`
@@ -163,7 +163,52 @@ export const contractManagementService = {
             player_id
           `)
           .eq('id', contract.pitch_id)
-          .single() : Promise.resolve({ data: null, error: null }),
+          .maybeSingle()
+          .then(result => {
+            // Handle errors with detailed logging
+            if (result.error) {
+              console.error('❌ Transfer pitches query error:', {
+                error: result.error,
+                errorCode: result.error.code,
+                errorMessage: result.error.message,
+                contractPitchId: contract.pitch_id,
+                queryType: 'getContract'
+              });
+              
+              // Handle PGRST116 (no rows found) or 406 errors
+              if (result.error.code === 'PGRST116' || result.error.message?.includes('406') || result.error.code === '406') {
+                console.warn('🔄 Transfer pitch not found or access denied, using fallback data');
+                return { 
+                  data: {
+                    id: contract.pitch_id,
+                    transfer_type: 'permanent',
+                    asking_price: 0,
+                    currency: 'USD',
+                    status: 'active',
+                    player_id: null
+                  }, 
+                  error: null 
+                };
+              }
+            }
+            
+            // Handle case where no data is returned (null result)
+            if (!result.data) {
+              console.warn('🔄 No transfer pitch data found, using fallback');
+              return { 
+                data: {
+                  id: contract.pitch_id,
+                  transfer_type: 'permanent',
+                  asking_price: 0,
+                  currency: 'USD',
+                  status: 'active',
+                  player_id: null
+                }, 
+                error: null 
+              };
+            }
+            return result;
+          }) : Promise.resolve({ data: null, error: null }),
         
         // Get agent data
         contract.agent_id ? supabase
@@ -282,7 +327,7 @@ export const contractManagementService = {
       const contractsWithData = await Promise.all(
         (contracts || []).map(async (contract) => {
           const [pitchData, agentData, teamData] = await Promise.all([
-            // Get pitch data
+            // Get pitch data with error handling for RLS issues
             contract.pitch_id ? supabase
               .from('transfer_pitches')
               .select(`
@@ -293,7 +338,50 @@ export const contractManagementService = {
                 player_id
               `)
               .eq('id', contract.pitch_id)
-              .single() : Promise.resolve({ data: null, error: null }),
+              .maybeSingle()
+              .then(result => {
+                // Handle errors with detailed logging
+                if (result.error) {
+                  console.error('❌ Transfer pitches query error in getUserContracts:', {
+                    error: result.error,
+                    errorCode: result.error.code,
+                    errorMessage: result.error.message,
+                    contractPitchId: contract.pitch_id,
+                    queryType: 'getUserContracts'
+                  });
+                  
+                  // Handle PGRST116 (no rows found) or 406 errors
+                  if (result.error.code === 'PGRST116' || result.error.message?.includes('406') || result.error.code === '406') {
+                    console.warn('🔄 Transfer pitch not found in getUserContracts, using fallback data');
+                    return { 
+                      data: {
+                        id: contract.pitch_id,
+                        transfer_type: 'permanent',
+                        asking_price: 0,
+                        currency: 'USD',
+                        player_id: null
+                      }, 
+                      error: null 
+                    };
+                  }
+                }
+                
+                // Handle case where no data is returned
+                if (!result.data) {
+                  console.warn('🔄 No transfer pitch data found in getUserContracts, using fallback');
+                  return { 
+                    data: {
+                      id: contract.pitch_id,
+                      transfer_type: 'permanent',
+                      asking_price: 0,
+                      currency: 'USD',
+                      player_id: null
+                    }, 
+                    error: null 
+                  };
+                }
+                return result;
+              }) : Promise.resolve({ data: null, error: null }),
             
             // Get agent data
             contract.agent_id ? supabase

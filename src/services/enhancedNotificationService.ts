@@ -143,27 +143,40 @@ export class EnhancedNotificationService {
         created_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
-        .from('notifications')
-        .insert(notificationPayload)
-        .select()
-        .single();
+      console.log('Creating notification for:', notificationData.title);
 
-      if (error) throw error;
-      
+      // Use database function to bypass RLS for system notifications
+      const { data: functionResult, error: functionError } = await supabase
+        .rpc('create_system_notification', {
+          target_user_id: notificationData.user_id,
+          notification_title: notificationData.title,
+          notification_message: notificationData.message,
+          notification_type: notificationData.type,
+          notification_action_url: notificationData.action_url,
+          notification_action_text: notificationData.action_text,
+          notification_metadata: notificationData.metadata || {}
+        });
+
+      if (functionError) {
+        console.error('Database function error creating notification:', functionError);
+        throw functionError;
+      }
+
+      console.log('✅ Notification created with ID:', functionResult);
+
+      // Return the notification data without fetching it back (to avoid RLS issues)
+      // We have all the data we need from the original payload
       return {
-        id: data.id,
-        user_id: data.user_id,
-        title: data.title,
-        message: data.message,
-        type: data.type,
-        is_read: data.is_read || false,
-        action_url: data.action_url,
-        action_text: data.action_text,
-        metadata: data.metadata ? 
-          (typeof data.metadata === 'string' ? JSON.parse(data.metadata) : data.metadata) : 
-          null,
-        created_at: data.created_at
+        id: functionResult,
+        user_id: notificationData.user_id,
+        title: notificationData.title,
+        message: notificationData.message,
+        type: notificationData.type,
+        is_read: false,
+        action_url: notificationData.action_url,
+        action_text: notificationData.action_text,
+        metadata: notificationData.metadata,
+        created_at: new Date().toISOString()
       };
     } catch (error) {
       console.error('Error creating notification:', error);

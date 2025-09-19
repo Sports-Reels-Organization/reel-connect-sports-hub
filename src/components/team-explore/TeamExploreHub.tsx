@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Users, Search, BarChart3, Settings, MessageSquare, FileText } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import TransferTimeline from './TransferTimeline';
@@ -14,6 +15,9 @@ import ExpiringSoonWidget from './ExpiringSoonWidget';
 import TransferPerformanceAnalytics from '../analytics/TransferPerformanceAnalytics';
 import UnifiedCommunicationHub from '../communication/UnifiedCommunicationHub';
 import SimplifiedContractWorkflow from '../contracts/SimplifiedContractWorkflow';
+import { useNotificationCounts } from '@/hooks/useNotificationCounts';
+import { useAutoMarkNotificationsRead } from '@/hooks/useAutoMarkNotificationsRead';
+import { useNotificationToasts } from '@/hooks/useNotificationToasts';
 
 interface TeamExploreHubProps {
   initialSearch?: string;
@@ -22,6 +26,13 @@ interface TeamExploreHubProps {
 export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
   const [searchParams] = useSearchParams();
   const [defaultTab, setDefaultTab] = useState('timeline');
+  const { counts } = useNotificationCounts();
+  
+  // Auto-mark ALL notifications as read when communication tab is viewed
+  useAutoMarkNotificationsRead(defaultTab === 'communication');
+  
+  // Set up toast notifications for incoming alerts
+  useNotificationToasts();
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -71,10 +82,18 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
             </TabsTrigger>
             <TabsTrigger
               value="communication"
-              className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white relative"
             >
               <MessageSquare className="w-4 h-4" />
               Communication
+              {counts.total > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold min-w-[20px] animate-pulse"
+                >
+                  {counts.total > 99 ? '99+' : counts.total}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="contracts"

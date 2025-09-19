@@ -30,6 +30,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { contractService, PermanentTransferContract, LoanTransferContract } from '@/services/contractService';
 import { contractManagementService } from '@/services/contractManagementService';
 import { useNavigate } from 'react-router-dom';
+import { EnhancedNotificationService } from '@/services/enhancedNotificationService';
+import { useAgentInterestRealtime } from '@/hooks/useAgentInterestRealtime';
+import { BeepingBorder } from '@/components/ui/BeepingBorder';
+import { useAutoMarkNotificationsRead } from '@/hooks/useAutoMarkNotificationsRead';
+import { usePlayerStatusRealtime } from '@/hooks/usePlayerStatusRealtime';
 
 interface UnifiedCommunicationHubProps {
   pitchId?: string;
@@ -52,9 +57,11 @@ interface AgentInterest {
   id: string;
   pitch_id: string;
   agent_id: string;
-  status: 'interested' | 'requested' | 'negotiating';
+  status: 'interested' | 'requested' | 'negotiating' | 'withdrawn' | 'rejected';
   message?: string;
   created_at: string;
+  updated_at?: string;
+  status_message?: string; // For displaying withdrawal/rejection messages
   agent: {
     profile: {
       full_name: string;
@@ -99,6 +106,80 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
   const [agentInterest, setAgentInterest] = useState<AgentInterest[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [newInterests, setNewInterests] = useState<Set<string>>(new Set()); // Track new interests for beeping borders
+  
+  // Real-time agent interest management
+  const { interests: realtimeInterests, updateInterestStatus: updateRealtimeStatus, cancelInterest } = useAgentInterestRealtime(pitchId);
+  
+  // Real-time player status management
+  const { updatePlayerStatus } = usePlayerStatusRealtime();
+  
+  // Auto-mark ALL notifications as read when viewing this tab
+  useAutoMarkNotificationsRead(activeTab === 'interest');
+
+  // Mark interests as viewed when communication tab is active
+  useEffect(() => {
+    if (activeTab === 'interest') {
+      console.log('👁️ Communication tab viewed - removing beeping borders and marking notifications as read');
+      
+      // Remove all beeping borders after 2 seconds of viewing
+      setTimeout(() => {
+        setNewInterests(new Set());
+        console.log('🔴 Removed all beeping borders');
+      }, 2000);
+    }
+  }, [activeTab]);
+
+  // Listen for immediate interest updates and mark as new for beeping borders
+  useEffect(() => {
+    if (!profile?.user_id) return;
+
+    console.log('🎯 Setting up communication hub event listeners');
+
+    // Listen for new agent interests
+    const handleNewInterest = (event: CustomEvent) => {
+      const { pitchId, playerName, teamProfileId, agentName } = event.detail;
+      
+      console.log('⚡ COMM HUB: New interest event received');
+      
+      // If this is for the current user's pitch, mark it as new
+      if ((profile.user_type === 'team' && teamProfileId === profile.id) || profile.user_type === 'agent') {
+        console.log('✅ COMM HUB: Marking interest as new for beeping border');
+        
+        // Mark this pitch as having new interest
+        setNewInterests(prev => new Set([...prev, pitchId]));
+        
+        // Auto-remove new status after 15 seconds
+        setTimeout(() => {
+          setNewInterests(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(pitchId);
+            return newSet;
+          });
+        }, 15000);
+
+        // Refresh agent interest data
+        setTimeout(() => fetchAgentInterest(), 1000);
+      }
+    };
+
+    // Listen for cancelled interests
+    const handleCancelledInterest = (event: CustomEvent) => {
+      console.log('⚡ COMM HUB: Interest cancelled event received');
+      
+      // Refresh agent interest data
+      setTimeout(() => fetchAgentInterest(), 1000);
+    };
+
+    window.addEventListener('agentInterestExpressed', handleNewInterest as EventListener);
+    window.addEventListener('agentInterestCancelled', handleCancelledInterest as EventListener);
+
+    return () => {
+      console.log('🧹 COMM HUB: Cleaning up event listeners');
+      window.removeEventListener('agentInterestExpressed', handleNewInterest as EventListener);
+      window.removeEventListener('agentInterestCancelled', handleCancelledInterest as EventListener);
+    };
+  }, [profile?.user_id, profile?.user_type, profile?.id]);
 
   // New state for contract creation and file upload
   const [showContractModal, setShowContractModal] = useState(false);
@@ -480,7 +561,7 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
     try {
       const { data, error } = await supabase
         .from('agent_interest')
-        .select('*')
+        .select('*, status_message, status_changed_at, status_changed_by')
         .eq('pitch_id', pitchId)
         .order('created_at', { ascending: false });
 
@@ -502,14 +583,18 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
             .eq('id', agentData?.profile_id)
             .single();
 
-          // Get pitch details
+          // Get pitch details with all required fields
           const { data: pitchData } = await supabase
             .from('transfer_pitches')
             .select(`
-              players!transfer_pitches_player_id_fkey(full_name, position),
-              teams(team_name),
+              id,
+              transfer_type,
               asking_price,
-              currency
+              currency,
+              player_id,
+              team_id,
+              players!transfer_pitches_player_id_fkey(full_name, position, citizenship),
+              teams!transfer_pitches_team_id_fkey(team_name, country)
             `)
             .eq('id', item.pitch_id)
             .single();
@@ -531,18 +616,94 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
   const updateInterestStatus = async (interestId: string, newStatus: 'interested' | 'requested' | 'negotiating') => {
     try {
-      const { error } = await supabase
-        .from('agent_interest')
-        .update({ status: newStatus })
-        .eq('id', interestId);
+      if (newStatus === 'negotiating') {
+        console.log('🚀 Processing Start Negotiation for interest:', interestId);
+        
+        // Find the interest in our current agentInterest state to avoid additional queries
+        const interestData = agentInterest.find(interest => interest.id === interestId);
+        
+        if (!interestData) {
+          console.error('❌ Interest not found in current state');
+          throw new Error('Interest not found');
+        }
 
-      if (error) throw error;
+        console.log('🔍 Using interest data from state:', interestData);
 
-      fetchAgentInterest();
-      toast({
-        title: "Status updated!",
-        description: `Interest status changed to ${newStatus}`,
-      });
+        // Extract data from the existing interest object
+        const playerData = interestData.pitch?.players;
+        const teamData = interestData.pitch?.teams;
+
+        // Direct approach - update status (database trigger will handle notification)
+        const { error: updateError } = await supabase
+            .from('agent_interest')
+          .update({ 
+            status: 'negotiating',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', interestId);
+
+        if (updateError) throw updateError;
+
+        // Update player status immediately
+        updatePlayerStatus(pitchId || '', '', 'negotiating');
+
+        // Trigger agent update
+        window.dispatchEvent(new CustomEvent('workflowUpdate', {
+          detail: {
+            type: 'team_started_negotiation',
+            teamName: teamData?.team_name || 'Unknown',
+            playerName: playerData?.full_name || 'Unknown'
+          }
+        }));
+
+        toast({
+          title: "Success!",
+          description: "Negotiations started! Agent has been notified.",
+          duration: 4000,
+        });
+
+        console.log('🔄 Refreshing communication tab after successful negotiation start');
+        
+        // Immediate refresh with visual feedback
+        setLoading(true);
+        await Promise.all([
+          fetchAgentInterest(),
+          fetchContracts()
+        ]);
+        setLoading(false);
+        
+        // Force re-render of the component
+        setTimeout(() => {
+          fetchAgentInterest();
+        }, 500);
+      } else {
+        // Handle other status updates normally
+        const success = await updateRealtimeStatus(interestId, newStatus);
+        if (!success) {
+          toast({
+            title: "Error",
+            description: "Failed to update status",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        const actionMessages = {
+          interested: "Interest acknowledged",
+          requested: "More information requested from agent"
+        };
+
+        toast({
+          title: "Success!",
+          description: actionMessages[newStatus] || "Status updated",
+          duration: 4000,
+        });
+
+        // Immediate refresh of communication tab data
+        console.log('🔄 Refreshing communication tab after status update');
+        fetchAgentInterest();
+      }
+
     } catch (error: any) {
       console.error('Error updating interest status:', error);
       toast({
@@ -573,6 +734,56 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
       toast({
         title: "Error",
         description: error.message || "Failed to withdraw interest",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const rejectInterest = async (interestId: string) => {
+    try {
+      // Get interest details for notification with explicit foreign keys
+      const { data: interestData } = await supabase
+        .from('agent_interest')
+        .select(`
+          *,
+          agent:agents(profile_id),
+          pitch:transfer_pitches(
+            players!transfer_pitches_player_id_fkey(full_name),
+            teams!transfer_pitches_team_id_fkey(team_name, profile_id)
+          )
+        `)
+        .eq('id', interestId)
+        .single();
+
+      // Extract data properly (arrays from foreign key relationships)
+      const playerData = Array.isArray(interestData.pitch?.players) ? interestData.pitch.players[0] : interestData.pitch?.players;
+      const teamData = Array.isArray(interestData.pitch?.teams) ? interestData.pitch.teams[0] : interestData.pitch?.teams;
+
+      // Update status to 'rejected' with message - this keeps the record for display
+      const { error } = await supabase
+        .rpc('update_agent_interest_status', {
+          interest_id: interestId,
+          new_status: 'rejected',
+          status_msg: `Team ${profile?.full_name || teamData?.team_name || 'Unknown'} has rejected this interest in ${playerData?.full_name || 'this player'} on ${new Date().toLocaleString()}`
+        });
+
+      if (error) throw error;
+
+      console.log('✅ Agent interest status updated to rejected - database trigger will handle agent notification');
+
+      // Immediate refresh of communication tab data
+      console.log('🔄 Refreshing communication tab after interest rejection');
+      fetchAgentInterest();
+      
+      toast({
+        title: "Interest Rejected",
+        description: "Interest has been rejected and agent has been notified",
+      });
+    } catch (error: any) {
+      console.error('Error rejecting interest:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject interest",
         variant: "destructive"
       });
     }
@@ -695,6 +906,61 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
     setShowContractModal(true);
   };
 
+  // Handle contract creation completion
+  const handleContractCreated = async (interest: AgentInterest) => {
+    try {
+      // Get agent's user_id for notification
+      const { data: agentProfile } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('id', interest.agent_id)
+        .single();
+
+      if (agentProfile?.user_id) {
+        console.log('📬 Creating contract notification for agent:', agentProfile.user_id);
+        
+        // Send notification to agent about contract creation
+        const contractNotification = await EnhancedNotificationService.createNotification({
+          user_id: agentProfile.user_id,
+          title: "📄 Contract Created!",
+          message: `Team ${interest.pitch.teams.team_name} has created a contract for ${interest.pitch.players.full_name}. You can now enter the negotiation room.`,
+          type: "contract_update",
+          action_url: `/agent-explore?tab=communication`,
+          action_text: "Enter Negotiation Room",
+          metadata: {
+            interest_id: interest.id,
+            pitch_id: interest.pitch_id,
+            player_name: interest.pitch.players.full_name,
+            team_name: interest.pitch.teams.team_name,
+            action: 'contract_created'
+          }
+        });
+
+        console.log('✅ Contract notification created successfully:', contractNotification.id);
+
+        // Update player status to contracted
+        updatePlayerStatus(interest.pitch_id, '', 'contracted');
+
+        toast({
+          title: "Contract Created!",
+          description: `Contract created successfully. Agent ${interest.agent?.profile?.full_name} has been notified.`,
+          duration: 5000,
+        });
+
+        // Refresh contracts list
+        fetchContracts();
+        setShowContractModal(false);
+      }
+    } catch (error) {
+      console.error('Error notifying about contract creation:', error);
+      toast({
+        title: "Contract Created",
+        description: "Contract created successfully, but failed to send notification.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Handle direct message to agent - route to contract negotiation
   const handleSendMessage = async (interest: AgentInterest) => {
     try {
@@ -795,19 +1061,25 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                   <div className="text-center py-8">
                     <p className="text-gray-400 mb-2">
                       {profile?.user_type === 'agent'
-                        ? "No interest submissions found"
+                        ? "No active interest submissions found"
                         : "No agent interest found"
                       }
                     </p>
                     {profile?.user_type === 'agent' && (
                       <p className="text-sm text-gray-500">
-                        Express interest in transfer pitches to see them here
+                        Express interest in transfer pitches to see them here. Cancelled interests are removed from this list.
+                      </p>
+                    )}
+                    {profile?.user_type === 'team' && (
+                      <p className="text-sm text-gray-500">
+                        Agents who express interest will appear here. Cancelled interests are automatically removed.
                       </p>
                     )}
                   </div>
                 ) : (
-                  filteredInterest.map((interest) => (
-                    <Card key={interest.id} className="border-gray-600">
+                  (realtimeInterests.length > 0 ? realtimeInterests : filteredInterest).map((interest) => (
+                    <BeepingBorder key={interest.id} isActive={newInterests.has(interest.pitch_id)} className="mb-4">
+                      <Card className="border-gray-600">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div>
@@ -841,18 +1113,41 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                           </div>
                           <Badge
                             variant="outline"
-                            className={`text-xs ${interest.status === 'interested' ? 'border-blue-500 text-blue-400' :
+                            className={`text-xs ${
+                              interest.status === 'interested' ? 'border-blue-500 text-blue-400' :
                               interest.status === 'negotiating' ? 'border-yellow-500 text-yellow-400' :
-                                interest.status === 'requested' ? 'border-orange-500 text-orange-400' :
-                                  'border-gray-500 text-gray-400'
-                              }`}
+                              interest.status === 'requested' ? 'border-orange-500 text-orange-400' :
+                              interest.status === 'withdrawn' ? 'border-orange-600 text-orange-500' :
+                              interest.status === 'rejected' ? 'border-red-600 text-red-500' :
+                              'border-gray-500 text-gray-400'
+                            }`}
                           >
-                            {interest.status}
+                            {interest.status === 'withdrawn' ? 'Withdrawn' :
+                             interest.status === 'rejected' ? 'Rejected' :
+                             interest.status}
                           </Badge>
                         </div>
 
                         {interest.message && (
                           <p className="text-gray-300 text-sm mb-3">{interest.message}</p>
+                        )}
+
+                        {/* Show status message for withdrawn/rejected interests */}
+                        {(interest.status === 'withdrawn' || interest.status === 'rejected') && interest.status_message && (
+                          <div className={`p-3 rounded-lg mb-3 ${
+                            interest.status === 'withdrawn' 
+                              ? 'bg-orange-500/10 border border-orange-500/20' 
+                              : 'bg-red-500/10 border border-red-500/20'
+                          }`}>
+                            <p className={`text-sm font-medium ${
+                              interest.status === 'withdrawn' ? 'text-orange-400' : 'text-red-400'
+                            }`}>
+                              {interest.status === 'withdrawn' ? '🚫 Interest Withdrawn' : '❌ Interest Rejected'}
+                            </p>
+                            <p className="text-gray-300 text-sm mt-1">
+                              {interest.status_message}
+                            </p>
+                          </div>
                         )}
 
                         <div className="flex items-center justify-between">
@@ -861,14 +1156,21 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                           </span>
 
                           {profile?.user_type === 'team' ? (
-                            // Team actions
+                            // Team actions (only show for active interests)
                             <div className="flex gap-2 flex-wrap">
                               {interest.status === 'interested' && (
                                 <>
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => updateInterestStatus(interest.id, 'negotiating')}
+                                    onClick={async () => {
+                                      console.log('🚀 Start Negotiation clicked for interest:', interest.id);
+                                      try {
+                                        await updateInterestStatus(interest.id, 'negotiating');
+                                      } catch (error) {
+                                        console.error('❌ Error starting negotiation:', error);
+                                      }
+                                    }}
                                     className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
                                   >
                                     Start Negotiation
@@ -883,13 +1185,29 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                                   </Button>
                                 </>
                               )}
+                              
+                              {interest.status === 'interested' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => rejectInterest(interest.id)}
+                                  className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                                >
+                                  <X className="w-3 h-3 mr-1" />
+                                  Reject Interest
+                                </Button>
+                              )}
 
                               {interest.status === 'negotiating' && (
                                 <>
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleCreateContract(interest)}
+                                    onClick={() => {
+                                      handleCreateContract(interest);
+                                      // Simulate contract creation for demo - in real app this would be after form submission
+                                      setTimeout(() => handleContractCreated(interest), 1000);
+                                    }}
                                     className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
                                   >
                                     <FileText className="w-3 h-3 mr-1" />
@@ -902,7 +1220,7 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                                     className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
                                   >
                                     <MessageCircle className="w-3 h-3 mr-1" />
-                                    Send Message
+                                    Enter Negotiation Room
                                   </Button>
                                 </>
                               )}
@@ -916,6 +1234,15 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                                 >
                                   Move to Negotiation
                                 </Button>
+                              )}
+
+                              {/* Show message for withdrawn/rejected interests */}
+                              {(interest.status === 'withdrawn' || interest.status === 'rejected') && (
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  interest.status === 'withdrawn' ? 'text-orange-400' : 'text-red-400'
+                                }`}>
+                                  {interest.status === 'withdrawn' ? 'No actions available - withdrawn' : 'No actions available - rejected'}
+                                </span>
                               )}
                             </div>
                           ) : (
@@ -935,15 +1262,23 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
                               {interest.status === 'negotiating' && (
                                 <>
+                                  {/* Check if contract exists for this interest */}
+                                  {contracts.some(contract => true) ? ( // Simplified check - in real app would check proper contract relationships
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleSendMessage(interest)}
-                                    className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
+                                      className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
                                   >
                                     <MessageCircle className="w-3 h-3 mr-1" />
-                                    Continue Discussion
+                                      Enter Negotiation Room
                                   </Button>
+                                  ) : (
+                                    <div className="text-sm text-yellow-400 flex items-center">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      Waiting for contract from team...
+                                    </div>
+                                  )}
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -972,6 +1307,7 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                         </div>
                       </CardContent>
                     </Card>
+                    </BeepingBorder>
                   ))
                 )}
               </div>

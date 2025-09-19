@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, Search, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -20,7 +20,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { profile, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { unreadCount } = useNotifications();
+  const { unreadCount } = useEnhancedNotifications();
   const [searchQuery, setSearchQuery] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
 

@@ -11,6 +11,11 @@ import AgentMarketInsights from './AgentMarketInsights';
 import UnifiedCommunicationHub from '../communication/UnifiedCommunicationHub';
 import SimplifiedContractWorkflow from '../contracts/SimplifiedContractWorkflow';
 import TransferPerformanceAnalytics from '../analytics/TransferPerformanceAnalytics';
+import { useNotificationCounts } from '@/hooks/useNotificationCounts';
+import { useNotificationToasts } from '@/hooks/useNotificationToasts';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { useAutoMarkNotificationsRead } from '@/hooks/useAutoMarkNotificationsRead';
 
 interface AgentExploreHubProps {
   initialSearch?: string;
@@ -19,6 +24,15 @@ interface AgentExploreHubProps {
 export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch }) => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('timeline');
+  const { counts } = useNotificationCounts();
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  
+  // Auto-mark ALL notifications as read when communication tab is viewed
+  useAutoMarkNotificationsRead(activeTab === 'communication');
+  
+  // Set up toast notifications for incoming alerts
+  useNotificationToasts();
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -26,6 +40,40 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
       setActiveTab(tab);
     }
   }, [searchParams]);
+
+  // Listen for workflow updates for immediate agent updates
+  useEffect(() => {
+    if (!profile?.user_id || profile.user_type !== 'agent') return;
+
+    console.log('🎯 AGENT: Setting up workflow listeners');
+
+    const handleWorkflowUpdate = (event: CustomEvent) => {
+      const { type, teamName, playerName } = event.detail;
+      
+      console.log('⚡ AGENT: Workflow update received:', type);
+      
+      if (type === 'team_started_negotiation') {
+        toast({
+          title: "🚀 Negotiation Started!",
+          description: `${teamName} is ready to start negotiations with you`,
+          duration: 5000,
+        });
+      } else if (type === 'contract_created') {
+        toast({
+          title: "📄 Contract Created!",
+          description: `${teamName} has created a contract for ${playerName}`,
+          duration: 5000,
+        });
+      }
+    };
+
+    window.addEventListener('workflowUpdate', handleWorkflowUpdate as EventListener);
+
+    return () => {
+      console.log('🧹 AGENT: Cleaning up workflow listeners');
+      window.removeEventListener('workflowUpdate', handleWorkflowUpdate as EventListener);
+    };
+  }, [profile?.user_id, profile?.user_type, toast]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,10 +105,18 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
             </TabsTrigger>
             <TabsTrigger
               value="communication"
-              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white relative"
             >
               <MessageSquare className="w-4 h-4" />
               Communication
+              {counts.total > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold min-w-[20px] animate-pulse"
+                >
+                  {counts.total > 99 ? '99+' : counts.total}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="contracts"
