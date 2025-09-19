@@ -6,6 +6,7 @@ import AgentWalletPage from './AgentWalletPage';
 const WalletPage: React.FC = () => {
   const { profile, user, loading } = useAuth();
 
+
   // Authentication successful, routing to appropriate wallet
 
   // Show loading state while authentication is loading
