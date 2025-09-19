@@ -67,11 +67,27 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
       }
     };
 
+    const handleContractCreated = (event: CustomEvent) => {
+      const { agentId, pitchId, playerName, teamName } = event.detail;
+      
+      console.log('⚡ AGENT: Contract created event received:', {
+        agentId, pitchId, playerName, teamName
+      });
+      
+      // Force page refresh or navigation to update UI
+      if (window.location.pathname.includes('/agent-explore')) {
+        console.log('🔄 AGENT: Refreshing page to update contract status');
+        window.location.reload();
+      }
+    };
+
     window.addEventListener('workflowUpdate', handleWorkflowUpdate as EventListener);
+    window.addEventListener('contractCreated', handleContractCreated as EventListener);
 
     return () => {
       console.log('🧹 AGENT: Cleaning up workflow listeners');
       window.removeEventListener('workflowUpdate', handleWorkflowUpdate as EventListener);
+      window.removeEventListener('contractCreated', handleContractCreated as EventListener);
     };
   }, [profile?.user_id, profile?.user_type, toast]);
 

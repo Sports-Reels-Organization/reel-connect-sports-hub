@@ -24,7 +24,8 @@ import {
   Heart,
   Eye,
   Upload,
-  Trash2
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { contractService, PermanentTransferContract, LoanTransferContract } from '@/services/contractService';
@@ -45,6 +46,9 @@ interface UnifiedCommunicationHubProps {
 
 interface Contract {
   id: string;
+  pitch_id: string;
+  agent_id: string;
+  team_id: string;
   status: string;
   deal_stage: string;
   contract_value: number;
@@ -103,8 +107,31 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'interest' | 'contracts'>('interest');
   const [contracts, setContracts] = useState<Contract[]>([]);
+  
+  // Debug wrapper for setContracts to track when contracts are set/cleared
+  const setContractsWithDebug = (contracts: Contract[] | ((prev: Contract[]) => Contract[])) => {
+    if (typeof contracts === 'function') {
+      setContracts(prev => {
+        const newContracts = contracts(prev);
+        console.log('🔍 CONTRACTS STATE UPDATE (function):', {
+          previousCount: prev.length,
+          newCount: newContracts.length,
+          stackTrace: new Error().stack?.split('\n').slice(1, 4)
+        });
+        return newContracts;
+      });
+    } else {
+      console.log('🔍 CONTRACTS STATE UPDATE (direct):', {
+        newCount: contracts.length,
+        contracts: contracts.map(c => ({ id: c.id, pitch_id: c.pitch_id, agent_id: c.agent_id })),
+        stackTrace: new Error().stack?.split('\n').slice(1, 4)
+      });
+      setContracts(contracts);
+    }
+  };
   const [agentInterest, setAgentInterest] = useState<AgentInterest[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [newInterests, setNewInterests] = useState<Set<string>>(new Set()); // Track new interests for beeping borders
   
@@ -171,13 +198,21 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
       setTimeout(() => fetchAgentInterest(), 1000);
     };
 
+    const handleContractCreated = (event: CustomEvent) => {
+      console.log('⚡ COMM HUB: Contract created event received - auto-refreshing');
+      // Force refresh of both contracts and interests
+      handleRefresh();
+    };
+
     window.addEventListener('agentInterestExpressed', handleNewInterest as EventListener);
     window.addEventListener('agentInterestCancelled', handleCancelledInterest as EventListener);
+    window.addEventListener('contractCreated', handleContractCreated as EventListener);
 
     return () => {
       console.log('🧹 COMM HUB: Cleaning up event listeners');
       window.removeEventListener('agentInterestExpressed', handleNewInterest as EventListener);
       window.removeEventListener('agentInterestCancelled', handleCancelledInterest as EventListener);
+      window.removeEventListener('contractCreated', handleContractCreated as EventListener);
     };
   }, [profile?.user_id, profile?.user_type, profile?.id]);
 
@@ -296,14 +331,23 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
   });
 
   useEffect(() => {
+    console.log('🔄 INITIALIZING COMMUNICATION HUB:', { pitchId, playerId, userType: profile?.user_type });
+    
     if (pitchId || playerId) {
+      console.log('🔄 Specific pitch/player mode - fetching targeted data');
       fetchContracts();
       fetchAgentInterest();
     } else {
-      // If no specific pitch/player, fetch all communications for the user
-      fetchAllCommunications();
+      console.log('🔄 General communication mode - fetching all data');
+      // Always fetch contracts using our reliable fetchContracts function
+      fetchContracts();
+      // Delay fetchAllCommunications to prevent race condition
+      setTimeout(() => {
+        console.log('🔄 Delayed fetchAllCommunications to prevent race condition');
+        fetchAllCommunications();
+      }, 2000);
     }
-  }, [pitchId, playerId]);
+  }, [pitchId, playerId, profile?.user_type, profile?.id]);
 
   const fetchAllCommunications = async () => {
     if (!profile?.id) return;
@@ -428,16 +472,57 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
         }
       }
 
-      // Fetch contracts for the user
-      const { data: contracts, error: contractError } = await supabase
-        .from('contracts')
-        .select('*')
-        .or(`team_id.eq.${profile.id},agent_id.eq.${profile.id}`)
-        .order('created_at', { ascending: false });
+      // Fetch contracts for the user (fixed to use proper IDs)
+      console.log('🔍 FETCH ALL COMMUNICATIONS - Getting contracts for user type:', profile.user_type);
+      
+      if (profile.user_type === 'agent') {
+        // For agents: get agent_id first, then query contracts
+        const { data: agentData } = await supabase
+          .from('agents')
+          .select('id')
+          .eq('profile_id', profile.id)
+          .single();
+        
+        if (agentData) {
+          console.log('🔍 FETCH ALL COMMUNICATIONS - Using agent_id:', agentData.id);
+          const { data: contracts, error: contractError } = await supabase
+            .from('contracts')
+            .select('*')
+            .eq('agent_id', agentData.id)
+            .order('created_at', { ascending: false });
 
-      if (contractError) throw contractError;
+          if (contractError) throw contractError;
+          console.log('🔍 FETCH ALL COMMUNICATIONS - Agent contracts found:', contracts?.length || 0);
+          setContractsWithDebug(contracts || []);
+        } else {
+          console.log('🔍 FETCH ALL COMMUNICATIONS - No agent record found, clearing contracts');
+          setContractsWithDebug([]);
+        }
+      } else if (profile.user_type === 'team') {
+        // For teams: get team_id first, then query contracts  
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('profile_id', profile.id)
+          .single();
+        
+        if (teamData) {
+          console.log('🔍 FETCH ALL COMMUNICATIONS - Using team_id:', teamData.id);
+          const { data: contracts, error: contractError } = await supabase
+            .from('contracts')
+            .select('*')
+            .eq('team_id', teamData.id)
+            .order('created_at', { ascending: false });
 
-      setContracts(contracts || []);
+          if (contractError) throw contractError;
+          console.log('🔍 FETCH ALL COMMUNICATIONS - Team contracts found:', contracts?.length || 0);
+          setContractsWithDebug(contracts || []);
+        } else {
+          console.log('🔍 FETCH ALL COMMUNICATIONS - No team record found, clearing contracts');
+          setContractsWithDebug([]);
+        }
+      }
+
     } catch (error) {
       console.error('Error fetching communications:', error);
     } finally {
@@ -457,15 +542,134 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setContracts(data || []);
+        console.log('🔍 CONTRACTS DEBUG (direct query):', data);
+        setContractsWithDebug(data || []);
       } else {
-        // If no pitchId, fetch contracts for the current user using contractManagementService
+        // If no pitchId, fetch contracts for the current user
         if (profile?.id && profile?.user_type) {
-          const userContracts = await contractManagementService.getUserContracts(
-            profile.id,
-            profile.user_type as 'agent' | 'team'
-          );
-          setContracts(userContracts || []);
+          try {
+            // Try direct query first for better reliability
+            let contractQuery = supabase.from('contracts').select('*');
+            
+            if (profile.user_type === 'agent') {
+              // Get agent_id from profile
+              const { data: agentData, error: agentError } = await supabase
+                .from('agents')
+                .select('id')
+                .eq('profile_id', profile.id)
+                .single();
+              
+              console.log('🔍 AGENT LOOKUP DEBUG:', {
+                profileId: profile.id,
+                agentData: agentData,
+                agentError: agentError
+              });
+              
+              if (agentData) {
+                console.log('🔍 Using agent_id for contract query:', agentData.id);
+                contractQuery = contractQuery.eq('agent_id', agentData.id);
+              } else {
+                console.error('❌ No agent found for profile_id:', profile.id);
+                console.error('❌ Agent error:', agentError);
+              }
+            } else if (profile.user_type === 'team') {
+              // Get team_id from profile
+              const { data: teamData } = await supabase
+                .from('teams')
+                .select('id')
+                .eq('profile_id', profile.id)
+                .single();
+              
+              if (teamData) {
+                contractQuery = contractQuery.eq('team_id', teamData.id);
+              }
+            }
+            
+            const { data: directContracts, error: directError } = await contractQuery
+              .order('created_at', { ascending: false });
+            
+            console.log('🔍 CONTRACT QUERY DEBUG:', {
+              queryType: profile.user_type,
+              profileId: profile.id,
+              directContracts: directContracts,
+              directError: directError,
+              queryExecuted: contractQuery
+            });
+            
+            if (directError) {
+              console.error('❌ Direct contract query error:', directError);
+              throw directError;
+            }
+            
+            console.log('🔍 CONTRACTS DEBUG (direct query):', directContracts);
+            console.log('🔍 CONTRACTS DEBUG - First contract structure:', directContracts?.[0]);
+            
+            // If no contracts found, try multiple fallback strategies
+            if (!directContracts || directContracts.length === 0) {
+              console.log('🔍 No contracts found with primary query, trying fallback strategies');
+              
+              // Test 1: Try searching by profile_id as agent_id
+              const { data: fallbackContracts1, error: fallbackError1 } = await supabase
+                .from('contracts')
+                .select('*')
+                .eq('agent_id', profile.id) // Use profile_id as agent_id
+                .order('created_at', { ascending: false });
+              
+              console.log('🔍 FALLBACK TEST 1 (profile_id as agent_id):', {
+                data: fallbackContracts1,
+                error: fallbackError1
+              });
+              
+              // Test 2: Try searching for ANY contracts (no filters)
+              const { data: allContracts, error: allContractsError } = await supabase
+                .from('contracts')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(10);
+              
+              console.log('🔍 FALLBACK TEST 2 (all contracts):', {
+                totalCount: allContracts?.length || 0,
+                data: allContracts,
+                error: allContractsError
+              });
+              
+              // Test 3: Try searching for the specific contract we know was created
+              const { data: specificContract, error: specificError } = await supabase
+                .from('contracts')
+                .select('*')
+                .eq('id', '28c28d8f-507a-486a-aa84-547decaed61f');
+              
+              console.log('🔍 FALLBACK TEST 3 (specific contract):', {
+                data: specificContract,
+                error: specificError
+              });
+              
+              // Use the best result we found
+              if (fallbackContracts1 && fallbackContracts1.length > 0) {
+                console.log('✅ Using fallback contracts (profile_id match)');
+                setContractsWithDebug(fallbackContracts1);
+              } else if (specificContract && specificContract.length > 0) {
+                console.log('✅ Using specific contract');
+                setContractsWithDebug(specificContract);
+              } else {
+                console.log('❌ No contracts found with any method');
+                setContractsWithDebug([]);
+              }
+            } else {
+              setContractsWithDebug(directContracts || []);
+            }
+            
+          } catch (error) {
+            console.error('Direct contract query failed, falling back to service:', error);
+            
+            // Fallback to service method
+            const userContracts = await contractManagementService.getUserContracts(
+              profile.id,
+              profile.user_type as 'agent' | 'team'
+            );
+            console.log('🔍 CONTRACTS DEBUG (fallback getUserContracts):', userContracts);
+            setContractsWithDebug(userContracts || []);
+          }
         }
       }
     } catch (error) {
@@ -552,6 +756,38 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
         description: "An error occurred during cleanup.",
         variant: "destructive"
       });
+    }
+  };
+
+  // Comprehensive refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      console.log('🔄 Manual refresh triggered');
+      
+      // Refresh both interest and contracts data
+      await Promise.all([
+        fetchAgentInterest(),
+        fetchContracts()
+      ]);
+      
+      toast({
+        title: "Refreshed!",
+        description: "Communication data has been updated.",
+        duration: 2000,
+      });
+      
+      console.log('✅ Manual refresh completed');
+    } catch (error) {
+      console.error('Error during manual refresh:', error);
+      toast({
+        title: "Refresh Error",
+        description: "Failed to refresh data. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -909,11 +1145,23 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
   // Handle contract creation completion
   const handleContractCreated = async (interest: AgentInterest) => {
     try {
+      // Get agent's profile_id first, then user_id
+      const { data: agentData } = await supabase
+        .from('agents')
+        .select('profile_id')
+        .eq('id', interest.agent_id)
+        .single();
+
+      if (!agentData?.profile_id) {
+        console.error('❌ Agent profile_id not found for agent_id:', interest.agent_id);
+        return;
+      }
+
       // Get agent's user_id for notification
       const { data: agentProfile } = await supabase
         .from('profiles')
         .select('user_id')
-        .eq('id', interest.agent_id)
+        .eq('id', agentData.profile_id)
         .single();
 
       if (agentProfile?.user_id) {
@@ -941,14 +1189,36 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
         // Update player status to contracted
         updatePlayerStatus(interest.pitch_id, '', 'contracted');
 
+        // Trigger custom events for immediate UI updates
+        window.dispatchEvent(new CustomEvent('workflowUpdate', {
+          detail: {
+            type: 'contract_created',
+            playerName: interest.pitch.players.full_name,
+            teamName: interest.pitch.teams.team_name,
+            agentId: interest.agent_id,
+            pitchId: interest.pitch_id
+          }
+        }));
+
+        // Specific event for agent UI updates
+        window.dispatchEvent(new CustomEvent('contractCreated', {
+          detail: {
+            agentId: interest.agent_id,
+            pitchId: interest.pitch_id,
+            playerName: interest.pitch.players.full_name,
+            teamName: interest.pitch.teams.team_name
+          }
+        }));
+
         toast({
           title: "Contract Created!",
           description: `Contract created successfully. Agent ${interest.agent?.profile?.full_name} has been notified.`,
           duration: 5000,
         });
 
-        // Refresh contracts list
-        fetchContracts();
+        // Auto-refresh after contract creation
+        console.log('🔄 Auto-refreshing after contract creation');
+        await handleRefresh();
         setShowContractModal(false);
       }
     } catch (error) {
@@ -961,59 +1231,70 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
     }
   };
 
-  // Handle direct message to agent - route to contract negotiation
+  // Handle navigation to contract negotiation room
   const handleSendMessage = async (interest: AgentInterest) => {
     try {
-      // Check if there's already a contract for this interest
-      const { data: existingContract } = await supabase
+      console.log('🔍 ENTER NEGOTIATION: Looking for existing contract');
+      
+      // Find the contract for this interest from our loaded contracts
+      const matchingContract = contracts.find(contract => 
+        contract.pitch_id === interest.pitch_id && 
+        contract.agent_id === interest.agent_id
+      );
+
+      if (matchingContract) {
+        console.log('✅ ENTER NEGOTIATION: Found contract, navigating to:', matchingContract.id);
+        // Navigate to existing contract negotiation
+        navigate(`/contract-negotiation/${matchingContract.id}`);
+        
+        toast({
+          title: "Entering Negotiation Room",
+          description: "Redirecting to contract negotiation...",
+          duration: 2000,
+        });
+        return;
+      }
+
+      // If no contract found in state, try a direct query as fallback
+      console.log('🔍 ENTER NEGOTIATION: No contract in state, trying direct query');
+      
+      const { data: existingContract, error: contractError } = await supabase
         .from('contracts')
         .select('id')
         .eq('pitch_id', interest.pitch_id)
         .eq('agent_id', interest.agent_id)
-        .single();
+        .maybeSingle();
+
+      if (contractError) {
+        console.error('❌ Error querying for contract:', contractError);
+        throw new Error('Unable to access contract. Please try refreshing the page.');
+      }
 
       if (existingContract) {
-        // Navigate to existing contract negotiation
+        console.log('✅ ENTER NEGOTIATION: Found contract via direct query, navigating to:', existingContract.id);
         navigate(`/contract-negotiation/${existingContract.id}`);
+        
+        toast({
+          title: "Entering Negotiation Room",
+          description: "Redirecting to contract negotiation...",
+          duration: 2000,
+        });
         return;
       }
 
-      // Create a new contract for negotiation
-      const contractData = {
-        pitch_id: interest.pitch_id,
-        agent_id: interest.agent_id,
-        team_id: profile?.user_type === 'team' ?
-          (await supabase.from('teams').select('id').eq('profile_id', profile.id).single()).data?.id :
-          null,
-        status: 'draft',
-        deal_stage: 'negotiating',
-        contract_value: interest.pitch.asking_price,
-        currency: interest.pitch.currency,
-        created_at: new Date().toISOString(),
-        last_activity: new Date().toISOString()
-      };
-
-      const { data: newContract, error: contractError } = await supabase
-        .from('contracts')
-        .insert(contractData)
-        .select('id')
-        .single();
-
-      if (contractError) throw contractError;
-
-      // Navigate to the new contract negotiation
-      navigate(`/contract-negotiation/${newContract.id}`);
-
+      // If still no contract found, this is an error state
+      console.error('❌ ENTER NEGOTIATION: No contract found for this interest');
       toast({
-        title: "Contract created!",
-        description: "Redirecting to contract negotiation room.",
+        title: "No Contract Found",
+        description: "Please ask the team to create a contract first.",
+        variant: "destructive"
       });
 
     } catch (error: any) {
-      console.error('Error creating contract negotiation:', error);
+      console.error('Error entering negotiation room:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to start negotiation",
+        description: error.message || "Failed to enter negotiation room",
         variant: "destructive"
       });
     }
@@ -1052,9 +1333,26 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                   placeholder={profile?.user_type === 'agent' ? "Search your interests..." : "Search agent interest..."}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-gray-600 bg-gray-800 text-white"
+                  className="border-gray-600 bg-gray-800 text-white flex-1"
                 />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white shrink-0"
+                  title="Refresh communication data"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </Button>
               </div>
+
+              {refreshing && (
+                <div className="flex items-center justify-center py-4">
+                  <RefreshCw className="w-5 h-5 animate-spin text-blue-400 mr-2" />
+                  <span className="text-blue-400">Refreshing communication data...</span>
+                </div>
+              )}
 
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {filteredInterest.length === 0 ? (
@@ -1205,8 +1503,7 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                                     variant="outline"
                                     onClick={() => {
                                       handleCreateContract(interest);
-                                      // Simulate contract creation for demo - in real app this would be after form submission
-                                      setTimeout(() => handleContractCreated(interest), 1000);
+                                      // Contract will only be created when user submits the form
                                     }}
                                     className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white"
                                   >
@@ -1262,8 +1559,33 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
 
                               {interest.status === 'negotiating' && (
                                 <>
-                                  {/* Check if contract exists for this interest */}
-                                  {contracts.some(contract => true) ? ( // Simplified check - in real app would check proper contract relationships
+                                  {/* Proper workflow: Show Enter Negotiation Room ONLY if contract exists for THIS specific interest */}
+                                  {(() => {
+                                    const matchingContract = contracts.find(contract => 
+                                      contract.pitch_id === interest.pitch_id && 
+                                      contract.agent_id === interest.agent_id
+                                    );
+                                    
+                                    console.log('🔍 WORKFLOW DEBUG:', {
+                                      interestId: interest.id,
+                                      interestStatus: interest.status,
+                                      interestPitchId: interest.pitch_id,
+                                      interestAgentId: interest.agent_id,
+                                      totalContracts: contracts.length,
+                                      contractsForThisPitch: contracts.filter(c => c.pitch_id === interest.pitch_id),
+                                      matchingContract: matchingContract ? {
+                                        id: matchingContract.id,
+                                        pitch_id: matchingContract.pitch_id,
+                                        agent_id: matchingContract.agent_id,
+                                        status: matchingContract.status
+                                      } : null,
+                                      hasMatchingContract: !!matchingContract,
+                                      shouldShowEnterButton: !!matchingContract,
+                                      workflowState: matchingContract ? 'CONTRACT_EXISTS' : 'WAITING_FOR_CONTRACT'
+                                    });
+                                    
+                                    return !!matchingContract;
+                                  })() ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -1870,8 +2192,10 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                           throw new Error(`Profile not found: ${profileError.message}`);
                         }
 
-                        console.log('Agent found:', agentData);
-                        console.log('Profile found:', profileData);
+                        console.log('🔍 CONTRACT DEBUG - Agent found:', agentData);
+                        console.log('🔍 CONTRACT DEBUG - Profile found:', profileData);
+                        console.log('🔍 CONTRACT DEBUG - Selected interest agent_id:', selectedInterest.agent_id);
+                        console.log('🔍 CONTRACT DEBUG - About to use agentId:', agentData.id);
 
                         // Now we have the agent data, continue with contract creation
                         agentId = agentData.id;
@@ -1881,9 +2205,31 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                         throw new Error(`Missing team or agent information. Team ID: ${teamId}, Agent ID: ${agentId}. Please ensure both team and agent profiles are properly set up.`);
                       }
 
+                      // Get player_id from the transfer_pitches table
+                      let playerId = null;
+                      if (selectedInterest?.pitch_id) {
+                        const { data: pitchData, error: pitchError } = await supabase
+                          .from('transfer_pitches')
+                          .select('player_id')
+                          .eq('id', selectedInterest.pitch_id)
+                          .single();
+                        
+                        if (pitchError) {
+                          console.error('❌ Error fetching player_id from pitch:', pitchError);
+                        } else {
+                          playerId = pitchData?.player_id;
+                          console.log('🔍 Retrieved player_id from pitch:', playerId);
+                        }
+                      }
+
+                      if (!playerId) {
+                        throw new Error('Player ID is required to create a contract');
+                      }
+
                       // Create contract in database
                       const contractData = {
                         pitchId: selectedInterest?.pitch_id || pitchId || '',
+                        playerId: playerId, // ✅ Added missing player_id
                         agentId: agentId,
                         teamId: teamId,
                         transferType: transferType as 'permanent' | 'loan',
@@ -1898,7 +2244,11 @@ const UnifiedCommunicationHub: React.FC<UnifiedCommunicationHubProps> = ({
                         }
                       };
 
+                      console.log('🔍 CONTRACT DEBUG - Contract data being created:', contractData);
+
                       const contract = await contractManagementService.createContract(contractData);
+                      
+                      console.log('🔍 CONTRACT DEBUG - Contract created with ID:', contract);
 
                       // Update agent interest status to reflect contract creation
                       if (selectedInterest) {

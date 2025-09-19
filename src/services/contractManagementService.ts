@@ -72,6 +72,14 @@ export const contractManagementService = {
       const agentId = data.agentId;
       const teamId = data.teamId;
 
+      console.log('🔍 CREATE CONTRACT DEBUG:', {
+        inputAgentId: data.agentId,
+        inputTeamId: data.teamId,
+        resolvedAgentId: agentId,
+        resolvedTeamId: teamId,
+        pitchId: data.pitchId
+      });
+
       if (!agentId || !teamId) {
         throw new Error('Missing team or agent information');
       }
@@ -210,7 +218,7 @@ export const contractManagementService = {
             return result;
           }) : Promise.resolve({ data: null, error: null }),
         
-        // Get agent data
+        // Get agent data with error handling
         contract.agent_id ? supabase
           .from('agents')
           .select(`
@@ -220,7 +228,22 @@ export const contractManagementService = {
             logo_url
           `)
           .eq('id', contract.agent_id)
-          .single() : Promise.resolve({ data: null, error: null }),
+          .maybeSingle()
+          .then(result => {
+            if (result.error && result.error.code === 'PGRST116') {
+              console.warn('🔄 Agent not found, using fallback data');
+              return { 
+                data: {
+                  id: contract.agent_id,
+                  profile_id: null,
+                  agency_name: 'Unknown Agency',
+                  logo_url: null
+                }, 
+                error: null 
+              };
+            }
+            return result;
+          }) : Promise.resolve({ data: null, error: null }),
         
         // Get team data
         contract.team_id ? supabase
@@ -383,7 +406,7 @@ export const contractManagementService = {
                 return result;
               }) : Promise.resolve({ data: null, error: null }),
             
-            // Get agent data
+            // Get agent data with error handling
             contract.agent_id ? supabase
               .from('agents')
               .select(`
@@ -391,7 +414,20 @@ export const contractManagementService = {
                 profile_id
               `)
               .eq('id', contract.agent_id)
-              .single() : Promise.resolve({ data: null, error: null }),
+              .maybeSingle()
+              .then(result => {
+                if (result.error && result.error.code === 'PGRST116') {
+                  console.warn('🔄 Agent not found in getUserContracts, using fallback data');
+                  return { 
+                    data: {
+                      id: contract.agent_id,
+                      profile_id: null
+                    }, 
+                    error: null 
+                  };
+                }
+                return result;
+              }) : Promise.resolve({ data: null, error: null }),
             
             // Get team data
             contract.team_id ? supabase
