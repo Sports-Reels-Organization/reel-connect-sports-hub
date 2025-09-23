@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useGoogleTranslation } from '@/contexts/GoogleTranslationContext';
 import {
   Sidebar,
   SidebarContent,
@@ -40,55 +40,80 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { t } = useLanguage();
+  const { translateTextSync, currentLanguage } = useGoogleTranslation();
   const { toast } = useToast();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Listen for language change events to force refresh
+  useEffect(() => {
+    const handleLanguageChange = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+    
+    window.addEventListener('languageChanged', handleLanguageChange);
+    return () => window.removeEventListener('languageChanged', handleLanguageChange);
+  }, []);
+
+  // Force re-render when language changes
+  useEffect(() => {
+    setRefreshKey(prev => prev + 1);
+  }, [currentLanguage]);
 
   // Base menu items for both user types
   const baseMenuItems = [
     {
-      title: t('dashboard'),
+      id: 'dashboard',
+      title: translateTextSync('Dashboard'),
       url: "/",
       icon: Home,
     },
     {
-      title: t('explore'),
+      id: 'explore',
+      title: translateTextSync('Explore'),
       url: "/explore",
       icon: Search,
     },
     {
-      title: t('messages'),
+      id: 'messages',
+      title: translateTextSync('Messages'),
       url: "/messages",
       icon: MessageSquare,
     },
     {
-      title: t('contracts'),
+      id: 'contracts',
+      title: translateTextSync('Contracts'),
       url: "/contracts",
       icon: FileText,
     },
     {
-      title: t('wallet'),
+      id: 'wallet',
+      title: translateTextSync('Wallet'),
       url: "/wallet",
       icon: Wallet,
     },
     {
-      title: t('profile'),
+      id: 'profile',
+      title: translateTextSync('Profile'),
       url: "/profile",
       icon: User,
     },
     {
-      title: t('notifications'),
+      id: 'notifications',
+      title: translateTextSync('Notifications'),
       url: "/notifications",
       icon: Bell,
       showBadge: true,
     },
     {
-      title: 'News',
+      id: 'news',
+      title: translateTextSync('News'),
       url: "/news",
       icon: Newspaper,
     },
     {
-      title: 'History',
+      id: 'history',
+      title: translateTextSync('History'),
       url: "/history",
       icon: Clock,
     },
@@ -98,12 +123,14 @@ export function AppSidebar() {
   const agentMenuItems = [
     ...baseMenuItems.slice(0, 3), // Dashboard, Explore, Messages
     {
-      title: 'Shortlist',
+      id: 'shortlist',
+      title: translateTextSync('Shortlist'),
       url: "/agent-shortlist",
       icon: Heart,
     },
     {
-      title: 'AI Scout',
+      id: 'ai-scout',
+      title: translateTextSync('AI Scout'),
       url: "/",
       icon: Target,
     },
@@ -114,18 +141,20 @@ export function AppSidebar() {
   const teamMenuItems = [
     ...baseMenuItems.slice(0, 1), // Dashboard
     {
-      title: t('players'),
+      id: 'players',
+      title: translateTextSync('Players'),
       url: "/players",
       icon: Users,
     },
     {
-      title: t('videos'),
+      id: 'videos',
+      title: translateTextSync('Videos'),
       url: "/videos",
       icon: Video,
     },
-
     {
-      title: t('timeline'),
+      id: 'timeline',
+      title: translateTextSync('Timeline'),
       url: "/timeline",
       icon: Calendar,
     },
@@ -185,7 +214,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className='border-0'>
+    <Sidebar className='border-0 overflow-hidden'>
       <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
           <img
@@ -198,21 +227,21 @@ export function AppSidebar() {
               Sports Reels
             </h2>
             <p className="text-sm text-sidebar-foreground/70">
-              {profile?.user_type === 'team' ? t('Team') : t('Agent')}
+              {profile?.user_type === 'team' ? translateTextSync('Team') : translateTextSync('Agent')}
             </p>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="overflow-hidden">
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium">
             Navigation
           </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
+          <SidebarGroupContent className="overflow-hidden">
+            <SidebarMenu className="overflow-hidden">
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.id || item.url}>
                   <SidebarMenuButton
                     asChild
                     isActive={location.pathname === item.url}
@@ -240,7 +269,7 @@ export function AppSidebar() {
           className="w-full justify-start"
         >
           <LogOut className="w-5 h-5 mr-3" />
-          <span>{t('signOut')}</span>
+          <span>{translateTextSync('Sign Out')}</span>
         </SidebarMenuButton>
       </SidebarFooter>
     </Sidebar>

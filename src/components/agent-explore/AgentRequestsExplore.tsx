@@ -290,16 +290,16 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-2">Agent Requests</h2>
-          <p className="text-gray-400">Discover opportunities and connect with other agents</p>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Agent Requests</h2>
+          <p className="text-gray-400 text-sm sm:text-base">Discover opportunities and connect with other agents</p>
         </div>
         <Button 
           onClick={() => setShowCreateModal(true)}
-          className="bg-rosegold hover:bg-rosegold/90 text-white"
+          className="bg-rosegold hover:bg-rosegold/90 text-white flex-shrink-0 w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Request
@@ -307,9 +307,9 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
       </div>
 
       {/* Filters */}
-      <Card className="border-0">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <Card className="border-0 w-full overflow-hidden">
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
@@ -386,23 +386,23 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {filteredRequests.map((request) => (
-            <Card key={request.id} className="border-gray-600 hover:border-rosegold/50 transition-colors">
-              <CardContent className="p-6">
-                <div className="space-y-4">
+            <Card key={request.id} className="border-gray-600 hover:border-rosegold/50 transition-colors w-full overflow-hidden">
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Header */}
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white mb-2">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-semibold text-white mb-2 break-words">
                         {request.title}
                       </h3>
-                      <p className="text-gray-400 text-sm line-clamp-2">
+                      <p className="text-gray-400 text-sm line-clamp-2 break-words">
                         {request.description}
                       </p>
                     </div>
-                    <div className="text-right ml-4">
-                      <div className="text-lg font-bold text-rosegold">
+                    <div className="text-left sm:text-right flex-shrink-0">
+                      <div className="text-base sm:text-lg font-bold text-rosegold break-words">
                         {formatCurrency(request.budget_min, request.currency)} - {formatCurrency(request.budget_max, request.currency)}
                       </div>
                       <div className="text-xs text-gray-400">
@@ -420,57 +420,60 @@ const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ initialSear
                   </div>
 
                   {/* Tags and Status */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
                     <div className="flex items-center gap-2 flex-wrap">
                       {request.tagged_players.length > 0 && (
-                        <Badge variant="outline" className="text-green-400 border-green-400">
+                        <Badge variant="outline" className="text-green-400 border-green-400 text-xs">
                           <Users className="w-3 h-3 mr-1" />
                           {request.tagged_players.length} Players Tagged
                         </Badge>
                       )}
                       {isExpiringSoon(request.expires_at) && (
-                        <Badge variant="outline" className="text-red-400 border-red-400 animate-pulse">
+                        <Badge variant="outline" className="text-red-400 border-red-400 animate-pulse text-xs">
                           <AlertCircle className="w-3 h-3 mr-1" />
                           Expiring Soon
                         </Badge>
                       )}
                     </div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-xs text-gray-400 flex-shrink-0">
                       Expires {formatDistanceToNow(new Date(request.expires_at), { addSuffix: true })}
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700 flex-1"
+                      className="border-gray-600 text-gray-300 hover:bg-gray-700 flex-1 sm:flex-initial"
                       onClick={() => handleViewDetails(request)}
                     >
                       <Eye className="w-4 h-4 mr-2" />
-                      View Details
+                      <span className="hidden sm:inline">View Details</span>
+                      <span className="sm:hidden">Details</span>
                     </Button>
                     
                     {canEditRequest(request) && (
-                      <>
+                      <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700 flex-1 sm:flex-initial"
                           onClick={() => handleEditRequest(request)}
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-4 h-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Edit</span>
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-red-600 text-red-400 hover:bg-red-600/10"
+                          className="border-red-600 text-red-400 hover:bg-red-600/10 flex-1 sm:flex-initial"
                           onClick={() => handleDeleteRequestDialog(request)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Delete</span>
                         </Button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>

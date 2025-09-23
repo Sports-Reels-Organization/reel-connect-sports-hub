@@ -5,7 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { LanguageProvider } from "@/contexts/LanguageContext";
+import { GoogleTranslationProvider } from "@/contexts/GoogleTranslationContext";
+import AutoTranslateProvider from "@/components/AutoTranslateProvider";
 import Index from "./pages/Index";
 import Players from "./pages/Players";
 import Videos from "./pages/Videos";
@@ -28,6 +29,9 @@ import Notification from "./pages/Notification";
 import NotFound from "./pages/NotFound";
 import ContractNegotiationPage from "./pages/ContractNegotiationPage";
 import WalletPage from "./pages/WalletPage";
+import TranslationDemo from "./components/TranslationDemo";
+import LanguageSelectorDemo from "./components/LanguageSelectorDemo";
+import GoogleTranslationTest from "./components/GoogleTranslationTest";
 
 const queryClient = new QueryClient();
 
@@ -35,11 +39,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <LanguageProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+        <GoogleTranslationProvider>
+          <AutoTranslateProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Index />} />
@@ -63,11 +68,15 @@ function App() {
                 <Route path="/news" element={<News />} />
                 <Route path="/video-showcase" element={<VideoShowcase />} />
                 <Route path="/notifications" element={<Notification />} />
+                <Route path="/translation-demo" element={<TranslationDemo />} />
+                <Route path="/language-selector-demo" element={<LanguageSelectorDemo />} />
+                <Route path="/unified-translation-test" element={<GoogleTranslationTest />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </LanguageProvider>
+              </BrowserRouter>
+            </TooltipProvider>
+          </AutoTranslateProvider>
+        </GoogleTranslationProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

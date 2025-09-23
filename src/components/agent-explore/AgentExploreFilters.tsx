@@ -158,10 +158,10 @@ export const AgentExploreFilters: React.FC<FilterProps> = ({
         </div>
         
         {activeFilters.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2 mt-2">
             {activeFilters.map(filter => (
-              <Badge key={filter} variant="secondary" className="text-xs">
-                {filter === 'search' && `Search: ${searchTerm}`}
+              <Badge key={filter} variant="secondary" className="text-xs px-2 py-1 truncate max-w-[150px] sm:max-w-none">
+                {filter === 'search' && `Search: ${searchTerm.length > 10 ? searchTerm.substring(0, 10) + '...' : searchTerm}`}
                 {filter === 'position' && `Position: ${position}`}
                 {filter === 'nationality' && `Country: ${nationality}`}
                 {filter === 'transferType' && `Type: ${transferType}`}
@@ -189,7 +189,7 @@ export const AgentExploreFilters: React.FC<FilterProps> = ({
         </div>
 
         {/* Quick Filters Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Position */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-200">Position</label>
@@ -261,7 +261,7 @@ export const AgentExploreFilters: React.FC<FilterProps> = ({
         </div>
 
         {/* Range Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Age Range */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-gray-200">
@@ -294,7 +294,7 @@ export const AgentExploreFilters: React.FC<FilterProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 pt-4">
+        <div className="flex flex-col sm:flex-row gap-2 pt-4">
           <Button
             variant="outline"
             size="sm"

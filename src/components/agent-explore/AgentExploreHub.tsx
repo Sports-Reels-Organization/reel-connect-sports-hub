@@ -93,42 +93,45 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-7xl">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2 font-polysans">Agent Explore Hub</h1>
-          <p className="text-gray-400">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2 font-polysans">Agent Explore Hub</h1>
+          <p className="text-gray-400 text-sm sm:text-base">
             Discover opportunities, connect with teams, and stay ahead of the market
           </p>
         </div>
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 border-0">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 border-0 h-auto gap-1 p-1">
             <TabsTrigger
               value="timeline"
-              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="flex items-center justify-center gap-1 sm:gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white text-xs sm:text-sm px-2 py-2 min-h-[44px]"
             >
-              <TrendingUp className="w-4 h-4" />
-              Transfer Timeline
+              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Transfer Timeline</span>
+              <span className="sm:hidden">Timeline</span>
             </TabsTrigger>
             <TabsTrigger
               value="requests"
-              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="flex items-center justify-center gap-1 sm:gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white text-xs sm:text-sm px-2 py-2 min-h-[44px]"
             >
-              <FileText className="w-4 h-4" />
-              Agent Requests
+              <FileText className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Agent Requests</span>
+              <span className="sm:hidden">Requests</span>
             </TabsTrigger>
             <TabsTrigger
               value="communication"
-              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white relative"
+              className="flex items-center justify-center gap-1 sm:gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white relative text-xs sm:text-sm px-2 py-2 min-h-[44px]"
             >
-              <MessageSquare className="w-4 h-4" />
-              Communication
+              <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="hidden lg:inline">Communication</span>
+              <span className="lg:hidden">Chat</span>
               {counts.total > 0 && (
                 <Badge 
                   variant="destructive" 
-                  className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold min-w-[20px] animate-pulse"
+                  className="absolute -top-1 -right-1 h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center p-0 text-xs font-bold min-w-[16px] sm:min-w-[20px] animate-pulse"
                 >
                   {counts.total > 99 ? '99+' : counts.total}
                 </Badge>
@@ -136,44 +139,56 @@ export const AgentExploreHub: React.FC<AgentExploreHubProps> = ({ initialSearch 
             </TabsTrigger>
             <TabsTrigger
               value="contracts"
-              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="flex items-center justify-center gap-1 sm:gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white text-xs sm:text-sm px-2 py-2 min-h-[44px]"
             >
-              <FileText className="w-4 h-4" />
-              Contracts
+              <FileText className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Contracts</span>
+              <span className="sm:hidden">Deals</span>
             </TabsTrigger>
             <TabsTrigger
               value="insights"
-              className="flex items-center gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="flex items-center justify-center gap-1 sm:gap-2 text-white data-[state=active]:bg-rosegold data-[state=active]:text-white text-xs sm:text-sm px-2 py-2 min-h-[44px]"
             >
-              <Search className="w-4 h-4" />
-              Market Insights
+              <Search className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="hidden lg:inline">Market Insights</span>
+              <span className="lg:hidden">Market</span>
             </TabsTrigger>
 
           </TabsList>
 
           {/* Transfer Timeline Tab */}
-          <TabsContent value="timeline" className="mt-6">
-            <AgentTransferTimeline />
+          <TabsContent value="timeline" className="mt-4 sm:mt-6">
+            <div className="w-full overflow-hidden">
+              <AgentTransferTimeline />
+            </div>
           </TabsContent>
 
           {/* Agent Requests Tab */}
-          <TabsContent value="requests" className="mt-6">
-            <AgentRequestsExplore initialSearch={initialSearch} />
+          <TabsContent value="requests" className="mt-4 sm:mt-6">
+            <div className="w-full overflow-hidden">
+              <AgentRequestsExplore initialSearch={initialSearch} />
+            </div>
           </TabsContent>
 
           {/* Communication Tab */}
-          <TabsContent value="communication" className="mt-6">
-            <UnifiedCommunicationHub />
+          <TabsContent value="communication" className="mt-4 sm:mt-6">
+            <div className="w-full overflow-hidden">
+              <UnifiedCommunicationHub />
+            </div>
           </TabsContent>
 
           {/* Contracts Tab */}
-          <TabsContent value="contracts" className="mt-6">
-            <SimplifiedContractWorkflow />
+          <TabsContent value="contracts" className="mt-4 sm:mt-6">
+            <div className="w-full overflow-hidden">
+              <SimplifiedContractWorkflow />
+            </div>
           </TabsContent>
 
           {/* Market Insights Tab */}
-          <TabsContent value="insights" className="mt-6">
-            <AgentMarketInsights />
+          <TabsContent value="insights" className="mt-4 sm:mt-6">
+            <div className="w-full overflow-hidden">
+              <AgentMarketInsights />
+            </div>
           </TabsContent>
 
 

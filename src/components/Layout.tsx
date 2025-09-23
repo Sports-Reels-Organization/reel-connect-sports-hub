@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import GoogleLanguageSelector from '@/components/GoogleLanguageSelector';
+import TranslatedText from '@/components/TranslatedText';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,6 +25,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { unreadCount } = useEnhancedNotifications();
   const [searchQuery, setSearchQuery] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Listen for language change events to force refresh
+  useEffect(() => {
+    const handleLanguageChange = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+    
+    window.addEventListener('languageChanged', handleLanguageChange);
+    return () => window.removeEventListener('languageChanged', handleLanguageChange);
+  }, []);
 
   useEffect(() => {
     if (profile?.user_id) {
@@ -117,6 +130,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-3">
+              {/* Language Selector */}
+              <GoogleLanguageSelector 
+                variant="popover" 
+                showFlag={true} 
+                showNativeName={false}
+                showModeToggle={true}
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+              />
+
               {/* Notifications */}
               <Button
                 variant="ghost"
@@ -151,7 +174,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="text-muted-foreground hover:text-foreground"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+                <TranslatedText>Sign Out</TranslatedText>
               </Button>
             </div>
           </header>

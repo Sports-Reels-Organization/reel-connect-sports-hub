@@ -1,18 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useGoogleTranslation } from '@/contexts/GoogleTranslationContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import InfoTooltip from '@/components/InfoTooltip';
 import { Checkbox } from '@/components/ui/checkbox';
-import LanguageSelector from '@/components/LanguageSelector';
+import GoogleLanguageSelector from '@/components/GoogleLanguageSelector';
+import TranslatedText from '@/components/TranslatedText';
 
 const AuthForm = () => {
   // Authentication and form state
   const { signInWithGoogle } = useAuth();
-  const { t } = useLanguage();
   const { toast } = useToast();
   const [userType, setUserType] = useState<'team' | 'agent'>('team');
   const [loading, setLoading] = useState(false);
@@ -38,6 +38,7 @@ const AuthForm = () => {
   // Form height synchronization
   const formContainerRef = useRef<HTMLDivElement>(null);
   const [formHeight, setFormHeight] = useState('auto');
+  const [userInteracted, setUserInteracted] = useState(false);
 
   // Initialize video queue with all indices
   useEffect(() => {
@@ -126,13 +127,65 @@ const AuthForm = () => {
 
   // Handle video playback
   useEffect(() => {
-    const playVideo = () => {
+    const playVideo = async () => {
       if (videoRef.current) {
-        videoRef.current.currentTime = 0;
-        videoRef.current.loop = true;
-        videoRef.current.muted = true;
-        videoRef.current.playsInline = true;
-        videoRef.current.play().catch(e => console.log("Video play error:", e));
+        const video = videoRef.current;
+        video.currentTime = 0;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        
+        // Add load event listener to ensure video is loaded before playing
+        const handleLoadedData = async () => {
+          if (video && video.readyState >= 2) { // HAVE_CURRENT_DATA
+            try {
+              // Check if document is visible and user has interacted to avoid power saving issues
+              if (document.visibilityState === 'visible') {
+                await video.play();
+              } else {
+                // If document is hidden, wait for it to become visible
+                const handleVisibilityChange = async () => {
+                  if (document.visibilityState === 'visible' && video) {
+                    try {
+                      await video.play();
+                    } catch (e) {
+                      console.log("Video play error on visibility change:", e);
+                    }
+                    document.removeEventListener('visibilitychange', handleVisibilityChange);
+                  }
+                };
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+              }
+            } catch (e) {
+              console.log("Video play error:", e);
+              // Fallback: try to play again after a short delay
+              setTimeout(async () => {
+                if (video && document.visibilityState === 'visible') {
+                  try {
+                    await video.play();
+                  } catch (retryError) {
+                    console.log("Video retry play error:", retryError);
+                  }
+                }
+              }, 1000);
+            }
+          }
+        };
+
+        const handleCanPlay = () => {
+          handleLoadedData();
+        };
+
+        video.addEventListener('loadeddata', handleLoadedData);
+        video.addEventListener('canplay', handleCanPlay);
+        video.load(); // Force reload the video
+        
+        return () => {
+          if (video) {
+            video.removeEventListener('loadeddata', handleLoadedData);
+            video.removeEventListener('canplay', handleCanPlay);
+          }
+        };
       }
     };
 
@@ -160,7 +213,7 @@ const AuthForm = () => {
 
       await signInWithGoogle();
       toast({
-        title: t('welcome'),
+        title: "Welcome",
         description: "Signing in with Google.",
       });
     } catch (error) {
@@ -175,8 +228,23 @@ const AuthForm = () => {
     }
   };
 
+  // Handle user interaction for video autoplay
+  const handleUserInteraction = () => {
+    if (!userInteracted) {
+      setUserInteracted(true);
+      // Try to play video after user interaction
+      if (videoRef.current && document.visibilityState === 'visible') {
+        videoRef.current.play().catch(e => console.log("Video play after interaction error:", e));
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
+    <div 
+      className="min-h-screen flex items-center justify-center bg-black"
+      onClick={handleUserInteraction}
+      onKeyDown={handleUserInteraction}
+    >
       <div className="w-full max-w-6xl flex flex-col lg:flex-row items-stretch">
         {/* Left Panel - Form Section */}
         <div
@@ -195,17 +263,24 @@ const AuthForm = () => {
               </div>
               <div className="space-y-2">
                 <h1 className="text-2xl sm:text-3xl font-bold text-white font-polysans">
-                  {t('welcome')}
+                  <TranslatedText>Welcome</TranslatedText>
                 </h1>
                 <p className="text-gray-400 text-sm sm:text-base">
-                  Sign in to access your personalized dashboard
+                  <TranslatedText>Sign in to access your personalized dashboard</TranslatedText>
                 </p>
               </div>
             </div>
 
-            {/* Language Selector - Added without changing layout */}
+            {/* Google Translation Language Selector */}
             <div className="flex justify-center mb-6">
-              <LanguageSelector variant="select" showFlag={true} showNativeName={false} />
+              <GoogleLanguageSelector 
+                variant="select" 
+                showFlag={true} 
+                showNativeName={true}
+                showModeToggle={false}
+                size="md"
+                className="min-w-[200px]"
+              />
             </div>
 
             {/* Form Container */}
@@ -214,7 +289,7 @@ const AuthForm = () => {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Label className="text-gray-300 font-medium text-sm">
-                    Select your role:
+                    <TranslatedText>Select your role:</TranslatedText>
                   </Label>
                   <InfoTooltip content="Teams get access to player analytics. Agents can manage player portfolios." />
                 </div>
@@ -235,7 +310,7 @@ const AuthForm = () => {
                       className="text-white hover:bg-[#3a3a3a] py-3"
                     >
                       <span className="flex items-center gap-2">
-                        <span>Team Manager/Administrator</span>
+                        <TranslatedText>Team Manager/Administrator</TranslatedText>
                         <span>⚽</span>
                       </span>
                     </SelectItem>
@@ -244,7 +319,7 @@ const AuthForm = () => {
                       className="text-white hover:bg-[#3a3a3a] py-3"
                     >
                       <span className="flex items-center gap-2">
-                        <span>Agent/Scout</span>
+                        <TranslatedText>Agent/Scout</TranslatedText>
                         <span>🔍</span>
                       </span>
                     </SelectItem>
@@ -261,7 +336,7 @@ const AuthForm = () => {
                   className="mt-0.5 border-gray-400 data-[state=checked]:bg-rosegold data-[state=checked]:border-rosegold"
                 />
                 <label htmlFor="terms" className="text-xs text-gray-400 leading-snug">
-                  {t('termsDescription')}
+                  <TranslatedText>I accept the terms and conditions and privacy policy</TranslatedText>
                 </label>
               </div>
 
@@ -282,7 +357,9 @@ const AuthForm = () => {
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                     </svg>
-                    <span className="font-medium">{t('signInWithGoogle')}</span>
+                    <span className="font-medium">
+                      <TranslatedText>Sign in with Google</TranslatedText>
+                    </span>
                   </>
                 )}
               </Button>
@@ -321,6 +398,10 @@ const AuthForm = () => {
             playsInline
             muted
             loop
+            autoPlay
+            preload="metadata"
+            onError={(e) => console.error('Video error:', e)}
+            onLoadStart={() => console.log('Video loading:', videoUrls[currentVideoIndex])}
           />
 
           {/* Gradient overlay */}
