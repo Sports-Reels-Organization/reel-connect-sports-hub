@@ -34,7 +34,6 @@ import LanguageSelectorDemo from "./components/LanguageSelectorDemo";
 import GoogleTranslationTest from "./components/GoogleTranslationTest";
 
 const queryClient = new QueryClient();
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -45,34 +44,34 @@ function App() {
               <Toaster />
               <Sonner />
               <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Index />} />
-                <Route path="/players" element={<Players />} />
-                <Route path="/videos" element={<Videos />} />
-                <Route path="/videos/:videoTitle" element={<VideoAnalysisResults />} />
-                <Route path="/video-analysis/:videoId" element={<VideoAnalysis />} />
-                <Route path="/messages" element={<Messages />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/player/:playerId" element={<PlayerProfile />} />
-                <Route path="/history" element={<History />} />
-                <Route path="/timeline" element={<Timeline />} />
-                <Route path="/transfer-timeline" element={<TransferTimeline />} />
-                <Route path="/explore" element={<Explore />} />
-                <Route path="/team-explore" element={<TeamExplore />} />
-                <Route path="/agent-shortlist" element={<AgentShortlist />} />
-                <Route path="/contracts" element={<Contracts />} />
-                <Route path="/contract-negotiation/:contractId" element={<ContractNegotiationPage />} />
-                <Route path="/wallet" element={<WalletPage />} />
-                <Route path="/user-management" element={<UserManagement />} />
-                <Route path="/news" element={<News />} />
-                <Route path="/video-showcase" element={<VideoShowcase />} />
-                <Route path="/notifications" element={<Notification />} />
-                <Route path="/translation-demo" element={<TranslationDemo />} />
-                <Route path="/language-selector-demo" element={<LanguageSelectorDemo />} />
-                <Route path="/unified-translation-test" element={<GoogleTranslationTest />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Index />} />
+                  <Route path="/players" element={<Players />} />
+                  <Route path="/videos" element={<Videos />} />
+                  <Route path="/videos/:videoTitle" element={<VideoAnalysisResults />} />
+                  <Route path="/video-analysis/:videoId" element={<VideoAnalysis />} />
+                  <Route path="/messages" element={<Messages />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/player/:playerId" element={<PlayerProfile />} />
+                  <Route path="/history" element={<History />} />
+                  <Route path="/timeline" element={<Timeline />} />
+                  <Route path="/transfer-timeline" element={<TransferTimeline />} />
+                  <Route path="/explore" element={<Explore />} />
+                  <Route path="/team-explore" element={<TeamExplore />} />
+                  <Route path="/agent-shortlist" element={<AgentShortlist />} />
+                  <Route path="/contracts" element={<Contracts />} />
+                  <Route path="/contract-negotiation/:contractId" element={<ContractNegotiationPage />} />
+                  <Route path="/wallet" element={<WalletPage />} />
+                  <Route path="/user-management" element={<UserManagement />} />
+                  <Route path="/news" element={<News />} />
+                  <Route path="/video-showcase" element={<VideoShowcase />} />
+                  <Route path="/notifications" element={<Notification />} />
+                  <Route path="/translation-demo" element={<TranslationDemo />} />
+                  <Route path="/language-selector-demo" element={<LanguageSelectorDemo />} />
+                  <Route path="/unified-translation-test" element={<GoogleTranslationTest />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
               </BrowserRouter>
             </TooltipProvider>
           </AutoTranslateProvider>
