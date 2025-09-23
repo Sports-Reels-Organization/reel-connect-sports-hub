@@ -56,7 +56,7 @@ const SUPPORTED_LANGUAGES: Language[] = [
 
 // Google Translate API key - Replace with your actual API key
 const GOOGLE_TRANSLATE_API_KEY = import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY || 'AIza...';
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sportsreelstranslationserver.onrender.com';
 
 export const GoogleTranslationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentLanguage, setCurrentLanguage] = useState('en');
