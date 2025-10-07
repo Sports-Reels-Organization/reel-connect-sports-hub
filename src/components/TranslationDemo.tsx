@@ -31,7 +31,7 @@ const TranslationDemo: React.FC = () => {
 
   // Single text translation demo
   const welcomeTranslation = useTranslation("Welcome to our sports platform!");
-  
+
   // Batch translation demo
   const batchTranslation = useBatchTranslation(sampleTexts);
 
@@ -41,10 +41,10 @@ const TranslationDemo: React.FC = () => {
   const [isManualTranslating, setIsManualTranslating] = useState(false);
 
   const { translateText } = useGoogleTranslation();
-  
+
   const handleManualTranslate = async () => {
     if (!manualText.trim()) return;
-    
+
     setIsManualTranslating(true);
     try {
       const result = await translateText(manualText);
@@ -90,11 +90,11 @@ const TranslationDemo: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <Badge variant={currentLanguage === 'en' ? 'secondary' : 'default'}>
               {availableLanguages.find(l => l.code === currentLanguage)?.name || currentLanguage}
             </Badge>
-            
+
             {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
           </div>
 
@@ -200,8 +200,8 @@ const TranslationDemo: React.FC = () => {
               placeholder="Enter text to translate..."
             />
           </div>
-          
-          <Button 
+
+          <Button
             onClick={handleManualTranslate}
             disabled={isManualTranslating || !manualText.trim()}
             className="w-full"
@@ -242,7 +242,7 @@ const TranslationDemo: React.FC = () => {
               <li>Simpler setup but exposes API key to client</li>
             </ul>
           </div>
-          
+
           <div className="space-y-2">
             <h4 className="font-semibold">Backend approach (Service Account):</h4>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">

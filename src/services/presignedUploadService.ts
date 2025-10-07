@@ -17,7 +17,7 @@ export interface PresignedUrlResponse {
 export class PresignedUploadService {
     private baseUrl: string;
 
-    constructor(baseUrl: string = 'http://localhost:3001') {
+    constructor(baseUrl: string = import.meta.env.VITE_BACKEND_STORAGE_URL) {
         this.baseUrl = baseUrl;
     }
 
