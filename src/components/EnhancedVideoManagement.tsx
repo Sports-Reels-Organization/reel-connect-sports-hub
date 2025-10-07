@@ -6,6 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus,
@@ -30,7 +34,10 @@ import {
   Award
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { SmartThumbnail } from './SmartThumbnail';
 import EnhancedVideoUploadForm from './EnhancedVideoUploadForm';
+import { usePlayersData } from '@/hooks/usePlayersData';
+import PlayerTagDisplay from './PlayerTagDisplay';
 
 interface Video {
   id: string;
@@ -55,30 +62,66 @@ interface Team {
   profile_id: string;
 }
 
+interface TeamPlayer {
+  id: string;
+  full_name: string;
+  position: string;
+  jersey_number?: number;
+}
+
 type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'title_asc' | 'title_desc' | 'duration_asc' | 'duration_desc';
 
 const EnhancedVideoManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [videos, setVideos] = useState<Video[]>([]);
   const [filteredVideos, setFilteredVideos] = useState<Video[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [currentTeamId, setCurrentTeamId] = useState<string>('');
+  const [teamPlayers, setTeamPlayers] = useState<TeamPlayer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showUploadForm, setShowUploadForm] = useState(false);
-  
+  const [editingVideo, setEditingVideo] = useState<Video | null>(null);
+  const [deleteConfirmVideo, setDeleteConfirmVideo] = useState<Video | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    video_type: 'match' as 'match' | 'training' | 'interview' | 'highlight',
+    playerTags: [] as string[],
+    matchDetails: {
+      opposingTeam: '',
+      matchDate: '',
+      league: '',
+      homeOrAway: 'home' as 'home' | 'away',
+      homeScore: '',
+      awayScore: '',
+      venue: ''
+    }
+  });
+
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPlayer, setSelectedPlayer] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  
+
   // Get unique players from all video tags
   const allPlayers = Array.from(new Set(videos.flatMap(video => video.tags || [])));
+
+  // Fetch player data for all tagged players
+  const { players: allPlayersData, loading: playersLoading } = usePlayersData(allPlayers);
+
+  // Helper function to get player data for a specific video
+  const getPlayersForVideo = (videoTags: string[]) => {
+    return allPlayersData.filter(player => videoTags.includes(player.id));
+  };
 
   useEffect(() => {
     fetchUserTeams();
@@ -87,12 +130,13 @@ const EnhancedVideoManagement = () => {
   useEffect(() => {
     if (currentTeamId) {
       fetchVideos();
+      fetchTeamPlayers();
     }
   }, [currentTeamId]);
 
   useEffect(() => {
     applyFilters();
-  }, [videos, searchTerm, selectedType, selectedStatus, selectedPlayer, sortBy]);
+  }, [videos, searchTerm, selectedType, selectedPlayer, sortBy]);
 
   const fetchUserTeams = async () => {
     try {
@@ -130,7 +174,7 @@ const EnhancedVideoManagement = () => {
 
   const fetchVideos = async () => {
     if (!currentTeamId) return;
-    
+
     try {
       setIsLoading(true);
       const { data, error } = await supabase
@@ -149,15 +193,15 @@ const EnhancedVideoManagement = () => {
         duration: video.duration,
         video_type: video.video_type as 'match' | 'training' | 'interview' | 'highlight',
         description: video.description,
-        tags: Array.isArray(video.tagged_players) 
-          ? video.tagged_players.map((tag: any) => String(tag)) 
+        tags: Array.isArray(video.tagged_players)
+          ? video.tagged_players.map((tag: any) => String(tag))
           : [],
-        ai_analysis_status: (video.ai_analysis_status === 'pending' || 
-                           video.ai_analysis_status === 'analyzing' || 
-                           video.ai_analysis_status === 'completed' || 
-                           video.ai_analysis_status === 'failed') 
-                           ? video.ai_analysis_status 
-                           : 'pending',
+        ai_analysis_status: (video.ai_analysis_status === 'pending' ||
+          video.ai_analysis_status === 'analyzing' ||
+          video.ai_analysis_status === 'completed' ||
+          video.ai_analysis_status === 'failed')
+          ? video.ai_analysis_status
+          : 'pending',
         created_at: video.created_at,
         opposing_team: video.opposing_team,
         match_date: video.match_date,
@@ -178,6 +222,28 @@ const EnhancedVideoManagement = () => {
     }
   };
 
+  const fetchTeamPlayers = async () => {
+    if (!currentTeamId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .select('id, full_name, position, jersey_number')
+        .eq('team_id', currentTeamId)
+        .order('full_name');
+
+      if (error) throw error;
+      setTeamPlayers(data || []);
+    } catch (error) {
+      console.error('Error fetching team players:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load team players",
+        variant: "destructive"
+      });
+    }
+  };
+
   const applyFilters = () => {
     let filtered = [...videos];
 
@@ -195,10 +261,6 @@ const EnhancedVideoManagement = () => {
       filtered = filtered.filter(video => video.video_type === selectedType);
     }
 
-    // Status filter
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(video => video.ai_analysis_status === selectedStatus);
-    }
 
     // Player filter
     if (selectedPlayer !== 'all') {
@@ -255,13 +317,9 @@ const EnhancedVideoManagement = () => {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-900/20 text-green-400';
-      case 'analyzing': return 'bg-blue-900/20 text-blue-400';
-      case 'failed': return 'bg-red-900/20 text-red-400';
-      default: return 'bg-gray-900/20 text-gray-400';
-    }
+
+  const isLocalhostUrl = (url: string) => {
+    return url.includes('localhost') || url.includes('127.0.0.1') || url.includes('::1');
   };
 
   const getTypeIcon = (type: string) => {
@@ -273,6 +331,122 @@ const EnhancedVideoManagement = () => {
       default: return <Play className="w-4 h-4" />;
     }
   };
+
+  const handleEditVideo = (video: Video) => {
+    setEditingVideo(video);
+
+    // Parse score if it exists (format: "homeScore-awayScore")
+    const scoreParts = video.score?.split('-') || ['', ''];
+
+    setEditForm({
+      title: video.title,
+      description: video.description || '',
+      video_type: video.video_type,
+      playerTags: [...video.tags],
+      matchDetails: {
+        opposingTeam: video.opposing_team || '',
+        matchDate: video.match_date || '',
+        league: video.league_competition || '',
+        homeOrAway: 'home', // Default value, could be enhanced to detect from data
+        homeScore: scoreParts[0] || '',
+        awayScore: scoreParts[1] || '',
+        venue: '' // Not stored in current video structure
+      }
+    });
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    if (!deleteConfirmVideo) return;
+
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('videos')
+        .delete()
+        .eq('id', videoId);
+
+      if (error) throw error;
+
+      // Remove video from state
+      setVideos(prev => prev.filter(v => v.id !== videoId));
+      setDeleteConfirmVideo(null);
+
+      toast({
+        title: "Success",
+        description: "Video deleted successfully!",
+      });
+    } catch (error) {
+      console.error('Error deleting video:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete video",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleUpdateVideo = async () => {
+    if (!editingVideo) return;
+
+    try {
+      setIsUpdating(true);
+      const { error } = await supabase
+        .from('videos')
+        .update({
+          title: editForm.title,
+          description: editForm.description,
+          video_type: editForm.video_type,
+          tagged_players: editForm.playerTags,
+          opposing_team: editForm.matchDetails.opposingTeam || null,
+          match_date: editForm.matchDetails.matchDate || null,
+          score_display: editForm.matchDetails.homeScore && editForm.matchDetails.awayScore
+            ? `${editForm.matchDetails.homeScore}-${editForm.matchDetails.awayScore}`
+            : null,
+          league: editForm.matchDetails.league || null
+        })
+        .eq('id', editingVideo.id);
+
+      if (error) throw error;
+
+      // Update video in state
+      setVideos(prev => prev.map(v =>
+        v.id === editingVideo.id
+          ? {
+            ...v,
+            title: editForm.title,
+            description: editForm.description,
+            video_type: editForm.video_type,
+            tags: editForm.playerTags,
+            opposing_team: editForm.matchDetails.opposingTeam,
+            match_date: editForm.matchDetails.matchDate,
+            score: editForm.matchDetails.homeScore && editForm.matchDetails.awayScore
+              ? `${editForm.matchDetails.homeScore}-${editForm.matchDetails.awayScore}`
+              : undefined,
+            league_competition: editForm.matchDetails.league
+          }
+          : v
+      ));
+
+      setEditingVideo(null);
+
+      toast({
+        title: "Success",
+        description: "Video updated successfully!",
+      });
+    } catch (error) {
+      console.error('Error updating video:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update video",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
 
   if (showUploadForm) {
     return (
@@ -357,18 +531,6 @@ const EnhancedVideoManagement = () => {
                       </SelectContent>
                     </Select>
 
-                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                      <SelectTrigger className="w-32 bg-gray-700 border-gray-600 text-white">
-                        <SelectValue placeholder="All Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="analyzing">Analyzing</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="failed">Failed</SelectItem>
-                      </SelectContent>
-                    </Select>
 
                     <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
                       <SelectTrigger className="w-36 bg-gray-700 border-gray-600 text-white">
@@ -376,9 +538,16 @@ const EnhancedVideoManagement = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Players</SelectItem>
-                        {allPlayers.map((player) => (
-                          <SelectItem key={player} value={player}>
-                            {player}
+                        {allPlayersData.map((player) => (
+                          <SelectItem key={player.id} value={player.id}>
+                            <div className="flex items-center gap-2">
+                              <span>{player.full_name || player.id}</span>
+                              {player.jersey_number && (
+                                <Badge className="bg-bright-pink text-white text-xs px-1.5 py-0.5 font-bold">
+                                  #{player.jersey_number}
+                                </Badge>
+                              )}
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -436,7 +605,7 @@ const EnhancedVideoManagement = () => {
                 <Play className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-white mb-2">No Videos Found</h3>
                 <p className="text-gray-400 mb-4">
-                  {videos.length === 0 
+                  {videos.length === 0
                     ? "Upload your first video to get started"
                     : "Try adjusting your filters to see more videos"
                   }
@@ -453,7 +622,7 @@ const EnhancedVideoManagement = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className={viewMode === 'grid' 
+            <div className={viewMode === 'grid'
               ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
               : "space-y-4"
             }>
@@ -466,35 +635,52 @@ const EnhancedVideoManagement = () => {
                   {viewMode === 'grid' ? (
                     <CardContent className="p-0">
                       <div className="relative aspect-video bg-gray-900 rounded-t-lg overflow-hidden">
-                        {video.thumbnail_url ? (
-                          <img
-                            src={video.thumbnail_url}
-                            alt={video.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Play className="w-12 h-12 text-gray-600" />
-                          </div>
-                        )}
+                        <SmartThumbnail
+                          thumbnailUrl={video.thumbnail_url}
+                          title={video.title}
+                          className="w-full h-full object-cover"
+                        />
                         <div className="absolute bottom-2 right-2 bg-black/80 text-white px-2 py-1 rounded text-sm">
                           {formatDuration(video.duration)}
                         </div>
-                        <div className="absolute top-2 left-2">
-                          <Badge className={`${getStatusColor(video.ai_analysis_status)} border-0`}>
-                            {video.ai_analysis_status}
-                          </Badge>
+                        <div className="absolute top-2 left-2 flex flex-col gap-1">
+                          {isLocalhostUrl(video.video_url) && (
+                            <Badge className="bg-red-900/20 text-red-400 border-red-500/30 border">
+                              Invalid URL
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      
+
                       <div className="p-4">
                         <div className="flex items-start justify-between mb-2">
-                          <h3 className="font-semibold text-white text-sm line-clamp-2">{video.title}</h3>
-                          <div className="flex items-center text-gray-400 ml-2">
-                            {getTypeIcon(video.video_type)}
+                          <h3 className="font-semibold text-white text-sm line-clamp-2 flex-1">{video.title}</h3>
+                          <div className="flex items-center gap-1 ml-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditVideo(video);
+                              }}
+                              className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirmVideo(video);
+                              }}
+                              className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-gray-700"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
@@ -502,19 +688,17 @@ const EnhancedVideoManagement = () => {
                           </span>
                           <span className="capitalize">{video.video_type}</span>
                         </div>
-                        
+
                         {video.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {video.tags.slice(0, 2).map((tag, index) => (
-                              <Badge key={index} variant="outline" className="text-xs border-gray-600 text-gray-300">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {video.tags.length > 2 && (
-                              <Badge variant="outline" className="text-xs border-gray-600 text-gray-300">
-                                +{video.tags.length - 2}
-                              </Badge>
-                            )}
+                          <div className="mt-2">
+                            <PlayerTagDisplay
+                              players={getPlayersForVideo(video.tags)}
+                              loading={playersLoading}
+                              size="sm"
+                              showJerseyNumber={true}
+                              showTeamInfo={false}
+                              className="text-xs"
+                            />
                           </div>
                         )}
                       </div>
@@ -523,33 +707,53 @@ const EnhancedVideoManagement = () => {
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4">
                         <div className="relative w-24 h-16 bg-gray-900 rounded overflow-hidden flex-shrink-0">
-                          {video.thumbnail_url ? (
-                            <img
-                              src={video.thumbnail_url}
-                              alt={video.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Play className="w-6 h-6 text-gray-600" />
-                            </div>
-                          )}
+                          <SmartThumbnail
+                            thumbnailUrl={video.thumbnail_url}
+                            title={video.title}
+                            className="w-full h-full object-cover"
+                          />
                           <div className="absolute bottom-0 right-0 bg-black/80 text-white px-1 text-xs">
                             {formatDuration(video.duration)}
                           </div>
                         </div>
-                        
+
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between mb-1">
-                            <h3 className="font-semibold text-white truncate">{video.title}</h3>
+                            <h3 className="font-semibold text-white truncate flex-1">{video.title}</h3>
                             <div className="flex items-center gap-2 ml-2">
                               {getTypeIcon(video.video_type)}
-                              <Badge className={`${getStatusColor(video.ai_analysis_status)} border-0 text-xs`}>
-                                {video.ai_analysis_status}
-                              </Badge>
+                              {isLocalhostUrl(video.video_url) && (
+                                <Badge className="bg-red-900/20 text-red-400 border-red-500/30 border text-xs">
+                                  Invalid URL
+                                </Badge>
+                              )}
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditVideo(video);
+                                  }}
+                                  className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteConfirmVideo(video);
+                                  }}
+                                  className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-gray-700"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-4 text-xs text-gray-400 mb-2">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
@@ -560,19 +764,17 @@ const EnhancedVideoManagement = () => {
                               <span>vs {video.opposing_team}</span>
                             )}
                           </div>
-                          
+
                           {video.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {video.tags.slice(0, 3).map((tag, index) => (
-                                <Badge key={index} variant="outline" className="text-xs border-gray-600 text-gray-300">
-                                  {tag}
-                                </Badge>
-                              ))}
-                              {video.tags.length > 3 && (
-                                <Badge variant="outline" className="text-xs border-gray-600 text-gray-300">
-                                  +{video.tags.length - 3}
-                                </Badge>
-                              )}
+                            <div className="mt-2">
+                              <PlayerTagDisplay
+                                players={getPlayersForVideo(video.tags)}
+                                loading={playersLoading}
+                                size="sm"
+                                showJerseyNumber={true}
+                                showTeamInfo={false}
+                                className="text-xs"
+                              />
                             </div>
                           )}
                         </div>
@@ -625,20 +827,303 @@ const EnhancedVideoManagement = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {allPlayers.map((player) => (
-                  <Badge key={player} className="bg-bright-pink/20 text-bright-pink border-bright-pink/30">
-                    {player}
-                    <span className="ml-2 text-xs">
-                      ({videos.filter(v => v.tags.includes(player)).length})
-                    </span>
-                  </Badge>
-                ))}
-              </div>
+              {playersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-bright-pink"></div>
+                  <span className="ml-3 text-gray-400">Loading players...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {allPlayersData.map((player) => {
+                    const videoCount = videos.filter(v => v.tags.includes(player.id)).length;
+                    return (
+                      <div key={player.id} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
+                            {player.headshot_url || player.photo_url ? (
+                              <img
+                                src={player.headshot_url || player.photo_url || ''}
+                                alt={player.full_name || 'Player'}
+                                className="w-full h-full rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-white font-semibold text-sm">
+                                {player.full_name?.slice(0, 2).toUpperCase() || '??'}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="text-white font-medium">{player.full_name || 'Unknown Player'}</h4>
+                              {player.jersey_number && (
+                                <Badge className="bg-bright-pink text-white text-xs px-2 py-0.5 font-bold">
+                                  #{player.jersey_number}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-gray-400 text-sm">{player.position || 'Unknown Position'}</p>
+                          </div>
+                        </div>
+                        <Badge className="bg-bright-pink/20 text-bright-pink border-bright-pink/30">
+                          {videoCount} video{videoCount !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                  {allPlayersData.length === 0 && (
+                    <div className="text-center py-8">
+                      <Tags className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-400">No players tagged in any videos</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Video Dialog */}
+      <Dialog open={!!editingVideo} onOpenChange={() => setEditingVideo(null)}>
+        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Video</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Basic Info */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-title" className="text-white">Title *</Label>
+                <Input
+                  id="edit-title"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                  className="bg-gray-700 border-gray-600 text-white"
+                  placeholder="Enter video title"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-description" className="text-white">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  className="bg-gray-700 border-gray-600 text-white"
+                  rows={3}
+                  placeholder="Enter video description"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-type" className="text-white">Video Type *</Label>
+                <Select
+                  value={editForm.video_type}
+                  onValueChange={(value) => setEditForm(prev => ({ ...prev, video_type: value as any }))}
+                >
+                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="match">Match</SelectItem>
+                    <SelectItem value="training">Training</SelectItem>
+                    <SelectItem value="interview">Interview</SelectItem>
+                    <SelectItem value="highlight">Highlight</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Player Tags */}
+            <div>
+              <Label className="text-white">Tag Players</Label>
+              <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto bg-gray-700/50 rounded-lg p-3">
+                {teamPlayers.map((player) => (
+                  <div key={player.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-player-${player.id}`}
+                      checked={editForm.playerTags.includes(player.id)}
+                      onCheckedChange={(checked) => {
+                        const newTags = checked
+                          ? [...editForm.playerTags, player.id]
+                          : editForm.playerTags.filter(id => id !== player.id);
+                        setEditForm(prev => ({ ...prev, playerTags: newTags }));
+                      }}
+                    />
+                    <label
+                      htmlFor={`edit-player-${player.id}`}
+                      className="text-sm text-white cursor-pointer"
+                    >
+                      {player.full_name} ({player.position})
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Match Details (if video type is match) */}
+            {editForm.video_type === 'match' && (
+              <div className="space-y-3">
+                <Label className="text-white">Match Details</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="edit-opposing-team" className="text-white text-sm">Opposing Team *</Label>
+                    <Input
+                      id="edit-opposing-team"
+                      value={editForm.matchDetails.opposingTeam}
+                      onChange={(e) => setEditForm(prev => ({
+                        ...prev,
+                        matchDetails: { ...prev.matchDetails, opposingTeam: e.target.value }
+                      }))}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="Team name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-match-date" className="text-white text-sm">Match Date *</Label>
+                    <Input
+                      id="edit-match-date"
+                      type="date"
+                      value={editForm.matchDetails.matchDate}
+                      onChange={(e) => setEditForm(prev => ({
+                        ...prev,
+                        matchDetails: { ...prev.matchDetails, matchDate: e.target.value }
+                      }))}
+                      className="bg-gray-700 border-gray-600 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-league" className="text-white text-sm">League *</Label>
+                    <Input
+                      id="edit-league"
+                      value={editForm.matchDetails.league}
+                      onChange={(e) => setEditForm(prev => ({
+                        ...prev,
+                        matchDetails: { ...prev.matchDetails, league: e.target.value }
+                      }))}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="League name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-home-away" className="text-white text-sm">Home/Away</Label>
+                    <Select
+                      value={editForm.matchDetails.homeOrAway}
+                      onValueChange={(value) => setEditForm(prev => ({
+                        ...prev,
+                        matchDetails: { ...prev.matchDetails, homeOrAway: value as 'home' | 'away' }
+                      }))}
+                    >
+                      <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="home">Home</SelectItem>
+                        <SelectItem value="away">Away</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-home-score" className="text-white text-sm">Home Score *</Label>
+                    <Input
+                      id="edit-home-score"
+                      type="number"
+                      min="0"
+                      value={editForm.matchDetails.homeScore}
+                      onChange={(e) => setEditForm(prev => ({
+                        ...prev,
+                        matchDetails: { ...prev.matchDetails, homeScore: e.target.value }
+                      }))}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-away-score" className="text-white text-sm">Away Score *</Label>
+                    <Input
+                      id="edit-away-score"
+                      type="number"
+                      min="0"
+                      value={editForm.matchDetails.awayScore}
+                      onChange={(e) => setEditForm(prev => ({
+                        ...prev,
+                        matchDetails: { ...prev.matchDetails, awayScore: e.target.value }
+                      }))}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="edit-venue" className="text-white text-sm">Venue</Label>
+                    <Input
+                      id="edit-venue"
+                      value={editForm.matchDetails.venue}
+                      onChange={(e) => setEditForm(prev => ({
+                        ...prev,
+                        matchDetails: { ...prev.matchDetails, venue: e.target.value }
+                      }))}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="Stadium name"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingVideo(null)}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              disabled={isUpdating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateVideo}
+              disabled={isUpdating || !editForm.title.trim()}
+              className="bg-bright-pink hover:bg-bright-pink/90 text-white"
+            >
+              {isUpdating ? "Updating..." : "Update Video"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmVideo} onOpenChange={() => setDeleteConfirmVideo(null)}>
+        <DialogContent className="bg-gray-800 border-gray-700 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Delete Video</DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            <p className="text-gray-300">
+              Are you sure you want to delete "{deleteConfirmVideo?.title}"? This action cannot be undone.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmVideo(null)}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => deleteConfirmVideo && handleDeleteVideo(deleteConfirmVideo.id)}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? "Deleting..." : "Delete Video"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

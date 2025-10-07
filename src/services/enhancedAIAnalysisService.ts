@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { analyzeVideoWithGemini } from './geminiService';
+import { r2VideoRetrievalService } from './r2VideoRetrievalService';
 
 export interface EnhancedAnalysisResult {
   overview: string;
@@ -107,9 +108,9 @@ export class EnhancedAIAnalysisService {
       }
 
       // Check if user has permission through team ownership
-      const hasPermission = videoData.teams && videoData.teams.length > 0 && 
+      const hasPermission = videoData.teams && videoData.teams.length > 0 &&
         videoData.teams.some((team: any) => team.profile_id === userProfile.id);
-      
+
       if (!hasPermission) {
         throw new Error('You do not have permission to analyze this video');
       }
@@ -176,20 +177,20 @@ export class EnhancedAIAnalysisService {
 
   private generateOverview(metadata: any, aiResult: any): string {
     const { videoType, title } = metadata;
-    
+
     switch (videoType) {
       case 'match':
         return `Match Analysis: ${title}. This comprehensive analysis covers tactical patterns, individual performances, and key moments that shaped the game outcome. The analysis identifies strategic opportunities and areas for improvement based on real match scenarios.`;
-      
+
       case 'training':
         return `Training Session Analysis: ${title}. Detailed evaluation of training intensity, drill effectiveness, and player development progress. Focus on skill acquisition, tactical understanding, and physical preparation improvements.`;
-      
+
       case 'interview':
         return `Interview Analysis: ${title}. Comprehensive review of discussion themes, player insights, and communication effectiveness. Analysis includes sentiment evaluation and strategic messaging assessment.`;
-      
+
       case 'highlight':
         return `Highlight Reel Analysis: ${title}. Focused analysis of key performance moments, showcasing technical abilities, tactical awareness, and game-changing contributions that demonstrate player quality and potential.`;
-      
+
       default:
         return `Video Analysis: ${title}. Comprehensive AI-powered analysis providing detailed insights into performance, tactics, and development opportunities.`;
     }
@@ -220,7 +221,7 @@ export class EnhancedAIAnalysisService {
       interview: ['Opening Statement', 'Key Discussion', 'Performance Reflection', 'Future Goals', 'Team Dynamics', 'Personal Insights', 'Strategic Vision', 'Closing Thoughts'],
       highlight: ['Skill Showcase', 'Tactical Awareness', 'Physical Display', 'Technical Execution', 'Game Intelligence', 'Clutch Moment', 'Versatility', 'Impact Play']
     };
-    
+
     return events[videoType as keyof typeof events]?.[index] || 'Key Event';
   }
 
@@ -273,20 +274,20 @@ export class EnhancedAIAnalysisService {
 
   private generateContextReasoning(metadata: any, aiResult: any): string {
     const { videoType } = metadata;
-    
+
     switch (videoType) {
       case 'match':
         return 'The match context reveals tactical battles, individual duels, and strategic decisions that influenced the outcome. Key factors include team shape, pressing triggers, transition moments, and set-piece situations that created scoring opportunities or defensive vulnerabilities.';
-      
+
       case 'training':
         return 'The training context focuses on development objectives, skill progression, and preparation quality. Analysis considers drill intensity, technical execution standards, tactical understanding demonstration, and physical readiness for competitive scenarios.';
-      
+
       case 'interview':
         return 'The interview context evaluates communication effectiveness, message clarity, and professional presentation. Key aspects include confidence levels, tactical knowledge display, ambition expression, and media handling capabilities.';
-      
+
       case 'highlight':
         return 'The highlight context showcases peak performance moments and exceptional abilities. Focus on technical brilliance, tactical intelligence, physical dominance, and game-changing contributions that demonstrate elite potential.';
-      
+
       default:
         return 'The video context provides valuable insights into performance standards, development areas, and competitive readiness across multiple evaluation criteria.';
     }
@@ -294,20 +295,20 @@ export class EnhancedAIAnalysisService {
 
   private generateExplanations(metadata: any, aiResult: any): string {
     const { videoType } = metadata;
-    
+
     switch (videoType) {
       case 'match':
         return 'Tactical Analysis: Formation effectiveness, pressing coordination, transition speed. Technical Analysis: First touch quality, passing accuracy, defensive positioning. Physical Analysis: Sprint speed, endurance levels, aerial dominance. Mental Analysis: Decision-making speed, pressure handling, leadership display.';
-      
+
       case 'training':
         return 'Development Focus: Skill acquisition rate, technique refinement, tactical understanding growth. Work Rate Analysis: Intensity levels, concentration span, improvement attitude. Technical Progression: Ball control advancement, passing range extension, finishing accuracy improvement.';
-      
+
       case 'interview':
         return 'Communication Assessment: Clarity of expression, confidence level, professional demeanor. Knowledge Display: Tactical understanding, game intelligence, strategic thinking. Character Evaluation: Leadership qualities, team orientation, ambition level, media presence.';
-      
+
       case 'highlight':
         return 'Performance Excellence: Technical mastery, tactical brilliance, physical superiority. Impact Assessment: Game-changing moments, crucial contributions, match-winning qualities. Potential Evaluation: Elite characteristics, development trajectory, professional readiness.';
-      
+
       default:
         return 'Comprehensive evaluation across technical, tactical, physical, and mental performance dimensions with detailed breakdown of strengths and development opportunities.';
     }
@@ -315,7 +316,7 @@ export class EnhancedAIAnalysisService {
 
   private generateRecommendations(metadata: any, aiResult: any): string[] {
     const { videoType } = metadata;
-    
+
     const recommendations = {
       match: [
         'Continue developing tactical flexibility to adapt to different opponent strategies',
@@ -365,22 +366,22 @@ export class EnhancedAIAnalysisService {
   private generateGameFlow(metadata: any): string {
     const { videoType, duration } = metadata;
     const phases = Math.floor(duration / 1800); // Every 30 minutes
-    
+
     switch (videoType) {
       case 'match':
-        return phases >= 3 ? 
+        return phases >= 3 ?
           'Strong start (0-30min: 85%), Mid-game consolidation (30-60min: 70%), Final push (60-90min: 80%)' :
           'Consistent performance maintained throughout the available match duration';
-      
+
       case 'training':
         return 'Progressive intensity: Warm-up phase (60%), Peak training (90%), Recovery phase (40%)';
-      
+
       case 'interview':
         return 'Confidence building: Initial nervousness (70%), Growing comfort (85%), Strong finish (95%)';
-      
+
       case 'highlight':
         return 'Peak performance compilation: Consistently high impact moments (95% effectiveness)';
-      
+
       default:
         return 'Performance analysis across the full video duration with detailed phase breakdown';
     }
@@ -388,20 +389,20 @@ export class EnhancedAIAnalysisService {
 
   private generatePressureMap(metadata: any): string {
     const { videoType } = metadata;
-    
+
     switch (videoType) {
       case 'match':
         return 'High pressure in final third (85%), Moderate in midfield (70%), Low in defensive third (60%)';
-      
+
       case 'training':
         return 'Intense drill phases (80%), Tactical work (65%), Physical conditioning (90%)';
-      
+
       case 'interview':
         return 'Comfortable topics (90%), Challenging questions (75%), Personal subjects (85%)';
-      
+
       case 'highlight':
         return 'Peak performance under pressure: Clutch moments (95%), Standard situations (85%)';
-      
+
       default:
         return 'Pressure analysis across different video segments and performance contexts';
     }
@@ -417,8 +418,8 @@ export class EnhancedAIAnalysisService {
       shifts.push({
         timestamp,
         shift: i % 2 === 0 ? 'Positive Momentum' : 'Tactical Adjustment',
-        reason: i % 2 === 0 ? 
-          'Strong performance period with multiple quality actions' : 
+        reason: i % 2 === 0 ?
+          'Strong performance period with multiple quality actions' :
           'Strategic adaptation to maintain competitive advantage'
       });
     }
@@ -428,7 +429,7 @@ export class EnhancedAIAnalysisService {
 
   private generatePlayerRadar(metadata: any, aiResult: any): EnhancedAnalysisResult['playerPerformanceRadar'] {
     const radar: EnhancedAnalysisResult['playerPerformanceRadar'] = {};
-    
+
     metadata.playerTags.forEach((playerId: string, index: number) => {
       radar[playerId] = {
         passing: 75 + Math.random() * 20,
@@ -447,13 +448,13 @@ export class EnhancedAIAnalysisService {
     const duration = metadata.duration;
     const eventCount = Math.min(Math.floor(duration / 300), 10); // Every 5 minutes, max 10
 
-    const eventTypes: Array<'goal' | 'card' | 'substitution' | 'tactical' | 'key_moment'> = 
+    const eventTypes: Array<'goal' | 'card' | 'substitution' | 'tactical' | 'key_moment'> =
       ['goal', 'card', 'substitution', 'tactical', 'key_moment'];
 
     for (let i = 0; i < eventCount; i++) {
       const timestamp = (i + 1) * 300 + Math.random() * 240; // Add some randomness
       const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-      
+
       timeline.push({
         timestamp: Math.floor(timestamp),
         event: this.getEventName(eventType, metadata.videoType),
@@ -473,11 +474,11 @@ export class EnhancedAIAnalysisService {
       tactical: 'Tactical Shift',
       key_moment: 'Key Performance Moment'
     };
-    
+
     if (videoType !== 'match') {
       return events.key_moment;
     }
-    
+
     return events[type as keyof typeof events];
   }
 
@@ -492,19 +493,19 @@ export class EnhancedAIAnalysisService {
       };
       return descriptions[type as keyof typeof descriptions];
     }
-    
+
     return 'Significant moment demonstrating technical ability and tactical understanding';
   }
 
   private analyzeTaggedPlayers(metadata: any, aiResult: any): EnhancedAnalysisResult['taggedPlayerAnalysis'] {
     const analysis: EnhancedAnalysisResult['taggedPlayerAnalysis'] = {};
-    
+
     metadata.playerTags.forEach((playerId: string, index: number) => {
       const present = Math.random() > 0.2; // 80% chance player is present
-      
+
       analysis[playerId] = {
         present,
-        involvement: present ? 
+        involvement: present ?
           'Active throughout the analysis period with multiple quality contributions' :
           'Limited visibility in this video analysis',
         keyMoments: present ? [
@@ -536,7 +537,7 @@ export class EnhancedAIAnalysisService {
 
   private detectMissingPlayers(metadata: any, aiResult: any): EnhancedAnalysisResult['missingPlayers'] {
     const missing = [];
-    
+
     metadata.playerTags.forEach((playerId: string) => {
       if (Math.random() < 0.3) { // 30% chance player is missing
         missing.push({

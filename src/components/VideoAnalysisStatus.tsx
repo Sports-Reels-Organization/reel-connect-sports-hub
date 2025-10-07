@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  RefreshCw, 
-  Trash2, 
+import { SmartThumbnail } from './SmartThumbnail';
+import {
+  Clock,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  Trash2,
   Eye,
   FileVideo,
   Calendar,
@@ -87,7 +88,7 @@ export const VideoAnalysisStatus: React.FC<VideoAnalysisStatusProps> = ({
 
   const handleRetry = async () => {
     if (!onRetry) return;
-    
+
     setIsRetrying(true);
     try {
       // Update status to pending
@@ -97,7 +98,7 @@ export const VideoAnalysisStatus: React.FC<VideoAnalysisStatusProps> = ({
         .eq('id', video.id);
 
       onRetry();
-      
+
       toast({
         title: "Retry Started",
         description: "AI analysis has been restarted for this video.",
@@ -116,7 +117,7 @@ export const VideoAnalysisStatus: React.FC<VideoAnalysisStatusProps> = ({
 
   const handleDelete = async () => {
     if (!onDelete) return;
-    
+
     setIsDeleting(true);
     try {
       await supabase
@@ -125,7 +126,7 @@ export const VideoAnalysisStatus: React.FC<VideoAnalysisStatusProps> = ({
         .eq('id', video.id);
 
       onDelete();
-      
+
       toast({
         title: "Video Deleted",
         description: "The video has been permanently deleted.",
@@ -151,18 +152,14 @@ export const VideoAnalysisStatus: React.FC<VideoAnalysisStatusProps> = ({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
-            {video.thumbnail_url ? (
-              <img
-                src={video.thumbnail_url}
-                alt={video.title}
-                className="w-16 h-16 rounded-lg object-cover"
+            <div className="w-16 h-16 rounded-lg overflow-hidden">
+              <SmartThumbnail
+                thumbnailUrl={video.thumbnail_url}
+                title={video.title}
+                className="w-full h-full object-cover"
               />
-            ) : (
-              <div className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center">
-                <FileVideo className="w-8 h-8 text-gray-500" />
-              </div>
-            )}
-            
+            </div>
+
             <div className="flex-1">
               <CardTitle className="text-white text-lg mb-1">
                 {video.title}
@@ -188,20 +185,20 @@ export const VideoAnalysisStatus: React.FC<VideoAnalysisStatusProps> = ({
             <Calendar className="w-4 h-4" />
             <span>{new Date(video.created_at).toLocaleDateString()}</span>
           </div>
-          
+
           {video.video_type === 'match' && video.opposing_team && (
             <div className="flex items-center gap-2 text-gray-400">
               <Target className="w-4 h-4" />
               <span>vs {video.opposing_team}</span>
             </div>
           )}
-          
+
           {video.video_type === 'match' && video.score && (
             <div className="flex items-center gap-2 text-gray-400">
               <span>Score: {video.score}</span>
             </div>
           )}
-          
+
           {video.tagged_players && video.tagged_players.length > 0 && (
             <div className="flex items-center gap-2 text-gray-400">
               <Users className="w-4 h-4" />
@@ -224,7 +221,7 @@ export const VideoAnalysisStatus: React.FC<VideoAnalysisStatusProps> = ({
         {video.ai_analysis_status === 'failed' && (
           <div className="bg-red-900/20 border border-red-700 rounded-lg p-3">
             <p className="text-red-300 text-sm">
-              AI analysis failed. The video has been saved but couldn't be analyzed. 
+              AI analysis failed. The video has been saved but couldn't be analyzed.
               You can retry the analysis or delete the video.
             </p>
           </div>
@@ -243,7 +240,7 @@ export const VideoAnalysisStatus: React.FC<VideoAnalysisStatusProps> = ({
               View Analysis
             </Button>
           )}
-          
+
           {video.ai_analysis_status === 'failed' && (
             <>
               <Button
@@ -260,7 +257,7 @@ export const VideoAnalysisStatus: React.FC<VideoAnalysisStatusProps> = ({
                 )}
                 Retry Analysis
               </Button>
-              
+
               <Button
                 variant="outline"
                 size="sm"

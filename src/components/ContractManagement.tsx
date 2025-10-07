@@ -84,7 +84,7 @@ const ContractManagement = () => {
           .select('id')
           .eq('profile_id', profile.id)
           .single();
-        
+
         if (teamData) {
           query = query.eq('team_id', teamData.id);
         }
@@ -95,7 +95,7 @@ const ContractManagement = () => {
           .select('id')
           .eq('profile_id', profile.id)
           .single();
-        
+
         if (agentData) {
           query = query.eq('agent_id', agentData.id);
         }
@@ -307,7 +307,7 @@ const ContractManagement = () => {
           <h2 className="text-2xl font-bold text-white font-polysans">Contract Management</h2>
           <p className="text-gray-400 font-poppins">Manage player contracts and agreements</p>
         </div>
-        
+
         {profile?.user_type === 'team' && (
           <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
             <DialogTrigger asChild>
@@ -320,7 +320,7 @@ const ContractManagement = () => {
               <DialogHeader>
                 <DialogTitle>Create New Contract</DialogTitle>
               </DialogHeader>
-              
+
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -332,7 +332,15 @@ const ContractManagement = () => {
                       <SelectContent>
                         {players.map(player => (
                           <SelectItem key={player.id} value={player.id}>
-                            {player.full_name} - {player.position}
+                            <div className="flex items-center gap-2">
+                              <span>{player.full_name}</span>
+                              {player.jersey_number && (
+                                <Badge className="bg-bright-pink text-white text-xs px-1.5 py-0.5 font-bold">
+                                  #{player.jersey_number}
+                                </Badge>
+                              )}
+                              <span className="text-gray-400">- {player.position}</span>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -362,7 +370,7 @@ const ContractManagement = () => {
                       type="number"
                       placeholder="Enter amount"
                       value={contractTerms.transfer_fee}
-                      onChange={(e) => setContractTerms({...contractTerms, transfer_fee: e.target.value})}
+                      onChange={(e) => setContractTerms({ ...contractTerms, transfer_fee: e.target.value })}
                     />
                   </div>
 
@@ -372,7 +380,7 @@ const ContractManagement = () => {
                       type="number"
                       placeholder="Enter amount"
                       value={contractTerms.sign_on_bonus}
-                      onChange={(e) => setContractTerms({...contractTerms, sign_on_bonus: e.target.value})}
+                      onChange={(e) => setContractTerms({ ...contractTerms, sign_on_bonus: e.target.value })}
                     />
                   </div>
                 </div>
@@ -384,7 +392,7 @@ const ContractManagement = () => {
                       type="number"
                       placeholder="Enter amount"
                       value={contractTerms.player_salary}
-                      onChange={(e) => setContractTerms({...contractTerms, player_salary: e.target.value})}
+                      onChange={(e) => setContractTerms({ ...contractTerms, player_salary: e.target.value })}
                     />
                   </div>
 
@@ -394,7 +402,7 @@ const ContractManagement = () => {
                       type="number"
                       placeholder="Enter years"
                       value={contractTerms.contract_duration}
-                      onChange={(e) => setContractTerms({...contractTerms, contract_duration: e.target.value})}
+                      onChange={(e) => setContractTerms({ ...contractTerms, contract_duration: e.target.value })}
                     />
                   </div>
                 </div>
@@ -414,7 +422,7 @@ const ContractManagement = () => {
             <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500" />
             <h3 className="text-xl font-semibold text-white mb-2">No Contracts Yet</h3>
             <p className="text-gray-400 mb-6">
-              {profile?.user_type === 'team' 
+              {profile?.user_type === 'team'
                 ? 'Create your first contract to manage player agreements'
                 : 'Contracts you receive will appear here'
               }
@@ -444,7 +452,7 @@ const ContractManagement = () => {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Badge className={getStatusColor(contract.status)}>
                       {contract.status.charAt(0).toUpperCase() + contract.status.slice(1)}
@@ -456,7 +464,7 @@ const ContractManagement = () => {
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent>
                 <div className="space-y-4">
                   {/* Contract Terms */}
@@ -522,8 +530,8 @@ const ContractManagement = () => {
                             if (file) handleFileUpload(contract.id, file, 'template');
                           }}
                         />
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => document.getElementById(`template-${contract.id}`)?.click()}
                         >
@@ -548,8 +556,8 @@ const ContractManagement = () => {
                             }
                           }}
                         />
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => document.getElementById(`signed-${contract.id}`)?.click()}
                         >
@@ -561,7 +569,7 @@ const ContractManagement = () => {
 
                     {/* Status Update Buttons */}
                     {contract.status === 'draft' && contract.template_url && (
-                      <Button 
+                      <Button
                         size="sm"
                         onClick={() => updateContractStatus(contract.id, 'sent')}
                         className="bg-blue-600 hover:bg-blue-700"

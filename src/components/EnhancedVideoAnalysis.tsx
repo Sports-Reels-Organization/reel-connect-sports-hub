@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ComprehensiveAIAnalysisService } from '@/services/comprehensiveAIAnalysisService';
 import { VideoFrameExtractor } from '@/utils/videoFrameExtractor';
+import { r2VideoRetrievalService } from '@/services/r2VideoRetrievalService';
 
 interface Video {
   id: string;
@@ -160,12 +161,31 @@ const VideoAnalysisResults = () => {
       // Initialize enhanced AI analysis service
       const aiService = new ComprehensiveAIAnalysisService();
 
-      // Extract video frames with optimization
+      // Retrieve video URL for analysis
       setAnalysisProgress(10);
+      setAnalysisStatus('🔗 Retrieving video for analysis...');
+      const videoRetrieval = await r2VideoRetrievalService.getVideoForAnalysis(video.video_url, {
+        expiresIn: 3600 // 1 hour for analysis
+      });
+
+      if (!videoRetrieval.success || !videoRetrieval.videoUrl) {
+        // Check if it's a localhost URL issue
+        if (videoRetrieval.error?.includes('localhost') || videoRetrieval.error?.includes('development')) {
+          toast({
+            title: "Video Not Available",
+            description: "This video was uploaded during development and is no longer accessible. Please re-upload the video to perform AI analysis.",
+            variant: "destructive"
+          });
+        }
+        throw new Error(videoRetrieval.error || 'Failed to retrieve video for analysis');
+      }
+
+      // Extract video frames with optimization
+      setAnalysisProgress(15);
       setAnalysisStatus('📸 Extracting high-quality video frames...');
       const frameExtractor = new VideoFrameExtractor();
 
-      const frames = await frameExtractor.extractFrames(video.video_url, {
+      const frames = await frameExtractor.extractFrames(videoRetrieval.videoUrl, {
         frameRate: 1,
         maxFrames: 60, // More frames for better analysis
         quality: 0.9,

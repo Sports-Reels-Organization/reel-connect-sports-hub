@@ -1,523 +1,526 @@
+import { ComprehensiveAIAnalysisService } from './comprehensiveAIAnalysisService';
+import { EnhancedPlayerTrackingService, PlayerTrackingData, TacticalAnalysis, MatchStatistics } from './enhancedPlayerTrackingService';
+import { VideoFrameExtractor } from '@/utils/videoFrameExtractor';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-import { supabase } from '@/integrations/supabase/client';
-
-export interface PlayerDetection {
-  playerId: string;
-  playerName: string;
-  boundingBox: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
+export interface EnhancedAnalysisResult {
+  success: boolean;
+  analysis: {
+    summary: string;
+    insights: string[];
+    performanceRating: number;
+    playerTracking: PlayerTrackingData[];
+    tacticalAnalysis: TacticalAnalysis;
+    matchStatistics: MatchStatistics;
+    sportSpecificInsights: SportSpecificInsights;
+    recommendations: string[];
+    confidence: number;
+    processingTime: number;
   };
-  confidence: number;
-  timestamp: number;
-  isTaggedPlayer: boolean;
+  error?: string;
 }
 
-export interface ActionAnalysis {
+export interface SportSpecificInsights {
+  formation: string;
+  tacticalStyle: string;
+  keyStrengths: string[];
+  areasForImprovement: string[];
+  criticalMoments: CriticalMoment[];
+  performanceMetrics: PerformanceMetrics;
+}
+
+export interface CriticalMoment {
   timestamp: number;
-  playerId: string;
-  playerName: string;
-  action: string;
+  type: 'goal' | 'save' | 'tackle' | 'pass' | 'shot' | 'formation-change' | 'tactical-shift';
   description: string;
-  position: { x: number; y: number };
-  confidence: number;
-  category: 'skill' | 'tactical' | 'physical' | 'mental' | 'defensive' | 'offensive';
-  metrics: {
-    intensity: number;
-    accuracy: number;
-    effectiveness: number;
-  };
+  importance: 'low' | 'medium' | 'high' | 'critical';
+  playersInvolved: string[];
+  outcome: string;
 }
 
 export interface PerformanceMetrics {
-  playerId: string;
-  playerName: string;
-  isTaggedPlayer: boolean;
-  metricsData: {
-    totalActions: number;
-    successfulActions: number;
-    averagePosition: { x: number; y: number };
-    movementIntensity: number;
-    decisionMakingScore: number;
-    technicalScore: number;
-    tacticalAwareness: number;
-    physicalPresence: number;
-  };
-  keyMoments: Array<{
-    timestamp: number;
-    description: string;
-    impact: 'high' | 'medium' | 'low';
-  }>;
+  overallTeamRating: number;
+  individualRatings: PlayerRating[];
+  tacticalEffectiveness: number;
+  physicalPerformance: number;
+  technicalExecution: number;
 }
 
-export interface VideoAnalysisResult {
-  videoId: string;
-  taggedPlayerPresent: boolean;
-  analysisStatus: 'completed' | 'partial' | 'failed';
-  detectedPlayers: PlayerDetection[];
-  playerActions: ActionAnalysis[];
-  performanceMetrics: PerformanceMetrics[];
-  gameContext: {
-    gamePhase: string;
-    dominatingTeam: string;
-    intensity: number;
-    keyEvents: Array<{
-      timestamp: number;
-      event: string;
-      impact: string;
-    }>;
-  };
-  overallAssessment: string;
-  recommendations: string[];
+export interface PlayerRating {
+  playerId: string;
+  playerName: string;
+  overallRating: number;
+  technicalRating: number;
+  tacticalRating: number;
+  physicalRating: number;
+  keyActions: number;
+  influence: number;
 }
 
 export class EnhancedVideoAnalysisService {
-  private videoId: string;
-  private taggedPlayers: string[];
-  private analysisCallbacks: ((progress: number, status: string) => void)[] = [];
+  private comprehensiveService: ComprehensiveAIAnalysisService;
+  private playerTrackingService: EnhancedPlayerTrackingService;
+  private frameExtractor: VideoFrameExtractor;
+  private config: any;
+  private genAI: GoogleGenerativeAI;
 
-  constructor(videoId: string, taggedPlayers: string[]) {
-    this.videoId = videoId;
-    this.taggedPlayers = taggedPlayers;
+  constructor(config: any) {
+    this.config = config;
+    this.genAI = new GoogleGenerativeAI(config.API_KEY);
+    this.comprehensiveService = new ComprehensiveAIAnalysisService();
+    this.playerTrackingService = new EnhancedPlayerTrackingService({
+      ...config,
+      genAI: this.genAI
+    });
+    this.frameExtractor = new VideoFrameExtractor();
   }
 
-  onProgress(callback: (progress: number, status: string) => void) {
-    this.analysisCallbacks.push(callback);
-  }
+  async analyzeVideo(request: {
+    videoUrl: string;
+    videoType: 'match' | 'training' | 'interview' | 'highlight';
+    sport: string;
+    metadata: {
+      playerTags: any[];
+      teamInfo: any;
+      context: string;
+      duration: number;
+    };
+  }): Promise<EnhancedAnalysisResult> {
+    const startTime = Date.now();
 
-  private updateProgress(progress: number, status: string) {
-    this.analysisCallbacks.forEach(callback => callback(progress, status));
-  }
-
-  async analyzeVideo(videoElement: HTMLVideoElement, metadata: any): Promise<VideoAnalysisResult> {
-    this.updateProgress(0, 'Initializing video analysis...');
-    
     try {
-      // Phase 1: Face detection and player tracking
-      this.updateProgress(10, 'Detecting and tracking players...');
-      const detectedPlayers = await this.detectAndTrackPlayers(videoElement);
-      
-      // Phase 2: Action recognition and analysis
-      this.updateProgress(30, 'Analyzing player actions and movements...');
-      const playerActions = await this.analyzePlayerActions(videoElement, detectedPlayers);
-      
-      // Phase 3: Performance metrics calculation
-      this.updateProgress(50, 'Calculating performance metrics...');
-      const performanceMetrics = await this.calculatePerformanceMetrics(playerActions, detectedPlayers);
-      
-      // Phase 4: Game context analysis
-      this.updateProgress(70, 'Analyzing game context and tactics...');
-      const gameContext = await this.analyzeGameContext(videoElement, playerActions);
-      
-      // Phase 5: Generate insights and recommendations
-      this.updateProgress(85, 'Generating insights and recommendations...');
-      const insights = await this.generateInsights(performanceMetrics, gameContext, metadata);
-      
-      // Phase 6: Save results to database
-      this.updateProgress(95, 'Saving analysis results...');
-      await this.saveAnalysisResults({
-        videoId: this.videoId,
-        taggedPlayerPresent: this.checkTaggedPlayerPresence(detectedPlayers),
-        analysisStatus: 'completed',
-        detectedPlayers,
-        playerActions,
-        performanceMetrics,
-        gameContext,
-        ...insights
+      console.log('Starting enhanced video analysis...');
+
+      // Extract frames with higher quality for better analysis
+      const frames = await this.frameExtractor.extractFrames(request.videoUrl, {
+        frameRate: 2, // Increased frame rate for better tracking
+        maxFrames: 60, // More frames for comprehensive analysis
+        quality: 0.9, // Higher quality for better recognition
+        maxWidth: 1200,
+        maxHeight: 800
       });
-      
-      this.updateProgress(100, 'Analysis completed successfully!');
-      
+
+      console.log(`Extracted ${frames.length} frames for analysis`);
+
+      // Run comprehensive AI analysis
+      const comprehensiveResult = await this.comprehensiveService.analyzeVideo({
+        videoUrl: request.videoUrl,
+        videoType: request.videoType,
+        sport: request.sport,
+        metadata: request.metadata,
+        frames: frames
+      });
+
+      // Run enhanced player tracking analysis
+      const playerTrackingResult = await this.playerTrackingService.analyzePlayerTracking(
+        request.videoUrl,
+        frames,
+        request.metadata.playerTags,
+        request.sport,
+        request.videoType
+      );
+
+      // Generate sport-specific insights
+      const sportSpecificInsights = await this.generateSportSpecificInsights(
+        playerTrackingResult,
+        request.sport,
+        request.videoType
+      );
+
+      // Generate intelligent recommendations
+      const recommendations = await this.generateIntelligentRecommendations(
+        playerTrackingResult,
+        sportSpecificInsights,
+        request.videoType
+      );
+
+      // Calculate performance metrics
+      const performanceMetrics = this.calculatePerformanceMetrics(
+        playerTrackingResult.playerTracking,
+        playerTrackingResult.tacticalAnalysis
+      );
+
+      const processingTime = Date.now() - startTime;
+
       return {
-        videoId: this.videoId,
-        taggedPlayerPresent: this.checkTaggedPlayerPresence(detectedPlayers),
-        analysisStatus: 'completed',
-        detectedPlayers,
-        playerActions,
-        performanceMetrics,
-        gameContext,
-        ...insights
+        success: true,
+        analysis: {
+          summary: comprehensiveResult.analysis.summary,
+          insights: comprehensiveResult.analysis.insights,
+          performanceRating: comprehensiveResult.analysis.performanceRating,
+          playerActions: playerTrackingResult.playerActions,
+          keyMoments: playerTrackingResult.keyMoments,
+          playerTracking: playerTrackingResult.playerTracking,
+          tacticalAnalysis: playerTrackingResult.tacticalAnalysis,
+          matchStatistics: playerTrackingResult.matchStatistics,
+          sportSpecificInsights: sportSpecificInsights,
+          recommendations: recommendations,
+          confidence: 0.95,
+          processingTime: processingTime
+        }
       };
-      
+
     } catch (error) {
-      console.error('Video analysis failed:', error);
-      this.updateProgress(0, 'Analysis failed');
-      throw error;
-    }
-  }
-
-  private async detectAndTrackPlayers(videoElement: HTMLVideoElement): Promise<PlayerDetection[]> {
-    const detections: PlayerDetection[] = [];
-    const duration = videoElement.duration;
-    const sampleInterval = 2; // Sample every 2 seconds
-    
-    for (let time = 0; time < duration; time += sampleInterval) {
-      videoElement.currentTime = time;
-      await new Promise(resolve => setTimeout(resolve, 100)); // Wait for seek
-      
-      // Simulate face detection (in real implementation, use ML model)
-      const frameDetections = this.simulatePlayerDetection(time);
-      detections.push(...frameDetections);
-    }
-    
-    return detections;
-  }
-
-  private simulatePlayerDetection(timestamp: number): PlayerDetection[] {
-    // Simulate realistic player detection with varying confidence
-    const detections: PlayerDetection[] = [];
-    const numPlayers = Math.floor(Math.random() * 6) + 2; // 2-8 players detected
-    
-    for (let i = 0; i < numPlayers; i++) {
-      const isTaggedPlayer = Math.random() < 0.3 && this.taggedPlayers.length > 0;
-      detections.push({
-        playerId: isTaggedPlayer ? this.taggedPlayers[0] : `player_${i}`,
-        playerName: isTaggedPlayer ? this.taggedPlayers[0] : `Player ${i + 1}`,
-        boundingBox: {
-          x: Math.random() * 800,
-          y: Math.random() * 600,
-          width: 60 + Math.random() * 40,
-          height: 80 + Math.random() * 60
+      console.error('Enhanced video analysis failed:', error);
+      return {
+        success: false,
+        analysis: {
+          summary: 'Analysis failed due to technical issues.',
+          insights: ['Unable to complete analysis'],
+          performanceRating: 0,
+          playerTracking: [],
+          tacticalAnalysis: {
+            formationChanges: [],
+            pressingMoments: [],
+            buildUpPlay: [],
+            defensiveActions: [],
+            attackingPatterns: []
+          },
+          matchStatistics: {
+            possession: { home: 50, away: 50 },
+            shots: { home: 0, away: 0 },
+            passes: { home: 0, away: 0, accuracy: { home: 0, away: 0 } },
+            goals: [],
+            cards: [],
+            substitutions: []
+          },
+          sportSpecificInsights: {
+            formation: 'Unknown',
+            tacticalStyle: 'Unknown',
+            keyStrengths: [],
+            areasForImprovement: [],
+            criticalMoments: [],
+            performanceMetrics: {
+              overallTeamRating: 0,
+              individualRatings: [],
+              tacticalEffectiveness: 0,
+              physicalPerformance: 0,
+              technicalExecution: 0
+            }
+          },
+          recommendations: ['Please try again or contact support'],
+          confidence: 0,
+          processingTime: Date.now() - startTime
         },
-        confidence: 0.6 + Math.random() * 0.4,
-        timestamp,
-        isTaggedPlayer
-      });
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
     }
-    
-    return detections;
   }
 
-  private async analyzePlayerActions(videoElement: HTMLVideoElement, detectedPlayers: PlayerDetection[]): Promise<ActionAnalysis[]> {
-    const actions: ActionAnalysis[] = [];
-    const actionTypes = [
-      { action: 'Dribbling', category: 'skill' as const },
-      { action: 'Passing', category: 'tactical' as const },
-      { action: 'Shooting', category: 'offensive' as const },
-      { action: 'Defending', category: 'defensive' as const },
-      { action: 'Positioning', category: 'tactical' as const },
-      { action: 'Sprinting', category: 'physical' as const },
-      { action: 'Ball Control', category: 'skill' as const },
-      { action: 'Heading', category: 'physical' as const },
-      { action: 'Tackling', category: 'defensive' as const },
-      { action: 'Decision Making', category: 'mental' as const }
-    ];
-    
-    // Group detections by player and timestamp
-    const playerTimeline = new Map<string, PlayerDetection[]>();
-    detectedPlayers.forEach(detection => {
-      if (!playerTimeline.has(detection.playerId)) {
-        playerTimeline.set(detection.playerId, []);
-      }
-      playerTimeline.get(detection.playerId)!.push(detection);
+  private async generateSportSpecificInsights(
+    playerTrackingResult: any,
+    sport: string,
+    videoType: string
+  ): Promise<SportSpecificInsights> {
+    // Analyze formation from tactical data
+    const formations = playerTrackingResult.tacticalAnalysis.formationChanges;
+    const primaryFormation = formations.length > 0 ? formations[0].formation : 'Unknown';
+
+    // Analyze tactical style based on pressing and build-up play
+    const pressingMoments = playerTrackingResult.tacticalAnalysis.pressingMoments;
+    const buildUpPlay = playerTrackingResult.tacticalAnalysis.buildUpPlay;
+
+    let tacticalStyle = 'Balanced';
+    if (pressingMoments.length > buildUpPlay.length * 1.5) {
+      tacticalStyle = 'High Pressing';
+    } else if (buildUpPlay.length > pressingMoments.length * 1.5) {
+      tacticalStyle = 'Possession Based';
+    }
+
+    // Generate key strengths and areas for improvement
+    const keyStrengths = this.identifyKeyStrengths(playerTrackingResult, sport);
+    const areasForImprovement = this.identifyAreasForImprovement(playerTrackingResult, sport);
+
+    // Identify critical moments
+    const criticalMoments = this.identifyCriticalMoments(playerTrackingResult);
+
+    // Calculate performance metrics
+    const performanceMetrics = this.calculatePerformanceMetrics(
+      playerTrackingResult.playerTracking,
+      playerTrackingResult.tacticalAnalysis
+    );
+
+    return {
+      formation: primaryFormation,
+      tacticalStyle: tacticalStyle,
+      keyStrengths: keyStrengths,
+      areasForImprovement: areasForImprovement,
+      criticalMoments: criticalMoments,
+      performanceMetrics: performanceMetrics
+    };
+  }
+
+  private identifyKeyStrengths(playerTrackingResult: any, sport: string): string[] {
+    const strengths: string[] = [];
+    const { tacticalAnalysis, matchStatistics } = playerTrackingResult;
+
+    // Analyze passing accuracy
+    if (matchStatistics.passes.accuracy.home > 85) {
+      strengths.push('High passing accuracy and ball retention');
+    }
+
+    // Analyze defensive actions
+    const successfulTackles = tacticalAnalysis.defensiveActions.filter(
+      (action: any) => action.success
+    ).length;
+    if (successfulTackles > tacticalAnalysis.defensiveActions.length * 0.7) {
+      strengths.push('Strong defensive performance and tackling');
+    }
+
+    // Analyze pressing intensity
+    const highIntensityPressing = tacticalAnalysis.pressingMoments.filter(
+      (moment: any) => moment.intensity === 'high'
+    ).length;
+    if (highIntensityPressing > 0) {
+      strengths.push('Effective high-intensity pressing');
+    }
+
+    // Analyze build-up play
+    const successfulBuildUp = tacticalAnalysis.buildUpPlay.filter(
+      (play: any) => play.outcome === 'successful'
+    ).length;
+    if (successfulBuildUp > tacticalAnalysis.buildUpPlay.length * 0.6) {
+      strengths.push('Effective build-up play and ball progression');
+    }
+
+    return strengths.length > 0 ? strengths : ['Consistent team performance'];
+  }
+
+  private identifyAreasForImprovement(playerTrackingResult: any, sport: string): string[] {
+    const improvements: string[] = [];
+    const { tacticalAnalysis, matchStatistics } = playerTrackingResult;
+
+    // Analyze passing accuracy
+    if (matchStatistics.passes.accuracy.home < 75) {
+      improvements.push('Improve passing accuracy and ball retention');
+    }
+
+    // Analyze defensive actions
+    const failedTackles = tacticalAnalysis.defensiveActions.filter(
+      (action: any) => !action.success
+    ).length;
+    if (failedTackles > tacticalAnalysis.defensiveActions.length * 0.4) {
+      improvements.push('Reduce defensive errors and improve tackling success rate');
+    }
+
+    // Analyze attacking patterns
+    const failedAttacks = tacticalAnalysis.attackingPatterns.filter(
+      (pattern: any) => pattern.outcome === 'failed'
+    ).length;
+    if (failedAttacks > tacticalAnalysis.attackingPatterns.length * 0.5) {
+      improvements.push('Improve attacking efficiency and final third execution');
+    }
+
+    // Analyze pressing coordination
+    const unsuccessfulPressing = tacticalAnalysis.pressingMoments.filter(
+      (moment: any) => !moment.success
+    ).length;
+    if (unsuccessfulPressing > tacticalAnalysis.pressingMoments.length * 0.4) {
+      improvements.push('Improve pressing coordination and timing');
+    }
+
+    return improvements.length > 0 ? improvements : ['Continue current development and training'];
+  }
+
+  private identifyCriticalMoments(playerTrackingResult: any): CriticalMoment[] {
+    const criticalMoments: CriticalMoment[] = [];
+    const { tacticalAnalysis, matchStatistics } = playerTrackingResult;
+
+    // Add goal moments
+    matchStatistics.goals.forEach((goal: any) => {
+      criticalMoments.push({
+        timestamp: goal.timestamp,
+        type: 'goal',
+        description: `${goal.type} goal scored`,
+        importance: 'critical',
+        playersInvolved: [goal.playerId, goal.assistPlayerId].filter(Boolean),
+        outcome: 'Goal scored'
+      });
     });
-    
-    // Analyze actions for each player
-    for (const [playerId, detections] of playerTimeline) {
-      for (let i = 0; i < detections.length - 1; i++) {
-        const current = detections[i];
-        const next = detections[i + 1];
-        
-        // Calculate movement and analyze action
-        const movement = this.calculateMovement(current, next);
-        const actionType = actionTypes[Math.floor(Math.random() * actionTypes.length)];
-        
-        actions.push({
-          timestamp: current.timestamp,
-          playerId: current.playerId,
-          playerName: current.playerName,
-          action: actionType.action,
-          description: this.generateActionDescription(actionType.action, movement, current.isTaggedPlayer),
-          position: { x: current.boundingBox.x, y: current.boundingBox.y },
-          confidence: current.confidence,
-          category: actionType.category,
-          metrics: {
-            intensity: movement.intensity,
-            accuracy: 0.7 + Math.random() * 0.3,
-            effectiveness: 0.6 + Math.random() * 0.4
-          }
+
+    // Add formation changes
+    tacticalAnalysis.formationChanges.forEach((change: any) => {
+      criticalMoments.push({
+        timestamp: change.timestamp,
+        type: 'formation-change',
+        description: `Formation changed to ${change.formation}`,
+        importance: 'high',
+        playersInvolved: change.positions.map((p: any) => p.playerId),
+        outcome: 'Tactical adjustment'
+      });
+    });
+
+    // Add high-intensity pressing moments
+    tacticalAnalysis.pressingMoments
+      .filter((moment: any) => moment.intensity === 'high' && moment.success)
+      .forEach((moment: any) => {
+        criticalMoments.push({
+          timestamp: moment.timestamp,
+          type: 'tactical-shift',
+          description: 'High-intensity pressing triggered',
+          importance: 'high',
+          playersInvolved: moment.playersInvolved,
+          outcome: 'Successful pressing'
         });
-      }
-    }
-    
-    return actions.sort((a, b) => a.timestamp - b.timestamp);
-  }
-
-  private calculateMovement(current: PlayerDetection, next: PlayerDetection) {
-    const dx = next.boundingBox.x - current.boundingBox.x;
-    const dy = next.boundingBox.y - current.boundingBox.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const timeGap = next.timestamp - current.timestamp;
-    const speed = timeGap > 0 ? distance / timeGap : 0;
-    
-    return {
-      distance,
-      speed,
-      intensity: Math.min(speed / 100, 1), // Normalize to 0-1
-      direction: Math.atan2(dy, dx)
-    };
-  }
-
-  private generateActionDescription(action: string, movement: any, isTaggedPlayer: boolean): string {
-    const playerRef = isTaggedPlayer ? "Tagged player" : "Player";
-    const intensityDesc = movement.intensity > 0.7 ? "explosive" : movement.intensity > 0.4 ? "dynamic" : "controlled";
-    
-    const descriptions = {
-      'Dribbling': `${playerRef} demonstrates ${intensityDesc} dribbling technique with excellent ball control`,
-      'Passing': `${playerRef} executes a ${intensityDesc} pass with good vision and accuracy`,
-      'Shooting': `${playerRef} takes a ${intensityDesc} shot with proper technique and positioning`,
-      'Defending': `${playerRef} shows ${intensityDesc} defensive positioning and awareness`,
-      'Positioning': `${playerRef} demonstrates excellent tactical positioning and spatial awareness`,
-      'Sprinting': `${playerRef} shows ${intensityDesc} acceleration and speed in transition`,
-      'Ball Control': `${playerRef} displays ${intensityDesc} first touch and ball manipulation skills`,
-      'Heading': `${playerRef} shows good timing and technique in aerial duels`,
-      'Tackling': `${playerRef} executes a ${intensityDesc} tackle with good timing`,
-      'Decision Making': `${playerRef} demonstrates ${intensityDesc} decision-making under pressure`
-    };
-    
-    return descriptions[action as keyof typeof descriptions] || `${playerRef} performs ${action.toLowerCase()}`;
-  }
-
-  private async calculatePerformanceMetrics(actions: ActionAnalysis[], detections: PlayerDetection[]): Promise<PerformanceMetrics[]> {
-    const playerMetrics = new Map<string, PerformanceMetrics>();
-    
-    // Group actions by player
-    const playerActions = new Map<string, ActionAnalysis[]>();
-    actions.forEach(action => {
-      if (!playerActions.has(action.playerId)) {
-        playerActions.set(action.playerId, []);
-      }
-      playerActions.get(action.playerId)!.push(action);
-    });
-    
-    // Calculate metrics for each player
-    for (const [playerId, playerActionList] of playerActions) {
-      const playerDetections = detections.filter(d => d.playerId === playerId);
-      const isTaggedPlayer = playerDetections.some(d => d.isTaggedPlayer);
-      
-      const totalActions = playerActionList.length;
-      const successfulActions = playerActionList.filter(a => a.metrics.effectiveness > 0.7).length;
-      
-      // Calculate average position
-      const avgX = playerDetections.reduce((sum, d) => sum + d.boundingBox.x, 0) / playerDetections.length;
-      const avgY = playerDetections.reduce((sum, d) => sum + d.boundingBox.y, 0) / playerDetections.length;
-      
-      // Calculate various scores
-      const technicalScore = playerActionList
-        .filter(a => a.category === 'skill')
-        .reduce((sum, a) => sum + a.metrics.accuracy, 0) / Math.max(1, playerActionList.filter(a => a.category === 'skill').length);
-      
-      const tacticalScore = playerActionList
-        .filter(a => a.category === 'tactical')
-        .reduce((sum, a) => sum + a.metrics.effectiveness, 0) / Math.max(1, playerActionList.filter(a => a.category === 'tactical').length);
-      
-      const physicalScore = playerActionList
-        .filter(a => a.category === 'physical')
-        .reduce((sum, a) => sum + a.metrics.intensity, 0) / Math.max(1, playerActionList.filter(a => a.category === 'physical').length);
-      
-      // Identify key moments
-      const keyMoments = playerActionList
-        .filter(a => a.metrics.effectiveness > 0.8 || a.metrics.intensity > 0.8)
-        .slice(0, 5)
-        .map(a => ({
-          timestamp: a.timestamp,
-          description: a.description,
-          impact: a.metrics.effectiveness > 0.9 ? 'high' as const : 
-                 a.metrics.effectiveness > 0.8 ? 'medium' as const : 'low' as const
-        }));
-      
-      playerMetrics.set(playerId, {
-        playerId,
-        playerName: playerActionList[0]?.playerName || playerId,
-        isTaggedPlayer,
-        metricsData: {
-          totalActions,
-          successfulActions,
-          averagePosition: { x: avgX, y: avgY },
-          movementIntensity: playerActionList.reduce((sum, a) => sum + a.metrics.intensity, 0) / totalActions,
-          decisionMakingScore: Math.min(1, successfulActions / totalActions),
-          technicalScore: Math.min(1, technicalScore),
-          tacticalAwareness: Math.min(1, tacticalScore),
-          physicalPresence: Math.min(1, physicalScore)
-        },
-        keyMoments
       });
-    }
-    
-    return Array.from(playerMetrics.values());
+
+    return criticalMoments.sort((a, b) => a.timestamp - b.timestamp);
   }
 
-  private async analyzeGameContext(videoElement: HTMLVideoElement, actions: ActionAnalysis[]) {
-    const duration = videoElement.duration;
-    const phases = ['Opening', 'Development', 'Peak Intensity', 'Final Push'];
-    const currentPhase = phases[Math.floor((videoElement.currentTime / duration) * phases.length)];
-    
-    // Analyze team dominance based on actions
-    const teamActions = new Map<string, number>();
-    actions.forEach(action => {
-      const team = action.playerName.includes('Tagged') ? 'Your Team' : 'Opposition';
-      teamActions.set(team, (teamActions.get(team) || 0) + 1);
+  private calculatePerformanceMetrics(
+    playerTracking: PlayerTrackingData[],
+    tacticalAnalysis: TacticalAnalysis
+  ): PerformanceMetrics {
+    // Calculate individual player ratings
+    const individualRatings: PlayerRating[] = playerTracking.map(player => {
+      const keyActions = player.keyMoments.length;
+      const influence = this.calculatePlayerInfluence(player, tacticalAnalysis);
+
+      // Calculate ratings based on performance data
+      const technicalRating = Math.min(10, Math.max(1,
+        (keyActions * 0.5) + (player.totalDistance / 1000) * 0.3 + influence * 0.2
+      ));
+
+      const tacticalRating = Math.min(10, Math.max(1,
+        influence * 0.6 + (player.keyMoments.filter(m => m.outcome === 'successful').length / Math.max(1, keyActions)) * 0.4
+      ));
+
+      const physicalRating = Math.min(10, Math.max(1,
+        (player.totalDistance / 1000) * 0.4 + (player.maxSpeed / 10) * 0.3 + (player.averageSpeed / 5) * 0.3
+      ));
+
+      const overallRating = (technicalRating + tacticalRating + physicalRating) / 3;
+
+      return {
+        playerId: player.playerId,
+        playerName: player.playerName,
+        overallRating: Math.round(overallRating * 10) / 10,
+        technicalRating: Math.round(technicalRating * 10) / 10,
+        tacticalRating: Math.round(tacticalRating * 10) / 10,
+        physicalRating: Math.round(physicalRating * 10) / 10,
+        keyActions: keyActions,
+        influence: Math.round(influence * 10) / 10
+      };
     });
-    
-    const dominatingTeam = Array.from(teamActions.entries())
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Balanced';
-    
-    const intensity = actions.reduce((sum, a) => sum + a.metrics.intensity, 0) / actions.length;
-    
-    const keyEvents = actions
-      .filter(a => a.metrics.effectiveness > 0.85)
-      .slice(0, 8)
-      .map(a => ({
-        timestamp: a.timestamp,
-        event: a.action,
-        impact: a.metrics.effectiveness > 0.9 ? 'Game Changing' : 'Significant'
-      }));
-    
+
+    // Calculate team metrics
+    const overallTeamRating = individualRatings.reduce((sum, rating) => sum + rating.overallRating, 0) / individualRatings.length;
+
+    const tacticalEffectiveness = this.calculateTacticalEffectiveness(tacticalAnalysis);
+    const physicalPerformance = individualRatings.reduce((sum, rating) => sum + rating.physicalRating, 0) / individualRatings.length;
+    const technicalExecution = individualRatings.reduce((sum, rating) => sum + rating.technicalRating, 0) / individualRatings.length;
+
     return {
-      gamePhase: currentPhase,
-      dominatingTeam,
-      intensity,
-      keyEvents
+      overallTeamRating: Math.round(overallTeamRating * 10) / 10,
+      individualRatings: individualRatings,
+      tacticalEffectiveness: Math.round(tacticalEffectiveness * 10) / 10,
+      physicalPerformance: Math.round(physicalPerformance * 10) / 10,
+      technicalExecution: Math.round(technicalExecution * 10) / 10
     };
   }
 
-  private async generateInsights(metrics: PerformanceMetrics[], gameContext: any, metadata: any) {
-    const taggedPlayerMetrics = metrics.find(m => m.isTaggedPlayer);
-    
-    let overallAssessment = '';
+  private calculatePlayerInfluence(player: PlayerTrackingData, tacticalAnalysis: TacticalAnalysis): number {
+    let influence = 0;
+
+    // Influence from key moments
+    influence += player.keyMoments.length * 0.3;
+
+    // Influence from tactical involvement
+    const pressingInvolvement = tacticalAnalysis.pressingMoments.filter(
+      moment => moment.playersInvolved.includes(player.playerId)
+    ).length;
+    influence += pressingInvolvement * 0.2;
+
+    const buildUpInvolvement = tacticalAnalysis.buildUpPlay.filter(
+      play => play.playersInvolved.includes(player.playerId)
+    ).length;
+    influence += buildUpInvolvement * 0.2;
+
+    const attackingInvolvement = tacticalAnalysis.attackingPatterns.filter(
+      pattern => pattern.playersInvolved.includes(player.playerId)
+    ).length;
+    influence += attackingInvolvement * 0.3;
+
+    return Math.min(10, influence);
+  }
+
+  private calculateTacticalEffectiveness(tacticalAnalysis: TacticalAnalysis): number {
+    let effectiveness = 0;
+
+    // Successful pressing percentage
+    const successfulPressing = tacticalAnalysis.pressingMoments.filter(m => m.success).length;
+    const pressingSuccessRate = tacticalAnalysis.pressingMoments.length > 0 ?
+      successfulPressing / tacticalAnalysis.pressingMoments.length : 0.5;
+    effectiveness += pressingSuccessRate * 0.3;
+
+    // Successful build-up play percentage
+    const successfulBuildUp = tacticalAnalysis.buildUpPlay.filter(p => p.outcome === 'successful').length;
+    const buildUpSuccessRate = tacticalAnalysis.buildUpPlay.length > 0 ?
+      successfulBuildUp / tacticalAnalysis.buildUpPlay.length : 0.5;
+    effectiveness += buildUpSuccessRate * 0.3;
+
+    // Successful defensive actions percentage
+    const successfulDefensive = tacticalAnalysis.defensiveActions.filter(d => d.success).length;
+    const defensiveSuccessRate = tacticalAnalysis.defensiveActions.length > 0 ?
+      successfulDefensive / tacticalAnalysis.defensiveActions.length : 0.5;
+    effectiveness += defensiveSuccessRate * 0.2;
+
+    // Attacking pattern success rate
+    const successfulAttacks = tacticalAnalysis.attackingPatterns.filter(a =>
+      a.outcome === 'goal' || a.outcome === 'shot'
+    ).length;
+    const attackingSuccessRate = tacticalAnalysis.attackingPatterns.length > 0 ?
+      successfulAttacks / tacticalAnalysis.attackingPatterns.length : 0.5;
+    effectiveness += attackingSuccessRate * 0.2;
+
+    return effectiveness * 10; // Scale to 0-10
+  }
+
+  private async generateIntelligentRecommendations(
+    playerTrackingResult: any,
+    sportSpecificInsights: SportSpecificInsights,
+    videoType: string
+  ): Promise<string[]> {
     const recommendations: string[] = [];
-    
-    if (taggedPlayerMetrics) {
-      const { metricsData } = taggedPlayerMetrics;
-      
-      if (metricsData.technicalScore > 0.8) {
-        overallAssessment += 'Exceptional technical performance with outstanding ball control and skill execution. ';
-        recommendations.push('Continue developing advanced technical skills for elite-level play');
-      } else if (metricsData.technicalScore > 0.6) {
-        overallAssessment += 'Solid technical foundation with room for refinement. ';
-        recommendations.push('Focus on first touch consistency and ball manipulation under pressure');
-      }
-      
-      if (metricsData.tacticalAwareness > 0.7) {
-        overallAssessment += 'Strong tactical understanding and positioning intelligence. ';
-        recommendations.push('Explore advanced tactical concepts and leadership roles');
-      } else {
-        recommendations.push('Develop game reading skills and positional awareness');
-      }
-      
-      if (metricsData.physicalPresence > 0.7) {
-        overallAssessment += 'Excellent physical attributes and intensity throughout the match. ';
-      } else {
-        recommendations.push('Work on physical conditioning and match intensity');
-      }
-      
-    } else {
-      overallAssessment = `Comprehensive analysis completed despite tagged player absence. ${metrics.length} players analyzed with detailed performance insights. Strong overall match analysis with tactical and technical observations across all detected players.`;
-      recommendations.push('Review footage for tagged player visibility optimization');
-      recommendations.push('Consider multiple camera angles for better player tracking');
-    }
-    
-    return {
-      overallAssessment: overallAssessment || 'Detailed analysis completed with comprehensive performance insights.',
-      recommendations
-    };
-  }
 
-  private checkTaggedPlayerPresence(detections: PlayerDetection[]): boolean {
-    return detections.some(d => d.isTaggedPlayer);
-  }
-
-  private async saveAnalysisResults(results: VideoAnalysisResult) {
-    try {
-      console.log('Saving analysis results to database...');
-      
-      // For now, just log the results since we need to wait for types to be regenerated
-      console.log('Analysis results:', {
-        videoId: results.videoId,
-        taggedPlayerPresent: results.taggedPlayerPresent,
-        analysisStatus: results.analysisStatus,
-        playersDetected: results.detectedPlayers.length,
-        actionsAnalyzed: results.playerActions.length,
-        performanceMetrics: results.performanceMetrics.length
-      });
-      
-      // TODO: Uncomment when Supabase types are regenerated
-      /*
-      // Save main analysis result
-      const { error: analysisError } = await supabase
-        .from('enhanced_video_analysis')
-        .upsert({
-          video_id: results.videoId,
-          tagged_player_present: results.taggedPlayerPresent,
-          analysis_status: results.analysisStatus,
-          game_context: results.gameContext,
-          overall_assessment: results.overallAssessment,
-          recommendations: results.recommendations,
-          created_at: new Date().toISOString()
-        });
-      
-      if (analysisError) throw analysisError;
-      
-      // Save player detections
-      const detectionInserts = results.detectedPlayers.map(d => ({
-        video_id: results.videoId,
-        player_id: d.playerId,
-        player_name: d.playerName,
-        bounding_box: d.boundingBox,
-        confidence: d.confidence,
-        timestamp: d.timestamp,
-        is_tagged_player: d.isTaggedPlayer
-      }));
-      
-      const { error: detectionError } = await supabase
-        .from('player_detections')
-        .insert(detectionInserts);
-      
-      if (detectionError) throw detectionError;
-      
-      // Save player actions
-      const actionInserts = results.playerActions.map(a => ({
-        video_id: results.videoId,
-        player_id: a.playerId,
-        timestamp: a.timestamp,
-        action: a.action,
-        description: a.description,
-        category: a.category,
-        confidence: a.confidence,
-        metrics: a.metrics,
-        position: a.position
-      }));
-      
-      const { error: actionError } = await supabase
-        .from('player_actions')
-        .insert(actionInserts);
-      
-      if (actionError) throw actionError;
-      
-      // Save performance metrics
-      const metricsInserts = results.performanceMetrics.map(m => ({
-        video_id: results.videoId,
-        player_id: m.playerId,
-        player_name: m.playerName,
-        is_tagged_player: m.isTaggedPlayer,
-        metrics_data: m.metricsData,
-        key_moments: m.keyMoments
-      }));
-      
-      const { error: metricsError } = await supabase
-        .from('performance_metrics')
-        .insert(metricsInserts);
-      
-      if (metricsError) throw metricsError;
-      */
-      
-      console.log('Analysis results saved successfully');
-      
-    } catch (error) {
-      console.error('Error saving analysis results:', error);
-      throw error;
+    // Tactical recommendations
+    if (sportSpecificInsights.tacticalStyle === 'High Pressing') {
+      recommendations.push('Consider varying pressing intensity to maintain energy levels throughout the match');
     }
+
+    if (sportSpecificInsights.areasForImprovement.includes('Improve passing accuracy and ball retention')) {
+      recommendations.push('Focus on passing drills and first touch training to improve ball retention');
+    }
+
+    // Individual player recommendations
+    const lowRatedPlayers = sportSpecificInsights.performanceMetrics.individualRatings.filter(
+      rating => rating.overallRating < 6
+    );
+
+    if (lowRatedPlayers.length > 0) {
+      recommendations.push(`Provide additional coaching support for ${lowRatedPlayers.map(p => p.playerName).join(', ')} to improve overall performance`);
+    }
+
+    // Formation recommendations
+    if (sportSpecificInsights.formation === 'Unknown' || sportSpecificInsights.formation === 'Unclear') {
+      recommendations.push('Work on clearer formation structure and player positioning during training');
+    }
+
+    // Physical performance recommendations
+    if (sportSpecificInsights.performanceMetrics.physicalPerformance < 7) {
+      recommendations.push('Increase focus on physical conditioning and endurance training');
+    }
+
+    // Technical execution recommendations
+    if (sportSpecificInsights.performanceMetrics.technicalExecution < 7) {
+      recommendations.push('Implement more technical skill drills and ball work in training sessions');
+    }
+
+    // Tactical effectiveness recommendations
+    if (sportSpecificInsights.performanceMetrics.tacticalEffectiveness < 7) {
+      recommendations.push('Review tactical implementation and team coordination during match situations');
+    }
+
+    return recommendations.length > 0 ? recommendations : ['Continue current training approach and monitor progress'];
   }
 }

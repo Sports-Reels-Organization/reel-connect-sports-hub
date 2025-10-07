@@ -22,7 +22,7 @@ export interface AnalysisParams {
 // Use a simple string return type that matches what we store in the database
 export const analyzeVideoWithGemini = async (params: AnalysisParams): Promise<string> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
 
     // Create detailed prompt based on video type
     let analysisPrompt = '';

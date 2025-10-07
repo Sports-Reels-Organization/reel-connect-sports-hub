@@ -46,7 +46,7 @@ export const EnhancedPlayerTagging: React.FC<EnhancedPlayerTaggingProps> = ({
 
     try {
       setLoading(true);
-      
+
       // Get team ID
       const { data: teamData } = await supabase
         .from('teams')
@@ -128,7 +128,7 @@ export const EnhancedPlayerTagging: React.FC<EnhancedPlayerTaggingProps> = ({
           Tag Players (Jersey Numbers Required)
         </CardTitle>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* Add Player Form */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -141,7 +141,15 @@ export const EnhancedPlayerTagging: React.FC<EnhancedPlayerTaggingProps> = ({
                 .filter(player => !selectedPlayers.some(sp => sp.playerId === player.id))
                 .map((player) => (
                   <SelectItem key={player.id} value={player.id}>
-                    {player.full_name} ({player.position})
+                    <div className="flex items-center gap-2">
+                      <span>{player.full_name}</span>
+                      {player.jersey_number && (
+                        <Badge className="bg-bright-pink text-white text-xs px-1.5 py-0.5 font-bold">
+                          #{player.jersey_number}
+                        </Badge>
+                      )}
+                      <span className="text-gray-400">({player.position})</span>
+                    </div>
                   </SelectItem>
                 ))}
             </SelectContent>

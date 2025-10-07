@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MapPin, Calendar, Trophy, User, Play, MessageCircle, Star } from 'lucide-react';
 import VideoPlayer from './VideoPlayer';
 import { supabase } from '@/integrations/supabase/client';
+import { SmartThumbnail } from './SmartThumbnail';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -221,7 +222,7 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
 
   const handleMessageTeam = () => {
     if (!player || !teamOwnerProfile) return;
-    
+
     if (onMessagePlayer) {
       onMessagePlayer(teamOwnerProfile.id, `Team Owner - ${player.full_name}`);
     }
@@ -297,8 +298,8 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
             <div className="flex gap-2">
               <Button
                 onClick={isShortlisted ? handleRemoveFromShortlist : handleAddToShortlist}
-                className={isShortlisted 
-                  ? "bg-gray-600 hover:bg-gray-700 text-white" 
+                className={isShortlisted
+                  ? "bg-gray-600 hover:bg-gray-700 text-white"
                   : "bg-rosegold hover:bg-rosegold/90 text-black"
                 }
               >
@@ -453,17 +454,11 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
                       {videos.map((video) => (
                         <Card key={video.id} className="bg-gray-800 border-rosegold/20 cursor-pointer hover:border-rosegold/50 transition-all">
                           <div className="relative aspect-video bg-black rounded-t-lg overflow-hidden">
-                            {video.thumbnail_url ? (
-                              <img
-                                src={video.thumbnail_url}
-                                alt={video.title}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex items-center justify-center h-full">
-                                <Play className="w-12 h-12 text-rosegold" />
-                              </div>
-                            )}
+                            <SmartThumbnail
+                              thumbnailUrl={video.thumbnail_url}
+                              title={video.title}
+                              className="w-full h-full object-cover"
+                            />
                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                               <Button
                                 onClick={() => setSelectedVideo(video)}

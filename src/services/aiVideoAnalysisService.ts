@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { r2VideoRetrievalService } from './r2VideoRetrievalService';
 
 export interface VideoAnalysisResult {
   videoId: string;
@@ -188,20 +189,33 @@ export class AIVideoAnalysisService {
     this.updateProgress(0, 'Initializing AI analysis...');
 
     try {
+      // Step 1: Retrieve video from R2 (or use existing URL for legacy videos)
+      this.updateProgress(5, 'Retrieving video from storage...');
+      const videoRetrieval = await r2VideoRetrievalService.getVideoForAnalysis(videoUrl, {
+        useSignedUrl: false, // Use public URLs for AI analysis
+      });
+
+      if (!videoRetrieval.success || !videoRetrieval.videoUrl) {
+        throw new Error(videoRetrieval.error || 'Failed to retrieve video for analysis');
+      }
+
+      const analysisVideoUrl = videoRetrieval.videoUrl;
+      this.updateProgress(10, 'Video retrieved, starting analysis...');
+
       let analysisData: any;
 
       switch (this.videoType) {
         case 'interview':
-          analysisData = await this.analyzeInterviewVideo(videoUrl, metadata);
+          analysisData = await this.analyzeInterviewVideo(analysisVideoUrl, metadata);
           break;
         case 'highlight':
-          analysisData = await this.analyzeHighlightVideo(videoUrl, metadata);
+          analysisData = await this.analyzeHighlightVideo(analysisVideoUrl, metadata);
           break;
         case 'training':
-          analysisData = await this.analyzeTrainingVideo(videoUrl, metadata);
+          analysisData = await this.analyzeTrainingVideo(analysisVideoUrl, metadata);
           break;
         case 'match':
-          analysisData = await this.analyzeMatchVideo(videoUrl, metadata);
+          analysisData = await this.analyzeMatchVideo(analysisVideoUrl, metadata);
           break;
         default:
           throw new Error(`Unsupported video type: ${this.videoType}`);
@@ -229,17 +243,17 @@ export class AIVideoAnalysisService {
 
   private async analyzeInterviewVideo(videoUrl: string, metadata: any): Promise<InterviewAnalysisResult> {
     this.updateProgress(10, 'Extracting audio for transcription...');
-    
+
     // Simulate speech-to-text processing
     await this.simulateProcessing(2000);
     this.updateProgress(30, 'Transcribing speech...');
-    
+
     await this.simulateProcessing(3000);
     this.updateProgress(50, 'Analyzing sentiment and communication...');
-    
+
     await this.simulateProcessing(2000);
     this.updateProgress(70, 'Generating translations and keywords...');
-    
+
     await this.simulateProcessing(2000);
     this.updateProgress(90, 'Creating bio extract and subtitles...');
 
@@ -272,16 +286,16 @@ export class AIVideoAnalysisService {
 
   private async analyzeHighlightVideo(videoUrl: string, metadata: any): Promise<HighlightAnalysisResult> {
     this.updateProgress(10, 'Detecting key actions...');
-    
+
     await this.simulateProcessing(3000);
     this.updateProgress(30, 'Classifying skills and techniques...');
-    
+
     await this.simulateProcessing(3000);
     this.updateProgress(50, 'Comparing with similar players...');
-    
+
     await this.simulateProcessing(2000);
     this.updateProgress(70, 'Enhancing video quality...');
-    
+
     await this.simulateProcessing(2000);
     this.updateProgress(90, 'Generating highlight reel...');
 
@@ -358,13 +372,13 @@ export class AIVideoAnalysisService {
 
   private async analyzeTrainingVideo(videoUrl: string, metadata: any): Promise<TrainingAnalysisResult> {
     this.updateProgress(10, 'Analyzing biomechanics and movement...');
-    
+
     await this.simulateProcessing(4000);
     this.updateProgress(40, 'Detecting work rate and exercises...');
-    
+
     await this.simulateProcessing(3000);
     this.updateProgress(65, 'Generating coaching insights...');
-    
+
     await this.simulateProcessing(2000);
     this.updateProgress(85, 'Tracking progress and improvements...');
 
@@ -416,16 +430,16 @@ export class AIVideoAnalysisService {
 
   private async analyzeMatchVideo(videoUrl: string, metadata: any): Promise<MatchAnalysisResult> {
     this.updateProgress(10, 'Tracking players and jersey numbers...');
-    
+
     await this.simulateProcessing(4000);
     this.updateProgress(30, 'Recognizing events and actions...');
-    
+
     await this.simulateProcessing(4000);
     this.updateProgress(50, 'Generating heatmaps and positioning...');
-    
+
     await this.simulateProcessing(3000);
     this.updateProgress(70, 'Calculating xG and shot analysis...');
-    
+
     await this.simulateProcessing(2000);
     this.updateProgress(85, 'Analyzing tactics and formations...');
 
@@ -533,7 +547,7 @@ export class AIVideoAnalysisService {
 
   private generateHeatmapData(taggedPlayers: any[]) {
     const heatmaps: any = {};
-    
+
     taggedPlayers.forEach((player, index) => {
       const playerId = player.playerId || `player_${index}`;
       heatmaps[playerId] = {

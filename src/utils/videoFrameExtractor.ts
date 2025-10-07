@@ -39,14 +39,20 @@ export class VideoFrameExtractor {
       video.crossOrigin = 'anonymous';
       video.muted = true;
       video.playsInline = true;
+      video.preload = 'metadata';
 
       video.onloadedmetadata = () => {
         try {
           const frames: VideoFrame[] = [];
           const duration = video.duration;
+
+          if (!duration || duration === 0) {
+            reject(new Error('Video duration is not available or is zero'));
+            return;
+          }
+
           const frameInterval = duration / maxFrames;
           let frameCount = 0;
-
           let currentTime = 0;
 
           const extractFrame = (time: number) => {
@@ -61,6 +67,12 @@ export class VideoFrameExtractor {
 
           video.onseeked = () => {
             try {
+              // Check if video dimensions are available
+              if (!video.videoWidth || !video.videoHeight) {
+                reject(new Error('Video dimensions not available'));
+                return;
+              }
+
               // Set canvas dimensions
               const aspectRatio = video.videoWidth / video.videoHeight;
               let width = maxWidth;
@@ -107,8 +119,32 @@ export class VideoFrameExtractor {
         }
       };
 
-      video.onerror = () => {
-        reject(new Error('Failed to load video'));
+      video.onerror = (event) => {
+        console.error('Video loading error in extractFrames:', {
+          error: event,
+          videoSrc: video.src,
+          videoError: video.error
+        });
+        reject(new Error(`Failed to load video: ${video.src}. Check if the URL is accessible and CORS is properly configured.`));
+      };
+
+      // Add additional event listeners for better error handling
+      video.onabort = () => {
+        console.warn('Video loading aborted');
+        reject(new Error('Video loading was aborted'));
+      };
+
+      video.onstalled = () => {
+        console.warn('Video loading stalled, retrying...');
+        // Don't reject immediately, let it retry
+      };
+
+      video.onloadstart = () => {
+        console.log('Video loading started');
+      };
+
+      video.oncanplay = () => {
+        console.log('Video can start playing');
       };
 
       video.src = videoUrl;
@@ -127,6 +163,7 @@ export class VideoFrameExtractor {
       video.crossOrigin = 'anonymous';
       video.muted = true;
       video.playsInline = true;
+      video.preload = 'metadata';
 
       video.onloadedmetadata = () => {
         try {
@@ -138,6 +175,12 @@ export class VideoFrameExtractor {
 
       video.onseeked = () => {
         try {
+          // Check if video dimensions are available
+          if (!video.videoWidth || !video.videoHeight) {
+            reject(new Error('Video dimensions not available'));
+            return;
+          }
+
           // Set canvas dimensions
           const aspectRatio = video.videoWidth / video.videoHeight;
           let width = maxWidth;
@@ -168,8 +211,13 @@ export class VideoFrameExtractor {
         }
       };
 
-      video.onerror = () => {
-        reject(new Error('Failed to load video'));
+      video.onerror = (event) => {
+        console.error('Video loading error:', {
+          error: event,
+          videoSrc: video.src,
+          videoError: video.error
+        });
+        reject(new Error(`Failed to load video: ${video.src}. Check if the URL is accessible and CORS is properly configured.`));
       };
 
       video.src = videoUrl;

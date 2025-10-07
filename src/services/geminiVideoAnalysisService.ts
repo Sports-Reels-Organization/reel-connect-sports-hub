@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export interface GeminiVideoAnalysisConfig {
   apiKey: string;
-  model: 'gemini-2.5-flash';
+  model: 'gemini-2.5-pro';
   maxTokens?: number;
   temperature?: number;
 }
@@ -179,8 +179,8 @@ export class GeminiVideoAnalysisService {
   }
 
   private selectModel(videoType: string): string {
-    // Always use gemini-2.5-flash for all video types
-    return 'gemini-2.5-flash';
+    // Always use gemini-2.5-pro for all video types
+    return 'gemini-2.5-pro';
   }
 
   private buildAnalysisPrompt(request: GeminiAnalysisRequest): string {

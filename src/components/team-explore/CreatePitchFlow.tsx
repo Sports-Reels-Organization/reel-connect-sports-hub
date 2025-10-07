@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { SmartThumbnail } from '../SmartThumbnail';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -243,9 +244,8 @@ const CreatePitchFlow = ({ onClose }: { onClose: () => void }) => {
                 {players.map((player) => (
                   <Card
                     key={player.id}
-                    className={`cursor-pointer transition-colors ${
-                      pitchData.playerId === player.id ? 'border-rosegold bg-rosegold/10' : 'border-gray-600 hover:border-gray-500'
-                    }`}
+                    className={`cursor-pointer transition-colors ${pitchData.playerId === player.id ? 'border-rosegold bg-rosegold/10' : 'border-gray-600 hover:border-gray-500'
+                      }`}
                     onClick={() => setPitchData({ ...pitchData, playerId: player.id })}
                   >
                     <CardContent className="p-3">
@@ -286,9 +286,8 @@ const CreatePitchFlow = ({ onClose }: { onClose: () => void }) => {
                 return (
                   <Card
                     key={video.id}
-                    className={`cursor-pointer transition-colors ${
-                      isSelected ? 'border-rosegold bg-rosegold/10' : 'border-gray-600 hover:border-gray-500'
-                    }`}
+                    className={`cursor-pointer transition-colors ${isSelected ? 'border-rosegold bg-rosegold/10' : 'border-gray-600 hover:border-gray-500'
+                      }`}
                     onClick={() => {
                       if (isSelected) {
                         setPitchData({
@@ -304,13 +303,13 @@ const CreatePitchFlow = ({ onClose }: { onClose: () => void }) => {
                     }}
                   >
                     <CardContent className="p-3">
-                      {video.thumbnail_url && (
-                        <img
-                          src={video.thumbnail_url}
-                          alt={video.title}
-                          className="w-full h-24 object-cover rounded mb-2"
+                      <div className="w-full h-24 rounded mb-2 overflow-hidden">
+                        <SmartThumbnail
+                          thumbnailUrl={video.thumbnail_url}
+                          title={video.title}
+                          className="w-full h-full object-cover"
                         />
-                      )}
+                      </div>
                       <p className="text-sm text-white font-medium">{video.title}</p>
                       {isSelected && (
                         <Badge className="mt-2 bg-rosegold text-white">Selected</Badge>
@@ -338,7 +337,7 @@ const CreatePitchFlow = ({ onClose }: { onClose: () => void }) => {
                 <label className="text-sm font-medium text-gray-300">Transfer Type</label>
                 <Select
                   value={pitchData.transferType}
-                  onValueChange={(value: 'permanent' | 'loan') => 
+                  onValueChange={(value: 'permanent' | 'loan') =>
                     setPitchData({ ...pitchData, transferType: value })
                   }
                 >

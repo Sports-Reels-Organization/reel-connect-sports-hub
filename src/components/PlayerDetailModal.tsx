@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { SmartThumbnail } from './SmartThumbnail';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { r2VideoRetrievalService } from '@/services/r2VideoRetrievalService';
 import {
   User,
   Calendar,
@@ -123,7 +125,7 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   const fetchPlayerVideos = async () => {
     try {
       setLoading(true);
-      
+
       // Only fetch videos if player has a valid team_id
       if (!player.team_id) {
         setVideos([]);
@@ -572,24 +574,26 @@ const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                       <Card key={video.id} className="bg-gray-800 border-gray-700 hover:border-rosegold/50 transition-colors group">
                         <CardContent className="p-4">
                           <div className="aspect-video bg-gray-700 rounded-lg mb-3 relative overflow-hidden">
-                            {video.thumbnail_url ? (
-                              <img
-                                src={video.thumbnail_url}
-                                alt={video.title}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Video className="w-8 h-8 text-gray-400" />
-                              </div>
-                            )}
+                            <SmartThumbnail
+                              thumbnailUrl={video.thumbnail_url}
+                              title={video.title}
+                              className="w-full h-full object-cover"
+                            />
                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="flex gap-2">
                                 <Button
                                   size="sm"
                                   variant="secondary"
                                   className="bg-white/20 hover:bg-white/30 text-white border-0"
-                                  onClick={() => window.open(video.video_url, '_blank')}
+                                  onClick={async () => {
+                                    // Get signed URL before opening
+                                    const videoRetrieval = await r2VideoRetrievalService.getVideoForPlayback(video.video_url);
+                                    if (videoRetrieval.success && videoRetrieval.videoUrl) {
+                                      window.open(videoRetrieval.videoUrl, '_blank');
+                                    } else {
+                                      console.error('Failed to get video URL:', videoRetrieval.error);
+                                    }
+                                  }}
                                 >
                                   <Play className="w-4 h-4 mr-1" />
                                   Play

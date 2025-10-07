@@ -14,6 +14,7 @@ import {
   FileText
 } from 'lucide-react';
 import { analyzeVideoWithGemini } from '@/services/geminiAnalysisService';
+import { r2VideoRetrievalService } from '@/services/r2VideoRetrievalService';
 
 interface VideoAnalysisInterfaceProps {
   videoId: string;
@@ -71,7 +72,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
           analysis_status: videoData.ai_analysis_status || 'completed',
           video_type: analysis.video_type || 'video',
           analyzed_at: analysis.analyzed_at,
-          model_used: analysis.model_used || 'gemini-2.5-flash'
+          model_used: analysis.model_used || 'gemini-2.5-pro'
         });
         return;
       }
@@ -94,7 +95,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
           analysis_status: matchVideoData.ai_analysis_status || 'completed',
           video_type: analysis.video_type || 'match',
           analyzed_at: analysis.analyzed_at,
-          model_used: analysis.model_used || 'gemini-2.5-flash'
+          model_used: analysis.model_used || 'gemini-2.5-pro'
         });
         return;
       }
@@ -122,8 +123,18 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
       const isMatchVideo = videoRecord.opposing_team !== undefined;
       const videoType = isMatchVideo ? 'match' : 'video';
 
+      // Retrieve video from R2 (or use existing URL for legacy videos)
+      const videoRetrieval = await r2VideoRetrievalService.getVideoForAnalysis(
+        videoRecord.video_url,
+        { expiresIn: 3600 } // 1 hour for analysis
+      );
+
+      if (!videoRetrieval.success || !videoRetrieval.videoUrl) {
+        throw new Error(videoRetrieval.error || 'Failed to retrieve video for analysis');
+      }
+
       const analysisData = {
-        videoUrl: videoRecord.video_url,
+        videoUrl: videoRetrieval.videoUrl,
         videoType: videoType as 'match' | 'interview' | 'training' | 'highlight',
         videoTitle: videoRecord.title || videoTitle,
         videoDescription: videoRecord.description || '',
@@ -141,7 +152,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         analysis: analysis,
         video_type: videoType,
         analyzed_at: new Date().toISOString(),
-        model_used: 'gemini-2.5-flash'
+        model_used: 'gemini-2.5-pro'
       };
 
       const { error: updateError } = await supabase
@@ -162,7 +173,7 @@ export const VideoAnalysisInterface: React.FC<VideoAnalysisInterfaceProps> = ({
         analysis_status: 'completed',
         video_type: videoType,
         analyzed_at: new Date().toISOString(),
-        model_used: 'gemini-2.5-flash'
+        model_used: 'gemini-2.5-pro'
       });
 
     } catch (err: any) {

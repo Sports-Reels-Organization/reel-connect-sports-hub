@@ -25,7 +25,7 @@ const PlayerComparison: React.FC<PlayerComparisonProps> = ({
 
   const addPlayerToComparison = (playerId: string) => {
     if (selectedPlayers.length >= 3) return;
-    
+
     const player = players.find(p => p.id === playerId);
     if (player && !selectedPlayers.find(p => p.id === playerId)) {
       setSelectedPlayers([...selectedPlayers, player]);
@@ -117,7 +117,15 @@ const PlayerComparison: React.FC<PlayerComparisonProps> = ({
                           .filter(player => !selectedPlayers.find(sp => sp.id === player.id))
                           .map(player => (
                             <SelectItem key={player.id} value={player.id}>
-                              {player.full_name} - {player.position}
+                              <div className="flex items-center gap-2">
+                                <span>{player.full_name}</span>
+                                {player.jersey_number && (
+                                  <Badge className="bg-bright-pink text-white text-xs px-1.5 py-0.5 font-bold">
+                                    #{player.jersey_number}
+                                  </Badge>
+                                )}
+                                <span className="text-gray-400">- {player.position}</span>
+                              </div>
                             </SelectItem>
                           ))
                         }
@@ -154,7 +162,7 @@ const PlayerComparison: React.FC<PlayerComparisonProps> = ({
                       {selectedPlayers.map((player, playerIndex) => {
                         const value = player[row.key as keyof DatabasePlayer];
                         const displayValue = row.format ? row.format(value) : formatValue(value);
-                        
+
                         return (
                           <td key={playerIndex} className="text-center text-gray-300 p-3 border-b border-gray-700">
                             {displayValue}

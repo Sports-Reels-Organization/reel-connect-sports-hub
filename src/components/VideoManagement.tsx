@@ -20,12 +20,15 @@ import {
   Brain,
   FileText,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  Edit,
+  Play
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import EnhancedVideoUploadForm from './EnhancedVideoUploadForm';
 import VideoAnalysisResults from './VideoAnalysisResults';
+import { SmartThumbnail } from './SmartThumbnail';
 
 interface Video {
   id: string;
@@ -102,7 +105,7 @@ const VideoManagement: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       const transformedVideos = (data || []).map(video => ({
         id: video.id,
         title: video.title,
@@ -113,12 +116,12 @@ const VideoManagement: React.FC = () => {
         created_at: video.created_at,
         duration: video.duration || 0,
         opposing_team: video.opposing_team || undefined,
-        final_score: video.final_score_home && video.final_score_away 
+        final_score: video.final_score_home && video.final_score_away
           ? `${video.final_score_home}-${video.final_score_away}`
           : undefined,
         league: undefined,
       }));
-      
+
       setVideos(transformedVideos);
     } catch (error) {
       console.error('Error loading videos:', error);
@@ -183,6 +186,22 @@ const VideoManagement: React.FC = () => {
     }
   };
 
+  const editVideo = (video: Video) => {
+    // TODO: Implement edit functionality
+    toast({
+      title: "Edit Video",
+      description: `Edit functionality for "${video.title}" will be implemented soon`,
+    });
+  };
+
+  const playVideo = (video: Video) => {
+    // TODO: Implement video playback
+    toast({
+      title: "Play Video",
+      description: `Playing "${video.title}"`,
+    });
+  };
+
   const formatDuration = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
@@ -209,7 +228,7 @@ const VideoManagement: React.FC = () => {
       interview: 'bg-purple-500',
       highlight: 'bg-orange-500'
     };
-    
+
     return (
       <Badge className={`${colors[type as keyof typeof colors]} text-white`}>
         {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -330,7 +349,7 @@ const VideoManagement: React.FC = () => {
               {videos.length === 0 ? 'No Videos Yet' : 'No Matching Videos'}
             </h3>
             <p className="text-gray-400 mb-6">
-              {videos.length === 0 
+              {videos.length === 0
                 ? 'Upload your first video to get started with AI analysis'
                 : 'Try adjusting your filters to see more videos'
               }
@@ -371,24 +390,18 @@ const VideoManagement: React.FC = () => {
           {filteredVideos.map((video) => (
             <Card key={video.id} className="bg-gray-800 border-gray-700 overflow-hidden hover:border-bright-pink/50 transition-colors">
               <div className="relative aspect-video bg-gray-900">
-                {video.thumbnail_url ? (
-                  <img
-                    src={video.thumbnail_url}
-                    alt={video.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Video className="w-12 h-12 text-gray-600" />
-                  </div>
-                )}
-                
+                <SmartThumbnail
+                  thumbnailUrl={video.thumbnail_url}
+                  title={video.title}
+                  className="w-full h-full object-cover"
+                />
+
                 {video.duration > 0 && (
                   <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-white text-xs">
                     {formatDuration(video.duration)}
                   </div>
                 )}
-                
+
                 <div className="absolute top-2 left-2">
                   {getStatusBadge(video.ai_analysis_status)}
                 </div>
@@ -399,14 +412,35 @@ const VideoManagement: React.FC = () => {
                   <h3 className="text-white font-medium line-clamp-2 flex-1">
                     {video.title}
                   </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteVideo(video.id)}
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => playVideo(video)}
+                      className="text-gray-400 hover:text-blue-500"
+                      title="Play Video"
+                    >
+                      <Play className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => editVideo(video)}
+                      className="text-gray-400 hover:text-yellow-500"
+                      title="Edit Video"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteVideo(video.id)}
+                      className="text-gray-400 hover:text-red-500"
+                      title="Delete Video"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 mb-3">
@@ -431,7 +465,7 @@ const VideoManagement: React.FC = () => {
                   {video.ai_analysis_status === 'completed' ? (
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button 
+                        <Button
                           size="sm"
                           className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white"
                         >
@@ -453,7 +487,7 @@ const VideoManagement: React.FC = () => {
                       </DialogContent>
                     </Dialog>
                   ) : (
-                    <Button 
+                    <Button
                       size="sm"
                       variant="outline"
                       className="flex-1 border-gray-600 text-gray-400"

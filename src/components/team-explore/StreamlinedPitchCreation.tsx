@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Target, Clock } from 'lucide-react';
 
@@ -30,12 +31,13 @@ interface Player {
   position: string;
   citizenship: string;
   photo_url?: string;
+  jersey_number?: string;
 }
 
 const StreamlinedPitchCreation: React.FC<StreamlinedPitchCreationProps> = ({
   isOpen = true,
-  onClose = () => {},
-  onPitchCreated = () => {}
+  onClose = () => { },
+  onPitchCreated = () => { }
 }) => {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -51,7 +53,7 @@ const StreamlinedPitchCreation: React.FC<StreamlinedPitchCreationProps> = ({
     expiresAt: ''
   });
 
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     fetchEligiblePlayers();
@@ -98,7 +100,7 @@ const StreamlinedPitchCreation: React.FC<StreamlinedPitchCreationProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!profile?.id) {
       toast({
         title: "Error",
@@ -109,7 +111,7 @@ const StreamlinedPitchCreation: React.FC<StreamlinedPitchCreationProps> = ({
     }
 
     // Validate form
-    const newErrors: {[key: string]: string} = {};
+    const newErrors: { [key: string]: string } = {};
     if (!formData.playerId) newErrors.playerId = 'Please select a player';
     if (!formData.askingPrice) newErrors.askingPrice = 'Please enter asking price';
     if (!formData.description) newErrors.description = 'Please enter description';
@@ -217,14 +219,21 @@ const StreamlinedPitchCreation: React.FC<StreamlinedPitchCreationProps> = ({
                     <SelectItem key={player.id} value={player.id} className="text-white">
                       <div className="flex items-center gap-3">
                         {player.photo_url && (
-                          <img 
-                            src={player.photo_url} 
+                          <img
+                            src={player.photo_url}
                             alt={player.full_name}
                             className="w-8 h-8 rounded-full"
                           />
                         )}
-                        <div>
-                          <div className="font-medium">{player.full_name}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{player.full_name}</span>
+                            {player.jersey_number && (
+                              <Badge className="bg-bright-pink text-white text-xs px-1.5 py-0.5 font-bold">
+                                #{player.jersey_number}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-sm text-gray-400">
                             {player.position} • {player.citizenship}
                           </div>
@@ -333,7 +342,7 @@ const StreamlinedPitchCreation: React.FC<StreamlinedPitchCreationProps> = ({
                   </>
                 )}
               </Button>
-              
+
               {onClose && (
                 <Button
                   type="button"

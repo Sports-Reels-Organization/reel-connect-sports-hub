@@ -6,12 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  BarChart3, 
-  Clock, 
-  Eye, 
-  Download, 
-  AlertCircle, 
+import { SmartVideoPlayer } from './SmartVideoPlayer';
+import {
+  BarChart3,
+  Clock,
+  Eye,
+  Download,
+  AlertCircle,
   CheckCircle,
   Play,
   Users,
@@ -238,7 +239,7 @@ const VideoAnalysisPageTabs: React.FC<VideoAnalysisPageTabsProps> = ({
         <CardContent className="p-6 text-center">
           <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-4" />
           <p className="text-red-400">{error}</p>
-          <Button 
+          <Button
             onClick={fetchAnalysisData}
             className="mt-4 bg-bright-pink hover:bg-bright-pink/90"
           >
@@ -278,25 +279,17 @@ const VideoAnalysisPageTabs: React.FC<VideoAnalysisPageTabsProps> = ({
             <TabsContent value="video" className="mt-6">
               <Card className="bg-gray-700 border-gray-600">
                 <CardContent className="p-6">
-                  {videoUrl ? (
-                    <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                      <video 
-                        controls 
-                        className="w-full h-full"
-                        src={videoUrl}
-                        preload="metadata"
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    </div>
-                  ) : (
-                    <div className="aspect-video bg-gray-600 rounded-lg flex items-center justify-center">
-                      <div className="text-center">
-                        <Play className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-400">Video not available</p>
-                      </div>
-                    </div>
-                  )}
+                  <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                    <SmartVideoPlayer
+                      videoUrl={videoUrl}
+                      thumbnailUrl={undefined}
+                      title={videoTitle || 'Video'}
+                      duration={undefined}
+                      className="w-full h-full"
+                      controls={true}
+                      autoPlay={false}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -321,7 +314,7 @@ const VideoAnalysisPageTabs: React.FC<VideoAnalysisPageTabsProps> = ({
                           <p className="text-gray-300">{analysis.overall_assessment}</p>
                         </div>
                       )}
-                      
+
                       {analysis.recommendations && analysis.recommendations.length > 0 && (
                         <div>
                           <h4 className="text-white font-semibold mb-2">Recommendations</h4>
@@ -434,7 +427,7 @@ const VideoAnalysisPageTabs: React.FC<VideoAnalysisPageTabsProps> = ({
                                 <div className="flex items-center gap-2">
                                   <Clock className="w-4 h-4 text-gray-400" />
                                   <span className="text-gray-400">{moment.timestamp}s</span>
-                                  <Badge 
+                                  <Badge
                                     variant={moment.rating >= 8 ? 'default' : 'secondary'}
                                     className={moment.rating >= 8 ? 'bg-green-600' : ''}
                                   >

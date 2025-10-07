@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { SmartThumbnail } from './SmartThumbnail';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  User, 
-  MapPin, 
-  Calendar, 
-  Ruler, 
-  Weight, 
+import {
+  User,
+  MapPin,
+  Calendar,
+  Ruler,
+  Weight,
   Trophy,
   Video,
   Play,
@@ -110,11 +111,11 @@ const PlayerProfileWrapper: React.FC<PlayerProfileWrapperProps> = ({
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
-    
+
     return age;
   };
 
@@ -163,12 +164,12 @@ const PlayerProfileWrapper: React.FC<PlayerProfileWrapperProps> = ({
                         <User className="w-4 h-4 text-gray-400" />
                         <span className="text-gray-300">{player.position || 'N/A'}</span>
                       </div>
-                      
+
                       {player.date_of_birth && (
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-400" />
                           <span className="text-gray-300">
-                            Age: {calculateAge(player.date_of_birth)} 
+                            Age: {calculateAge(player.date_of_birth)}
                             ({formatDate(player.date_of_birth)})
                           </span>
                         </div>
@@ -271,17 +272,11 @@ const PlayerProfileWrapper: React.FC<PlayerProfileWrapperProps> = ({
                           <Card key={video.id} className="bg-gray-600 border-gray-500 hover:border-bright-pink/50 transition-colors">
                             <CardContent className="p-4">
                               <div className="aspect-video bg-gray-800 rounded-lg mb-3 relative overflow-hidden">
-                                {video.thumbnail_url ? (
-                                  <img 
-                                    src={video.thumbnail_url} 
-                                    alt={video.title}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <Play className="w-12 h-12 text-gray-400" />
-                                  </div>
-                                )}
+                                <SmartThumbnail
+                                  thumbnailUrl={video.thumbnail_url}
+                                  title={video.title}
+                                  className="w-full h-full object-cover"
+                                />
                                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                                   <Button
                                     size="sm"
@@ -293,11 +288,11 @@ const PlayerProfileWrapper: React.FC<PlayerProfileWrapperProps> = ({
                                   </Button>
                                 </div>
                               </div>
-                              
+
                               <h4 className="text-white font-medium text-sm mb-2 truncate">
                                 {video.title}
                               </h4>
-                              
+
                               <div className="flex items-center justify-between text-xs text-gray-400">
                                 <span>{video.team_name || 'Unknown Team'}</span>
                                 <span>{formatDate(video.created_at)}</span>
@@ -338,8 +333,8 @@ const PlayerProfileWrapper: React.FC<PlayerProfileWrapperProps> = ({
 
       {/* Video Analysis Dialog */}
       {showVideoAnalysis && selectedVideoId && (
-        <Dialog 
-          open={showVideoAnalysis} 
+        <Dialog
+          open={showVideoAnalysis}
           onOpenChange={(open) => {
             if (!open) {
               setShowVideoAnalysis(false);

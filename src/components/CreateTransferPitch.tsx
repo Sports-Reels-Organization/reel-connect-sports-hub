@@ -501,7 +501,15 @@ const CreateTransferPitch: React.FC<CreateTransferPitchProps> = ({
                 <SelectContent className="bg-[#1a1a1a] border-0">
                   {players.map((player) => (
                     <SelectItem key={player.id} value={player.id} className="text-white">
-                      {player.full_name} - {player.position}
+                      <div className="flex items-center gap-2">
+                        <span>{player.full_name}</span>
+                        {player.jersey_number && (
+                          <Badge className="bg-bright-pink text-white text-xs px-1.5 py-0.5 font-bold">
+                            #{player.jersey_number}
+                          </Badge>
+                        )}
+                        <span className="text-gray-400">- {player.position}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>

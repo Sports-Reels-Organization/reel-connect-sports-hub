@@ -38,6 +38,7 @@ import {
   SkipBack
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { SmartVideoPlayer } from './SmartVideoPlayer';
 
 interface VideoAnalysisResultsProps {
   videoId: string;
@@ -61,7 +62,7 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
   videoType,
   teamId
 }) => {
-  
+
   const [videoData, setVideoData] = useState<any>({
     title: "Loading...",
     duration: "0:00",
@@ -117,7 +118,7 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
       if (!videoId) {
         return;
       }
-      
+
       try {
         setLoading(true);
         // Try to find the video by ID
@@ -141,7 +142,7 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
             description: data.description || '',
             video_type: data.video_type || 'highlight'
           };
-          
+
           setVideoData(mappedData);
         } else {
           setVideoData({
@@ -239,33 +240,16 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
         <Card className="bg-gray-800/50 border-gray-700/50 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-0">
             <div className="relative">
-                             <div className="aspect-video rounded-t-lg flex items-center justify-center relative overflow-hidden">
-                 {videoData?.video_url ? (
-                  <video
-                    src={videoData.video_url}
-                    className="w-full h-full object-cover"
-                    onTimeUpdate={(e) => setCurrentTime((e.target as HTMLVideoElement).currentTime)}
-                    onError={(e) => {
-                      console.error('Video loading error:', e);
-                      setVideoData(prev => ({
-                        ...prev,
-                        video_url: null
-                      }));
-                    }}
-                    controls
-                    preload="metadata"
-                  />
-                ) : (
-                  <div className="text-gray-400 flex flex-col items-center">
-                    <div className="w-24 h-24 bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                      <Play className="w-12 h-12 text-bright-pink" />
-                    </div>
-                    <span className="text-lg">No Video Available</span>
-                                         <span className="text-sm text-gray-500 mt-1">
-                       Video URL not found or video is loading.
-                     </span>
-                  </div>
-                )}
+              <div className="aspect-video rounded-t-lg overflow-hidden">
+                <SmartVideoPlayer
+                  videoUrl={videoData?.video_url}
+                  thumbnailUrl={videoData?.thumbnail_url}
+                  title={videoData?.title || 'Video'}
+                  duration={videoData?.duration}
+                  className="w-full h-full"
+                  controls={true}
+                  autoPlay={false}
+                />
 
                 {/* Video Overlay Controls */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300">
@@ -297,9 +281,9 @@ const VideoAnalysisResults: React.FC<VideoAnalysisResultsProps> = ({
               <div className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                                         <h3 className="text-white font-semibold text-xl mb-1">
-                       {videoData?.title}
-                     </h3>
+                    <h3 className="text-white font-semibold text-xl mb-1">
+                      {videoData?.title}
+                    </h3>
                     <div className="flex items-center gap-4 text-gray-400 text-sm">
                       <span className="flex items-center gap-1">
                         <Timer className="w-4 h-4" />

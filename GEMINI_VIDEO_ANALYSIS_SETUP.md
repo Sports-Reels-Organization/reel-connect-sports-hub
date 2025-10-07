@@ -1,12 +1,15 @@
 # Gemini 2.5 Pro Video Analysis Setup Guide
 
-This guide will help you set up the enhanced video analysis system powered by Google's Gemini 2.5 Pro AI model.
+This guide will help you set up the enhanced video analysis system powered by
+Google's Gemini 2.5 Pro AI model.
 
 ## 🚀 Features
 
 - **Real AI Analysis**: Powered by Gemini 2.5 Pro instead of mock data
-- **Multi-Sport Support**: Football, Basketball, Volleyball, Tennis, Rugby, Baseball, Soccer
-- **Video Types**: Match analysis, Training sessions, Highlight reels, Interview analysis
+- **Multi-Sport Support**: Football, Basketball, Volleyball, Tennis, Rugby,
+  Baseball, Soccer
+- **Video Types**: Match analysis, Training sessions, Highlight reels, Interview
+  analysis
 - **Frame Extraction**: Automatic video frame extraction for AI processing
 - **Player Tracking**: Tag and analyze specific players
 - **Tactical Insights**: Formation analysis, pressing patterns, team shape
@@ -70,9 +73,9 @@ Check that all components are properly imported:
 
 ```typescript
 // These imports should work without errors
-import { GeminiVideoAnalysisService } from '@/services/geminiVideoAnalysisService';
-import { VideoFrameExtractor } from '@/utils/videoFrameExtractor';
-import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
+import { GeminiVideoAnalysisService } from "@/services/geminiVideoAnalysisService";
+import { VideoFrameExtractor } from "@/utils/videoFrameExtractor";
+import { useVideoAnalysis } from "@/hooks/useVideoAnalysis";
 ```
 
 ## 🎯 Usage
@@ -80,7 +83,7 @@ import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
 ### Basic Video Analysis
 
 ```typescript
-import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
+import { useVideoAnalysis } from "@/hooks/useVideoAnalysis";
 
 const MyComponent = () => {
   const {
@@ -88,20 +91,25 @@ const MyComponent = () => {
     extractFrames,
     performAnalysis,
     analysisState,
-    analysisResult
+    analysisResult,
   } = useVideoAnalysis();
 
   const handleAnalysis = async () => {
     // 1. Upload video
     const file = event.target.files[0];
     await handleVideoUpload(file);
-    
+
     // 2. Extract frames
     await extractFrames();
-    
+
     // 3. Perform AI analysis
-    const result = await performAnalysis('match', 'football', [
-      { playerId: '1', playerName: 'John Doe', jerseyNumber: 10, position: 'Forward' }
+    const result = await performAnalysis("match", "football", [
+      {
+        playerId: "1",
+        playerName: "John Doe",
+        jerseyNumber: 10,
+        position: "Forward",
+      },
     ]);
   };
 
@@ -116,13 +124,13 @@ const MyComponent = () => {
 ### Advanced Configuration
 
 ```typescript
-import { GeminiVideoAnalysisService } from '@/services/geminiVideoAnalysisService';
+import { GeminiVideoAnalysisService } from "@/services/geminiVideoAnalysisService";
 
 const geminiService = new GeminiVideoAnalysisService({
   apiKey: import.meta.env.VITE_GEMINI_API_KEY,
-  model: 'gemini-2.0-flash-exp', // Best for match analysis
+  model: "gemini-2.5-pro", // Best for match analysis
   temperature: 0.1, // Low temperature for consistent results
-  maxTokens: 8192
+  maxTokens: 8192,
 });
 
 // Custom frame extraction
@@ -132,7 +140,7 @@ const frames = await frameExtractor.extractFrames(videoUrl, {
   maxFrames: 60, // Maximum 60 frames
   quality: 0.9, // High quality
   maxWidth: 1024, // Max width 1024px
-  maxHeight: 768  // Max height 768px
+  maxHeight: 768, // Max height 768px
 });
 ```
 
@@ -158,7 +166,7 @@ const frames = await frameExtractor.extractFrames(videoUrl, {
 
 ### Gemini Models
 
-- **`gemini-2.0-flash-exp`**: Best for complex match analysis
+- **`gemini-2.5-pro`**: Best for complex match analysis
 - **`gemini-1.5-pro`**: Good for detailed training and interview analysis
 - **`gemini-1.5-flash`**: Fast for highlight processing
 
@@ -280,4 +288,5 @@ For issues or questions:
 
 ---
 
-**Note**: This system requires an active Gemini API key and internet connection for AI analysis. Offline mode is not supported.
+**Note**: This system requires an active Gemini API key and internet connection
+for AI analysis. Offline mode is not supported.

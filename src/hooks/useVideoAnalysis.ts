@@ -68,7 +68,7 @@ export const useVideoAnalysis = () => {
       validateGeminiConfig();
       geminiServiceRef.current = new GeminiVideoAnalysisService({
         apiKey: GEMINI_CONFIG.API_KEY,
-        model: "gemini-2.5-flash" // Use literal type instead of variable
+        model: "gemini-2.5-pro" // Use literal type instead of variable
       });
       return true;
     } catch (error) {
@@ -113,7 +113,7 @@ export const useVideoAnalysis = () => {
     return new Promise((resolve, reject) => {
       const video = document.createElement('video');
       video.preload = 'metadata';
-      
+
       video.onloadedmetadata = () => {
         resolve({
           duration: video.duration,

@@ -21,7 +21,7 @@ export interface AnalysisParams {
 
 export const analyzeVideoWithAdvancedGemini = async (params: AnalysisParams): Promise<string> => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
 
     // Create a comprehensive analysis prompt that will generate real insights
     let analysisPrompt = `You are an expert sports analyst with deep knowledge of football/soccer. Analyze this ${params.videoType} video comprehensively and provide detailed, specific insights.

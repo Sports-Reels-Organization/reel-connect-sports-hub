@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { SmartThumbnail } from './SmartThumbnail';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  ArrowLeft, User, MapPin, Calendar, DollarSign, Trophy, 
+import {
+  ArrowLeft, User, MapPin, Calendar, DollarSign, Trophy,
   Star, Play, MessageSquare, Heart, Eye, TrendingUp,
   Building2, Flag, Clock, Video, Brain, Activity
 } from 'lucide-react';
@@ -69,7 +70,7 @@ const PlayerDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { toast } = useToast();
-  
+
   const [player, setPlayer] = useState<PlayerDetail | null>(null);
   const [transferPitch, setTransferPitch] = useState<TransferPitch | null>(null);
   const [videos, setVideos] = useState<PlayerVideo[]>([]);
@@ -152,7 +153,7 @@ const PlayerDetailPage: React.FC = () => {
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
@@ -273,7 +274,7 @@ const PlayerDetailPage: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex-1 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-white mb-2">{player.full_name}</h2>
@@ -353,7 +354,7 @@ const PlayerDetailPage: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  
+
                   {transferPitch.description && (
                     <div>
                       <p className="text-sm text-gray-400 mb-2">Description</p>
@@ -399,17 +400,11 @@ const PlayerDetailPage: React.FC = () => {
                       <Card key={video.id} className="bg-gray-700 border-gray-600">
                         <CardContent className="p-4">
                           <div className="aspect-video bg-black rounded-lg mb-3 relative">
-                            {video.thumbnail_url ? (
-                              <img
-                                src={video.thumbnail_url}
-                                alt={video.title}
-                                className="w-full h-full object-cover rounded-lg"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gray-800 rounded-lg flex items-center justify-center">
-                                <Video className="w-12 h-12 text-gray-400" />
-                              </div>
-                            )}
+                            <SmartThumbnail
+                              thumbnailUrl={video.thumbnail_url}
+                              title={video.title}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
                             <Button
                               size="sm"
                               className="absolute inset-0 m-auto bg-rosegold hover:bg-rosegold/90 text-white"
@@ -419,13 +414,13 @@ const PlayerDetailPage: React.FC = () => {
                               Play
                             </Button>
                           </div>
-                          
+
                           <h4 className="font-medium text-white mb-2">{video.title}</h4>
                           <div className="flex items-center justify-between text-sm text-gray-400">
                             <span>{video.video_type}</span>
                             <span>{Math.round(video.duration / 60)} min</span>
                           </div>
-                          
+
                           {video.ai_analysis_status === 'completed' && (
                             <Badge variant="outline" className="text-green-400 border-green-400 mt-2">
                               <Brain className="w-3 h-3 mr-1" />
@@ -586,7 +581,7 @@ const PlayerDetailPage: React.FC = () => {
                   },
                   duration: selectedVideo.duration
                 }}
-                onPlayerTagClick={() => {}}
+                onPlayerTagClick={() => { }}
               />
             </div>
           </div>

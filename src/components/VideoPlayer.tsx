@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Play, Pause, Volume, VolumeOff, Fullscreen, SkipBack, SkipForward, Activity, TrendingUp, Target, Zap, Brain, BarChart3 } from 'lucide-react';
 import { VideoAnalysisService, AIAnalysisEvent } from '@/services/videoAnalysisService';
+import { SmartVideoPlayer } from './SmartVideoPlayer';
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -33,7 +34,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const analysisServiceRef = useRef<VideoAnalysisService | null>(null);
-  
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -47,10 +48,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     // Initialize analysis service
     analysisServiceRef.current = new VideoAnalysisService(videoId);
-    
+
     // Load existing analysis
     loadExistingAnalysis();
-    
+
     return () => {
       if (analysisServiceRef.current) {
         analysisServiceRef.current.stopAnalysis();
@@ -88,7 +89,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const currentEvent = analysisEvents.find(
       event => Math.abs(event.timestamp - time) < 5
     );
-    
+
     if (currentEvent) {
       setCurrentAnalysis(currentEvent.description);
       setRealtimeInsights([currentEvent.description]);
@@ -136,10 +137,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (!video || !analysisServiceRef.current) return;
 
     setIsAnalyzing(true);
-    
+
     try {
       await analysisServiceRef.current.startRealTimeAnalysis(video, metadata);
-      
+
       // Periodically reload analysis events
       const refreshInterval = setInterval(async () => {
         if (analysisServiceRef.current) {
@@ -352,7 +353,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 Real-time AI Analysis
               </h3>
             </div>
-            
+
             <CardContent className="p-4 space-y-4 max-h-[600px] overflow-y-auto">
               {/* Analysis Status */}
               <div className="flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-rosegold/10 to-yellow-500/10 rounded-lg border border-rosegold/20">
@@ -380,15 +381,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     <BarChart3 className="w-4 h-4 text-rosegold" />
                     <span className="font-semibold text-black">Analysis Timeline</span>
                   </div>
-                  
+
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {analysisEvents
                       .sort((a, b) => b.timestamp - a.timestamp)
                       .map((event, index) => (
                         <div key={index} className="bg-gray-50 rounded-lg p-3 border-l-2 border-rosegold">
                           <div className="flex items-center justify-between mb-2">
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className="text-xs border-rosegold text-rosegold"
                             >
                               {formatTime(event.timestamp)}
