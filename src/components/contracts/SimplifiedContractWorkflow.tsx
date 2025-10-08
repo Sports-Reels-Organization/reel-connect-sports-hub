@@ -108,7 +108,7 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
     } else {
       fetchAllContracts(currentPage);
     }
-  }, [pitchId, contractId, currentPage, statusFilter, sortBy, sortOrder]);
+  }, [pitchId, contractId, currentPage, statusFilter, sortBy, sortOrder, profile?.id]);
 
   // Separate effect for search to avoid too many API calls
   useEffect(() => {
@@ -291,7 +291,10 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
   };
 
   const fetchAllContracts = async (page = 1) => {
-    if (!profile?.id) return;
+    if (!profile?.id) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -316,6 +319,7 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
         } else {
           setContracts([]);
           setTotalContracts(0);
+          setLoading(false);
           return;
         }
       } else if (profile.user_type === 'agent') {
@@ -330,6 +334,7 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
         } else {
           setContracts([]);
           setTotalContracts(0);
+          setLoading(false);
           return;
         }
       }
@@ -492,7 +497,7 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                   placeholder="Search contracts by player name, team, or contract ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 border-gray-600 bg-gray-800 text-white placeholder-gray-400"
+                  className="pl-10 border-gray-600 bg-[#111111] text-white placeholder-gray-400"
                 />
               </div>
             </div>
@@ -500,10 +505,10 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
             {/* Filters */}
             <div className="flex gap-3">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32 border-gray-600 bg-gray-800 text-white">
+                <SelectTrigger className="w-32 border-0 bg-[#111111] text-white">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectContent className=" bg-[#111111]">
                   <SelectItem value="all" className="text-white">All Status</SelectItem>
                   <SelectItem value="draft" className="text-white">Draft</SelectItem>
                   <SelectItem value="sent" className="text-white">Sent</SelectItem>
@@ -515,10 +520,10 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
               </Select>
 
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-32 border-gray-600 bg-gray-800 text-white">
+                <SelectTrigger className="w-32 border-0 bg-[#111111] text-white">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectContent className="bg-[#111111]">
                   <SelectItem value="created_at" className="text-white">Date Created</SelectItem>
                   <SelectItem value="contract_value" className="text-white">Contract Value</SelectItem>
                   <SelectItem value="status" className="text-white">Status</SelectItem>
