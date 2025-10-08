@@ -81,9 +81,24 @@ const TransferTimeline = () => {
   const [showContractWizard, setShowContractWizard] = useState(false);
   const [selectedPitchForContract, setSelectedPitchForContract] = useState<TimelinePitch | null>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [totalPitches, setTotalPitches] = useState(0);
+
+  // Pagination helpers
+  const totalPages = Math.ceil(totalPitches / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage + 1;
+  const endIndex = Math.min(currentPage * itemsPerPage, totalPitches);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
-    fetchPitches();
-  }, []);
+    fetchPitches(currentPage);
+  }, [currentPage]);
 
   // Listen for immediate updates from agent actions
   useEffect(() => {
@@ -136,16 +151,28 @@ const TransferTimeline = () => {
   }, [profile?.user_id, profile?.user_type, profile?.id, toast]);
 
 
-  const fetchPitches = async () => {
+  const fetchPitches = async (page = 1) => {
     try {
       setLoading(true);
 
-      // Simplified query to avoid foreign key relationship issues
+      const from = (page - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+
+      // Get total count
+      const { count } = await supabase
+        .from('transfer_pitches')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'active');
+
+      setTotalPitches(count || 0);
+
+      // Simplified query to avoid foreign key relationship issues with pagination
       const { data: pitchesData, error: pitchesError } = await supabase
         .from('transfer_pitches')
         .select('*')
         .eq('status', 'active')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (pitchesError) throw pitchesError;
 
@@ -640,6 +667,64 @@ const TransferTimeline = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPitches > itemsPerPage && (
+        <div className="mt-8 flex items-center justify-between">
+          <div className="text-sm text-gray-400">
+            Showing {startIndex} to {endIndex} of {totalPitches} pitches
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              variant="outline"
+              className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+            >
+              Previous
+            </Button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <Button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    className={`w-8 h-8 p-0 ${currentPage === pageNum
+                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "border-gray-600 text-white hover:bg-gray-700"
+                      }`}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <Button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              variant="outline"
+              className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
 

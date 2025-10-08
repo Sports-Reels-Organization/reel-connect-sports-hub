@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CountrySelect } from '@/components/ui/CountrySelect';
+import { LeagueSelect } from '@/components/ui/LeagueSelect';
+import { AssociationSelect } from '@/components/ui/AssociationSelect';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -15,9 +17,6 @@ import { Upload, Users, Trophy, Video, Plus, X, Camera, FileImage } from 'lucide
 import InfoTooltip from './InfoTooltip';
 import imageCompression from 'browser-image-compression';
 
-const leagues = [
-  'NLO', 'NNL', 'NPFL', 'N-YOUTH LEAGUE', 'TCC', 'FEDERATION CUP', 'FA CUP'
-];
 
 
 interface TeamData {
@@ -510,21 +509,14 @@ const TeamProfileSetup: React.FC = () => {
 
             <div className="space-y-2">
               <Label className="text-white">League/Competition *</Label>
-              <Select
+              <LeagueSelect
                 value={teamData.league}
                 onValueChange={(value) => setTeamData(prev => ({ ...prev, league: value }))}
-              >
-                <SelectTrigger className="bg-background border-border text-white">
-                  <SelectValue placeholder="Select league" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {leagues.map((league) => (
-                    <SelectItem key={league} value={league} className="text-white">
-                      {league}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                leagues={sportData.leagues}
+                placeholder="Select league"
+                triggerClassName="bg-background border-border text-white"
+                contentClassName="bg-card border-border"
+              />
             </div>
 
             <div className="space-y-2">
@@ -541,12 +533,13 @@ const TeamProfileSetup: React.FC = () => {
 
             <div className="space-y-2">
               <Label htmlFor="member_association" className="text-white">Member Association</Label>
-              <Input
-                id="member_association"
+              <AssociationSelect
                 value={teamData.member_association}
-                onChange={(e) => setTeamData(prev => ({ ...prev, member_association: e.target.value }))}
-                className="bg-background border-border text-white"
-                placeholder="e.g., NFF, CAF"
+                onValueChange={(value) => setTeamData(prev => ({ ...prev, member_association: value }))}
+                associations={sportData.associations}
+                placeholder="Select association"
+                triggerClassName="bg-background border-border text-white"
+                contentClassName="bg-card border-border"
               />
             </div>
           </div>

@@ -22,11 +22,11 @@ interface TeamExploreHubProps {
 
 export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
   const [searchParams] = useSearchParams();
-  const [defaultTab, setDefaultTab] = useState('timeline');
+  const [activeTab, setActiveTab] = useState('timeline');
   const { counts } = useNotificationCounts();
 
   // Auto-mark ALL notifications as read when communication tab is viewed
-  useAutoMarkNotificationsRead(defaultTab === 'communication');
+  useAutoMarkNotificationsRead(activeTab === 'communication');
 
   // Set up toast notifications for incoming alerts
   useNotificationToasts();
@@ -34,9 +34,13 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab && ['timeline', 'create', 'explore', 'communication', 'contracts', 'squad', 'analytics'].includes(tab)) {
-      setDefaultTab(tab);
+      setActiveTab(tab);
     }
   }, [searchParams]);
+
+  const handlePitchCreated = () => {
+    setActiveTab('timeline');
+  };
 
   return (
     <div className="min-h-screen  p-6">
@@ -54,7 +58,7 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
         </div>
 
         {/* Main Navigation Tabs */}
-        <Tabs defaultValue={defaultTab} className="w-full border-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full border-0">
           <TabsList className="grid w-full grid-cols-5 border-0">
             <TabsTrigger
               value="timeline"
@@ -106,7 +110,7 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
           </TabsContent>
 
           <TabsContent value="create" className="mt-6">
-            <StreamlinedPitchCreation />
+            <StreamlinedPitchCreation onPitchCreated={handlePitchCreated} />
           </TabsContent>
 
           <TabsContent value="explore" className="mt-6">

@@ -12,6 +12,8 @@ import { useCountries } from '@/hooks/useCountries';
 import { useCountryCodes } from '@/hooks/useCountryCodes';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CountrySelect } from '@/components/ui/CountrySelect';
+import { LeagueSelect } from '@/components/ui/LeagueSelect';
+import { useSportData } from '@/hooks/useSportData';
 import { AllowedSportType, requiresFifaId, isAllowedSportType } from '@/services/sportsService';
 import { ArrowLeft, User, Building, Users } from 'lucide-react';
 
@@ -52,6 +54,9 @@ const OnboardingFlow = () => {
     bio: '',
     website: ''
   });
+
+  // Get sport-specific data for leagues
+  const sportData = useSportData(teamInfo.sport_type, 'male');
 
   // Add function to handle role change
   const handleRoleChange = async (newRole: 'team' | 'agent') => {
@@ -499,12 +504,12 @@ const OnboardingFlow = () => {
                   </div>
                   <div className="space-y-2 text-start">
                     <Label htmlFor="league" className="text-gray-700 font-medium">League</Label>
-                    <Input
-                      id="league"
+                    <LeagueSelect
                       value={teamInfo.league}
-                      onChange={(e) => setTeamInfo({ ...teamInfo, league: e.target.value })}
-                      placeholder="e.g. NPFL, Premier League"
-                      className="outline-none border-0"
+                      onValueChange={(value) => setTeamInfo({ ...teamInfo, league: value })}
+                      leagues={sportData.leagues}
+                      placeholder="Select league"
+                      triggerClassName="outline-none border-0"
                     />
                   </div>
                 </div>

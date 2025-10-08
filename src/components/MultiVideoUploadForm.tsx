@@ -36,6 +36,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useSportData } from '@/hooks/useSportData';
+import { LeagueSelect } from '@/components/ui/LeagueSelect';
 import EnhancedVideoCompressionService from '@/services/enhancedVideoCompressionService';
 import { gpuVideoCompressionService, type GPUCompressionResult } from '@/services/gpuAcceleratedVideoCompressionService';
 import { fastVideoCompressionService, type FastCompressionResult } from '@/services/fastVideoCompressionServiceV2';
@@ -124,10 +126,14 @@ const MultiVideoUploadForm: React.FC<MultiVideoUploadFormProps> = ({
 
   const [videoItems, setVideoItems] = useState<VideoUploadItem[]>([]);
   const [teamPlayers, setTeamPlayers] = useState<TeamPlayer[]>([]);
+  const [teamSportType, setTeamSportType] = useState<string>('football');
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [overallProgress, setOverallProgress] = useState(0);
   const [loadingVideos, setLoadingVideos] = useState<Set<string>>(new Set());
+
+  // Get sport-specific data for leagues
+  const sportData = useSportData(teamSportType, 'male');
 
   const MAX_VIDEOS = 6;
   const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB - prevents memory issues during compression
@@ -150,6 +156,19 @@ const MultiVideoUploadForm: React.FC<MultiVideoUploadFormProps> = ({
     if (!teamId) return;
 
     try {
+      // Fetch team data to get sport type
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .select('sport_type')
+        .eq('id', teamId)
+        .single();
+
+      if (teamError) throw teamError;
+      if (teamData?.sport_type) {
+        setTeamSportType(teamData.sport_type);
+      }
+
+      // Fetch team players
       const { data, error } = await supabase
         .from('players')
         .select('id, full_name, position, jersey_number')
@@ -1117,14 +1136,15 @@ const MultiVideoUploadForm: React.FC<MultiVideoUploadFormProps> = ({
                           </div>
                           <div>
                             <Label htmlFor={`league-${videoItem.id}`} className="text-white text-sm">League *</Label>
-                            <Input
-                              id={`league-${videoItem.id}`}
+                            <LeagueSelect
                               value={videoItem.metadata.matchDetails?.league || ''}
-                              onChange={(e) => updateVideoMetadata(videoItem.id, {
-                                matchDetails: { ...videoItem.metadata.matchDetails!, league: e.target.value }
+                              onValueChange={(value) => updateVideoMetadata(videoItem.id, {
+                                matchDetails: { ...videoItem.metadata.matchDetails!, league: value }
                               })}
-                              className={`bg-gray-700 text-white border-gray-600 ${!videoItem.metadata.matchDetails?.league.trim() ? 'border-red-500' : ''}`}
-                              placeholder="League name"
+                              leagues={sportData.leagues}
+                              placeholder="Select league"
+                              triggerClassName={`bg-gray-700 text-white border-gray-600 ${!videoItem.metadata.matchDetails?.league.trim() ? 'border-red-500' : ''}`}
+                              contentClassName="bg-card border-border"
                             />
                           </div>
                           <div>

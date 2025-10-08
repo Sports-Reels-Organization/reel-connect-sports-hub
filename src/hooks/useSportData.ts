@@ -5,6 +5,7 @@ export interface SportData {
     positions: string[];
     leagues: string[];
     titles: string[];
+    associations: string[];
 }
 
 export interface SportSpecificData {
@@ -15,6 +16,8 @@ export interface SportSpecificData {
         female_leagues: string[];
         titles: string[];
         female_titles: string[];
+        associations: string[];
+        female_associations: string[];
     };
 }
 
@@ -22,28 +25,29 @@ export const useSportData = (sportType: string, gender: 'male' | 'female' | 'oth
     const [data, setData] = useState<SportData>({
         positions: [],
         leagues: [],
-        titles: []
+        titles: [],
+        associations: []
     });
 
     useEffect(() => {
         console.log('🏈 useSportData: Effect triggered', { sportType, gender });
-        
+
         if (!sportType) {
             console.log('🏈 useSportData: No sport type provided');
-            setData({ positions: [], leagues: [], titles: [] });
+            setData({ positions: [], leagues: [], titles: [], associations: [] });
             return;
         }
 
         const sportInfo = (sportsData as SportSpecificData)[sportType];
-        console.log('🏈 useSportData: Sport info lookup', { 
-            sportType, 
+        console.log('🏈 useSportData: Sport info lookup', {
+            sportType,
             sportInfo: sportInfo ? 'Found' : 'Not found',
             availableSports: Object.keys(sportsData)
         });
-        
+
         if (!sportInfo) {
             console.log('🏈 useSportData: Sport info not found for:', sportType);
-            setData({ positions: [], leagues: [], titles: [] });
+            setData({ positions: [], leagues: [], titles: [], associations: [] });
             return;
         }
 
@@ -53,15 +57,16 @@ export const useSportData = (sportType: string, gender: 'male' | 'female' | 'oth
         const newData = {
             positions: effectiveGender === 'female' ? sportInfo.female_positions : sportInfo.positions,
             leagues: effectiveGender === 'female' ? sportInfo.female_leagues : sportInfo.leagues,
-            titles: effectiveGender === 'female' ? sportInfo.female_titles : sportInfo.titles
+            titles: effectiveGender === 'female' ? sportInfo.female_titles : sportInfo.titles,
+            associations: effectiveGender === 'female' ? sportInfo.female_associations : sportInfo.associations
         };
-        
-        console.log('🏈 useSportData: Setting data', { 
-            effectiveGender, 
+
+        console.log('🏈 useSportData: Setting data', {
+            effectiveGender,
             positionsCount: newData.positions.length,
             positions: newData.positions
         });
-        
+
         setData(newData);
     }, [sportType, gender]);
 
@@ -79,7 +84,8 @@ export const hasGenderSpecificData = (sportType: string): boolean => {
     return sportInfo && (
         sportInfo.female_positions.length > 0 ||
         sportInfo.female_leagues.length > 0 ||
-        sportInfo.female_titles.length > 0
+        sportInfo.female_titles.length > 0 ||
+        sportInfo.female_associations.length > 0
     );
 };
 

@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Upload, Building2, Calendar, Globe, Award, FileImage } from 'lucide-react';
+import { useSportData } from '@/hooks/useSportData';
+import { AssociationSelect } from '@/components/ui/AssociationSelect';
 
 interface AgentProfileFormProps {
   onProfileComplete?: () => void;
@@ -32,6 +34,10 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
   });
 
   const sportTypes = ['football', 'basketball', 'volleyball', 'tennis', 'rugby'];
+
+  // Get sport-specific data for associations (use first specialization or default to football)
+  const primarySport = agentData.specialization.length > 0 ? agentData.specialization[0] : 'football';
+  const sportData = useSportData(primarySport, 'male');
 
   useEffect(() => {
     if (profile?.user_type === 'agent') {
@@ -280,11 +286,11 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
           {/* Member Association */}
           <div className="space-y-2">
             <Label htmlFor="member_association">Member Association</Label>
-            <Input
-              id="member_association"
+            <AssociationSelect
               value={agentData.member_association}
-              onChange={(e) => setAgentData(prev => ({ ...prev, member_association: e.target.value }))}
-              placeholder="e.g., FIFA, UEFA, Premier League"
+              onValueChange={(value) => setAgentData(prev => ({ ...prev, member_association: value }))}
+              associations={sportData.associations}
+              placeholder="Select association"
             />
           </div>
 

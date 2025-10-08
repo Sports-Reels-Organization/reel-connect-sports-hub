@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CountrySelect } from '@/components/ui/CountrySelect';
+import { LeagueSelect } from '@/components/ui/LeagueSelect';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -129,10 +130,10 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
   const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.8): Promise<string> => {
     return new Promise((resolve, reject) => {
       console.log('Starting compression for file:', file.name, 'Size:', file.size);
-      
+
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      
+
       if (!ctx) {
         console.error('Canvas context not available');
         reject(new Error('Canvas context not available'));
@@ -141,18 +142,18 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
 
       // Use FileReader to read the file
       const reader = new FileReader();
-      
+
       reader.onload = (e) => {
         console.log('FileReader loaded, creating image...');
         const img = new window.Image();
-        
+
         img.onload = () => {
           try {
             console.log('Image loaded, original dimensions:', img.width, 'x', img.height);
-            
+
             // Calculate new dimensions
             let { width, height } = img;
-            
+
             if (width > maxWidth) {
               height = (height * maxWidth) / width;
               width = maxWidth;
@@ -166,7 +167,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
             // Draw and compress
             ctx.drawImage(img, 0, 0, width, height);
             console.log('Image drawn to canvas');
-            
+
             // Convert to base64 with compression
             const base64 = canvas.toDataURL('image/jpeg', quality);
             console.log('Base64 generated, length:', base64.length);
@@ -181,7 +182,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
           console.error('Image load error:', error);
           reject(new Error('Failed to load image'));
         };
-        
+
         console.log('Setting image source...');
         img.src = e.target?.result as string;
       };
@@ -190,7 +191,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
         console.error('FileReader error:', error);
         reject(new Error('Failed to read file'));
       };
-      
+
       console.log('Starting FileReader...');
       reader.readAsDataURL(file);
     });
@@ -199,7 +200,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
   // File upload handler with base64 compression
   const handleFileUpload = async (file: File, fieldName: 'photo_url' | 'headshot_url' | 'portrait_url' | 'full_body_url') => {
     console.log('File upload started:', { file, fieldName, fileSize: file.size, fileType: file.type });
-    
+
     if (!file) {
       console.log('No file provided');
       return;
@@ -311,7 +312,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
         // Log activity for update
         const { PlayerActivityService } = await import('@/services/playerActivityService');
         const activityService = new PlayerActivityService(teamId);
-        
+
         const changedFields = PlayerActivityService.getChangedFields(player, playerData);
         if (changedFields.length > 0) {
           await activityService.logPlayerUpdated(player.id, player, playerData, changedFields);
@@ -707,18 +708,15 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
                 </div>
 
                 <div className="flex gap-2">
-                  <Select value={newLeague} onValueChange={setNewLeague}>
-                    <SelectTrigger className="bg-[#111111] border-0 text-white w-64">
-                      <SelectValue placeholder="Select league" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#1a1a1a] border-0">
-                      {sportData.leagues.map((league) => (
-                        <SelectItem key={league} value={league} className="text-white">
-                          {league}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="w-64">
+                    <LeagueSelect
+                      value={newLeague}
+                      onValueChange={setNewLeague}
+                      leagues={sportData.leagues}
+                      placeholder="Select league"
+                      triggerClassName="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
                   <Button type="button" onClick={addLeague} className="bg-rosegold hover:bg-rosegold/90">
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -844,75 +842,111 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <Input
-                    value={newInternational.season}
-                    onChange={(e) => setNewInternational({ ...newInternational, season: e.target.value })}
-                    placeholder="Season"
-                    className="bg-[#111111] border-0 text-white"
-                  />
-                  <Input
-                    value={newInternational.category}
-                    onChange={(e) => setNewInternational({ ...newInternational, category: e.target.value })}
-                    placeholder="Category"
-                    className="bg-[#111111] border-0 text-white"
-                  />
-                  <CountrySelect
-                    value={newInternational.country}
-                    onValueChange={(value) => setNewInternational({ ...newInternational, country: value })}
-                    placeholder="Country"
-                    triggerClassName="bg-[#111111] border-0 text-white"
-                    contentClassName="bg-[#1a1a1a] border-0"
-                  />
-                  <Input
-                    value={newInternational.debut}
-                    onChange={(e) => setNewInternational({ ...newInternational, debut: e.target.value })}
-                    placeholder="Debut Date"
-                    type="date"
-                    className="bg-[#111111] border-0 text-white"
-                  />
-                  <Input
-                    value={newInternational.appearances.toString()}
-                    onChange={(e) => setNewInternational({ ...newInternational, appearances: parseInt(e.target.value) || 0 })}
-                    placeholder="Appearances"
-                    type="number"
-                    className="bg-[#111111] border-0 text-white"
-                  />
-                  <Input
-                    value={newInternational.goals.toString()}
-                    onChange={(e) => setNewInternational({ ...newInternational, goals: parseInt(e.target.value) || 0 })}
-                    placeholder="Goals"
-                    type="number"
-                    className="bg-[#111111] border-0 text-white"
-                  />
-                  <Input
-                    value={newInternational.assists.toString()}
-                    onChange={(e) => setNewInternational({ ...newInternational, assists: parseInt(e.target.value) || 0 })}
-                    placeholder="Assists"
-                    type="number"
-                    className="bg-[#111111] border-0 text-white"
-                  />
-                  <Input
-                    value={newInternational.yellow_cards.toString()}
-                    onChange={(e) => setNewInternational({ ...newInternational, yellow_cards: parseInt(e.target.value) || 0 })}
-                    placeholder="Yellow Cards"
-                    type="number"
-                    className="bg-[#111111] border-0 text-white"
-                  />
-                  <Input
-                    value={newInternational.second_yellow.toString()}
-                    onChange={(e) => setNewInternational({ ...newInternational, second_yellow: parseInt(e.target.value) || 0 })}
-                    placeholder="Second Yellow"
-                    type="number"
-                    className="bg-[#111111] border-0 text-white"
-                  />
-                  <Input
-                    value={newInternational.red_cards.toString()}
-                    onChange={(e) => setNewInternational({ ...newInternational, red_cards: parseInt(e.target.value) || 0 })}
-                    placeholder="Red Cards"
-                    type="number"
-                    className="bg-[#111111] border-0 text-white"
-                  />
-                  <Button type="button" onClick={addInternational} className="bg-rosegold hover:bg-rosegold/90">
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Season *</Label>
+                    <Input
+                      value={newInternational.season}
+                      onChange={(e) => setNewInternational({ ...newInternational, season: e.target.value })}
+                      placeholder="e.g., 2023/24"
+                      className="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Category *</Label>
+                    <Input
+                      value={newInternational.category}
+                      onChange={(e) => setNewInternational({ ...newInternational, category: e.target.value })}
+                      placeholder="e.g., Senior, U23, U20"
+                      className="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Country *</Label>
+                    <CountrySelect
+                      value={newInternational.country}
+                      onValueChange={(value) => setNewInternational({ ...newInternational, country: value })}
+                      placeholder="Select country"
+                      triggerClassName="bg-[#111111] border-0 text-white"
+                      contentClassName="bg-[#1a1a1a] border-0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Debut Date</Label>
+                    <Input
+                      value={newInternational.debut}
+                      onChange={(e) => setNewInternational({ ...newInternational, debut: e.target.value })}
+                      placeholder="Debut date"
+                      type="date"
+                      className="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Appearances</Label>
+                    <Input
+                      value={newInternational.appearances.toString()}
+                      onChange={(e) => setNewInternational({ ...newInternational, appearances: parseInt(e.target.value) || 0 })}
+                      placeholder="Number of appearances"
+                      type="number"
+                      min="0"
+                      className="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Goals</Label>
+                    <Input
+                      value={newInternational.goals.toString()}
+                      onChange={(e) => setNewInternational({ ...newInternational, goals: parseInt(e.target.value) || 0 })}
+                      placeholder="Goals scored"
+                      type="number"
+                      min="0"
+                      className="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Assists</Label>
+                    <Input
+                      value={newInternational.assists.toString()}
+                      onChange={(e) => setNewInternational({ ...newInternational, assists: parseInt(e.target.value) || 0 })}
+                      placeholder="Assists provided"
+                      type="number"
+                      min="0"
+                      className="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Yellow Cards</Label>
+                    <Input
+                      value={newInternational.yellow_cards.toString()}
+                      onChange={(e) => setNewInternational({ ...newInternational, yellow_cards: parseInt(e.target.value) || 0 })}
+                      placeholder="Yellow cards received"
+                      type="number"
+                      min="0"
+                      className="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Second Yellow Cards</Label>
+                    <Input
+                      value={newInternational.second_yellow.toString()}
+                      onChange={(e) => setNewInternational({ ...newInternational, second_yellow: parseInt(e.target.value) || 0 })}
+                      placeholder="Second yellow cards"
+                      type="number"
+                      min="0"
+                      className="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white text-sm">Red Cards</Label>
+                    <Input
+                      value={newInternational.red_cards.toString()}
+                      onChange={(e) => setNewInternational({ ...newInternational, red_cards: parseInt(e.target.value) || 0 })}
+                      placeholder="Red cards received"
+                      type="number"
+                      min="0"
+                      className="bg-[#111111] border-0 text-white"
+                    />
+                  </div>
+                  <Button type="button" onClick={addInternational} className="bg-rosegold hover:bg-rosegold/90 col-span-full">
                     <Plus className="w-4 h-4 mr-2" />
                     Add International Record
                   </Button>
@@ -969,9 +1003,9 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
                       {formData.photo_url ? (
                         <div className="space-y-2">
                           <div className="w-32 h-32 mx-auto overflow-hidden rounded-lg border-2 border-gray-600">
-                            <img 
-                              src={formData.photo_url} 
-                              alt="Player photo" 
+                            <img
+                              src={formData.photo_url}
+                              alt="Player photo"
                               className="w-full h-full object-cover object-center"
                             />
                           </div>

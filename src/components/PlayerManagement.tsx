@@ -67,6 +67,21 @@ const PlayerManagement: React.FC = () => {
   const [playerToDelete, setPlayerToDelete] = useState<DatabasePlayer | null>(null);
   const playerFormRef = useRef<HTMLDivElement>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
+  // Pagination helpers
+  const totalPages = Math.ceil(filteredPlayers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPlayers = filteredPlayers.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     fetchTeamId();
   }, [profile]);
@@ -84,6 +99,7 @@ const PlayerManagement: React.FC = () => {
       playerNames: players.map(p => p.full_name)
     });
     setFilteredPlayers(players);
+    setCurrentPage(1); // Reset to first page when players change
   }, [players]);
 
   // Auto-scroll to player form when it becomes visible
@@ -241,7 +257,7 @@ const PlayerManagement: React.FC = () => {
 
     try {
       console.log('Deleting player:', playerToDelete.full_name, 'ID:', playerToDelete.id);
-      
+
       // Log activity before deletion
       const { PlayerActivityService } = await import('@/services/playerActivityService');
       const activityService = new PlayerActivityService(teamId);
@@ -519,7 +535,7 @@ const PlayerManagement: React.FC = () => {
 
       {/* Tabs for Player Management Organization */}
       <Tabs defaultValue="roster" className="w-full">
-        <TabsList className="grid w-full grid-cols-8 bg-gray-800">
+        <TabsList className="grid w-full grid-cols-7 bg-gray-800">
           <TabsTrigger value="roster" className="text-white">
             <Users className="h-4 w-4 mr-1" />
             Roster & Squad
@@ -532,10 +548,7 @@ const PlayerManagement: React.FC = () => {
             <Activity className="h-4 w-4 mr-1" />
             Statistics
           </TabsTrigger>
-          <TabsTrigger value="videos" className="text-white">
-            <Video className="h-4 w-4 mr-1" />
-            Videos
-          </TabsTrigger>
+
           <TabsTrigger value="awards" className="text-white">
             <Award className="h-4 w-4 mr-1" />
             Awards
@@ -625,14 +638,14 @@ const PlayerManagement: React.FC = () => {
               {/* Player Display */}
               {viewMode === 'roster' ? (
                 <PlayerRosterView
-                  players={filteredPlayers}
+                  players={paginatedPlayers}
                   onEditPlayer={handleEditPlayer}
                   onViewPlayer={handleViewPlayer}
                   onDeletePlayer={handleDeletePlayer}
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-                  {filteredPlayers.map((player) => {
+                  {paginatedPlayers.map((player) => {
                     const completionStatus = getPlayerCompletionStatus(player);
                     return (
                       <div key={player.id} className="relative">
@@ -650,6 +663,64 @@ const PlayerManagement: React.FC = () => {
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Pagination Controls */}
+              {filteredPlayers.length > itemsPerPage && (
+                <div className="mt-8 flex items-center justify-between">
+                  <div className="text-sm text-gray-400">
+                    Showing {startIndex + 1} to {Math.min(endIndex, filteredPlayers.length)} of {filteredPlayers.length} players
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      variant="outline"
+                      className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+                    >
+                      Previous
+                    </Button>
+
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+
+                        return (
+                          <Button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            className={`w-8 h-8 p-0 ${currentPage === pageNum
+                              ? "bg-blue-600 hover:bg-blue-700 text-white"
+                              : "border-gray-600 text-white hover:bg-gray-700"
+                              }`}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      variant="outline"
+                      className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -858,7 +929,7 @@ const PlayerManagement: React.FC = () => {
                 Are you sure you want to delete this player?
               </h3>
               <p className="text-gray-300 mb-4">
-                This will permanently delete <span className="font-semibold text-white">{playerToDelete?.full_name}</span> from your roster. 
+                This will permanently delete <span className="font-semibold text-white">{playerToDelete?.full_name}</span> from your roster.
                 This action cannot be undone.
               </p>
               <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 mb-4">
