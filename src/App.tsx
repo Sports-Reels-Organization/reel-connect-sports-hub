@@ -12,7 +12,6 @@ import Players from "./pages/Players";
 import Videos from "./pages/Videos";
 import VideoAnalysis from "./pages/VideoAnalysis";
 import VideoAnalysisResults from "./pages/VideoAnalysisResults";
-import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import PlayerProfile from "./pages/PlayerProfile";
 import History from "./pages/History";
@@ -23,7 +22,6 @@ import TeamExplore from "./pages/TeamExplore";
 import AgentShortlist from "./pages/AgentShortlist";
 import Contracts from "./pages/Contracts";
 import UserManagement from "./pages/UserManagement";
-import News from "./pages/News";
 import VideoShowcase from "./pages/VideoShowcase";
 import Notification from "./pages/Notification";
 import NotFound from "./pages/NotFound";
@@ -51,7 +49,6 @@ function App() {
                   <Route path="/videos" element={<Videos />} />
                   <Route path="/videos/:videoTitle" element={<VideoAnalysisResults />} />
                   <Route path="/video-analysis/:videoId" element={<VideoAnalysis />} />
-                  <Route path="/messages" element={<Messages />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/player/:playerId" element={<PlayerProfile />} />
                   <Route path="/history" element={<History />} />
@@ -64,7 +61,6 @@ function App() {
                   <Route path="/contract-negotiation/:contractId" element={<ContractNegotiationPage />} />
                   <Route path="/wallet" element={<WalletPage />} />
                   <Route path="/user-management" element={<UserManagement />} />
-                  <Route path="/news" element={<News />} />
                   <Route path="/video-showcase" element={<VideoShowcase />} />
                   <Route path="/notifications" element={<Notification />} />
                   <Route path="/translation-demo" element={<TranslationDemo />} />

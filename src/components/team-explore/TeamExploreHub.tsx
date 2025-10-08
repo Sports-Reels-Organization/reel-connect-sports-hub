@@ -3,16 +3,13 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Users, Search, BarChart3, Settings, MessageSquare, FileText } from 'lucide-react';
+import { TrendingUp, Users, Search, MessageSquare, FileText } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import TransferTimeline from './TransferTimeline';
 import StreamlinedPitchCreation from './StreamlinedPitchCreation';
 import { AgentRequestsExplore } from './AgentRequestsExplore';
 import MarketSnapshotWidget from './MarketSnapshotWidget';
-import SquadAvailabilityManager from './SquadAvailabilityManager';
-import MessageStageTracker from './MessageStageTracker';
 import ExpiringSoonWidget from './ExpiringSoonWidget';
-import TransferPerformanceAnalytics from '../analytics/TransferPerformanceAnalytics';
 import UnifiedCommunicationHub from '../communication/UnifiedCommunicationHub';
 import SimplifiedContractWorkflow from '../contracts/SimplifiedContractWorkflow';
 import { useNotificationCounts } from '@/hooks/useNotificationCounts';
@@ -27,10 +24,10 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
   const [searchParams] = useSearchParams();
   const [defaultTab, setDefaultTab] = useState('timeline');
   const { counts } = useNotificationCounts();
-  
+
   // Auto-mark ALL notifications as read when communication tab is viewed
   useAutoMarkNotificationsRead(defaultTab === 'communication');
-  
+
   // Set up toast notifications for incoming alerts
   useNotificationToasts();
 
@@ -58,7 +55,7 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
 
         {/* Main Navigation Tabs */}
         <Tabs defaultValue={defaultTab} className="w-full border-0">
-          <TabsList className="grid w-full grid-cols-7 border-0">
+          <TabsList className="grid w-full grid-cols-5 border-0">
             <TabsTrigger
               value="timeline"
               className="flex items-center gap-2 border-0 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
@@ -87,8 +84,8 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
               <MessageSquare className="w-4 h-4" />
               Communication
               {counts.total > 0 && (
-                <Badge 
-                  variant="destructive" 
+                <Badge
+                  variant="destructive"
                   className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold min-w-[20px] animate-pulse"
                 >
                   {counts.total > 99 ? '99+' : counts.total}
@@ -101,20 +98,6 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
             >
               <FileText className="w-4 h-4" />
               Contracts
-            </TabsTrigger>
-            <TabsTrigger
-              value="squad"
-              className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
-            >
-              <Settings className="w-4 h-4" />
-              Squad Management
-            </TabsTrigger>
-            <TabsTrigger
-              value="analytics"
-              className="flex items-center gap-2 text-gray-300 data-[state=active]:bg-rosegold data-[state=active]:text-white"
-            >
-              <BarChart3 className="w-4 h-4" />
-              Analytics
             </TabsTrigger>
           </TabsList>
 
@@ -138,16 +121,6 @@ export const TeamExploreHub = ({ initialSearch }: TeamExploreHubProps) => {
             <SimplifiedContractWorkflow />
           </TabsContent>
 
-          <TabsContent value="squad" className="mt-6">
-            <div className="space-y-6">
-              <SquadAvailabilityManager />
-              <MessageStageTracker />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="mt-6">
-            <TransferPerformanceAnalytics />
-          </TabsContent>
         </Tabs>
       </div>
     </div>

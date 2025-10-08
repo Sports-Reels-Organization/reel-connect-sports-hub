@@ -13,7 +13,7 @@ import EditPitchModal from './EditPitchModal';
 import ContractWizard from '@/components/contracts/ContractWizard';
 import {
   Search, Filter, Heart, MessageSquare, Eye, Calendar, DollarSign,
-  TrendingUp, MapPin, Users, Target, Star, Clock, AlertCircle, Plus, X, CheckCircle, Edit, FileText
+  TrendingUp, MapPin, Users, Target, Star, Clock, AlertCircle, X, CheckCircle, Edit, FileText
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { EnhancedNotificationService } from '@/services/enhancedNotificationService';
@@ -70,10 +70,10 @@ const TransferTimeline = () => {
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPitchForEdit, setSelectedPitchForEdit] = useState<TimelinePitch | null>(null);
-  
+
   // Real-time player status and interest management
   const { getStatusBadgeProps, incrementInterestCount, decrementInterestCount } = usePlayerStatusRealtime();
-  
+
   const [showInterestModal, setShowInterestModal] = useState(false);
   const [selectedPitchForInterest, setSelectedPitchForInterest] = useState<TimelinePitch | null>(null);
   const [interestMessage, setInterestMessage] = useState('');
@@ -94,13 +94,13 @@ const TransferTimeline = () => {
     // Listen for unified workflow updates
     const handleWorkflowUpdate = (event: CustomEvent) => {
       const { type, pitchId, playerName, agentName, teamProfileId } = event.detail;
-      
+
       console.log('⚡ TEAM: Workflow update received:', type);
-      
+
       if (type === 'agent_interest_expressed' && teamProfileId === profile.id) {
         // Update player status badge immediately
         incrementInterestCount(pitchId, '');
-        
+
         // Immediate toast notification
         toast({
           title: "🎯 New Agent Interest!",
@@ -110,11 +110,11 @@ const TransferTimeline = () => {
 
         // Immediate refresh
         setTimeout(() => fetchPitches(), 500);
-        
+
       } else if (type === 'agent_interest_cancelled') {
         // Update player status badge immediately
         decrementInterestCount(pitchId, '');
-        
+
         // Immediate toast notification
         toast({
           title: "Interest Cancelled",
@@ -406,15 +406,6 @@ const TransferTimeline = () => {
           <p className="text-gray-400">Browse available transfer opportunities</p>
         </div>
 
-        {profile?.user_type === 'team' && (
-          <Button
-            onClick={() => window.location.href = '/team-explore?tab=create'}
-            className="bg-rosegold hover:bg-rosegold/90 text-white"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Pitch
-          </Button>
-        )}
       </div>
 
       {/* Filters */}

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogOut, Menu, X, User, MessageSquare, TrendingUp, Search, Users, Home } from 'lucide-react';
+import { LogOut, Menu, X, User, TrendingUp, Search, Users, Home } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import NotificationBell from './NotificationBell';
 
@@ -30,7 +30,6 @@ const Header: React.FC = () => {
     { path: '/', label: 'Home', icon: Home },
     { path: '/agent-explore', label: 'Explore', icon: Search },
     { path: '/transfer-timeline', label: 'Timeline', icon: TrendingUp },
-    { path: '/messages', label: 'Messages', icon: MessageSquare },
     { path: '/profile', label: 'Profile', icon: User },
   ];
 
@@ -131,7 +130,7 @@ const Header: React.FC = () => {
                   </Link>
                 );
               })}
-              
+
               {profile && (
                 <>
                   <div className="border-t border-gray-800 pt-4">

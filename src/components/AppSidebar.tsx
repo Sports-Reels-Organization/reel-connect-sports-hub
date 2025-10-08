@@ -19,7 +19,6 @@ import {
   Home,
   Users,
   Video,
-  MessageSquare,
   Calendar,
   Search,
   User,
@@ -27,7 +26,6 @@ import {
   Bell,
   FileText,
   Clock,
-  Newspaper,
   Heart,
   Target,
   Wallet
@@ -50,7 +48,7 @@ export function AppSidebar() {
     const handleLanguageChange = () => {
       setRefreshKey(prev => prev + 1);
     };
-    
+
     window.addEventListener('languageChanged', handleLanguageChange);
     return () => window.removeEventListener('languageChanged', handleLanguageChange);
   }, []);
@@ -73,12 +71,6 @@ export function AppSidebar() {
       title: translateTextSync('Explore'),
       url: "/explore",
       icon: Search,
-    },
-    {
-      id: 'messages',
-      title: translateTextSync('Messages'),
-      url: "/messages",
-      icon: MessageSquare,
     },
     {
       id: 'contracts',
@@ -106,12 +98,6 @@ export function AppSidebar() {
       showBadge: true,
     },
     {
-      id: 'news',
-      title: translateTextSync('News'),
-      url: "/news",
-      icon: Newspaper,
-    },
-    {
       id: 'history',
       title: translateTextSync('History'),
       url: "/history",
@@ -121,7 +107,7 @@ export function AppSidebar() {
 
   // Agent-specific menu items
   const agentMenuItems = [
-    ...baseMenuItems.slice(0, 3), // Dashboard, Explore, Messages
+    ...baseMenuItems.slice(0, 2), // Dashboard, Explore
     {
       id: 'shortlist',
       title: translateTextSync('Shortlist'),
@@ -134,7 +120,7 @@ export function AppSidebar() {
       url: "/",
       icon: Target,
     },
-    ...baseMenuItems.slice(3), // Contracts, Profile, Notifications, News, History
+    ...baseMenuItems.slice(2), // Contracts, Wallet, Profile, Notifications, History
   ];
 
   // Team-specific menu items
@@ -158,7 +144,7 @@ export function AppSidebar() {
       url: "/timeline",
       icon: Calendar,
     },
-    ...baseMenuItems.slice(1), // Explore, Messages, Contracts, Profile, Notifications, News, History
+    ...baseMenuItems.slice(1), // Explore, Contracts, Wallet, Profile, Notifications, History
   ];
 
   // Get appropriate menu items based on user type
