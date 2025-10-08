@@ -91,13 +91,13 @@ export class EnhancedVideoAnalysisService {
     try {
       console.log('Starting enhanced video analysis...');
 
-      // Extract frames with higher quality for better analysis
+      // Extract frames optimized for speed while maintaining accuracy
       const frames = await this.frameExtractor.extractFrames(request.videoUrl, {
-        frameRate: 2, // Increased frame rate for better tracking
-        maxFrames: 60, // More frames for comprehensive analysis
-        quality: 0.9, // Higher quality for better recognition
-        maxWidth: 1200,
-        maxHeight: 800
+        frameRate: 1, // Balanced frame rate for efficient tracking
+        maxFrames: 20, // Optimized frame count for faster analysis (reduced from 60)
+        quality: 0.7, // Balanced quality for faster processing (reduced from 0.9)
+        maxWidth: 640, // Reduced resolution for faster uploads (reduced from 1200)
+        maxHeight: 480 // Reduced resolution for faster uploads (reduced from 800)
       });
 
       console.log(`Extracted ${frames.length} frames for analysis`);

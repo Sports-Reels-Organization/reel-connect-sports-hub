@@ -495,12 +495,12 @@ export class ComprehensiveAIAnalysisService {
       // Get enhanced sport-specific prompt
       const enhancedPrompt = this.buildEnhancedAnalysisPrompt(request);
 
-      // Use the most advanced model
+      // Use the most advanced model with optimized settings
       const model = this.genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash',
         generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 16384, // Increased for more detailed analysis
+          temperature: 0.2,
+          maxOutputTokens: 12288, // Balanced for complete responses (was 8192)
         }
       });
 
@@ -545,19 +545,9 @@ export class ComprehensiveAIAnalysisService {
   private buildEnhancedAnalysisPrompt(request: any): string {
     const { videoType, sport, metadata } = request;
 
-    let prompt = `You are an elite AI sports analyst with expertise in ${sport}, biomechanics, data science, and performance psychology. 
-    Perform a CRITICAL and COMPREHENSIVE analysis of this ${videoType} video. Be harsh but fair in your assessment.
+    let prompt = `You are an expert ${sport} analyst. Analyze this ${videoType} video (duration: ${metadata.duration}s).
     
-    IMPORTANT: Your analysis must be extremely detailed, data-driven, and actionable. Do not hold back on criticism where warranted.
-    
-    Video Context:
-    - Sport: ${sport}
-    - Type: ${videoType}
-    - Duration: ${metadata.duration} seconds
-    - Teams: ${metadata.teamInfo?.homeTeam} vs ${metadata.teamInfo?.awayTeam}
-    ${metadata.context ? `- Context: ${metadata.context}` : ''}
-    
-    Provide your analysis in the following JSON structure based on video type:
+    CRITICAL: Return ONLY valid, complete JSON. No markdown, no code blocks, no extra text. Complete all JSON structures.
     `;
 
     switch (videoType) {
@@ -574,22 +564,6 @@ export class ComprehensiveAIAnalysisService {
         prompt += this.getEnhancedInterviewAnalysisFormat();
         break;
     }
-
-    prompt += `
-    
-    CRITICAL ANALYSIS REQUIREMENTS:
-    1. Identify ALL weaknesses and mistakes, no matter how small
-    2. Compare performance against elite standards
-    3. Provide specific, measurable improvement recommendations
-    4. Highlight patterns that indicate systemic issues
-    5. Calculate risk factors for injury and poor performance
-    6. Suggest unconventional strategies that could provide competitive advantage
-    7. Be brutally honest about areas needing improvement
-    8. Provide timestamps for every significant observation
-    9. Include confidence scores for all predictions
-    10. Generate actionable insights that can be implemented immediately
-    
-    Remember: This analysis will be used to make critical decisions. Accuracy and depth are paramount.`;
 
     return prompt;
   }

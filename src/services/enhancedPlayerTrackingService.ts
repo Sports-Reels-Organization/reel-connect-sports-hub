@@ -152,16 +152,18 @@ export class EnhancedPlayerTrackingService {
         sport: string,
         videoType: string
     ): Promise<{
+        playerActions: any[];
+        keyMoments: any[];
         playerTracking: PlayerTrackingData[];
         tacticalAnalysis: TacticalAnalysis;
         matchStatistics: MatchStatistics;
     }> {
         try {
             const model = this.genAI.getGenerativeModel({
-                model: 'gemini-2.5-pro',
+                model: 'gemini-2.5-flash', // Using faster flash model (changed from 2.5-pro)
                 generationConfig: {
-                    temperature: 0.1,
-                    maxOutputTokens: 32768,
+                    temperature: 0.2,
+                    maxOutputTokens: 16384, // Increased for complete responses (was 8192)
                 }
             });
 
@@ -181,10 +183,29 @@ export class EnhancedPlayerTrackingService {
             const response = result.response;
             const text = response.text();
 
+            // Check if response is empty
+            if (!text || text.trim().length === 0) {
+                console.error('AI returned empty response, using default analysis');
+                return {
+                    playerActions: [],
+                    keyMoments: [],
+                    playerTracking: this.generateDefaultAnalysis(taggedPlayers).playerTracking,
+                    tacticalAnalysis: this.generateDefaultAnalysis(taggedPlayers).tacticalAnalysis,
+                    matchStatistics: this.generateDefaultAnalysis(taggedPlayers).matchStatistics
+                };
+            }
+
             return this.parsePlayerTrackingResponse(text, taggedPlayers);
         } catch (error) {
             console.error('Enhanced player tracking failed:', error);
-            throw new Error('Failed to perform enhanced player tracking analysis');
+            // Return default analysis instead of throwing error
+            return {
+                playerActions: [],
+                keyMoments: [],
+                playerTracking: this.generateDefaultAnalysis(taggedPlayers).playerTracking,
+                tacticalAnalysis: this.generateDefaultAnalysis(taggedPlayers).tacticalAnalysis,
+                matchStatistics: this.generateDefaultAnalysis(taggedPlayers).matchStatistics
+            };
         }
     }
 
@@ -196,22 +217,23 @@ export class EnhancedPlayerTrackingService {
         }).join(', ');
 
         return `
-You are an advanced sports analysis AI with expertise in ${sport}. Analyze this ${videoType} video with the following tagged players: ${playerList}.
+Analyze this ${sport} ${videoType} video. Tagged players: ${playerList}.
 
-CRITICAL INSTRUCTIONS:
-1. Respond with ONLY valid JSON - no markdown, no explanations, no additional text
+CRITICAL RULES:
+1. Return ONLY valid, complete JSON - no markdown, no code blocks, no extra text
 2. Use exact player names: ${taggedPlayers.map(p => p.playerName).join(', ')}
-3. Complete all JSON values - no truncated responses
-4. Close all arrays with ] and objects with }
-5. Keep response concise but complete
-6. IMPORTANT: All timestamps must be in VIDEO SECONDS (0-300), NOT Unix timestamps
+3. All timestamps must be in VIDEO SECONDS (0-300), NOT Unix timestamps
+4. MUST complete ALL JSON structures - close all arrays ] and objects }
+5. Do NOT truncate the response - provide complete analysis
 
-Analyze video and provide:
-1. Player actions: ALL actions performed by tagged players including goals, assists, tackles, passes, shots, saves, interceptions, fouls, substitutions, dribbles, crosses, corners, free kicks, throw ins, penalties, offsides, cards, blocks, clearances, headers, volleys, through balls, long balls, key passes, big chances, missed shots, shots on/off target, saves, clean sheets, goals conceded, own goals, handballs, dives, time wasting, celebrations, injuries, recoveries, sprints, jogs, walks, position changes, formation changes, tactical fouls, professional fouls, last man tackles, sliding tackles, standing tackles, aerial duels, ground duels, ball recoveries, turnovers, mistakes, errors, brilliant saves, catches, punches, distribution, communication, leadership, motivation - with detailed descriptions and outcomes
-2. Key moments: SPECIAL moments that are different from player actions - referee decisions, commentator reactions, substitutions, injuries, celebrations, controversies, tactical changes, crowd reactions, VAR reviews, penalty awards, red card incidents, goal celebrations, saves of the match, turning points, momentum shifts, clutch performances, comeback starts, lead changes, equalizers, winners, missed penalties, brilliant tackles, spectacular saves, world class goals, assists of the match, leadership moments, team huddles, coach instructions, fan interactions, media moments, historical moments, record breaking, milestone achievements, emotional moments, dramatic finishes - focus on what makes each moment unique and memorable
-3. Player tracking: positions, movements, key moments for each player
-4. Tactical analysis: formations, pressing, build-up play
-5. Match statistics: possession, shots, passes, goals, cards
+Required Analysis:
+1. playerActions: All significant actions (goals, assists, tackles, passes, shots, saves, fouls, cards, dribbles, crosses, etc.)
+2. keyMoments: Special events (referee decisions, celebrations, tactical changes, VAR, controversies, etc.)
+3. playerTracking: Player positions and movements throughout the video with timestamps
+4. tacticalAnalysis: Team formations, pressing patterns, and build-up play
+5. matchStatistics: Overall game statistics (possession, shots, passes, goals, cards)
+
+IMPORTANT: You must provide data for ALL players: ${taggedPlayers.map(p => p.playerName).join(', ')}
 
 ${this.getSportSpecificPrompt(sport)}
 

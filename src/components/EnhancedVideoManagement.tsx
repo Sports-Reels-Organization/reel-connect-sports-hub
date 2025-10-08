@@ -31,7 +31,9 @@ import {
   Zap,
   TrendingUp,
   Target,
-  Award
+  Award,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { SmartThumbnail } from './SmartThumbnail';
@@ -87,6 +89,8 @@ const EnhancedVideoManagement = () => {
   const [deleteConfirmVideo, setDeleteConfirmVideo] = useState<Video | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showTaggedPlayersModal, setShowTaggedPlayersModal] = useState(false);
+  const [selectedVideoForPlayers, setSelectedVideoForPlayers] = useState<Video | null>(null);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -112,6 +116,10 @@ const EnhancedVideoManagement = () => {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   // Get unique players from all video tags
   const allPlayers = Array.from(new Set(videos.flatMap(video => video.tags || [])));
 
@@ -136,6 +144,7 @@ const EnhancedVideoManagement = () => {
 
   useEffect(() => {
     applyFilters();
+    setCurrentPage(1); // Reset to first page when filters change
   }, [videos, searchTerm, selectedType, selectedPlayer, sortBy]);
 
   const fetchUserTeams = async () => {
@@ -288,6 +297,17 @@ const EnhancedVideoManagement = () => {
     });
 
     setFilteredVideos(filtered);
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredVideos.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedVideos = filteredVideos.slice(startIndex, endIndex);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleVideoClick = (video: Video) => {
@@ -622,168 +642,264 @@ const EnhancedVideoManagement = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className={viewMode === 'grid'
-              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              : "space-y-4"
-            }>
-              {filteredVideos.map((video) => (
-                <Card
-                  key={video.id}
-                  className="bg-gray-800 border-gray-700 hover:border-bright-pink/50 transition-colors cursor-pointer"
-                  onClick={() => handleVideoClick(video)}
-                >
-                  {viewMode === 'grid' ? (
-                    <CardContent className="p-0">
-                      <div className="relative aspect-video bg-gray-900 rounded-t-lg overflow-hidden">
-                        <SmartThumbnail
-                          thumbnailUrl={video.thumbnail_url}
-                          title={video.title}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-2 right-2 bg-black/80 text-white px-2 py-1 rounded text-sm">
-                          {formatDuration(video.duration)}
-                        </div>
-                        <div className="absolute top-2 left-2 flex flex-col gap-1">
-                          {isLocalhostUrl(video.video_url) && (
-                            <Badge className="bg-red-900/20 text-red-400 border-red-500/30 border">
-                              Invalid URL
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="font-semibold text-white text-sm line-clamp-2 flex-1">{video.title}</h3>
-                          <div className="flex items-center gap-1 ml-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditVideo(video);
-                              }}
-                              className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
-                            >
-                              <Edit3 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirmVideo(video);
-                              }}
-                              className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-gray-700"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {formatDate(video.created_at)}
-                          </span>
-                          <span className="capitalize">{video.video_type}</span>
-                        </div>
-
-                        {video.tags.length > 0 && (
-                          <div className="mt-2">
-                            <PlayerTagDisplay
-                              players={getPlayersForVideo(video.tags)}
-                              loading={playersLoading}
-                              size="sm"
-                              showJerseyNumber={true}
-                              showTeamInfo={false}
-                              className="text-xs"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  ) : (
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="relative w-24 h-16 bg-gray-900 rounded overflow-hidden flex-shrink-0">
+            <>
+              <div className={viewMode === 'grid'
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                : "space-y-4"
+              }>
+                {paginatedVideos.map((video) => (
+                  <Card
+                    key={video.id}
+                    className="bg-gray-800 border-gray-700 hover:border-bright-pink/50 transition-colors cursor-pointer"
+                    onClick={() => handleVideoClick(video)}
+                  >
+                    {viewMode === 'grid' ? (
+                      <CardContent className="p-0">
+                        <div className="relative aspect-video bg-gray-900 rounded-t-lg overflow-hidden">
                           <SmartThumbnail
                             thumbnailUrl={video.thumbnail_url}
                             title={video.title}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute bottom-0 right-0 bg-black/80 text-white px-1 text-xs">
+                          <div className="absolute bottom-2 right-2 bg-black/80 text-white px-2 py-1 rounded text-sm">
                             {formatDuration(video.duration)}
+                          </div>
+                          <div className="absolute top-2 left-2 flex flex-col gap-1">
+                            {isLocalhostUrl(video.video_url) && (
+                              <Badge className="bg-red-900/20 text-red-400 border-red-500/30 border">
+                                Invalid URL
+                              </Badge>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-1">
-                            <h3 className="font-semibold text-white truncate flex-1">{video.title}</h3>
-                            <div className="flex items-center gap-2 ml-2">
-                              {getTypeIcon(video.video_type)}
-                              {isLocalhostUrl(video.video_url) && (
-                                <Badge className="bg-red-900/20 text-red-400 border-red-500/30 border text-xs">
-                                  Invalid URL
-                                </Badge>
-                              )}
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditVideo(video);
-                                  }}
-                                  className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
-                                >
-                                  <Edit3 className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeleteConfirmVideo(video);
-                                  }}
-                                  className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-gray-700"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
+                        <div className="p-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <h3 className="font-semibold text-white text-sm line-clamp-2 flex-1">{video.title}</h3>
+                            <div className="flex items-center gap-1 ml-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditVideo(video);
+                                }}
+                                className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfirmVideo(video);
+                                }}
+                                className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-gray-700"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-4 text-xs text-gray-400 mb-2">
+                          <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               {formatDate(video.created_at)}
                             </span>
                             <span className="capitalize">{video.video_type}</span>
-                            {video.opposing_team && (
-                              <span>vs {video.opposing_team}</span>
-                            )}
                           </div>
 
-                          {video.tags.length > 0 && (
-                            <div className="mt-2">
-                              <PlayerTagDisplay
-                                players={getPlayersForVideo(video.tags)}
-                                loading={playersLoading}
+                          <div className="w-full text-xs">
+                            {video.tags.length > 0 ? (
+                              <Button
+                                variant="outline"
                                 size="sm"
-                                showJerseyNumber={true}
-                                showTeamInfo={false}
-                                className="text-xs"
-                              />
-                            </div>
-                          )}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedVideoForPlayers(video);
+                                  setShowTaggedPlayersModal(true);
+                                }}
+                                className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white text-xs"
+                              >
+                                <Users className="w-3 h-3 mr-2" />
+                                Tagged Players ({video.tags.length})
+                              </Button>
+                            ) : (
+                              <div className="flex items-center justify-center gap-2 py-2 text-gray-500">
+                                <Users className="w-3 h-3" />
+                                <span>No Tagged Players</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
+                      </CardContent>
+                    ) : (
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="relative w-24 h-16 bg-gray-900 rounded overflow-hidden flex-shrink-0">
+                            <SmartThumbnail
+                              thumbnailUrl={video.thumbnail_url}
+                              title={video.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute bottom-0 right-0 bg-black/80 text-white px-1 text-xs">
+                              {formatDuration(video.duration)}
+                            </div>
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-1">
+                              <h3 className="font-semibold text-white truncate flex-1">{video.title}</h3>
+                              <div className="flex items-center gap-2 ml-2">
+                                {getTypeIcon(video.video_type)}
+                                {isLocalhostUrl(video.video_url) && (
+                                  <Badge className="bg-red-900/20 text-red-400 border-red-500/30 border text-xs">
+                                    Invalid URL
+                                  </Badge>
+                                )}
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditVideo(video);
+                                    }}
+                                    className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteConfirmVideo(video);
+                                    }}
+                                    className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-gray-700"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 text-xs text-gray-400">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {formatDate(video.created_at)}
+                              </span>
+                              <span className="capitalize">{video.video_type}</span>
+                              {video.opposing_team && (
+                                <span>vs {video.opposing_team}</span>
+                              )}
+                              {video.tags.length > 0 ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedVideoForPlayers(video);
+                                    setShowTaggedPlayersModal(true);
+                                  }}
+                                  className="h-6 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white text-xs"
+                                >
+                                  <Users className="w-3 h-3 mr-1" />
+                                  {video.tags.length} Player{video.tags.length !== 1 ? 's' : ''}
+                                </Button>
+                              ) : (
+                                <span className="flex items-center gap-1 text-gray-500">
+                                  <Users className="w-3 h-3" />
+                                  No Tagged Players
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <Card className="bg-gray-800 border-gray-700">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-400">
+                        Showing {startIndex + 1}-{Math.min(endIndex, filteredVideos.length)} of {filteredVideos.length} videos
                       </div>
-                    </CardContent>
-                  )}
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Previous
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                            // Show first page, last page, current page, and pages around current
+                            const showPage =
+                              page === 1 ||
+                              page === totalPages ||
+                              (page >= currentPage - 1 && page <= currentPage + 1);
+
+                            const showEllipsis =
+                              (page === currentPage - 2 && currentPage > 3) ||
+                              (page === currentPage + 2 && currentPage < totalPages - 2);
+
+                            if (showEllipsis) {
+                              return (
+                                <span key={page} className="text-gray-400 px-2">
+                                  ...
+                                </span>
+                              );
+                            }
+
+                            if (!showPage) return null;
+
+                            return (
+                              <Button
+                                key={page}
+                                variant={currentPage === page ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handlePageChange(page)}
+                                className={
+                                  currentPage === page
+                                    ? "bg-bright-pink hover:bg-bright-pink/90 text-white w-10"
+                                    : "border-gray-600 text-gray-300 hover:bg-gray-700 w-10"
+                                }
+                              >
+                                {page}
+                              </Button>
+                            );
+                          })}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className="border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </TabsContent>
 
@@ -1120,6 +1236,84 @@ const EnhancedVideoManagement = () => {
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               {isDeleting ? "Deleting..." : "Delete Video"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tagged Players Modal */}
+      <Dialog open={showTaggedPlayersModal} onOpenChange={setShowTaggedPlayersModal}>
+        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Users className="w-5 h-5 text-bright-pink" />
+              Tagged Players
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            {selectedVideoForPlayers && selectedVideoForPlayers.tags.length > 0 ? (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {playersLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-bright-pink"></div>
+                    <span className="ml-3 text-gray-400">Loading players...</span>
+                  </div>
+                ) : (
+                  getPlayersForVideo(selectedVideoForPlayers.tags).map((player) => (
+                    <div
+                      key={player.id}
+                      className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {player.headshot_url || player.photo_url ? (
+                          <img
+                            src={player.headshot_url || player.photo_url || ''}
+                            alt={player.full_name || 'Player'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-white font-semibold text-lg">
+                            {player.full_name?.slice(0, 2).toUpperCase() || '??'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-white font-medium truncate">
+                            {player.full_name || 'Unknown Player'}
+                          </h4>
+                          {player.jersey_number && (
+                            <Badge className="bg-bright-pink text-white text-xs px-2 py-0.5 font-bold flex-shrink-0">
+                              #{player.jersey_number}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-gray-400 text-sm truncate">
+                          {player.position || 'Unknown Position'}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-400">No players tagged in this video</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setShowTaggedPlayersModal(false);
+                setSelectedVideoForPlayers(null);
+              }}
+              className="bg-bright-pink hover:bg-bright-pink/90 text-white w-full"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
