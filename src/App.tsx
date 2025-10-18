@@ -30,6 +30,7 @@ import WalletPage from "./pages/WalletPage";
 import TranslationDemo from "./components/TranslationDemo";
 import LanguageSelectorDemo from "./components/LanguageSelectorDemo";
 import GoogleTranslationTest from "./components/GoogleTranslationTest";
+import AIScout from "./pages/AIScout";
 
 const queryClient = new QueryClient();
 function App() {
@@ -57,6 +58,7 @@ function App() {
                   <Route path="/explore" element={<Explore />} />
                   <Route path="/team-explore" element={<TeamExplore />} />
                   <Route path="/agent-shortlist" element={<AgentShortlist />} />
+                  <Route path="/ai-scout" element={<AIScout />} />
                   <Route path="/contracts" element={<Contracts />} />
                   <Route path="/contract-negotiation/:contractId" element={<ContractNegotiationPage />} />
                   <Route path="/wallet" element={<WalletPage />} />

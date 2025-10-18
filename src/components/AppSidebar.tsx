@@ -117,7 +117,7 @@ export function AppSidebar() {
     {
       id: 'ai-scout',
       title: translateTextSync('AI Scout'),
-      url: "/",
+      url: "/ai-scout",
       icon: Target,
     },
     ...baseMenuItems.slice(2), // Contracts, Wallet, Profile, Notifications, History
