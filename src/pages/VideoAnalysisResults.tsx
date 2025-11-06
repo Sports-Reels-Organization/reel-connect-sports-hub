@@ -45,6 +45,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { SmartVideoPlayer, SmartVideoPlayerRef } from '@/components/SmartVideoPlayer';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { ComprehensiveAIAnalysisService } from '@/services/comprehensiveAIAnalysisService';
 import { EnhancedVideoAnalysisService } from '@/services/enhancedVideoAnalysisService';
 import { VideoFrameExtractor } from '@/utils/videoFrameExtractor';
@@ -99,6 +100,7 @@ const VideoAnalysisResults = () => {
   const { videoTitle } = useParams<{ videoTitle: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [video, setVideo] = useState<Video | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -173,17 +175,17 @@ const VideoAnalysisResults = () => {
   }, []);
 
   useEffect(() => {
-    if (videoTitle && currentTeamId) {
+    if (videoTitle) {
       fetchVideoData();
     }
-  }, [videoTitle, currentTeamId]);
+  }, [videoTitle]);
 
   // Detect sport when video data is loaded
   useEffect(() => {
-    if (video && currentTeamId) {
+    if (video) {
       detectVideoSport();
     }
-  }, [video, currentTeamId]);
+  }, [video]);
 
   const fetchCurrentTeam = async () => {
     try {
@@ -213,7 +215,7 @@ const VideoAnalysisResults = () => {
   };
 
   const detectVideoSport = async () => {
-    if (!video || !currentTeamId) return;
+    if (!video) return;
 
     try {
       const sport = await determineSportFromVideo(video);
@@ -229,12 +231,18 @@ const VideoAnalysisResults = () => {
     try {
       console.log('Attempting to resolve duplicate videos for title:', title);
 
-      // Get all videos with the same title
-      const { data: duplicateVideos, error } = await supabase
+      // Build query - for agents, don't filter by team_id
+      let duplicateQuery = supabase
         .from('videos')
         .select('id, created_at, video_url, thumbnail_url')
-        .eq('title', title)
-        .eq('team_id', currentTeamId)
+        .eq('title', title);
+
+      // Only filter by team_id if user is a team (not an agent)
+      if (profile?.user_type === 'team' && currentTeamId) {
+        duplicateQuery = duplicateQuery.eq('team_id', currentTeamId);
+      }
+
+      const { data: duplicateVideos, error } = await duplicateQuery
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -267,30 +275,44 @@ const VideoAnalysisResults = () => {
   };
 
   const fetchVideoData = async () => {
-    if (!videoTitle || !currentTeamId) return;
+    if (!videoTitle) return;
 
     try {
       setIsLoading(true);
       const decodedTitle = decodeURIComponent(videoTitle);
 
-      console.log('Fetching video data:', { videoTitle, decodedTitle, currentTeamId });
+      console.log('Fetching video data:', { videoTitle, decodedTitle, currentTeamId, isAgent: profile?.user_type === 'agent' });
+
+      // Build query - for agents, don't filter by team_id
+      let query = supabase
+        .from('videos')
+        .select('*')
+        .eq('title', decodedTitle);
+
+      // Only filter by team_id if user is a team (not an agent)
+      if (profile?.user_type === 'team' && currentTeamId) {
+        query = query.eq('team_id', currentTeamId);
+      }
 
       // First, let's check how many videos exist with this title
-      const { count: countResult } = await supabase
-        .from('videos')
-        .select('*', { count: 'exact', head: true })
-        .eq('title', decodedTitle)
-        .eq('team_id', currentTeamId);
+      const countQuery = profile?.user_type === 'team' && currentTeamId
+        ? supabase
+            .from('videos')
+            .select('*', { count: 'exact', head: true })
+            .eq('title', decodedTitle)
+            .eq('team_id', currentTeamId)
+        : supabase
+            .from('videos')
+            .select('*', { count: 'exact', head: true })
+            .eq('title', decodedTitle);
 
+      const { count: countResult } = await countQuery;
       const count = countResult || 0;
       setVideoCount(count);
       console.log(`Found ${count} videos with title: "${decodedTitle}"`);
 
-      const { data, error } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('title', decodedTitle)
-        .eq('team_id', currentTeamId)
+      // Fetch the video
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(1)
         .single();

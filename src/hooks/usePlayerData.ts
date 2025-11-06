@@ -59,7 +59,8 @@ export const usePlayerData = (playerId: string | null) => {
             teams(
               team_name,
               sport_type,
-              country
+              country,
+              logo_url
             )
           `)
           .eq('id', playerId)
@@ -73,7 +74,7 @@ export const usePlayerData = (playerId: string | null) => {
         if (data) {
           console.log('Player data received:', data);
           
-          const transformedPlayer: Player = {
+          const transformedPlayer: any = {
             id: data.id,
             full_name: data.full_name,
             sport_type: data.teams.sport_type,
@@ -110,7 +111,8 @@ export const usePlayerData = (playerId: string | null) => {
             transfer_history: data.transfer_history,
             international_duty: data.international_duty,
             match_stats: data.match_stats,
-            ai_analysis: data.ai_analysis
+            ai_analysis: data.ai_analysis,
+            teams: data.teams // Preserve teams relation for logo access
           };
 
           setPlayer(transformedPlayer);

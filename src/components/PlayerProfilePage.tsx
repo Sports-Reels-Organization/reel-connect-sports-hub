@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { usePlayerData } from '@/hooks/usePlayerData';
 import { usePlayerVideoTags } from '@/hooks/usePlayerVideoTags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,16 +29,24 @@ import {
 } from 'lucide-react';
 import Layout from './Layout';
 import VideoAnalysisResults from './VideoAnalysisResults';
+import { SmartThumbnail } from './SmartThumbnail';
 
 const PlayerProfilePage: React.FC = () => {
   const { playerId } = useParams<{ playerId: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const playerName = location.state?.playerName;
 
   const { player, loading, error } = usePlayerData(playerId || null);
   const { videos, loading: videosLoading } = usePlayerVideoTags(playerId || '');
   const [showVideoAnalysis, setShowVideoAnalysis] = useState(false);
   const [selectedVideoForAnalysis, setSelectedVideoForAnalysis] = useState<any>(null);
+  const [showAllVideosDialog, setShowAllVideosDialog] = useState(false);
+
+  const handleVideoPlay = (video: any) => {
+    // Navigate to VideoAnalysisResults page, similar to video management
+    navigate(`/videos/${encodeURIComponent(video.title)}`);
+  };
 
   const handleVideoAnalysis = (video: any) => {
     setSelectedVideoForAnalysis(video);
@@ -181,7 +189,15 @@ const PlayerProfilePage: React.FC = () => {
 
                     {player.team && (
                       <div className="flex items-center gap-2 text-gray-200 bg-white/5 backdrop-blur-sm rounded-full px-4 py-2 border-0">
-                        <Building className="w-4 h-4 text-bright-pink" />
+                        {(player as any).teams?.logo_url ? (
+                          <img 
+                            src={(player as any).teams.logo_url} 
+                            alt={player.team}
+                            className="w-4 h-4 rounded object-contain"
+                          />
+                        ) : (
+                          <Building className="w-4 h-4 text-bright-pink" />
+                        )}
                         <span className="font-medium">{player.team}</span>
                       </div>
                     )}
@@ -245,7 +261,16 @@ const PlayerProfilePage: React.FC = () => {
                       <Building className="w-4 h-4" />
                       Current Club
                     </div>
-                    <p className="text-white font-semibold text-lg">{player.current_club}</p>
+                    <div className="flex items-center gap-2">
+                      {(player as any).teams?.logo_url && (
+                        <img 
+                          src={(player as any).teams.logo_url} 
+                          alt={player.current_club}
+                          className="w-5 h-5 rounded object-contain"
+                        />
+                      )}
+                      <p className="text-white font-semibold text-lg">{player.current_club}</p>
+                    </div>
                   </div>
                 )}
 
@@ -297,59 +322,94 @@ const PlayerProfilePage: React.FC = () => {
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 max-h-96 overflow-y-auto">
+            <CardContent className="p-6">
               {videosLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-20 bg-gray-700/50 rounded-xl"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : videos.length > 0 ? (
-                <div className="space-y-4">
-                  {videos.map((video, index) => (
-                    <div
-                      key={video.id}
-                      className="group p-4 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl border-0 transition-all duration-300"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-white mb-2 line-clamp-2 group-hover:text-bright-pink transition-colors duration-200">
-                            {video.title}
-                          </h4>
-                          {video.team_name && (
-                            <p className="text-sm text-gray-400 mb-1">
-                              Team: {video.team_name}
-                            </p>
-                          )}
-                          <p className="text-xs text-gray-500">
-                            {new Date(video.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-transparent border-gray-600 hover:bg-gray-600 text-white"
-                            onClick={() => window.open(video.video_url, '_blank')}
-                          >
-                            <Play className="w-3 h-3 mr-1" />
-                            Play
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="bg-bright-pink hover:bg-bright-pink/90 text-white"
-                            onClick={() => handleVideoAnalysis(video)}
-                          >
-                            <Brain className="w-3 h-3 mr-1" />
-                            Analyze
-                          </Button>
-                        </div>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="animate-pulse flex gap-3">
+                      <div className="w-32 h-20 bg-gray-700/50 rounded-lg flex-shrink-0"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-700/50 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-700/50 rounded w-1/2"></div>
                       </div>
                     </div>
                   ))}
                 </div>
+              ) : videos.length > 0 ? (
+                <>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {videos.slice(0, 2).map((video) => (
+                      <div
+                        key={video.id}
+                        className="group flex gap-3 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl border-0 transition-all duration-300 overflow-hidden hover:shadow-lg hover:shadow-bright-pink/20 p-3"
+                      >
+                        <div className="w-32 h-20 bg-black rounded-lg relative overflow-hidden flex-shrink-0">
+                          <SmartThumbnail
+                            thumbnailUrl={video.thumbnail_url}
+                            title={video.title}
+                            className="w-full h-full object-cover"
+                          />
+                          {video.ai_analysis_status === 'completed' && (
+                            <div className="absolute top-1 right-1">
+                              <Badge className="bg-black/60 text-green-400 border-green-400 border-0 text-xs px-1 py-0">
+                                <Brain className="w-2 h-2 mr-0.5" />
+                                AI
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div>
+                            <h4 className="font-semibold text-white mb-1 line-clamp-1 group-hover:text-bright-pink transition-colors duration-200 text-sm">
+                              {video.title}
+                            </h4>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                              {video.team_name && (
+                                <span className="flex items-center gap-1.5">
+                                  {video.team_logo_url ? (
+                                    <img 
+                                      src={video.team_logo_url} 
+                                      alt={video.team_name}
+                                      className="w-4 h-4 rounded object-contain"
+                                    />
+                                  ) : (
+                                    <Building className="w-3 h-3" />
+                                  )}
+                                  {video.team_name}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(video.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-auto pt-1">
+                            <Button
+                              size="sm"
+                              className="bg-bright-pink hover:bg-bright-pink/90 text-white h-7 px-3 text-xs"
+                              onClick={() => handleVideoPlay(video)}
+                            >
+                              <Play className="w-3 h-3 mr-1" />
+                              Watch & Analyze
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {videos.length > 2 && (
+                    <div className="mt-4 pt-4 border-t border-gray-700">
+                      <Button
+                        variant="outline"
+                        className="w-full border-bright-pink/30 text-bright-pink hover:bg-bright-pink/10"
+                        onClick={() => setShowAllVideosDialog(true)}
+                      >
+                        View All Videos ({videos.length})
+                      </Button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <Play className="w-12 h-12 mx-auto text-gray-600 mb-4" />
@@ -407,6 +467,76 @@ const PlayerProfilePage: React.FC = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* All Videos Dialog */}
+      <Dialog open={showAllVideosDialog} onOpenChange={setShowAllVideosDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-gray-800 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Play className="w-5 h-5 text-bright-pink" />
+              All Tagged Videos ({videos.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[calc(90vh-120px)] pr-2">
+            <div className="space-y-3">
+              {videos.map((video) => (
+                <div
+                  key={video.id}
+                  className="group flex gap-3 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl border-0 transition-all duration-300 overflow-hidden hover:shadow-lg hover:shadow-bright-pink/20 p-3"
+                >
+                  <div className="w-32 h-20 bg-black rounded-lg relative overflow-hidden flex-shrink-0">
+                    <SmartThumbnail
+                      thumbnailUrl={video.thumbnail_url}
+                      title={video.title}
+                      className="w-full h-full object-cover"
+                    />
+                    {video.ai_analysis_status === 'completed' && (
+                      <div className="absolute top-1 right-1">
+                        <Badge className="bg-black/60 text-green-400 border-green-400 border-0 text-xs px-1 py-0">
+                          <Brain className="w-2 h-2 mr-0.5" />
+                          AI
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-semibold text-white mb-1 line-clamp-1 group-hover:text-bright-pink transition-colors duration-200 text-sm">
+                        {video.title}
+                      </h4>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                        {video.team_name && (
+                          <span className="flex items-center gap-1">
+                            <Building className="w-3 h-3" />
+                            {video.team_name}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(video.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-auto pt-1">
+                      <Button
+                        size="sm"
+                        className="bg-bright-pink hover:bg-bright-pink/90 text-white h-7 px-3 text-xs"
+                        onClick={() => {
+                          setShowAllVideosDialog(false);
+                          handleVideoPlay(video);
+                        }}
+                      >
+                        <Play className="w-3 h-3 mr-1" />
+                        Watch & Analyze
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
