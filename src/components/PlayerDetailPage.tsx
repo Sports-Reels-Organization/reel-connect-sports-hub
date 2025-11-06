@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft, User, MapPin, Calendar, DollarSign, Trophy,
@@ -16,7 +17,6 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import MessageModal from './MessageModal';
 import { ShortlistManager } from './ShortlistManager';
-import VideoPlayer from './VideoPlayer';
 
 interface PlayerDetail {
   id: string;
@@ -76,8 +76,7 @@ const PlayerDetailPage: React.FC = () => {
   const [videos, setVideos] = useState<PlayerVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showMessageModal, setShowMessageModal] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<PlayerVideo | null>(null);
-  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [showAllVideosDialog, setShowAllVideosDialog] = useState(false);
 
   useEffect(() => {
     if (playerId) {
@@ -194,8 +193,8 @@ const PlayerDetailPage: React.FC = () => {
   };
 
   const handleVideoPlay = (video: PlayerVideo) => {
-    setSelectedVideo(video);
-    setShowVideoPlayer(true);
+    // Navigate to VideoAnalysisResults page, similar to video management
+    navigate(`/videos/${encodeURIComponent(video.title)}`);
   };
 
   const canEditPitch = () => {
@@ -280,7 +279,15 @@ const PlayerDetailPage: React.FC = () => {
                       <h2 className="text-2xl font-bold text-white mb-2">{player.full_name}</h2>
                       <div className="flex items-center gap-4 text-gray-400">
                         <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4" />
+                          {player.teams.logo_url ? (
+                            <img 
+                              src={player.teams.logo_url} 
+                              alt={player.teams.team_name}
+                              className="w-5 h-5 rounded object-contain"
+                            />
+                          ) : (
+                            <Building2 className="w-4 h-4" />
+                          )}
                           <span>{player.teams.team_name}</span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -395,42 +402,65 @@ const PlayerDetailPage: React.FC = () => {
                     <p className="text-gray-400">No videos available for this player</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {videos.map((video) => (
-                      <Card key={video.id} className="bg-gray-700 border-gray-600">
-                        <CardContent className="p-4">
-                          <div className="aspect-video bg-black rounded-lg mb-3 relative">
+                  <>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {videos.slice(0, 2).map((video) => (
+                        <div
+                          key={video.id}
+                          className="group flex gap-3 bg-gray-700 border border-gray-600 hover:border-rosegold/50 rounded-xl transition-all duration-300 overflow-hidden p-3"
+                        >
+                          <div className="w-32 h-20 bg-black rounded-lg relative overflow-hidden flex-shrink-0">
                             <SmartThumbnail
                               thumbnailUrl={video.thumbnail_url}
                               title={video.title}
-                              className="w-full h-full object-cover rounded-lg"
+                              className="w-full h-full object-cover"
                             />
-                            <Button
-                              size="sm"
-                              className="absolute inset-0 m-auto bg-rosegold hover:bg-rosegold/90 text-white"
-                              onClick={() => handleVideoPlay(video)}
-                            >
-                              <Play className="w-4 h-4 mr-2" />
-                              Play
-                            </Button>
+                            {video.ai_analysis_status === 'completed' && (
+                              <div className="absolute top-1 right-1">
+                                <Badge variant="outline" className="bg-black/60 text-green-400 border-green-400 text-xs px-1 py-0">
+                                  <Brain className="w-2 h-2 mr-0.5" />
+                                  AI
+                                </Badge>
+                              </div>
+                            )}
                           </div>
-
-                          <h4 className="font-medium text-white mb-2">{video.title}</h4>
-                          <div className="flex items-center justify-between text-sm text-gray-400">
-                            <span>{video.video_type}</span>
-                            <span>{Math.round(video.duration / 60)} min</span>
+                          <div className="flex-1 min-w-0 flex flex-col justify-between">
+                            <div>
+                              <h4 className="font-medium text-white mb-1 line-clamp-1 group-hover:text-rosegold transition-colors duration-200 text-sm">{video.title}</h4>
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                                <span className="capitalize">{video.video_type}</span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {Math.round(video.duration / 60)} min
+                                </span>
+                              </div>
+                            </div>
+                            <div className="mt-auto pt-1">
+                              <Button
+                                size="sm"
+                                className="bg-rosegold hover:bg-rosegold/90 text-white h-7 px-3 text-xs"
+                                onClick={() => handleVideoPlay(video)}
+                              >
+                                <Play className="w-3 h-3 mr-1" />
+                                Watch & Analyze
+                              </Button>
+                            </div>
                           </div>
-
-                          {video.ai_analysis_status === 'completed' && (
-                            <Badge variant="outline" className="text-green-400 border-green-400 mt-2">
-                              <Brain className="w-3 h-3 mr-1" />
-                              AI Analyzed
-                            </Badge>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                        </div>
+                      ))}
+                    </div>
+                    {videos.length > 2 && (
+                      <div className="mt-4 pt-4 border-t border-gray-700">
+                        <Button
+                          variant="outline"
+                          className="w-full border-rosegold/30 text-rosegold hover:bg-rosegold/10"
+                          onClick={() => setShowAllVideosDialog(true)}
+                        >
+                          View All Videos ({videos.length})
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -551,42 +581,69 @@ const PlayerDetailPage: React.FC = () => {
         />
       )}
 
-      {/* Video Player Modal */}
-      {showVideoPlayer && selectedVideo && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-700">
-              <h3 className="text-white font-medium">{selectedVideo.title}</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowVideoPlayer(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                ×
-              </Button>
-            </div>
-            <div className="p-4">
-              <VideoPlayer
-                videoUrl={selectedVideo.video_url}
-                title={selectedVideo.title}
-                videoId={selectedVideo.id}
-                metadata={{
-                  playerTags: [],
-                  matchDetails: {
-                    homeTeam: player.teams.team_name,
-                    awayTeam: 'Opposition',
-                    league: 'League',
-                    finalScore: '0-0'
-                  },
-                  duration: selectedVideo.duration
-                }}
-                onPlayerTagClick={() => { }}
-              />
+      {/* All Videos Dialog */}
+      <Dialog open={showAllVideosDialog} onOpenChange={setShowAllVideosDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-gray-800 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Video className="w-5 h-5 text-rosegold" />
+              All Player Videos ({videos.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[calc(90vh-120px)] pr-2">
+            <div className="space-y-3">
+              {videos.map((video) => (
+                <div
+                  key={video.id}
+                  className="group flex gap-3 bg-gray-700 border border-gray-600 hover:border-rosegold/50 rounded-xl transition-all duration-300 overflow-hidden p-3"
+                >
+                  <div className="w-32 h-20 bg-black rounded-lg relative overflow-hidden flex-shrink-0">
+                    <SmartThumbnail
+                      thumbnailUrl={video.thumbnail_url}
+                      title={video.title}
+                      className="w-full h-full object-cover"
+                    />
+                    {video.ai_analysis_status === 'completed' && (
+                      <div className="absolute top-1 right-1">
+                        <Badge variant="outline" className="bg-black/60 text-green-400 border-green-400 text-xs px-1 py-0">
+                          <Brain className="w-2 h-2 mr-0.5" />
+                          AI
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-medium text-white mb-1 line-clamp-1 group-hover:text-rosegold transition-colors duration-200 text-sm">{video.title}</h4>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                        <span className="capitalize">{video.video_type}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {Math.round(video.duration / 60)} min
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-auto pt-1">
+                      <Button
+                        size="sm"
+                        className="bg-rosegold hover:bg-rosegold/90 text-white h-7 px-3 text-xs"
+                        onClick={() => {
+                          setShowAllVideosDialog(false);
+                          handleVideoPlay(video);
+                        }}
+                      >
+                        <Play className="w-3 h-3 mr-1" />
+                        Watch & Analyze
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };
