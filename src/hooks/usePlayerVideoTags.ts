@@ -9,6 +9,8 @@ interface PlayerVideo {
   thumbnail_url?: string;
   created_at: string;
   team_name?: string;
+  team_logo_url?: string;
+  ai_analysis_status?: string;
 }
 
 export const usePlayerVideoTags = (playerId: string) => {
@@ -37,7 +39,8 @@ export const usePlayerVideoTags = (playerId: string) => {
           thumbnail_url,
           created_at,
           tagged_players,
-          teams(team_name)
+          ai_analysis_status,
+          teams(team_name, logo_url)
         `)
         .contains('tagged_players', `["${playerId}"]`)
         .order('created_at', { ascending: false });
@@ -54,6 +57,7 @@ export const usePlayerVideoTags = (playerId: string) => {
           thumbnail_url,
           created_at,
           tagged_players,
+          ai_analysis_status,
           team_id
         `)
         .contains('tagged_players', `["${playerId}"]`)
@@ -71,7 +75,9 @@ export const usePlayerVideoTags = (playerId: string) => {
           video_url: video.video_url,
           thumbnail_url: video.thumbnail_url,
           created_at: video.created_at,
-          team_name: video.teams?.team_name
+          team_name: video.teams?.team_name,
+          team_logo_url: video.teams?.logo_url,
+          ai_analysis_status: video.ai_analysis_status
         })),
         ...(matchVideosData || []).map(video => ({
           id: video.id,
@@ -79,7 +85,9 @@ export const usePlayerVideoTags = (playerId: string) => {
           video_url: video.video_url,
           thumbnail_url: video.thumbnail_url,
           created_at: video.created_at,
-          team_name: null // Team name not available from match_videos query
+          team_name: null, // Team name not available from match_videos query
+          team_logo_url: null,
+          ai_analysis_status: video.ai_analysis_status
         }))
       ];
 
