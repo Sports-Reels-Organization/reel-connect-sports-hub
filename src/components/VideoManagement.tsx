@@ -211,13 +211,13 @@ const VideoManagement: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Badge className="bg-green-500 text-white">Analyzed</Badge>;
+        return <Badge className="bg-green-500 text-white border-0 text-[10px] sm:text-xs px-1.5 sm:px-2">Analyzed</Badge>;
       case 'analyzing':
-        return <Badge className="bg-yellow-500 text-white">Analyzing</Badge>;
+        return <Badge className="bg-yellow-500 text-white border-0 text-[10px] sm:text-xs px-1.5 sm:px-2">Analyzing</Badge>;
       case 'failed':
-        return <Badge className="bg-red-500 text-white">Failed</Badge>;
+        return <Badge className="bg-red-500 text-white border-0 text-[10px] sm:text-xs px-1.5 sm:px-2">Failed</Badge>;
       default:
-        return <Badge className="bg-gray-500 text-white">Pending</Badge>;
+        return <Badge className="bg-white/40 text-white border-0 text-[10px] sm:text-xs px-1.5 sm:px-2">Pending</Badge>;
     }
   };
 
@@ -230,7 +230,7 @@ const VideoManagement: React.FC = () => {
     };
 
     return (
-      <Badge className={`${colors[type as keyof typeof colors]} text-white`}>
+      <Badge className={`${colors[type as keyof typeof colors]} text-white border-0 text-[10px] sm:text-xs px-1.5 sm:px-2`}>
         {type.charAt(0).toUpperCase() + type.slice(1)}
       </Badge>
     );
@@ -238,34 +238,35 @@ const VideoManagement: React.FC = () => {
 
   if (profile?.user_type !== 'team') {
     return (
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-6 text-center">
-          <Video className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-white font-medium mb-2">Team Access Only</h3>
-          <p className="text-gray-400">This feature is only available for team accounts.</p>
+      <Card className="bg-[#111111] border-0">
+        <CardContent className="p-6 sm:p-8 text-center">
+          <Video className="w-10 h-10 sm:w-12 sm:h-12 text-white/40 mx-auto mb-3 sm:mb-4" />
+          <h3 className="text-white font-medium mb-2 text-sm sm:text-base">Team Access Only</h3>
+          <p className="text-white/60 text-xs sm:text-sm">This feature is only available for team accounts.</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Video Management</h1>
-          <p className="text-gray-400">Upload, analyze, and manage your team's video content</p>
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-1 sm:mb-2">Video Management</h1>
+          <p className="text-xs sm:text-sm text-white/60">Upload, analyze, and manage your team's video content</p>
         </div>
 
         <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
           <DialogTrigger asChild>
-            <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              Upload Videos
+            <Button className="bg-rosegold text-white border-0 w-full sm:w-auto h-9 sm:h-10 text-xs sm:text-sm">
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+              <span className="hidden sm:inline">Upload Videos</span>
+              <span className="sm:hidden">Upload</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-[#111111] border-0">
             <DialogHeader>
-              <DialogTitle>Upload Videos</DialogTitle>
+              <DialogTitle className="text-white">Upload Videos</DialogTitle>
             </DialogHeader>
             {teamId && (
               <EnhancedVideoUploadForm
@@ -285,44 +286,44 @@ const VideoManagement: React.FC = () => {
         </Dialog>
       </div>
 
-      <Card className="bg-gray-800 border-gray-700">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
+      <Card className="bg-[#111111] border-0">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <div className="flex-1 min-w-0">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-white/60 w-3 h-3 sm:w-4 sm:h-4" />
                 <Input
                   placeholder="Search videos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-gray-700 border-gray-600 text-white"
+                  className="pl-8 sm:pl-10 bg-[#1a1a1a] border-0 text-white text-xs sm:text-sm h-9 sm:h-10"
                 />
               </div>
             </div>
 
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[150px] bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="w-full sm:w-[140px] bg-[#1a1a1a] border-0 text-white text-xs sm:text-sm h-9 sm:h-10">
                 <SelectValue placeholder="Video Type" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="match">Match</SelectItem>
-                <SelectItem value="training">Training</SelectItem>
-                <SelectItem value="interview">Interview</SelectItem>
-                <SelectItem value="highlight">Highlight</SelectItem>
+              <SelectContent className="bg-[#111111] border-0">
+                <SelectItem value="all" className="text-white text-xs sm:text-sm">All Types</SelectItem>
+                <SelectItem value="match" className="text-white text-xs sm:text-sm">Match</SelectItem>
+                <SelectItem value="training" className="text-white text-xs sm:text-sm">Training</SelectItem>
+                <SelectItem value="interview" className="text-white text-xs sm:text-sm">Interview</SelectItem>
+                <SelectItem value="highlight" className="text-white text-xs sm:text-sm">Highlight</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[150px] bg-gray-700 border-gray-600 text-white">
+              <SelectTrigger className="w-full sm:w-[140px] bg-[#1a1a1a] border-0 text-white text-xs sm:text-sm h-9 sm:h-10">
                 <SelectValue placeholder="Analysis Status" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="completed">Analyzed</SelectItem>
-                <SelectItem value="analyzing">Analyzing</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
+              <SelectContent className="bg-[#111111] border-0">
+                <SelectItem value="all" className="text-white text-xs sm:text-sm">All Status</SelectItem>
+                <SelectItem value="completed" className="text-white text-xs sm:text-sm">Analyzed</SelectItem>
+                <SelectItem value="analyzing" className="text-white text-xs sm:text-sm">Analyzing</SelectItem>
+                <SelectItem value="pending" className="text-white text-xs sm:text-sm">Pending</SelectItem>
+                <SelectItem value="failed" className="text-white text-xs sm:text-sm">Failed</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -330,25 +331,25 @@ const VideoManagement: React.FC = () => {
       </Card>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           {[...Array(6)].map((_, index) => (
-            <Card key={index} className="bg-gray-800 border-gray-700 animate-pulse">
-              <div className="aspect-video bg-gray-700 rounded-t-lg" />
-              <CardContent className="p-4">
-                <div className="h-4 bg-gray-700 rounded mb-2" />
-                <div className="h-3 bg-gray-700 rounded w-2/3" />
+            <Card key={index} className="bg-[#111111] border-0 animate-pulse">
+              <div className="aspect-video bg-[#1a1a1a] rounded-t-lg" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="h-3 sm:h-4 bg-[#1a1a1a] rounded mb-2" />
+                <div className="h-2 sm:h-3 bg-[#1a1a1a] rounded w-2/3" />
               </CardContent>
             </Card>
           ))}
         </div>
       ) : filteredVideos.length === 0 ? (
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-12 text-center">
-            <Video className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">
+        <Card className="bg-[#111111] border-0">
+          <CardContent className="p-8 sm:p-12 text-center">
+            <Video className="w-12 h-12 sm:w-16 sm:h-16 text-white/40 mx-auto mb-3 sm:mb-4" />
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
               {videos.length === 0 ? 'No Videos Yet' : 'No Matching Videos'}
             </h3>
-            <p className="text-gray-400 mb-6">
+            <p className="text-xs sm:text-sm text-white/60 mb-4 sm:mb-6">
               {videos.length === 0
                 ? 'Upload your first video to get started with AI analysis'
                 : 'Try adjusting your filters to see more videos'
@@ -357,14 +358,14 @@ const VideoManagement: React.FC = () => {
             {videos.length === 0 && (
               <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
                 <DialogTrigger asChild>
-                  <Button className="bg-bright-pink hover:bg-bright-pink/90 text-white">
-                    <Plus className="w-4 h-4 mr-2" />
+                  <Button className="bg-rosegold text-white border-0 h-9 sm:h-10 text-xs sm:text-sm">
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                     Upload Your First Videos
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-[#111111] border-0">
                   <DialogHeader>
-                    <DialogTitle>Upload Videos</DialogTitle>
+                    <DialogTitle className="text-white">Upload Videos</DialogTitle>
                   </DialogHeader>
                   {teamId && (
                     <EnhancedVideoUploadForm
@@ -386,10 +387,10 @@ const VideoManagement: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           {filteredVideos.map((video) => (
-            <Card key={video.id} className="bg-gray-800 border-gray-700 overflow-hidden hover:border-bright-pink/50 transition-colors">
-              <div className="relative aspect-video bg-gray-900">
+            <Card key={video.id} className="bg-[#111111] border-0 overflow-hidden">
+              <div className="relative aspect-video bg-[#1a1a1a]">
                 <SmartThumbnail
                   thumbnailUrl={video.thumbnail_url}
                   title={video.title}
@@ -397,58 +398,58 @@ const VideoManagement: React.FC = () => {
                 />
 
                 {video.duration > 0 && (
-                  <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-white text-xs">
+                  <div className="absolute bottom-1.5 sm:bottom-2 right-1.5 sm:right-2 bg-black/70 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-white text-[10px] sm:text-xs">
                     {formatDuration(video.duration)}
                   </div>
                 )}
 
-                <div className="absolute top-2 left-2">
+                <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2">
                   {getStatusBadge(video.ai_analysis_status)}
                 </div>
               </div>
 
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-white font-medium line-clamp-2 flex-1">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-start justify-between mb-2 gap-2">
+                  <h3 className="text-white font-medium line-clamp-2 flex-1 text-sm sm:text-base leading-tight">
                     {video.title}
                   </h3>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => playVideo(video)}
-                      className="text-gray-400 hover:text-blue-500"
+                      className="text-white/60 border-0 h-7 w-7 sm:h-8 sm:w-8 p-0"
                       title="Play Video"
                     >
-                      <Play className="w-4 h-4" />
+                      <Play className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => editVideo(video)}
-                      className="text-gray-400 hover:text-yellow-500"
+                      className="text-white/60 border-0 h-7 w-7 sm:h-8 sm:w-8 p-0"
                       title="Edit Video"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => deleteVideo(video.id)}
-                      className="text-gray-400 hover:text-red-500"
+                      className="text-red-400 border-0 h-7 w-7 sm:h-8 sm:w-8 p-0"
                       title="Delete Video"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
                   {getTypeBadge(video.video_type)}
                 </div>
 
                 {video.video_type === 'match' && video.opposing_team && (
-                  <div className="text-sm text-gray-400 mb-2">
+                  <div className="text-xs sm:text-sm text-white/60 mb-2">
                     vs {video.opposing_team}
                     {video.final_score && (
                       <span className="ml-2 text-white">({video.final_score})</span>
@@ -456,26 +457,27 @@ const VideoManagement: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex items-center text-xs text-gray-500 mb-4">
-                  <Calendar className="w-3 h-3 mr-1" />
+                <div className="flex items-center text-[10px] sm:text-xs text-white/40 mb-3 sm:mb-4">
+                  <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
                   {new Date(video.created_at).toLocaleDateString()}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 sm:gap-2">
                   {video.ai_analysis_status === 'completed' ? (
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button
                           size="sm"
-                          className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white"
+                          className="flex-1 bg-rosegold text-white border-0 h-8 sm:h-9 text-xs sm:text-sm"
                         >
-                          <Brain className="w-4 h-4 mr-1" />
-                          View Analysis
+                          <Brain className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                          <span className="hidden sm:inline">View Analysis</span>
+                          <span className="sm:hidden">Analysis</span>
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-[#111111] border-0">
                         <DialogHeader>
-                          <DialogTitle>{video.title} - AI Analysis</DialogTitle>
+                          <DialogTitle className="text-white">{video.title} - AI Analysis</DialogTitle>
                         </DialogHeader>
                         {teamId && (
                           <VideoAnalysisResults
@@ -489,28 +491,30 @@ const VideoManagement: React.FC = () => {
                   ) : (
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="flex-1 border-gray-600 text-gray-400"
+                      className="flex-1 bg-[#1a1a1a] text-white/60 border-0 h-8 sm:h-9 text-xs sm:text-sm"
                       disabled
                     >
                       {video.ai_analysis_status === 'analyzing' ? (
                         <>
-                          <div className="animate-spin w-3 h-3 mr-1 border border-current border-t-transparent rounded-full" />
-                          Analyzing...
+                          <div className="animate-spin w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1 border border-current border-t-transparent rounded-full" />
+                          <span className="hidden sm:inline">Analyzing...</span>
+                          <span className="sm:hidden">...</span>
                         </>
                       ) : (
-                        'Analysis Pending'
+                        <>
+                          <span className="hidden sm:inline">Analysis Pending</span>
+                          <span className="sm:hidden">Pending</span>
+                        </>
                       )}
                     </Button>
                   )}
 
                   <Button
                     size="sm"
-                    variant="outline"
-                    className="border-gray-600 text-gray-400 hover:text-white"
+                    className="bg-[#1a1a1a] text-white/60 border-0 h-8 sm:h-9 w-8 sm:w-9 p-0"
                     onClick={() => window.open(video.video_url, '_blank')}
                   >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -519,35 +523,35 @@ const VideoManagement: React.FC = () => {
         </div>
       )}
 
-      <Card className="bg-gray-800 border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white">Video Statistics</CardTitle>
+      <Card className="bg-[#111111] border-0">
+        <CardHeader className="p-3 sm:p-4 md:p-6">
+          <CardTitle className="text-white text-base sm:text-lg">Video Statistics</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-bright-pink">
+        <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div className="text-center bg-[#1a1a1a] p-3 sm:p-4 rounded-lg">
+              <div className="text-xl sm:text-2xl font-bold text-rosegold">
                 {videos.length}
               </div>
-              <div className="text-gray-400 text-sm">Total Videos</div>
+              <div className="text-white/60 text-xs sm:text-sm mt-1">Total Videos</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-500">
+            <div className="text-center bg-[#1a1a1a] p-3 sm:p-4 rounded-lg">
+              <div className="text-xl sm:text-2xl font-bold text-green-500">
                 {videos.filter(v => v.ai_analysis_status === 'completed').length}
               </div>
-              <div className="text-gray-400 text-sm">Analyzed</div>
+              <div className="text-white/60 text-xs sm:text-sm mt-1">Analyzed</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-500">
+            <div className="text-center bg-[#1a1a1a] p-3 sm:p-4 rounded-lg">
+              <div className="text-xl sm:text-2xl font-bold text-yellow-500">
                 {videos.filter(v => v.ai_analysis_status === 'analyzing').length}
               </div>
-              <div className="text-gray-400 text-sm">Processing</div>
+              <div className="text-white/60 text-xs sm:text-sm mt-1">Processing</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-500">
+            <div className="text-center bg-[#1a1a1a] p-3 sm:p-4 rounded-lg">
+              <div className="text-xl sm:text-2xl font-bold text-blue-500">
                 {videos.filter(v => v.video_type === 'match').length}
               </div>
-              <div className="text-gray-400 text-sm">Match Videos</div>
+              <div className="text-white/60 text-xs sm:text-sm mt-1">Match Videos</div>
             </div>
           </div>
         </CardContent>

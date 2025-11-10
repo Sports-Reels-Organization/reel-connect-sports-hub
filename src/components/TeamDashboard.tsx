@@ -323,13 +323,13 @@ const TeamDashboard = () => {
 
   if (loading || completionLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-700 rounded w-1/3"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="animate-pulse space-y-4 sm:space-y-6">
+            <div className="h-6 sm:h-8 bg-gray-700 rounded w-1/2 sm:w-1/3"></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-32 bg-gray-700 rounded-lg"></div>
+                <div key={i} className="h-28 sm:h-32 bg-gray-700 rounded-lg"></div>
               ))}
             </div>
           </div>
@@ -339,47 +339,47 @@ const TeamDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-polysans text-3xl font-bold text-white">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="font-polysans text-xl sm:text-2xl md:text-3xl font-bold text-white truncate">
               Team Dashboard
             </h1>
             {teamInfo && (
-              <p className="text-gray-400 mt-1">
+              <p className="text-gray-400 mt-1 text-xs sm:text-sm truncate">
                 {teamInfo.team_name} • {teamInfo.league || 'No League Set'}
               </p>
             )}
           </div>
 
           {teamInfo?.logo_url && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-shrink-0">
               <img
                 src={teamInfo.logo_url}
                 alt="Team Logo"
-                className="w-16 h-16 object-cover rounded-lg border-2 border-gray-600"
+                className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 object-cover rounded-lg border-2 border-gray-600"
               />
             </div>
           )}
         </div>
 
         {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {/* Players */}
           <Card className='bg-gradient-to-tr  from-purple-700/60 to-purple-600 border-0'>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Total Players</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalPlayers}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm sm:text-base font-medium text-gray-400 truncate">Total Players</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-white">{stats.totalPlayers}</p>
                 </div>
-                <Users className="w-8 h-8 text-purple-900" />
+                <Users className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-purple-900 flex-shrink-0 ml-2" />
               </div>
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <Link to="/players">
-                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-purple-800/60 to-purple-900 border-0">
+                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-purple-800/60 to-purple-900 border-0 h-9 sm:h-10 text-sm sm:text-base">
                     Manage Players
                   </Button>
                 </Link>
@@ -389,18 +389,17 @@ const TeamDashboard = () => {
 
           {/* Videos */}
           <Card className="bg-gradient-to-tr  from-blue-700/60 to-blue-600 border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Total Videos</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalVideos}</p>
-
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm sm:text-base font-medium text-gray-400 truncate">Total Videos</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-white">{stats.totalVideos}</p>
                 </div>
-                <Video className="w-8 h-8 text-blue-900" />
+                <Video className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-blue-900 flex-shrink-0 ml-2" />
               </div>
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <Link to="/videos">
-                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-blue-800/60 to-blue-900 border-0">
+                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-blue-800/60 to-blue-900 border-0 h-9 sm:h-10 text-sm sm:text-base">
                     Manage Videos
                   </Button>
                 </Link>
@@ -410,18 +409,17 @@ const TeamDashboard = () => {
 
           {/* Active Pitches */}
           <Card className="bg-gradient-to-tr  from-orange-700/60 to-orange-600 border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Active Pitches</p>
-                  <p className="text-2xl font-bold text-white">{stats.activePitches}</p>
-
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm sm:text-base font-medium text-gray-400 truncate">Active Pitches</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-white">{stats.activePitches}</p>
                 </div>
-                <Target className="w-8 h-8 text-orange-900" />
+                <Target className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-orange-900 flex-shrink-0 ml-2" />
               </div>
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <Link to="/explore">
-                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-orange-800/60 to-orange-900 border-0">
+                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-orange-800/60 to-orange-900 border-0 h-9 sm:h-10 text-sm sm:text-base">
                     Explore Hub
                   </Button>
                 </Link>
@@ -431,17 +429,17 @@ const TeamDashboard = () => {
 
           {/* Messages */}
           <Card className="bg-gradient-to-tr  from-green-700/60 to-green-600 border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Total Messages</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalMessages}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm sm:text-base font-medium text-gray-400 truncate">Total Messages</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-white">{stats.totalMessages}</p>
                 </div>
-                <MessageSquare className="w-8 h-8 text-green-900" />
+                <MessageSquare className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-900 flex-shrink-0 ml-2" />
               </div>
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <Link to="/messages">
-                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-green-800/60 to-green-900 border-0">
+                  <Button variant="outline" size="sm" className="w-full bg-gradient-to-tr  from-green-800/60 to-green-900 border-0 h-9 sm:h-10 text-sm sm:text-base">
                     View Messages
                   </Button>
                 </Link>
@@ -451,27 +449,27 @@ const TeamDashboard = () => {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           {/* Recent Activity */}
           <Card className="lg:col-span-2 bg-card border-0">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
+            <CardHeader className="p-4 sm:p-5 md:p-6">
+              <CardTitle className="text-white flex items-center gap-2 text-base sm:text-lg">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
                 Recent Activity
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
               {recentActivity.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#111111]">
-                      <div className={`${getActivityColor(activity.type)} mt-0.5`}>
+                    <div key={activity.id} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-[#111111]">
+                      <div className={`${getActivityColor(activity.type)} mt-0.5 flex-shrink-0`}>
                         {getActivityIcon(activity.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">{activity.title}</p>
-                        <p className="text-xs text-gray-400 truncate">{activity.description}</p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-sm sm:text-base md:text-lg font-medium text-white break-words leading-tight">{activity.title}</p>
+                        <p className="text-sm sm:text-base text-gray-400 truncate">{activity.description}</p>
+                        <p className="text-sm sm:text-base text-gray-500 mt-1">
                           {new Date(activity.timestamp).toLocaleDateString()} at{' '}
                           {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
@@ -479,7 +477,7 @@ const TeamDashboard = () => {
                       {activity.status && (
                         <Badge
                           variant="outline"
-                          className={`text-xs ${activity.status === 'completed' ? 'text-green-400' : 'text-orange-400'}`}
+                          className={`text-sm sm:text-base flex-shrink-0 ${activity.status === 'completed' ? 'text-green-400' : 'text-orange-400'}`}
                         >
                           {activity.status}
                         </Badge>
@@ -488,10 +486,10 @@ const TeamDashboard = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <Clock className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                  <p className="text-gray-400">No recent activity</p>
-                  <p className="text-sm text-gray-500 mt-1">
+                <div className="text-center py-6 sm:py-8">
+                  <Clock className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-500" />
+                  <p className="text-gray-400 text-sm sm:text-base">No recent activity</p>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
                     Start by uploading videos or adding players
                   </p>
                 </div>
@@ -501,51 +499,51 @@ const TeamDashboard = () => {
 
           {/* Quick Actions */}
           <Card className="bg-card border-0">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Star className="w-5 h-5" />
+            <CardHeader className="p-4 sm:p-5 md:p-6">
+              <CardTitle className="text-white flex items-center gap-2 text-base sm:text-lg">
+                <Star className="w-4 h-4 sm:w-5 sm:h-5" />
                 Quick Actions
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 sm:space-y-3 p-4 sm:p-5 md:p-6 pt-0">
               <Link to="/videos" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <Video className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <Video className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Upload Videos
                 </Button>
               </Link>
 
               <Link to="/players" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <Users className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Add Players
                 </Button>
               </Link>
 
               <Link to="/team-explore?tab=create" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <Target className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <Target className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Create Pitch
                 </Button>
               </Link>
 
               <Link to="/messages" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <MessageSquare className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Check Messages
                 </Button>
               </Link>
 
               <Link to="/team-explore?tab=analytics" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <BarChart3 className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   View Analytics
                 </Button>
               </Link>
 
               <Link to="/profile" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <Trophy className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Edit Profile
                 </Button>
               </Link>

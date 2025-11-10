@@ -12,10 +12,10 @@ const WalletPage: React.FC = () => {
   // Show loading state while authentication is loading
   if (loading) {
     return (
-      <div className="min-h-screen  flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading wallet...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center px-3 sm:px-4">
+        <div className="text-center space-y-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-sm text-gray-400">Loading wallet...</p>
         </div>
       </div>
     );

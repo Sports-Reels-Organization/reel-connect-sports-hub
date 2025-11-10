@@ -5,7 +5,7 @@ import React from 'react';
 const Notification = () => {
     return (
         <Layout>
-            <div className="space-y-6">
+            <div className="min-h-screen bg-background px-3 py-6 sm:px-5 sm:py-8 lg:px-8">
                 <NotificationCenter />
             </div>
         </Layout>

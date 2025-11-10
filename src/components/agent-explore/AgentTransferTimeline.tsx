@@ -70,7 +70,8 @@ const AgentTransferTimeline = () => {
   const [filteredPitches, setFilteredPitches] = useState<TimelinePitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
-  const [agentSportType, setAgentSportType] = useState<'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby'>('football');
+  const [agentSportType, setAgentSportType] = useState<string | null>(null);
+  const [sportLoaded, setSportLoaded] = useState(false);
   const [shortlistedPitches, setShortlistedPitches] = useState<Set<string>>(new Set());
   const [selectedPlayerForMessage, setSelectedPlayerForMessage] = useState<TimelinePitch | null>(null);
   const [showInterestModal, setShowInterestModal] = useState(false);
@@ -79,10 +80,10 @@ const AgentTransferTimeline = () => {
   const [interestType, setInterestType] = useState<'interested' | 'requested'>('interested');
   const [expressedInterests, setExpressedInterests] = useState<Set<string>>(new Set());
   const [existingInterestData, setExistingInterestData] = useState<{ status: string, message: string } | null>(null);
-  
+
   // Real-time interest management
   const { cancelInterest } = useAgentInterestRealtime();
-  
+
   // Real-time player status management
   const { incrementInterestCount, decrementInterestCount, getStatusBadgeProps } = usePlayerStatusRealtime();
 
@@ -96,7 +97,7 @@ const AgentTransferTimeline = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   // Get sport-specific data
-  const { positions } = useSportData(agentSportType);
+  const { positions } = useSportData(agentSportType || '');
   const transferTypes = ['permanent', 'loan'];
   const dealStages = ['pitch', 'interest', 'discussion', 'expired'];
   const priceRanges = [
@@ -111,16 +112,37 @@ const AgentTransferTimeline = () => {
   const [availableTeams, setAvailableTeams] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchAgentSportType();
-  }, [profile]);
+    if (!profile?.id) {
+      setAgentSportType(null);
+      setSportLoaded(true);
+      setLoading(false);
+      return;
+    }
+
+    const loadSport = async () => {
+      setSportLoaded(false);
+      setLoading(true);
+      await fetchAgentSportType();
+    };
+
+    loadSport();
+  }, [profile?.id]);
 
   useEffect(() => {
-    if (agentSportType) {
-      fetchTimelinePitches();
-      fetchShortlistedPitches();
-      fetchExpressedInterests();
+    if (!sportLoaded) return;
+
+    if (!agentSportType) {
+      setPitches([]);
+      setFilteredPitches([]);
+      setAvailableTeams([]);
+      setLoading(false);
+      return;
     }
-  }, [agentSportType]);
+
+    fetchTimelinePitches();
+    fetchShortlistedPitches();
+    fetchExpressedInterests();
+  }, [agentSportType, sportLoaded]);
 
   useEffect(() => {
     applyFilters();
@@ -142,11 +164,16 @@ const AgentTransferTimeline = () => {
       }
 
       if (data?.specialization && Array.isArray(data.specialization) && data.specialization.length > 0) {
-        const sportType = data.specialization[0] as 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby';
+        const sportType = data.specialization[0];
         setAgentSportType(sportType);
+      } else {
+        setAgentSportType(null);
       }
     } catch (error) {
       console.error('Error fetching agent sport type:', error);
+      setAgentSportType(null);
+    } finally {
+      setSportLoaded(true);
     }
   };
 
@@ -210,6 +237,11 @@ const AgentTransferTimeline = () => {
   };
 
   const fetchTimelinePitches = async () => {
+    if (!agentSportType) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data: pitchesData, error: pitchesError } = await supabase
         .from('transfer_pitches')
@@ -656,7 +688,7 @@ const AgentTransferTimeline = () => {
       if (existingInterest) {
         // Check if we're reactivating a withdrawn/rejected interest
         const isReactivating = existingInterest.status === 'withdrawn' || existingInterest.status === 'rejected';
-        
+
         console.log('🔄 Updating existing interest:', {
           existingStatus: existingInterest.status,
           newStatus: interestType,
@@ -678,7 +710,7 @@ const AgentTransferTimeline = () => {
         // because the database trigger UPDATE path notifies the agent, not the team
         if (isReactivating) {
           console.log('🔄 Reactivating interest - creating manual team notification');
-          
+
           try {
             if (pitch.teams.profile_id) {
               const { data: teamProfile } = await supabase
@@ -717,14 +749,14 @@ const AgentTransferTimeline = () => {
 
         toast({
           title: isReactivating ? "Interest Renewed!" : "Interest Updated!",
-          description: isReactivating 
-            ? "Your interest has been renewed and the team has been notified." 
+          description: isReactivating
+            ? "Your interest has been renewed and the team has been notified."
             : "Your interest has been updated successfully.",
         });
       } else {
         // Direct approach - create interest and notification
         console.log('🎯 Creating new agent interest for pitch:', pitch.id);
-        
+
         const { error: insertError } = await supabase
           .from('agent_interest')
           .insert({
@@ -783,6 +815,36 @@ const AgentTransferTimeline = () => {
     }
   };
 
+  if (!sportLoaded) {
+    return (
+      <Card>
+        <CardContent className="p-4 md:p-6">
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-20 md:h-24 bg-gray-700 rounded"></div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!agentSportType) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center space-y-4">
+          <TrendingUp className="w-10 h-10 mx-auto text-rosegold" />
+          <CardTitle className="text-2xl text-white">Add Your Sport</CardTitle>
+          <p className="text-gray-400">
+            We couldn&apos;t detect a sport specialization for your agent profile. Update your sport settings to see matching transfer pitches.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (loading) {
     return (
       <Card>
@@ -812,19 +874,11 @@ const AgentTransferTimeline = () => {
                   <TrendingUp className="w-5 h-5 flex-shrink-0" />
                   Transfer Timeline
                 </CardTitle>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Select value={agentSportType} onValueChange={(value: 'football' | 'basketball' | 'volleyball' | 'tennis' | 'rugby') => setAgentSportType(value)}>
-                    <SelectTrigger className="w-28 sm:w-32 text-white border-gray-600 bg-gray-800 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-600">
-                      <SelectItem value="football" className="text-white">Football</SelectItem>
-                      <SelectItem value="basketball" className="text-white">Basketball</SelectItem>
-                      <SelectItem value="volleyball" className="text-white">Volleyball</SelectItem>
-                      <SelectItem value="tennis" className="text-white">Tennis</SelectItem>
-                      <SelectItem value="rugby" className="text-white">Rugby</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center gap-2 flex-wrap text-xs text-gray-300">
+                  <span className="uppercase tracking-wide text-gray-400">Sport:</span>
+                  <span className="text-rosegold font-semibold">
+                    {agentSportType.charAt(0).toUpperCase() + agentSportType.slice(1)}
+                  </span>
                   {filteredPitches.length > 0 && (
                     <Badge variant="outline" className="text-rosegold border-rosegold text-xs whitespace-nowrap">
                       {filteredPitches.length}
@@ -995,186 +1049,202 @@ const AgentTransferTimeline = () => {
           ) : (
             <div className={
               viewMode === 'card'
-                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6'
-                : 'space-y-3 md:space-y-4'
+                ? 'grid grid-cols-1 lg:grid-cols-3 gap-6'
+                : 'space-y-4'
             }>
               {filteredPitches.map((pitch) => (
                 <Card
                   key={pitch.id}
-                  className={`border-gray-600 transition-all duration-200 hover:border-rosegold/50 hover:shadow-lg ${isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : ''
+                  className={`border-0 hover:border-rosegold/30 transition-colors ${isExpiringSoon(pitch.expires_at) ? 'border-red-500 border-2' : ''
                     }`}
                 >
-                  <CardContent className="p-4 md:p-5">
-                    <div className="space-y-3 md:space-y-4">
-                      {/* Player and Team Info */}
-                      <div className={`${viewMode === 'list'
-                          ? 'flex items-center gap-3 md:gap-4'
-                          : 'flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3'
-                        }`}>
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          {pitch.players.photo_url ? (
-                            <img
-                              src={pitch.players.photo_url}
-                              alt={pitch.players.full_name}
-                              className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
-                              <User className="w-6 h-6 md:w-7 md:h-7 text-gray-400" />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-white text-base md:text-lg truncate">
-                              {pitch.players.full_name}
-                            </h3>
-                            <p className="text-gray-400 text-sm">
-                              {pitch.players.position} • {pitch.players.citizenship}
-                              {pitch.players.age && ` • ${pitch.players.age} years`}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              {pitch.teams.logo_url && (
-                                <img
-                                  src={pitch.teams.logo_url}
-                                  alt={pitch.teams.team_name}
-                                  className="w-4 h-4 rounded-sm object-contain flex-shrink-0"
-                                />
-                              )}
-                              <p className="text-xs text-gray-500 truncate">
-                                {pitch.teams.team_name} • {pitch.teams.country}
-                              </p>
-                            </div>
+                  <CardHeader className="pb-2 p-3 sm:p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {pitch.players.photo_url ? (
+                          <img
+                            src={pitch.players.photo_url}
+                            alt={pitch.players.full_name}
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-rosegold to-purple-600 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white font-bold text-sm sm:text-base">
+                              {pitch.players.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </span>
                           </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <div className="font-bold text-rosegold text-lg md:text-xl">
-                            {formatCurrency(pitch.asking_price, pitch.currency)}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {pitch.transfer_type.toUpperCase()}
-                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-white text-sm sm:text-base leading-tight break-words">
+                            {pitch.players.full_name}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-gray-400 truncate">
+                            {pitch.players.position}
+                            {pitch.players.age && ` • ${pitch.players.age}y`}
+                          </p>
                         </div>
                       </div>
 
-                      {/* Description */}
-                      {pitch.description && (
-                        <p className="text-gray-300 text-sm line-clamp-2 leading-relaxed">
-                          {pitch.description}
-                        </p>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <Badge
+                          variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}
+                          className="text-[10px] sm:text-xs px-1.5"
+                        >
+                          {pitch.transfer_type}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`${getDealStageColor(pitch.deal_stage)} text-white border-none text-[10px] sm:text-xs px-1.5`}
+                        >
+                          {getDealStageText(pitch.deal_stage)}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-2.5 p-3 sm:p-4">
+                    {/* Team Info */}
+                    <div className="flex items-center gap-2">
+                      {pitch.teams.logo_url && (
+                        <img
+                          src={pitch.teams.logo_url}
+                          alt={pitch.teams.team_name}
+                          className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex-shrink-0"
+                        />
                       )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-white text-xs sm:text-sm truncate leading-tight">
+                          {pitch.teams.team_name}
+                        </p>
+                        <p className="text-[10px] sm:text-xs text-gray-400 truncate">
+                          {pitch.teams.country}
+                        </p>
+                      </div>
+                    </div>
 
-                      {/* Tags and Status */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge
-                            variant="outline"
-                            className={`${getDealStageColor(pitch.deal_stage)} text-white border-none text-xs`}
-                          >
-                            {getDealStageText(pitch.deal_stage)}
+                    {/* Price */}
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-green-400 flex-shrink-0" />
+                      <span className="text-white font-semibold text-xs sm:text-sm truncate">
+                        {new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(pitch.asking_price)} {pitch.currency}
+                      </span>
+                    </div>
+
+                    {/* Description */}
+                    {pitch.description && (
+                      <p className="text-gray-300 text-[10px] sm:text-xs line-clamp-2 leading-tight">
+                        {pitch.description}
+                      </p>
+                    )}
+
+                    {/* Additional Badges */}
+                    {(pitch.is_international || (pitch.tagged_videos && pitch.tagged_videos.length > 0) || isExpiringSoon(pitch.expires_at)) && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {pitch.is_international && (
+                          <Badge variant="outline" className="text-blue-400 border-blue-400 text-[10px] sm:text-xs px-1.5">
+                            International
                           </Badge>
-                          {pitch.is_international && (
-                            <Badge variant="outline" className="text-blue-400 border-blue-400 text-xs">
-                              International
-                            </Badge>
-                          )}
-                          {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
-                            <Badge variant="outline" className="text-green-400 border-green-400 text-xs">
-                              <Play className="w-3 h-3 mr-1" />
-                              {pitch.tagged_videos.length} Videos
-                            </Badge>
-                          )}
-                          {isExpiringSoon(pitch.expires_at) && (
-                            <Badge variant="outline" className="text-red-400 border-red-400 animate-pulse text-xs">
-                              <AlertCircle className="w-3 h-3 mr-1" />
-                              Expiring Soon
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Expires {formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}
-                        </div>
+                        )}
+                        {pitch.tagged_videos && pitch.tagged_videos.length > 0 && (
+                          <Badge variant="outline" className="text-green-400 border-green-400 text-[10px] sm:text-xs px-1.5">
+                            <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5" />
+                            {pitch.tagged_videos.length} Videos
+                          </Badge>
+                        )}
+                        {isExpiringSoon(pitch.expires_at) && (
+                          <Badge variant="outline" className="text-red-400 border-red-400 animate-pulse text-[10px] sm:text-xs px-1.5">
+                            <AlertCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5" />
+                            Expiring Soon
+                          </Badge>
+                        )}
                       </div>
+                    )}
 
-                      {/* Stats */}
-                      <div className="flex items-center gap-4 text-gray-400 text-sm">
-                        <div className="flex items-center gap-1">
-                          <Eye className="w-4 h-4" />
-                          <span>{pitch.view_count}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MessageCircle className="w-4 h-4" />
-                          <span>{pitch.message_count}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <TrendingUp className="w-4 h-4" />
-                          <span>{pitch.shortlist_count}</span>
-                        </div>
+                    {/* Stats */}
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-400 gap-2">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <Eye className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="truncate">{pitch.view_count}</span>
                       </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="truncate">{pitch.message_count}</span>
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="truncate">{pitch.shortlist_count}</span>
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="truncate text-[9px] sm:text-[10px] leading-tight">
+                          {formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}
+                        </span>
+                      </div>
+                    </div>
 
-                      {/* Actions */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 border-gray-600 text-white hover:bg-gray-700 text-xs py-2"
+                        onClick={() => handleViewDetails(pitch)}
+                      >
+                        <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                        <span className="truncate">View</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={`flex-1 border-gray-600 hover:bg-gray-700 text-xs py-2 ${shortlistedPitches.has(pitch.id)
+                          ? 'text-red-400 border-red-400'
+                          : 'text-white'
+                          }`}
+                        onClick={() => handleToggleShortlist(pitch)}
+                      >
+                        {shortlistedPitches.has(pitch.id) ? (
+                          <HeartOff className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                        ) : (
+                          <Heart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                        )}
+                        <span className="truncate">
+                          {shortlistedPitches.has(pitch.id) ? 'Remove' : 'Add'}
+                        </span>
+                      </Button>
+
+                      {!expressedInterests.has(pitch.id) ? (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-700 text-xs h-8"
-                          onClick={() => handleViewDetails(pitch)}
+                          className="flex-1 border-rosegold text-rosegold hover:bg-rosegold hover:text-white text-xs py-2"
+                          onClick={() => handleOpenInterestModal(pitch)}
                         >
-                          <Eye className="w-3 h-3 mr-1" />
-                          View
+                          <Heart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                          <span className="truncate">Interest</span>
                         </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`border-gray-600 hover:bg-gray-700 text-xs h-8 ${shortlistedPitches.has(pitch.id)
-                              ? 'text-red-400 border-red-400'
-                              : 'text-gray-300'
-                            }`}
-                          onClick={() => handleToggleShortlist(pitch)}
-                        >
-                          {shortlistedPitches.has(pitch.id) ? (
-                            <HeartOff className="w-3 h-3 mr-1" />
-                          ) : (
-                            <Heart className="w-3 h-3 mr-1" />
-                          )}
-                          <span className="hidden sm:inline">
-                            {shortlistedPitches.has(pitch.id) ? 'Remove' : 'Add'}
-                          </span>
-                        </Button>
-
-                        {/* Express Interest Button */}
-                        {!expressedInterests.has(pitch.id) ? (
+                      ) : (
+                        <>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white text-xs h-8"
+                            className="flex-1 border-green-600 text-green-400 hover:bg-green-600 hover:text-white text-xs py-2"
                             onClick={() => handleOpenInterestModal(pitch)}
                           >
-                            <Heart className="w-3 h-3 mr-1" />
-                            Interest
+                            <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                            <span className="truncate">Update</span>
                           </Button>
-                        ) : (
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-green-600 text-green-400 hover:bg-green-600 hover:text-white text-xs h-8"
-                              onClick={() => handleOpenInterestModal(pitch)}
-                            >
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Update
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white text-xs h-8"
-                              onClick={() => handleCancelInterest(pitch.id)}
-                            >
-                              <HeartOff className="w-3 h-3 mr-1" />
-                              Cancel
-                            </Button>
-                          </div>
-                        )}
-                      </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-red-600 text-red-400 hover:bg-red-600 hover:text-white text-xs py-2"
+                            onClick={() => handleCancelInterest(pitch.id)}
+                          >
+                            <HeartOff className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                            <span className="truncate">Cancel</span>
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

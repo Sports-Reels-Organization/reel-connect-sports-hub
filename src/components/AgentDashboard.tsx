@@ -141,6 +141,10 @@ const AgentDashboard = () => {
         return;
       }
 
+      const agentSportType = Array.isArray(agent.specialization) && agent.specialization.length > 0
+        ? String(agent.specialization[0]).toLowerCase()
+        : null;
+
       // Fetch all statistics in parallel
       const [
         requestsResult,
@@ -158,7 +162,7 @@ const AgentDashboard = () => {
         // Active pitches count
         supabase
           .from('transfer_pitches')
-          .select('id, view_count, message_count, status, expires_at, created_at')
+          .select('id, team_id, view_count, message_count, status, expires_at, created_at')
           .eq('status', 'active')
           .gte('expires_at', new Date().toISOString()),
 
@@ -184,11 +188,49 @@ const AgentDashboard = () => {
       // Process results
       const totalRequests = requestsResult.count || 0;
       const activePitches = pitchesResult.data || [];
+
+      let filteredActivePitches = activePitches;
+
+      if (agentSportType && activePitches.length > 0) {
+        const teamIds = Array.from(
+          new Set(
+            activePitches
+              .map(pitch => pitch.team_id)
+              .filter((id): id is string => typeof id === 'string' && id.length > 0)
+          )
+        );
+
+        if (teamIds.length > 0) {
+          const { data: teamsData, error: teamsError } = await supabase
+            .from('teams')
+            .select('id, sport_type')
+            .in('id', teamIds);
+
+          if (teamsError) {
+            console.error('Error fetching team sport types:', teamsError);
+          } else {
+            const sportMap = new Map(
+              (teamsData || []).map(team => [
+                team.id,
+                (team.sport_type || '').toLowerCase()
+              ])
+            );
+
+            filteredActivePitches = activePitches.filter(pitch => {
+              const teamSport = sportMap.get(pitch.team_id);
+              return teamSport === agentSportType;
+            });
+          }
+        } else {
+          filteredActivePitches = [];
+        }
+      }
+
       const shortlistedPlayers = shortlistResult.count || 0;
       const totalMessages = messagesResult.count || 0;
 
       // Calculate pitch views
-      const pitchViews = activePitches.reduce((sum, pitch) => sum + (pitch.view_count || 0), 0);
+      const pitchViews = filteredActivePitches.reduce((sum, pitch) => sum + (pitch.view_count || 0), 0);
 
       // AI Analysis statistics (placeholder for now)
       const pendingAnalysis = 0;
@@ -196,7 +238,7 @@ const AgentDashboard = () => {
 
       setStats({
         totalRequests,
-        activePitches: activePitches.length,
+        activePitches: filteredActivePitches.length,
         shortlistedPlayers,
         totalMessages,
         pendingAnalysis,
@@ -311,13 +353,13 @@ const AgentDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-700 rounded w-1/3"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="animate-pulse space-y-4 sm:space-y-6">
+            <div className="h-6 sm:h-8 bg-gray-700 rounded w-1/2 sm:w-1/3"></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-32 bg-gray-700 rounded-lg"></div>
+                <div key={i} className="h-28 sm:h-32 bg-gray-700 rounded-lg"></div>
               ))}
             </div>
           </div>
@@ -329,21 +371,21 @@ const AgentDashboard = () => {
   // Check if profile is completed
   if (!profile?.profile_completed) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           <Card className="bg-orange-500/10 border-orange-500/30">
-            <CardContent className="p-6">
-              <div className="text-center py-12">
-                <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-orange-400" />
-                <h3 className="text-xl font-polysans font-semibold text-orange-400 mb-2">
+            <CardContent className="p-4 sm:p-6">
+              <div className="text-center py-8 sm:py-12">
+                <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-orange-400" />
+                <h3 className="text-lg sm:text-xl font-polysans font-semibold text-orange-400 mb-2">
                   Complete Your Profile Setup
                 </h3>
-                <p className="text-orange-300 font-poppins mb-4">
+                <p className="text-orange-300 font-poppins mb-3 sm:mb-4 text-sm sm:text-base">
                   Please complete your agent profile setup to access the dashboard.
                 </p>
                 <Button
                   onClick={() => window.location.reload()}
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  className="bg-orange-500 hover:bg-orange-600 text-white h-9 sm:h-10 text-xs sm:text-sm"
                 >
                   Continue Setup
                 </Button>
@@ -356,47 +398,47 @@ const AgentDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-polysans text-3xl font-bold text-white">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="font-polysans text-xl sm:text-2xl md:text-3xl font-bold text-white truncate">
               Agent Dashboard
             </h1>
             {agentInfo && (
-              <p className="text-gray-400 mt-1">
+              <p className="text-gray-400 mt-1 text-xs sm:text-sm truncate">
                 {agentInfo.agency_name} • {agentInfo.specialization?.join(', ') || 'Sports Agent'}
               </p>
             )}
           </div>
 
           {agentInfo?.logo_url && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-shrink-0">
               <img
                 src={agentInfo.logo_url}
                 alt="Agency Logo"
-                className="w-16 h-16 object-cover rounded-lg border-2 border-gray-600"
+                className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 object-cover rounded-lg border-2 border-gray-600"
               />
             </div>
           )}
         </div>
 
         {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {/* Agent Requests */}
           <Card className='bg-card border-0'>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Total Requests</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalRequests}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm sm:text-base font-medium text-gray-400 truncate">Total Requests</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-white">{stats.totalRequests}</p>
                 </div>
-                <FileText className="w-8 h-8 text-blue-500" />
+                <FileText className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-blue-500 flex-shrink-0 ml-2" />
               </div>
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <Link to="/explore">
-                  <Button variant="outline" size="sm" className="w-full ">
+                  <Button variant="outline" size="sm" className="w-full h-9 sm:h-10 text-sm sm:text-base">
                     View Requests
                   </Button>
                 </Link>
@@ -406,18 +448,17 @@ const AgentDashboard = () => {
 
           {/* Active Pitches */}
           <Card className="bg-card border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Active Pitches</p>
-                  <p className="text-2xl font-bold text-white">{stats.activePitches}</p>
-
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm sm:text-base font-medium text-gray-400 truncate">Active Pitches</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-white">{stats.activePitches}</p>
                 </div>
-                <Target className="w-8 h-8 text-orange-600" />
+                <Target className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-orange-600 flex-shrink-0 ml-2" />
               </div>
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <Link to="/explore">
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full h-9 sm:h-10 text-sm sm:text-base">
                     Explore Pitches
                   </Button>
                 </Link>
@@ -427,18 +468,17 @@ const AgentDashboard = () => {
 
           {/* Shortlisted Players */}
           <Card className="bg-card border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Shortlisted Players</p>
-                  <p className="text-2xl font-bold text-white">{stats.shortlistedPlayers}</p>
-
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm sm:text-base font-medium text-gray-400 truncate">Shortlisted Players</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-white">{stats.shortlistedPlayers}</p>
                 </div>
-                <Heart className="w-8 h-8 text-red-500" />
+                <Heart className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-red-500 flex-shrink-0 ml-2" />
               </div>
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <Link to="/agent-shortlist">
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full h-9 sm:h-10 text-sm sm:text-base">
                     View Shortlist
                   </Button>
                 </Link>
@@ -448,17 +488,17 @@ const AgentDashboard = () => {
 
           {/* Messages */}
           <Card className="bg-card border-0">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Total Messages</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalMessages}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm sm:text-base font-medium text-gray-400 truncate">Total Messages</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-white">{stats.totalMessages}</p>
                 </div>
-                <MessageSquare className="w-8 h-8 text-green-700" />
+                <MessageSquare className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-700 flex-shrink-0 ml-2" />
               </div>
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <Link to="/messages">
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full h-9 sm:h-10 text-sm sm:text-base">
                     View Messages
                   </Button>
                 </Link>
@@ -468,27 +508,27 @@ const AgentDashboard = () => {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           {/* Recent Activity */}
           <Card className="lg:col-span-2 bg-card border-0">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
+            <CardHeader className="p-4 sm:p-5 md:p-6">
+              <CardTitle className="text-white flex items-center gap-2 text-base sm:text-lg">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
                 Recent Activity
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
               {recentActivity.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#111111]">
-                      <div className={`${getActivityColor(activity.type)} mt-0.5`}>
+                    <div key={activity.id} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-[#111111]">
+                      <div className={`${getActivityColor(activity.type)} mt-0.5 flex-shrink-0`}>
                         {getActivityIcon(activity.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">{activity.title}</p>
-                        <p className="text-xs text-gray-400 truncate">{activity.description}</p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-sm sm:text-base md:text-lg font-medium text-white break-words leading-tight">{activity.title}</p>
+                        <p className="text-sm sm:text-base text-gray-400 truncate">{activity.description}</p>
+                        <p className="text-sm sm:text-base text-gray-500 mt-1">
                           {new Date(activity.timestamp).toLocaleDateString()} at{' '}
                           {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
@@ -496,7 +536,7 @@ const AgentDashboard = () => {
                       {activity.status && (
                         <Badge
                           variant="outline"
-                          className={`text-xs ${activity.status === 'completed' ? 'text-green-400' : 'text-orange-400'}`}
+                          className={`text-sm sm:text-base flex-shrink-0 ${activity.status === 'completed' ? 'text-green-400' : 'text-orange-400'}`}
                         >
                           {activity.status}
                         </Badge>
@@ -505,10 +545,10 @@ const AgentDashboard = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <Clock className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                  <p className="text-gray-400">No recent activity</p>
-                  <p className="text-sm text-gray-500 mt-1">
+                <div className="text-center py-6 sm:py-8">
+                  <Clock className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-500" />
+                  <p className="text-gray-400 text-sm sm:text-base">No recent activity</p>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
                     Start by exploring players or creating requests
                   </p>
                 </div>
@@ -518,58 +558,58 @@ const AgentDashboard = () => {
 
           {/* Quick Actions */}
           <Card className="bg-card border-0">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Star className="w-5 h-5" />
+            <CardHeader className="p-4 sm:p-5 md:p-6">
+              <CardTitle className="text-white flex items-center gap-2 text-base sm:text-lg">
+                <Star className="w-4 h-4 sm:w-5 sm:h-5" />
                 Quick Actions
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 sm:space-y-3 p-4 sm:p-5 md:p-6 pt-0">
               <Link to="/explore" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <Search className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <Search className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Explore Players
                 </Button>
               </Link>
 
               <Link to="/agent-shortlist" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <Heart className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <Heart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   View Shortlist
                 </Button>
               </Link>
 
               <Link to="/timeline" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <Target className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <Target className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Transfer Timeline
                 </Button>
               </Link>
 
               <Link to="/messages" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <MessageSquare className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Check Messages
                 </Button>
               </Link>
 
               <Link to="/explore?tab=communication" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <MessageSquare className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Communication Hub
                 </Button>
               </Link>
 
               <Link to="/explore?tab=analytics" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <BarChart3 className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   View Analytics
                 </Button>
               </Link>
 
               <Link to="/profile" className="block">
-                <Button variant="outline" className="w-full justify-start">
-                  <Trophy className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full justify-start h-10 sm:h-11 text-sm sm:text-base">
+                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Edit Profile
                 </Button>
               </Link>
@@ -578,34 +618,35 @@ const AgentDashboard = () => {
         </div>
 
         {/* Tabs for Additional Features */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-card border-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-card border-0 gap-1 p-1 h-auto">
             <TabsTrigger
               value="overview"
-              className="data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="data-[state=active]:bg-rosegold data-[state=active]:text-white flex items-center justify-center gap-1.5 text-sm sm:text-base px-2 py-2.5 sm:py-3 min-h-[44px]"
             >
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Overview
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Overview</span>
+              <span className="sm:hidden">Stats</span>
             </TabsTrigger>
             <TabsTrigger
               value="profile"
-              className="data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="data-[state=active]:bg-rosegold data-[state=active]:text-white flex items-center justify-center gap-1.5 text-sm sm:text-base px-2 py-2.5 sm:py-3 min-h-[44px]"
             >
-              <Users className="w-4 h-4 mr-2" />
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               Profile
             </TabsTrigger>
             <TabsTrigger
               value="shortlist"
-              className="data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="data-[state=active]:bg-rosegold data-[state=active]:text-white flex items-center justify-center gap-1.5 text-sm sm:text-base px-2 py-2.5 sm:py-3 min-h-[44px]"
             >
-              <Heart className="w-4 h-4 mr-2" />
+              <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
               Shortlist
             </TabsTrigger>
             <TabsTrigger
               value="explore"
-              className="data-[state=active]:bg-rosegold data-[state=active]:text-white"
+              className="data-[state=active]:bg-rosegold data-[state=active]:text-white flex items-center justify-center gap-1.5 text-sm sm:text-base px-2 py-2.5 sm:py-3 min-h-[44px]"
             >
-              <Search className="w-4 h-4 mr-2" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               Explore
             </TabsTrigger>
           </TabsList>

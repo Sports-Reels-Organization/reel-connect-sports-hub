@@ -187,78 +187,128 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
   }
 
   return (
-    <Card className="max-w-2xl border-0 mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 ">
-
+    <Card className="max-w-3xl mx-auto border border-gray-800 bg-[#0f0f0f] rounded-2xl shadow-lg">
+      <CardHeader className="p-4 sm:p-6 border-b border-gray-800">
+        <CardTitle className="flex items-center gap-2 text-white text-lg sm:text-xl">
+          <Building2 className="w-5 h-5 text-rosegold" />
           Agent Profile Setup
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <CardContent className="p-4 sm:p-6">
+        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           {/* Agency Logo */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <FileImage className="w-4 h-4" />
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2 text-white text-sm sm:text-base">
+              <FileImage className="w-4 h-4 text-rosegold" />
               Agency Logo
             </Label>
-            <div className="flex items-center gap-4">
-              {agentData.logo_url && (
-                <img
-                  src={agentData.logo_url}
-                  alt="Agency Logo"
-                  className="w-20 h-20 object-cover rounded-lg border"
-                />
-              )}
-              <div>
+            <div className="flex flex-col lg:flex-row lg:items-center gap-4 sm:gap-6">
+              <div className="flex-shrink-0">
+                {agentData.logo_url ? (
+                  <img
+                    src={agentData.logo_url}
+                    alt="Agency Logo"
+                    className="w-24 h-24 rounded-xl border border-gray-700 object-cover shadow-inner"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-xl border border-dashed border-gray-700 flex items-center justify-center text-gray-500">
+                    <FileImage className="w-8 h-8" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
                 <Input
                   type="file"
                   accept="image/*"
                   onChange={handleLogoUpload}
-                  className="max-w-xs"
+                  className="bg-[#111111] border border-gray-700 text-white file:bg-rosegold file:text-white file:border-0 file:px-3 file:py-2 file:rounded-md"
                 />
-                <p className="text-sm text-gray-500 mt-1">Upload your agency logo</p>
+                <p className="text-xs sm:text-sm text-gray-400">
+                  Upload a square logo (recommended). Max size 5MB.
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Agency Name */}
-          <div className="space-y-2">
-            <Label htmlFor="agency_name">Agency Name *</Label>
-            <Input
-              id="agency_name"
-              value={agentData.agency_name}
-              onChange={(e) => setAgentData(prev => ({ ...prev, agency_name: e.target.value }))}
-              placeholder="Enter your agency name"
-              required
-            />
+          {/* Basic Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="agency_name" className="text-sm text-gray-300">Agency Name *</Label>
+              <Input
+                id="agency_name"
+                value={agentData.agency_name}
+                onChange={(e) => setAgentData(prev => ({ ...prev, agency_name: e.target.value }))}
+                placeholder="Enter your agency name"
+                required
+                className="bg-[#111111] border border-gray-700 text-white h-10"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm text-gray-300">Sport Specialization *</Label>
+              <Select
+                value={agentData.specialization[0] || ''}
+                onValueChange={(value) => setAgentData(prev => ({ ...prev, specialization: [value] }))}
+              >
+                <SelectTrigger className="bg-[#111111] border border-gray-700 text-white h-10">
+                  <SelectValue placeholder="Select sport" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#111111] border border-gray-700 text-white">
+                  {sportTypes.map(sport => (
+                    <SelectItem key={sport} value={sport} className="capitalize">
+                      {sport}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="license_number" className="text-sm text-gray-300">License Number</Label>
+              <Input
+                id="license_number"
+                value={agentData.license_number}
+                onChange={(e) => setAgentData(prev => ({ ...prev, license_number: e.target.value }))}
+                placeholder="Enter your license number"
+                className="bg-[#111111] border border-gray-700 text-white h-10"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="year_founded" className="flex items-center gap-2 text-sm text-gray-300">
+                <Calendar className="w-4 h-4 text-rosegold" />
+                Year Founded
+              </Label>
+              <Input
+                id="year_founded"
+                type="number"
+                min="1900"
+                max={new Date().getFullYear()}
+                value={agentData.year_founded}
+                onChange={(e) => setAgentData(prev => ({ ...prev, year_founded: e.target.value }))}
+                placeholder="e.g. 2015"
+                className="bg-[#111111] border border-gray-700 text-white h-10"
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="member_association" className="text-sm text-gray-300">Member Association</Label>
+              <AssociationSelect
+                value={agentData.member_association}
+                onValueChange={(value) => setAgentData(prev => ({ ...prev, member_association: value }))}
+                associations={sportData.associations}
+                placeholder="Select association"
+                triggerClassName="bg-[#111111] border border-gray-700 text-white h-10"
+                contentClassName="bg-[#111111] border border-gray-700 text-white"
+              />
+            </div>
           </div>
 
-          {/* Sport Specialization */}
-          <div className="space-y-2">
-            <Label>Sport Specialization *</Label>
-            <Select
-              value={agentData.specialization[0] || ''}
-              onValueChange={(value) => setAgentData(prev => ({ ...prev, specialization: [value] }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select your sport specialization" />
-              </SelectTrigger>
-              <SelectContent>
-                {sportTypes.map(sport => (
-                  <SelectItem key={sport} value={sport}>
-                    {sport.charAt(0).toUpperCase() + sport.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* FIFA ID - Required for football */}
+          {/* Conditional FIFA ID */}
           {agentData.specialization.includes('football') && (
             <div className="space-y-2">
-              <Label htmlFor="fifa_id" className="flex items-center gap-2">
-                <Award className="w-4 h-4" />
+              <Label htmlFor="fifa_id" className="flex items-center gap-2 text-sm text-gray-300">
+                <Award className="w-4 h-4 text-rosegold" />
                 FIFA Licensed ID *
               </Label>
               <Input
@@ -267,54 +317,18 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
                 onChange={(e) => setAgentData(prev => ({ ...prev, fifa_id: e.target.value }))}
                 placeholder="Enter your FIFA ID"
                 required
+                className="bg-[#111111] border border-gray-700 text-white h-10"
               />
-              <p className="text-sm text-red-400">FIFA ID is required for football agents to message players and offer contracts</p>
+              <p className="text-xs text-red-400">
+                FIFA ID is required for football agents to message players and offer contracts.
+              </p>
             </div>
           )}
 
-          {/* License Number */}
-          <div className="space-y-2">
-            <Label htmlFor="license_number">License Number</Label>
-            <Input
-              id="license_number"
-              value={agentData.license_number}
-              onChange={(e) => setAgentData(prev => ({ ...prev, license_number: e.target.value }))}
-              placeholder="Enter your license number"
-            />
-          </div>
-
-          {/* Member Association */}
-          <div className="space-y-2">
-            <Label htmlFor="member_association">Member Association</Label>
-            <AssociationSelect
-              value={agentData.member_association}
-              onValueChange={(value) => setAgentData(prev => ({ ...prev, member_association: value }))}
-              associations={sportData.associations}
-              placeholder="Select association"
-            />
-          </div>
-
-          {/* Year Founded */}
-          <div className="space-y-2">
-            <Label htmlFor="year_founded" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Year Founded
-            </Label>
-            <Input
-              id="year_founded"
-              type="number"
-              min="1900"
-              max={new Date().getFullYear()}
-              value={agentData.year_founded}
-              onChange={(e) => setAgentData(prev => ({ ...prev, year_founded: e.target.value }))}
-              placeholder="Enter founding year"
-            />
-          </div>
-
           {/* Website */}
           <div className="space-y-2">
-            <Label htmlFor="website" className="flex items-center gap-2">
-              <Globe className="w-4 h-4" />
+            <Label htmlFor="website" className="flex items-center gap-2 text-sm text-gray-300">
+              <Globe className="w-4 h-4 text-rosegold" />
               Website
             </Label>
             <Input
@@ -322,26 +336,28 @@ export const AgentProfileForm: React.FC<AgentProfileFormProps> = ({ onProfileCom
               type="url"
               value={agentData.website}
               onChange={(e) => setAgentData(prev => ({ ...prev, website: e.target.value }))}
-              placeholder="https://yourwebsite.com"
+              placeholder="https://youragency.com"
+              className="bg-[#111111] border border-gray-700 text-white h-10"
             />
           </div>
 
           {/* Bio */}
           <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
+            <Label htmlFor="bio" className="text-sm text-gray-300">Bio</Label>
             <Textarea
               id="bio"
               value={agentData.bio}
               onChange={(e) => setAgentData(prev => ({ ...prev, bio: e.target.value }))}
               placeholder="Tell us about your agency and experience..."
               rows={4}
+              className="bg-[#111111] border border-gray-700 text-white resize-none"
             />
           </div>
 
           <Button
             type="submit"
             disabled={loading || !agentData.agency_name}
-            className="w-full bg-rosegold hover:bg-rosegold/90"
+            className="w-full bg-rosegold text-white hover:bg-rosegold/90 h-11 text-sm sm:text-base"
           >
             {loading ? (
               <>

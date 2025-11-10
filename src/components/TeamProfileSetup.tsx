@@ -335,45 +335,45 @@ const TeamProfileSetup: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto px-3 sm:px-5">
       {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="font-polysans text-3xl font-bold text-white mb-2">
+      <div className="text-center sm:text-left space-y-3">
+        <h1 className="font-polysans text-xl sm:text-2xl font-bold text-white">
           Team Profile Setup
         </h1>
-        <p className="text-gray-400 mb-4">
+        <p className="text-sm sm:text-base text-gray-400">
           Complete your team profile to access all platform features
         </p>
 
         {/* Sport Display */}
         {teamData.sport_type && (
-          <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="flex items-center gap-2 justify-center sm:justify-start">
             <span className="text-2xl">{getSportIcon(teamData.sport_type)}</span>
-            <Badge variant="outline" className="text-rosegold border-rosegold">
+            <Badge variant="outline" className="border-0 bg-rosegold/20 text-rosegold">
               {getSportDisplayName(teamData.sport_type)} Team
             </Badge>
           </div>
         )}
 
         {/* Progress Indicators */}
-        <div className="grid grid-cols-3 gap-4 mt-6">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-2">
+          <Card className="border border-gray-800 bg-[#0f0f0f] rounded-xl">
+            <CardContent className="p-4 text-center space-y-2">
               <Users className="w-8 h-8 mx-auto mb-2 text-rosegold" />
               <p className="text-sm font-medium text-gray-300">Current Players</p>
               <p className="text-2xl font-bold text-white">{currentPlayers}</p>
             </CardContent>
           </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
+          <Card className="border border-gray-800 bg-[#0f0f0f] rounded-xl">
+            <CardContent className="p-4 text-center space-y-2">
               <Video className="w-8 h-8 mx-auto mb-2 text-bright-pink" />
               <p className="text-sm font-medium text-gray-300">Videos Uploaded</p>
               <p className="text-2xl font-bold text-white">{uploadedVideos}</p>
               <p className="text-xs text-gray-500">Min. 5 required</p>
             </CardContent>
           </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
+          <Card className="border border-gray-800 bg-[#0f0f0f] rounded-xl">
+            <CardContent className="p-4 text-center space-y-2">
               <Trophy className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
               <p className="text-sm font-medium text-gray-300">Profile Status</p>
               <p className={`text-sm font-medium ${isComplete ? 'text-green-400' : 'text-orange-400'}`}>
@@ -385,25 +385,25 @@ const TeamProfileSetup: React.FC = () => {
       </div>
 
       {/* Team Information Form */}
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="font-polysans text-white flex items-center gap-2">
+      <Card className="border border-gray-800 bg-[#0f0f0f] rounded-2xl shadow-lg">
+        <CardHeader className="p-4 sm:p-5 border-b border-gray-800">
+          <CardTitle className="font-polysans text-white text-base sm:text-lg flex items-center gap-2">
             Team Information
             <InfoTooltip content="Complete all required fields to enable platform features" />
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="p-4 sm:p-6 space-y-6 sm:space-y-8">
           {/* Team Logo Upload Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <FileImage className="w-5 h-5 text-rosegold" />
-              <Label className="text-white text-lg font-semibold">Team Logo</Label>
-              <Badge variant="outline" className="text-gray-400 border-gray-600 text-xs">
+              <Label className="text-white text-base sm:text-lg font-semibold">Team Logo</Label>
+              <Badge variant="outline" className="border-0 bg-gray-600/10 text-gray-300 text-xs">
                 Recommended
               </Badge>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-4 sm:gap-6">
               {/* Logo Preview */}
               <div className="flex-shrink-0">
                 {teamData.logo_url ? (
@@ -411,7 +411,7 @@ const TeamProfileSetup: React.FC = () => {
                     <img
                       src={teamData.logo_url}
                       alt="Team Logo"
-                      className="w-24 h-24 object-cover rounded-lg border-2 border-gray-600"
+                      className="w-24 h-24 object-cover rounded-xl border border-gray-700 shadow-inner"
                     />
                     <button
                       onClick={removeLogo}
@@ -421,14 +421,14 @@ const TeamProfileSetup: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="w-24 h-24 bg-gray-800 border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center">
+                  <div className="w-24 h-24 bg-gray-900 border border-dashed border-gray-700 rounded-xl flex items-center justify-center text-gray-500">
                     <Camera className="w-8 h-8 text-gray-500" />
                   </div>
                 )}
               </div>
 
               {/* Upload Controls */}
-              <div className="flex-1">
+              <div className="flex-1 space-y-2">
                 <input
                   ref={logoInputRef}
                   type="file"
@@ -441,7 +441,7 @@ const TeamProfileSetup: React.FC = () => {
                   variant="outline"
                   onClick={() => logoInputRef.current?.click()}
                   disabled={logoUploading}
-                  className="mb-2"
+                  className="border border-rosegold text-rosegold hover:bg-rosegold hover:text-white h-10 px-4 text-sm"
                 >
                   {logoUploading ? (
                     <>
@@ -455,35 +455,35 @@ const TeamProfileSetup: React.FC = () => {
                     </>
                   )}
                 </Button>
-                <p className="text-sm text-gray-400">
+                <p className="text-xs sm:text-sm text-gray-400">
                   Recommended: Square image, max 5MB. Will be compressed to 400x400px.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-2">
-              <Label htmlFor="team_name" className="text-white">Team Name *</Label>
+              <Label htmlFor="team_name" className="text-sm text-gray-300">Team Name *</Label>
               <Input
                 id="team_name"
                 value={teamData.team_name}
                 onChange={(e) => setTeamData(prev => ({ ...prev, team_name: e.target.value }))}
-                className="bg-background border-border text-white"
+                className="bg-[#111111] border border-gray-700 text-white h-10"
                 placeholder="Enter team name"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white">Sport Type *</Label>
+              <Label className="text-sm text-gray-300">Sport Type *</Label>
               <Select
                 value={teamData.sport_type}
                 onValueChange={(value) => setTeamData(prev => ({ ...prev, sport_type: value }))}
               >
-                <SelectTrigger className="bg-background border-border text-white">
+                <SelectTrigger className="bg-[#111111] border border-gray-700 text-white h-10">
                   <SelectValue placeholder="Select sport" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-border">
+                <SelectContent className="bg-[#111111] border border-gray-700 text-white">
                   {availableSports.map((sport) => (
                     <SelectItem key={sport} value={sport} className="text-white">
                       <span className="flex items-center gap-2">
@@ -497,62 +497,62 @@ const TeamProfileSetup: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white">Country *</Label>
+              <Label className="text-sm text-gray-300">Country *</Label>
               <CountrySelect
                 value={teamData.country}
                 onValueChange={(value) => setTeamData(prev => ({ ...prev, country: value }))}
                 placeholder="Select country"
-                triggerClassName="bg-background border-border text-white"
-                contentClassName="bg-card border-border"
+                triggerClassName="bg-[#111111] border border-gray-700 text-white h-10"
+                contentClassName="bg-[#111111] border border-gray-700 text-white"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white">League/Competition *</Label>
+              <Label className="text-sm text-gray-300">League/Competition *</Label>
               <LeagueSelect
                 value={teamData.league}
                 onValueChange={(value) => setTeamData(prev => ({ ...prev, league: value }))}
                 leagues={sportData.leagues}
                 placeholder="Select league"
-                triggerClassName="bg-background border-border text-white"
-                contentClassName="bg-card border-border"
+                triggerClassName="bg-[#111111] border border-gray-700 text-white h-10"
+                contentClassName="bg-[#111111] border border-gray-700 text-white"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="year_founded" className="text-white">Year Founded</Label>
+              <Label htmlFor="year_founded" className="text-sm text-gray-300">Year Founded</Label>
               <Input
                 id="year_founded"
                 type="number"
                 value={teamData.year_founded}
                 onChange={(e) => setTeamData(prev => ({ ...prev, year_founded: e.target.value }))}
-                className="bg-background border-border text-white"
+                className="bg-[#111111] border border-gray-700 text-white h-10"
                 placeholder="e.g., 1990"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="member_association" className="text-white">Member Association</Label>
+              <Label htmlFor="member_association" className="text-sm text-gray-300">Member Association</Label>
               <AssociationSelect
                 value={teamData.member_association}
                 onValueChange={(value) => setTeamData(prev => ({ ...prev, member_association: value }))}
                 associations={sportData.associations}
                 placeholder="Select association"
-                triggerClassName="bg-background border-border text-white"
-                contentClassName="bg-card border-border"
+                triggerClassName="bg-[#111111] border border-gray-700 text-white h-10"
+                contentClassName="bg-[#111111] border border-gray-700 text-white"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-white">Team Description</Label>
+            <Label htmlFor="description" className="text-sm text-gray-300">Team Description</Label>
             <Textarea
               id="description"
               value={teamData.description}
               onChange={(e) => setTeamData(prev => ({ ...prev, description: e.target.value }))}
-              className="bg-background border-border text-white resize-none"
+              className="bg-[#111111] border border-gray-700 text-white resize-none"
               placeholder="Brief description of your team's history and achievements"
-              rows={3}
+              rows={4}
             />
           </div>
 
@@ -560,16 +560,16 @@ const TeamProfileSetup: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Trophy className="w-5 h-5 text-rosegold" />
-              <Label className="text-white text-lg font-semibold">Titles and Achievements</Label>
+              <Label className="text-white text-base sm:text-lg font-semibold">Titles and Achievements</Label>
             </div>
 
             {/* Add New Title */}
             <div className="flex gap-2">
               <Select value={newTitle} onValueChange={setNewTitle}>
-                <SelectTrigger className="bg-background border-border text-white flex-1">
+                <SelectTrigger className="bg-[#111111] border border-gray-700 text-white flex-1 h-10">
                   <SelectValue placeholder="Select from suggested titles or type custom" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-border">
+                <SelectContent className="bg-[#111111] border border-gray-700 text-white">
                   {sportData.titles.map((title) => (
                     <SelectItem key={title} value={title} className="text-white">
                       {title}
@@ -580,14 +580,14 @@ const TeamProfileSetup: React.FC = () => {
               <Input
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="bg-background border-border text-white flex-1"
+                className="bg-[#111111] border border-gray-700 text-white flex-1 h-10"
                 placeholder="Or type a custom title..."
               />
               <Button
                 type="button"
                 onClick={addTitle}
                 disabled={!newTitle.trim()}
-                className="bg-rosegold hover:bg-rosegold/90 text-white"
+                className="bg-rosegold hover:bg-rosegold/90 text-white h-10 px-4"
               >
                 <Plus className="w-4 h-4" />
               </Button>
@@ -623,12 +623,12 @@ const TeamProfileSetup: React.FC = () => {
                 <Label className="text-white text-sm font-medium">Current Titles ({teamData.titles.length})</Label>
                 <div className="space-y-2">
                   {teamData.titles.map((title, index) => (
-                    <div key={index} className="flex items-center gap-2 p-3 bg-gray-800 rounded-lg">
+                    <div key={index} className="flex items-center gap-2 p-3 bg-[#111111] border border-gray-700 rounded-lg">
                       <Trophy className="w-4 h-4 text-rosegold flex-shrink-0" />
                       <Input
                         value={title}
                         onChange={(e) => updateTitle(index, e.target.value)}
-                        className="bg-transparent border-0 text-white flex-1"
+                        className="bg-transparent border-0 text-white flex-1 focus-visible:ring-0"
                         placeholder="Title name"
                       />
                       <Button
@@ -648,7 +648,7 @@ const TeamProfileSetup: React.FC = () => {
 
             {/* Empty state */}
             {teamData.titles.length === 0 && (
-              <div className="text-center py-6 text-gray-400">
+              <div className="text-center py-6 text-gray-400 border border-gray-800 bg-[#111111] rounded-lg">
                 <Trophy className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>No titles added yet. Add your team's achievements and titles above.</p>
               </div>
@@ -658,7 +658,7 @@ const TeamProfileSetup: React.FC = () => {
           <Button
             onClick={handleSave}
             disabled={loading}
-            className="w-full bg-rosegold hover:bg-rosegold/90 text-white"
+            className="w-full bg-rosegold hover:bg-rosegold/90 text-white h-11 text-sm sm:text-base"
           >
             {loading ? 'Saving...' : 'Save Team Profile'}
           </Button>
@@ -667,15 +667,15 @@ const TeamProfileSetup: React.FC = () => {
 
       {/* Requirements Notice */}
       {!isComplete && (
-        <Card className="bg-orange-500/10 border-orange-500/30">
-          <CardContent className="p-6">
-            <h3 className="font-polysans font-semibold text-orange-400 mb-2">
+        <Card className="border border-orange-500/30 bg-orange-500/10 rounded-xl">
+          <CardContent className="p-5 sm:p-6 space-y-3">
+            <h3 className="font-polysans font-semibold text-orange-300">
               Complete Your Profile
             </h3>
             <p className="text-orange-300 mb-4">
               To access all platform features, you need to:
             </p>
-            <ul className="text-orange-300 space-y-2">
+            <ul className="text-orange-200 text-sm sm:text-base space-y-2">
               <li>• Complete team information (required fields marked with *)</li>
               <li>• Add at least one player to your team</li>
               <li>• Upload at least 5 videos</li>

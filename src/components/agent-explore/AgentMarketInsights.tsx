@@ -65,15 +65,16 @@ export const AgentMarketInsights: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {[...Array(6)].map((_, i) => (
           <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-              <div className="h-8 bg-muted rounded w-1/2"></div>
+            <CardContent className="p-4 sm:p-6">
+              <div className="h-3 sm:h-4 bg-gray-700 rounded w-3/4 mb-2"></div>
+              <div className="h-6 sm:h-8 bg-gray-700 rounded w-1/2"></div>
             </CardContent>
           </Card>
         ))}
+        <p className="text-xs text-gray-400 text-center col-span-full mt-2">Loading market insights...</p>
       </div>
     );
   }
@@ -82,60 +83,60 @@ export const AgentMarketInsights: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Market Insights</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl lg:text-2xl font-bold">Market Insights</h2>
+          <p className="text-muted-foreground text-sm">
             Current market trends and analytics for agent requests
           </p>
         </div>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
         <Card className='border-0'>
-          <CardContent className="p-4">
+          <CardContent className="p-3 lg:p-4">
             <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-green-500" />
-              <div>
-                <p className="text-2xl font-bold text-foreground">
+              <DollarSign className="w-8 h-8 text-green-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xl lg:text-2xl font-bold text-foreground truncate">
                   ${(marketData.avgBudget / 1000000).toFixed(1)}M
                 </p>
-                <p className="text-sm text-muted-foreground">Avg. Budget</p>
+                <p className="text-xs text-muted-foreground">Avg. Budget</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className='border-0'>
-          <CardContent className="p-4">
+          <CardContent className="p-3 lg:p-4">
             <div className="flex items-center gap-3">
-              <Target className="w-8 h-8 text-blue-500" />
-              <div>
-                <p className="text-2xl font-bold text-foreground">130</p>
-                <p className="text-sm text-muted-foreground">Active Requests</p>
+              <Target className="w-8 h-8 text-blue-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xl lg:text-2xl font-bold text-foreground">130</p>
+                <p className="text-xs text-muted-foreground">Active Requests</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className='border-0'>
-          <CardContent className="p-4">
+          <CardContent className="p-3 lg:p-4">
             <div className="flex items-center gap-3">
-              <Users className="w-8 h-8 text-purple-500" />
-              <div>
-                <p className="text-2xl font-bold text-foreground">45</p>
-                <p className="text-sm text-muted-foreground">Active Agents</p>
+              <Users className="w-8 h-8 text-purple-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xl lg:text-2xl font-bold text-foreground">45</p>
+                <p className="text-xs text-muted-foreground">Active Agents</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className='border-0'>
-          <CardContent className="p-4">
+          <CardContent className="p-3 lg:p-4">
             <div className="flex items-center gap-3">
-              <Globe className="w-8 h-8 text-orange-500" />
-              <div>
-                <p className="text-2xl font-bold text-foreground">12</p>
-                <p className="text-sm text-muted-foreground">Countries</p>
+              <Globe className="w-8 h-8 text-orange-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xl lg:text-2xl font-bold text-foreground">12</p>
+                <p className="text-xs text-muted-foreground">Countries</p>
               </div>
             </div>
           </CardContent>
@@ -143,13 +144,13 @@ export const AgentMarketInsights: React.FC = () => {
       </div>
 
       {/* Charts and Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* Most Requested Positions */}
         <Card className='border-0'>
-          <CardHeader>
-            <CardTitle>Most Requested Positions</CardTitle>
+          <CardHeader className="p-4 lg:p-6">
+            <CardTitle className="text-base lg:text-lg">Most Requested Positions</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-4 lg:p-6">
             {marketData.topPositions.map((item, index) => (
               <div key={item.position} className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -164,10 +165,10 @@ export const AgentMarketInsights: React.FC = () => {
 
         {/* Regional Activity */}
         <Card className='border-0'>
-          <CardHeader>
-            <CardTitle>Regional Activity</CardTitle>
+          <CardHeader className="p-4 lg:p-6">
+            <CardTitle className="text-base lg:text-lg">Regional Activity</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-4 lg:p-6">
             {marketData.regions.map((item, index) => (
               <div key={item.country} className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -183,23 +184,23 @@ export const AgentMarketInsights: React.FC = () => {
 
       {/* Market Trends */}
       <Card className='border-0'>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="p-4 lg:p-6">
+          <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
             <BarChart3 className="w-5 h-5" />
             Market Trends (Last 30 Days)
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardContent className="p-4 lg:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             {marketData.trends.map((trend, index) => (
-              <div key={trend.category} className="flex items-center border-0 justify-between p-4 bg-[#111111] rounded-lg">
-                <div>
-                  <p className="font-medium text-sm">{trend.category}</p>
+              <div key={trend.category} className="flex items-center border-0 justify-between p-3 lg:p-4 bg-[#111111] rounded-lg">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{trend.category}</p>
                   <div className="flex items-center gap-1 mt-1">
                     {trend.change > 0 ? (
-                      <TrendingUp className="w-4 h-4 text-green-500" />
+                      <TrendingUp className="w-4 h-4 text-green-500 flex-shrink-0" />
                     ) : (
-                      <TrendingDown className="w-4 h-4 text-red-500" />
+                      <TrendingDown className="w-4 h-4 text-red-500 flex-shrink-0" />
                     )}
                     <span className={`text-sm font-bold ${trend.change > 0 ? 'text-green-500' : 'text-red-500'
                       }`}>

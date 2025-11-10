@@ -133,30 +133,15 @@ const TeamWallet: React.FC<TeamWalletProps> = ({ teamId, onClose }) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <CheckCircle className="w-4 h-4 text-green-400" />;
       case 'pending':
-        return <Clock className="w-4 h-4 text-yellow-600" />;
+        return <Clock className="w-4 h-4 text-yellow-400" />;
       case 'failed':
-        return <XCircle className="w-4 h-4 text-red-600" />;
+        return <XCircle className="w-4 h-4 text-red-400" />;
       case 'installment_active':
-        return <AlertCircle className="w-4 h-4 text-blue-600" />;
+        return <AlertCircle className="w-4 h-4 text-blue-400" />;
       default:
-        return <Clock className="w-4 h-4 text-gray-600" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-700 border-green-200';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'failed':
-        return 'bg-red-100 text-red-700 border-red-200';
-      case 'installment_active':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+        return <Clock className="w-4 h-4 text-gray-500" />;
     }
   };
 
@@ -174,86 +159,86 @@ const TeamWallet: React.FC<TeamWalletProps> = ({ teamId, onClose }) => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-0 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-            <Wallet className="w-5 h-5 text-green-600" />
+          <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center">
+            <Wallet className="w-6 h-6 text-green-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-100">Team Wallet</h1>
-            <p className="text-gray-400">Financial overview and transaction history</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-white">Team Wallet</h1>
+            <p className="text-sm sm:text-base text-gray-400">Financial overview and transaction history</p>
           </div>
         </div>
         {onClose && (
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="h-10 px-4 text-sm border-gray-600 text-white hover:bg-gray-700">
             Close
           </Button>
         )}
       </div>
 
       {/* Balance Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-green-900 to-emerald-800 border-0">
-          <CardContent className="p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+        <Card className="bg-gradient-to-br from-green-900 to-emerald-800 border-0 shadow-lg">
+          <CardContent className="p-5 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-300 font-medium">Available Balance</p>
-                <p className="text-2xl font-bold text-gray-100">
+                <p className="text-sm text-green-200 font-medium">Available Balance</p>
+                <p className="text-2xl font-bold text-white">
                   {walletData.currency} {walletData.balance.toLocaleString()}
                 </p>
               </div>
-              <div className="w-12 h-12 bg-green-700 rounded-full flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-500" />
+              <div className="w-12 h-12 bg-green-700/60 rounded-full flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-green-100" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-yellow-900 to-yellow-800 border-0">
-          <CardContent className="p-6">
+        <Card className="bg-gradient-to-br from-yellow-900 to-yellow-800 border-0 shadow-lg">
+          <CardContent className="p-5 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-yellow-300 font-medium">Pending Payments</p>
-                <p className="text-2xl font-bold text-gray-100">
+                <p className="text-2xl font-bold text-white">
                   {walletData.currency} {walletData.pending.toLocaleString()}
                 </p>
               </div>
-              <div className="w-12 h-12 bg-yellow-700 rounded-full flex items-center justify-center">
-                <Clock className="w-6 h-6 text-yellow-500" />
+              <div className="w-12 h-12 bg-yellow-700/60 rounded-full flex items-center justify-center">
+                <Clock className="w-6 h-6 text-yellow-100" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-900 to-indigo-800 border-0">
-          <CardContent className="p-6">
+        <Card className="bg-gradient-to-br from-blue-900 to-indigo-800 border-0 shadow-lg">
+          <CardContent className="p-5 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-blue-300 font-medium">Reserved Funds</p>
-                <p className="text-2xl font-bold text-gray-100">
+                <p className="text-2xl font-bold text-white">
                   {walletData.currency} {walletData.reserved.toLocaleString()}
                 </p>
               </div>
-              <div className="w-12 h-12 bg-blue-700 rounded-full flex items-center justify-center">
-                <Building className="w-6 h-6 text-blue-500" />
+              <div className="w-12 h-12 bg-blue-700/60 rounded-full flex items-center justify-center">
+                <Building className="w-6 h-6 text-blue-100" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-900 to-pink-800 border-0">
-          <CardContent className="p-6">
+        <Card className="bg-gradient-to-br from-purple-900 to-pink-800 border-0 shadow-lg">
+          <CardContent className="p-5 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-purple-300 font-medium">Total Value</p>
-                <p className="text-2xl font-bold text-gray-100">
+                <p className="text-2xl font-bold text-white">
                   {walletData.currency} {(walletData.balance + walletData.pending + walletData.reserved).toLocaleString()}
                 </p>
               </div>
-              <div className="w-12 h-12 bg-purple-700 rounded-full flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-purple-500" />
+              <div className="w-12 h-12 bg-purple-700/60 rounded-full flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-purple-100" />
               </div>
             </div>
           </CardContent>
@@ -261,109 +246,44 @@ const TeamWallet: React.FC<TeamWalletProps> = ({ teamId, onClose }) => {
       </div>
 
       {/* Transaction History */}
-      <Card className='border-0'>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl text-gray-100">Transaction History</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={exportTransactions}>
+      <Card className="border border-gray-800 bg-[#0d0d0d]">
+        <CardHeader className="p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <CardTitle className="text-lg sm:text-xl text-white">Transaction History</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={exportTransactions} className="h-10 px-4 text-sm border-gray-600 text-white hover:bg-gray-700">
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
               </Button>
-              <Button variant="outline" size="sm" onClick={exportTransactions}>
+              <Button variant="outline" size="sm" onClick={exportTransactions} className="h-10 px-4 text-sm border-gray-600 text-white hover:bg-gray-700">
                 <FileText className="w-4 h-4 mr-2" />
                 Export PDF
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="all">All Transactions</TabsTrigger>
-              <TabsTrigger value="incoming">Incoming</TabsTrigger>
-              <TabsTrigger value="outgoing">Outgoing</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
+        <CardContent className="p-4 sm:p-5">
+          <Tabs defaultValue="incoming" className="w-full space-y-4">
+            <TabsList className="flex flex-wrap gap-2 bg-[#111111] border border-gray-800 rounded-lg p-1 overflow-visible">
+              <TabsTrigger value="incoming" className="flex-1 sm:flex-none px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
+                Incoming
+              </TabsTrigger>
+              <TabsTrigger value="outgoing" className="flex-1 sm:flex-none px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
+                Outgoing
+              </TabsTrigger>
+              <TabsTrigger value="pending" className="flex-1 sm:flex-none px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
+                Pending
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="all" className="mt-6">
-              <ScrollArea className="h-96">
-                <div className="space-y-4">
-                  {transactions.map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className="flex items-center justify-between p-4 bg-[#11111195] border-0 rounded-lg hover:shadow-sm transition-shadow"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${transaction.type === 'incoming' ? 'bg-green-100' : 'bg-red-100'
-                          }`}>
-                          {transaction.type === 'incoming' ? (
-                            <TrendingUp className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <TrendingDown className="w-5 h-5 text-red-600" />
-                          )}
-                        </div>
-
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-gray-100">{transaction.description}</p>
-                            <Badge variant="outline" className={getStatusColor(transaction.status)}>
-                              {transaction.status.replace('_', ' ').toUpperCase()}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(transaction.date).toLocaleDateString()}
-                            </div>
-
-                            {transaction.agent_name && (
-                              <span>Agent: {transaction.agent_name}</span>
-                            )}
-
-                            {transaction.player_name && (
-                              <span>Player: {transaction.player_name}</span>
-                            )}
-
-                            {transaction.installment_info && (
-                              <span>
-                                Installment {transaction.installment_info.current}/{transaction.installment_info.total}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className={`font-bold ${transaction.type === 'incoming' ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                            {transaction.type === 'incoming' ? '+' : '-'}{transaction.currency} {transaction.amount.toLocaleString()}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(transaction.status)}
-                          <Button variant="ghost" size="sm">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </TabsContent>
-
             {/* Similar content for other tabs */}
-            <TabsContent value="incoming" className="mt-6">
-              <ScrollArea className="h-96">
-                <div className="space-y-4">
+            <TabsContent value="incoming" className="mt-4 sm:mt-6">
+              <ScrollArea className="h-[360px]">
+                <div className="space-y-3 sm:space-y-4">
                   {transactions.filter(t => t.type === 'incoming').map((transaction) => (
-                    <div key={transaction.id} className="p-4 bg-[#11111195]  border-0 rounded-lg">
-                      <p className="font-medium text-gray-300">{transaction.description}</p>
-                      <p className="text-sm text-green-600 mt-1">
+                    <div key={transaction.id} className="p-4 bg-[#111111] border border-gray-800 rounded-xl">
+                      <p className="font-medium text-white text-sm sm:text-base">{transaction.description}</p>
+                      <p className="text-sm text-green-400 mt-1">
                         +{transaction.currency} {transaction.amount.toLocaleString()}
                       </p>
                     </div>
@@ -372,13 +292,13 @@ const TeamWallet: React.FC<TeamWalletProps> = ({ teamId, onClose }) => {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="outgoing" className="mt-6">
-              <ScrollArea className="h-96">
-                <div className="space-y-4">
+            <TabsContent value="outgoing" className="mt-4 sm:mt-6">
+              <ScrollArea className="h-[360px]">
+                <div className="space-y-3 sm:space-y-4">
                   {transactions.filter(t => t.type === 'outgoing').map((transaction) => (
-                    <div key={transaction.id} className="p-4 bg-[#11111195] border-0 rounded-lg">
-                      <p className="font-medium text-gray-100">{transaction.description}</p>
-                      <p className="text-sm text-red-700 mt-1">
+                    <div key={transaction.id} className="p-4 bg-[#111111] border border-gray-800 rounded-xl">
+                      <p className="font-medium text-white text-sm sm:text-base">{transaction.description}</p>
+                      <p className="text-sm text-red-400 mt-1">
                         -{transaction.currency} {transaction.amount.toLocaleString()}
                       </p>
                     </div>
@@ -387,13 +307,13 @@ const TeamWallet: React.FC<TeamWalletProps> = ({ teamId, onClose }) => {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="pending" className="mt-6">
-              <ScrollArea className="h-96">
-                <div className="space-y-4">
+            <TabsContent value="pending" className="mt-4 sm:mt-6">
+              <ScrollArea className="h-[360px]">
+                <div className="space-y-3 sm:space-y-4">
                   {transactions.filter(t => t.status === 'pending').map((transaction) => (
-                    <div key={transaction.id} className="p-4 bg-[#11111195] border-0 rounded-lg">
-                      <p className="font-medium text-gray-100">{transaction.description}</p>
-                      <p className="text-sm text-yellow-700 mt-1">
+                    <div key={transaction.id} className="p-4 bg-[#111111] border border-gray-800 rounded-xl">
+                      <p className="font-medium text-white text-sm sm:text-base">{transaction.description}</p>
+                      <p className="text-sm text-yellow-400 mt-1">
                         {transaction.currency} {transaction.amount.toLocaleString()} - Pending
                       </p>
                     </div>

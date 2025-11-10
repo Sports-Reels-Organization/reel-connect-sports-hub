@@ -103,6 +103,8 @@
     @apply bg-background text-foreground font-poppins;
     background-color: #111111 !important;
     color: hsl(0 0% 95%) !important;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   /* Ensure all backgrounds are dark */

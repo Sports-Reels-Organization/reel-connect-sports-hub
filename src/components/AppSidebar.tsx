@@ -200,19 +200,19 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className='border-0 overflow-hidden'>
-      <SidebarHeader className="p-6">
+    <Sidebar className='border-r-0 border-0  overflow-hidden'>
+      <SidebarHeader className="p-4 lg:p-6">
         <div className="flex items-center gap-3">
           <img
             src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png"
             alt="Sports Reels"
-            className="w-10 h-10"
+            className="w-10 h-10 flex-shrink-0"
           />
-          <div>
-            <h2 className="font-polysans text-xl font-bold text-sidebar-foreground">
+          <div className="min-w-0">
+            <h2 className="font-polysans text-lg lg:text-xl font-bold text-sidebar-foreground truncate">
               Sports Reels
             </h2>
-            <p className="text-sm text-sidebar-foreground/70">
+            <p className="text-sm text-sidebar-foreground/70 truncate">
               {profile?.user_type === 'team' ? translateTextSync('Team') : translateTextSync('Agent')}
             </p>
           </div>
@@ -221,7 +221,7 @@ export function AppSidebar() {
 
       <SidebarContent className="overflow-hidden">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium">
+          <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium text-sm">
             Navigation
           </SidebarGroupLabel>
           <SidebarGroupContent className="overflow-hidden">
@@ -233,11 +233,11 @@ export function AppSidebar() {
                     isActive={location.pathname === item.url}
                   >
                     <a href={item.url} className="flex items-center gap-3">
-                      <item.icon className="w-5 h-5" />
-                      <span className="font-medium">{item.title}</span>
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      <span className="font-medium truncate">{item.title}</span>
                       {item.showBadge && unreadNotifications > 0 && (
-                        <Badge variant="destructive" className="ml-auto text-xs">
-                          {unreadNotifications}
+                        <Badge variant="destructive" className="ml-auto text-xs px-1.5 flex-shrink-0">
+                          {unreadNotifications > 99 ? '99+' : unreadNotifications}
                         </Badge>
                       )}
                     </a>
@@ -249,12 +249,12 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-6">
+      <SidebarFooter className="p-4 lg:p-6">
         <SidebarMenuButton
           onClick={handleSignOut}
           className="w-full justify-start"
         >
-          <LogOut className="w-5 h-5 mr-3" />
+          <LogOut className="w-5 h-5 mr-3 flex-shrink-0" />
           <span>{translateTextSync('Sign Out')}</span>
         </SidebarMenuButton>
       </SidebarFooter>

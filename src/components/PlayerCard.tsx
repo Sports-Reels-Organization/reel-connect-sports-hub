@@ -4,9 +4,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Eye, User, Trash2 } from 'lucide-react';
-import { Tables } from '@/integrations/supabase/types';
+import { Database } from '@/integrations/supabase/types';
 
-type DatabasePlayer = Tables<'players'>;
+type DatabasePlayer = Database['public']['Tables']['players']['Row'] & {
+  headshot_url?: string | null;
+  jersey_number?: number | null;
+  height?: number | null;
+  foot?: string | null;
+  status?: string | null;
+};
 
 interface PlayerCardProps {
   player: DatabasePlayer;
@@ -29,11 +35,11 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onView, onDelet
   };
 
   return (
-    <Card className="border-0 border-gray-700 hover:border-rosegold/50 transition-all duration-300 group">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+    <Card className="border-0 bg-[#111111]">
+      <CardContent className="p-4 sm:p-5 md:p-6">
+        <div className="flex items-start justify-between mb-3 sm:mb-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-[#1a1a1a] flex-shrink-0">
               {player.headshot_url || player.photo_url ? (
                 <img
                   src={player.headshot_url || player.photo_url || ''}
@@ -41,25 +47,25 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onView, onDelet
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <User className="w-8 h-8 text-gray-400" />
+                <div className="w-full h-full flex items-center justify-center bg-[#1a1a1a]">
+                  <User className="w-6 h-6 sm:w-8 sm:h-8 text-rosegold" />
                 </div>
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-polysans font-semibold text-white truncate">
+              <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                <h3 className="font-polysans font-semibold text-white truncate text-sm sm:text-base">
                   {player.full_name}
                 </h3>
                 {player.status === 'transferred' && (
-                  <Badge className="bg-red-600 text-white text-xs px-2 py-0.5">
+                  <Badge className="bg-red-600 text-white text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 flex-shrink-0 border-0">
                     TRANSFERRED
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-gray-400 font-poppins">{player.position}</p>
+              <p className="text-xs sm:text-sm text-white/60 font-poppins truncate">{player.position}</p>
               {player.jersey_number && (
-                <Badge variant="outline" className="text-rosegold border-rosegold mt-1">
+                <Badge className="bg-rosegold/20 text-rosegold border-0 mt-1 text-[10px] sm:text-xs px-1.5 sm:px-2">
                   #{player.jersey_number}
                 </Badge>
               )}
@@ -67,64 +73,63 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onView, onDelet
           </div>
         </div>
 
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-400">Age:</span>
-            <span className="text-white">
+        <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm bg-[#1a1a1a] rounded-lg p-2 sm:p-3">
+          <div className="flex justify-between items-center">
+            <span className="text-white/60">Age:</span>
+            <span className="text-white font-medium">
               {player.date_of_birth ? calculateAge(player.date_of_birth) : 'N/A'}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Nationality:</span>
-            <span className="text-white">{player.citizenship}</span>
+          <div className="flex justify-between items-center">
+            <span className="text-white/60">Nationality:</span>
+            <span className="text-white font-medium truncate ml-2">{player.citizenship}</span>
           </div>
           {player.height && (
-            <div className="flex justify-between">
-              <span className="text-gray-400">Height:</span>
-              <span className="text-white">{player.height}cm</span>
+            <div className="flex justify-between items-center">
+              <span className="text-white/60">Height:</span>
+              <span className="text-white font-medium">{player.height}cm</span>
             </div>
           )}
           {player.foot && (
-            <div className="flex justify-between">
-              <span className="text-gray-400">Foot:</span>
-              <span className="text-white capitalize">{player.foot}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-white/60">Foot:</span>
+              <span className="text-white font-medium capitalize">{player.foot}</span>
             </div>
           )}
           {player.market_value && (
-            <div className="flex justify-between">
-              <span className="text-gray-400">Value:</span>
-              <span className="text-bright-pink font-semibold">
+            <div className="flex justify-between items-center pt-1.5">
+              <span className="text-white/60">Value:</span>
+              <span className="text-bright-pink font-bold text-sm sm:text-base">
                 ${player.market_value.toLocaleString()}
               </span>
             </div>
           )}
         </div>
 
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-1.5 sm:gap-2 mt-3 sm:mt-4">
           <Button
             onClick={() => onView(player)}
             size="sm"
-            className="flex-1 bg-bright-pink hover:bg-bright-pink/90 text-white font-poppins"
+            className="flex-1 bg-rosegold text-white font-poppins text-xs sm:text-sm h-9 sm:h-10 border-0"
           >
-            <Eye className="w-4 h-4 mr-1" />
-            View Details
+            <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            <span className="hidden sm:inline">View Details</span>
+            <span className="sm:hidden">View</span>
           </Button>
           <Button
             onClick={() => onEdit(player)}
             size="sm"
-            variant="outline"
-            className="border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white"
+            className="bg-[#1a1a1a] text-white/60 border-0 h-9 sm:h-10 px-2 sm:px-3"
           >
-            <Edit className="w-4 h-4" />
+            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
           </Button>
           {onDelete && (
             <Button
               onClick={() => onDelete(player)}
               size="sm"
-              variant="outline"
-              className="border-red-600 text-red-400 hover:bg-red-700 hover:text-white"
+              className="bg-red-600/20 text-red-400 border-0 h-9 sm:h-10 px-2 sm:px-3"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
           )}
         </div>

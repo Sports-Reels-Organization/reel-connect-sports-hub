@@ -262,76 +262,79 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
   };
 
   return (
-    <Card className="border-gray-700 mb-6">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-white font-polysans flex items-center gap-2">
-            <Filter className="h-5 w-5" />
+    <Card className="border-gray-700 mb-4 sm:mb-6">
+      <CardHeader className="p-3 sm:p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <CardTitle className="text-white font-polysans flex items-center gap-2 text-base sm:text-lg">
+            <Filter className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
             Player Filters
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="text-white border-gray-600"
+              className="text-white border-gray-600 hover:bg-gray-700 text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial"
             >
-              Advanced Filters
+              <Filter className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+              <span className="hidden sm:inline">Advanced Filters</span>
+              <span className="sm:hidden">Advanced</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={saveCurrentFilter}
-              className="text-white border-gray-600"
+              className="text-white border-gray-600 hover:bg-gray-700 text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial"
             >
-              <Save className="h-4 w-4 mr-1" />
-              Save Filter
+              <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+              <span className="hidden lg:inline">Save Filter</span>
+              <span className="lg:hidden">Save</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => onExportPlayers(players)}
-              className="text-white border-gray-600"
+              className="text-white border-gray-600 hover:bg-gray-700 text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial"
             >
-              <Download className="h-4 w-4 mr-1" />
+              <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
               Export
             </Button>
           </div>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 md:p-6">
         {/* Basic Search */}
-        <div className="flex gap-4 items-end">
-          <div className="flex-1">
-            <Label className="text-white">Search Players</Label>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="flex-1 min-w-0">
+            <Label className="text-white text-xs sm:text-sm mb-1.5 block">Search Players</Label>
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
               <Input
                 placeholder="Search by name, position, nationality..."
                 value={filters.search}
                 onChange={(e) => updateFilter('search', e.target.value)}
-                className="pl-10 bg-gray-700 text-white border-gray-600"
+                className="pl-9 sm:pl-10 bg-gray-700 text-white border-gray-600 h-9 sm:h-10 text-xs sm:text-sm"
               />
             </div>
           </div>
           
-          <div>
-            <Label className="text-white">Position</Label>
+          <div className="w-full sm:w-40">
+            <Label className="text-white text-xs sm:text-sm mb-1.5 block">Position</Label>
             <Select value={filters.position} onValueChange={(value) => updateFilter('position', value)}>
-              <SelectTrigger className="bg-gray-700 text-white border-gray-600 w-40">
+              <SelectTrigger className="bg-gray-700 text-white border-gray-600 w-full h-9 sm:h-10 text-xs sm:text-sm">
                 <SelectValue placeholder="All positions" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All positions</SelectItem>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all" className="text-white text-xs sm:text-sm">All positions</SelectItem>
                 {sportData?.positions?.length > 0 ? (
                   sportData.positions.map((position) => (
-                    <SelectItem key={position} value={position}>
+                    <SelectItem key={position} value={position} className="text-white text-xs sm:text-sm">
                       {position}
                     </SelectItem>
                   ))
                 ) : (
-                  <SelectItem value="no-positions" disabled>
+                  <SelectItem value="no-positions" disabled className="text-gray-400 text-xs sm:text-sm">
                     Loading positions...
                   </SelectItem>
                 )}
@@ -340,107 +343,109 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
           </div>
 
           {(filters.search || (filters.position !== 'all') || (filters.citizenship !== 'all')) && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearFilters}
-              className="text-white border-gray-600"
-            >
-              <X className="h-4 w-4 mr-1" />
-              Clear
-            </Button>
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="text-white border-gray-600 hover:bg-gray-700 text-xs sm:text-sm h-9 sm:h-10 w-full sm:w-auto"
+              >
+                <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 flex-shrink-0" />
+                Clear
+              </Button>
+            </div>
           )}
         </div>
 
         {/* Advanced Filters */}
         {showAdvanced && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-800 rounded-lg">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg">
             <div>
-              <Label className="text-white">Age Range</Label>
+              <Label className="text-white text-xs sm:text-sm mb-1.5 block">Age Range</Label>
               <div className="flex gap-2">
                 <Input
                   type="number"
                   placeholder="Min"
                   value={filters.ageMin}
                   onChange={(e) => updateFilter('ageMin', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
+                  className="bg-gray-700 text-white border-gray-600 h-9 sm:h-10 text-xs sm:text-sm"
                 />
                 <Input
                   type="number"
                   placeholder="Max"
                   value={filters.ageMax}
                   onChange={(e) => updateFilter('ageMax', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
+                  className="bg-gray-700 text-white border-gray-600 h-9 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-white">Height Range (cm)</Label>
+              <Label className="text-white text-xs sm:text-sm mb-1.5 block">Height Range (cm)</Label>
               <div className="flex gap-2">
                 <Input
                   type="number"
                   placeholder="Min"
                   value={filters.heightMin}
                   onChange={(e) => updateFilter('heightMin', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
+                  className="bg-gray-700 text-white border-gray-600 h-9 sm:h-10 text-xs sm:text-sm"
                 />
                 <Input
                   type="number"
                   placeholder="Max"
                   value={filters.heightMax}
                   onChange={(e) => updateFilter('heightMax', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
+                  className="bg-gray-700 text-white border-gray-600 h-9 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-white">Market Value Range</Label>
+              <Label className="text-white text-xs sm:text-sm mb-1.5 block">Market Value Range</Label>
               <div className="flex gap-2">
                 <Input
                   type="number"
                   placeholder="Min"
                   value={filters.marketValueMin}
                   onChange={(e) => updateFilter('marketValueMin', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
+                  className="bg-gray-700 text-white border-gray-600 h-9 sm:h-10 text-xs sm:text-sm"
                 />
                 <Input
                   type="number"
                   placeholder="Max"
                   value={filters.marketValueMax}
                   onChange={(e) => updateFilter('marketValueMax', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
+                  className="bg-gray-700 text-white border-gray-600 h-9 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-white">Citizenship</Label>
+              <Label className="text-white text-xs sm:text-sm mb-1.5 block">Citizenship</Label>
               <Select value={filters.citizenship} onValueChange={(value) => updateFilter('citizenship', value)}>
-                <SelectTrigger className="bg-gray-700 text-white border-gray-600">
+                <SelectTrigger className="bg-gray-700 text-white border-gray-600 h-9 sm:h-10 text-xs sm:text-sm">
                   <SelectValue placeholder="All countries" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All countries</SelectItem>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectItem value="all" className="text-white text-xs sm:text-sm">All countries</SelectItem>
                   {getUniqueValues('citizenship').map((country, index) => (
-                    <SelectItem key={`country-${index}`} value={country}>{country}</SelectItem>
+                    <SelectItem key={`country-${index}`} value={country} className="text-white text-xs sm:text-sm">{country}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label className="text-white">Contract Status</Label>
+              <Label className="text-white text-xs sm:text-sm mb-1.5 block">Contract Status</Label>
               <Select value={filters.contractExpiry} onValueChange={(value) => updateFilter('contractExpiry', value)}>
-                <SelectTrigger className="bg-gray-700 text-white border-gray-600">
+                <SelectTrigger className="bg-gray-700 text-white border-gray-600 h-9 sm:h-10 text-xs sm:text-sm">
                   <SelectValue placeholder="All contracts" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All contracts</SelectItem>
-                  <SelectItem value="expiring_soon">Expiring in 6 months</SelectItem>
-                  <SelectItem value="expired">Expired</SelectItem>
-                  <SelectItem value="long_term">Long-term (2+ years)</SelectItem>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectItem value="all" className="text-white text-xs sm:text-sm">All contracts</SelectItem>
+                  <SelectItem value="expiring_soon" className="text-white text-xs sm:text-sm">Expiring in 6 months</SelectItem>
+                  <SelectItem value="expired" className="text-white text-xs sm:text-sm">Expired</SelectItem>
+                  <SelectItem value="long_term" className="text-white text-xs sm:text-sm">Long-term (2+ years)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -450,13 +455,13 @@ const PlayerFilters: React.FC<PlayerFiltersProps> = ({
         {/* Saved Filters */}
         {savedFilters.length > 0 && (
           <div>
-            <Label className="text-white mb-2 block">Saved Filters</Label>
+            <Label className="text-white text-xs sm:text-sm mb-2 block">Saved Filters</Label>
             <div className="flex gap-2 flex-wrap">
               {savedFilters.map((saved, index) => (
                 <Badge
                   key={`saved-filter-${index}`}
                   variant="outline"
-                  className="cursor-pointer hover:bg-rosegold text-white border-gray-600"
+                  className="cursor-pointer hover:bg-rosegold text-white border-gray-600 text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5"
                   onClick={() => loadSavedFilter(saved)}
                 >
                   {saved.name}

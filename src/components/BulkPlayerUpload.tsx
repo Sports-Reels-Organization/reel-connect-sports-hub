@@ -280,24 +280,25 @@ const BulkPlayerUpload: React.FC<BulkPlayerUploadProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Bulk Player Upload</h2>
-          <p className="text-gray-400">Upload multiple players using CSV or Excel files</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Bulk Player Upload</h2>
+          <p className="text-gray-400 text-xs sm:text-sm">Upload multiple players using CSV or Excel files</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
             onClick={downloadTemplate}
-            className="text-white border-gray-600"
+            className="text-white border-gray-600 text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Download Template
+            <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Download Template</span>
+            <span className="sm:hidden">Template</span>
           </Button>
           {onCancel && (
-            <Button variant="outline" onClick={onCancel} disabled={isUploading}>
+            <Button variant="outline" onClick={onCancel} disabled={isUploading} className="text-xs sm:text-sm h-9 sm:h-10 flex-1 sm:flex-initial">
               Cancel
             </Button>
           )}
@@ -709,31 +710,41 @@ const BulkPlayerUpload: React.FC<BulkPlayerUploadProps> = ({
       {/* Upload History */}
       {uploadHistory.length > 0 && (
         <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Recent Uploads</CardTitle>
+          <CardHeader className="p-3 sm:p-4 md:p-6">
+            <CardTitle className="text-white text-base sm:text-lg flex items-center gap-2">
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+              Recent Uploads
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="space-y-2 sm:space-y-3">
               {uploadHistory.map((upload) => (
-                <div key={upload.id} className="flex items-center justify-between bg-gray-700 p-3 rounded">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <div className="text-white text-sm">{upload.filename}</div>
-                      <div className="text-gray-400 text-xs">
-                        {new Date(upload.uploadedAt).toLocaleString()} - {upload.successCount} players uploaded
+                <div key={upload.id} className="bg-gray-700 p-3 sm:p-4 rounded-lg">
+                  <div className="flex flex-col gap-2 sm:gap-3">
+                    {/* Header */}
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <FileText className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-white text-xs sm:text-sm font-medium break-words leading-tight">{upload.filename}</div>
+                        <div className="text-gray-400 text-[10px] sm:text-xs mt-1 break-words leading-tight">
+                          {new Date(upload.uploadedAt).toLocaleString()} • {upload.successCount} players uploaded
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge variant="outline" className="text-green-400 border-green-400">
-                      {upload.successCount} success
-                    </Badge>
-                    {upload.errorCount > 0 && (
-                      <Badge variant="outline" className="text-red-400 border-red-400">
-                        {upload.errorCount} errors
+                    
+                    {/* Badges */}
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      <Badge variant="outline" className="text-green-400 border-green-400 text-[10px] sm:text-xs px-1.5 sm:px-2">
+                        <CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+                        {upload.successCount} success
                       </Badge>
-                    )}
+                      {upload.errorCount > 0 && (
+                        <Badge variant="outline" className="text-red-400 border-red-400 text-[10px] sm:text-xs px-1.5 sm:px-2">
+                          <AlertCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+                          {upload.errorCount} errors
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

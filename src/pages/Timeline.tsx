@@ -10,7 +10,7 @@ const Timeline = () => {
 
   return (
     <Layout>
-      <div className="space-y-6 bg-background min-h-screen p-[3rem]">
+      <div className="space-y-6 bg-background min-h-screen px-3 py-6 sm:px-5 sm:py-8 lg:px-8">
         {profile?.user_type === 'agent' ? (
           <AgentTimeline />
         ) : profile?.user_type === 'team' ? (

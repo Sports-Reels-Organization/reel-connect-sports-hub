@@ -458,26 +458,27 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
 
   if (loading) {
     return (
-      <div className="text-center py-16">
-        <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Clock className="w-8 h-8 text-gray-500 animate-spin" />
+      <div className="text-center py-12 sm:py-16">
+        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+          <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500 animate-spin" />
         </div>
-        <h3 className="text-xl  text-white mb-2">Loading Contracts</h3>
+        <h3 className="text-base sm:text-xl text-white mb-2">Loading Contracts...</h3>
+        <p className="text-xs sm:text-sm text-gray-400">Please wait while we fetch your contracts</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Card className="border-0">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-white text-2xl flex items-center gap-2">
-                <FileText className="w-6 h-6" />
-                Contract Workflow
+        <CardHeader className="p-4 sm:p-5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-white text-lg sm:text-2xl flex items-center gap-2">
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                <span className="truncate">Contract Workflow</span>
               </CardTitle>
-              <p className="text-gray-400">
+              <p className="text-gray-400 text-sm sm:text-base mt-1 leading-relaxed">
                 {pitchId ? 'Manage contracts for this pitch' : 'Track all your contracts and negotiations'}
               </p>
             </div>
@@ -486,48 +487,48 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
         </CardHeader>
 
         {/* Search and Filter Controls */}
-        <div className="px-6 py-4 border-b border-gray-600 bg-gray-800/30">
-          <div className="flex flex-col md:flex-row gap-4">
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-gray-600 bg-gray-800/30">
+          <div className="flex flex-col gap-3 sm:gap-4">
             {/* Search Box */}
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   type="text"
-                  placeholder="Search contracts by player name, team, or contract ID..."
+                  placeholder="Search contracts..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 border-gray-600 bg-[#111111] text-white placeholder-gray-400"
+                  className="pl-10 border-gray-600 bg-[#111111] text-white placeholder-gray-400 text-sm sm:text-base h-10 sm:h-11"
                 />
               </div>
             </div>
 
             {/* Filters */}
-            <div className="flex gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32 border-0 bg-[#111111] text-white">
+                <SelectTrigger className="w-full border-0 bg-[#111111] text-white text-sm sm:text-base h-10 sm:h-11">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className=" bg-[#111111]">
-                  <SelectItem value="all" className="text-white">All Status</SelectItem>
-                  <SelectItem value="draft" className="text-white">Draft</SelectItem>
-                  <SelectItem value="sent" className="text-white">Sent</SelectItem>
-                  <SelectItem value="under_review" className="text-white">Under Review</SelectItem>
-                  <SelectItem value="negotiating" className="text-white">Negotiating</SelectItem>
-                  <SelectItem value="finalizing" className="text-white">Finalizing</SelectItem>
-                  <SelectItem value="completed" className="text-white">Completed</SelectItem>
+                <SelectContent className="bg-[#111111]">
+                  <SelectItem value="all" className="text-white text-sm">All Status</SelectItem>
+                  <SelectItem value="draft" className="text-white text-sm">Draft</SelectItem>
+                  <SelectItem value="sent" className="text-white text-sm">Sent</SelectItem>
+                  <SelectItem value="under_review" className="text-white text-sm">Under Review</SelectItem>
+                  <SelectItem value="negotiating" className="text-white text-sm">Negotiating</SelectItem>
+                  <SelectItem value="finalizing" className="text-white text-sm">Finalizing</SelectItem>
+                  <SelectItem value="completed" className="text-white text-sm">Completed</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-32 border-0 bg-[#111111] text-white">
+                <SelectTrigger className="w-full border-0 bg-[#111111] text-white text-sm sm:text-base h-10 sm:h-11">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#111111]">
-                  <SelectItem value="created_at" className="text-white">Date Created</SelectItem>
-                  <SelectItem value="contract_value" className="text-white">Contract Value</SelectItem>
-                  <SelectItem value="status" className="text-white">Status</SelectItem>
-                  <SelectItem value="player_name" className="text-white">Player Name</SelectItem>
+                  <SelectItem value="created_at" className="text-white text-sm">Date Created</SelectItem>
+                  <SelectItem value="contract_value" className="text-white text-sm">Contract Value</SelectItem>
+                  <SelectItem value="status" className="text-white text-sm">Status</SelectItem>
+                  <SelectItem value="player_name" className="text-white text-sm">Player Name</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -535,7 +536,7 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                 onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
                 variant="outline"
                 size="sm"
-                className="border-gray-600 text-white hover:bg-gray-700"
+                className="border-gray-600 text-white hover:bg-gray-700 h-10 sm:h-11 text-sm sm:text-base"
               >
                 <TrendingUp className={`w-4 h-4 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
               </Button>
@@ -543,16 +544,16 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
           </div>
         </div>
 
-        <CardContent>
+        <CardContent className="p-4 sm:p-6">
           {contracts.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                <FileText className="w-10 h-10 text-gray-500" />
+            <div className="text-center py-12 sm:py-16">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-gray-500" />
               </div>
-              <h3 className="text-2xl font-semibold text-white mb-3">
+              <h3 className="text-lg sm:text-2xl font-semibold text-white mb-2 sm:mb-3">
                 No Contracts Found
               </h3>
-              <p className="text-gray-400 mb-6 max-w-md mx-auto text-lg">
+              <p className="text-gray-400 mb-4 sm:mb-6 max-w-md mx-auto text-sm sm:text-base">
                 {pitchId
                   ? 'No contracts have been created for this pitch yet.'
                   : 'Start creating contracts to manage your transfer negotiations.'
@@ -560,20 +561,20 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 sm:space-y-5">
               {contracts.map((contract) => (
                 <Card key={contract.id} className="border-gray-600 overflow-hidden">
                   {/* Compact View */}
-                  <div className="p-4 bg-[#111111]">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-base font-semibold text-white">
+                  <div className="p-3 bg-[#111111]">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0 w-full">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <h3 className="text-base sm:text-lg font-semibold text-white truncate">
                             Contract #{contract.id.slice(0, 8)}
                           </h3>
                           <Badge
                             variant="outline"
-                            className={`text-xs px-2 py-0.5 ${contract.status === 'completed' ? 'border-green-500 text-green-400' :
+                            className={`text-xs sm:text-sm px-2 py-0.5 flex-shrink-0 ${contract.status === 'completed' ? 'border-green-500 text-green-400' :
                               contract.status === 'negotiating' ? 'border-yellow-500 text-yellow-400' :
                                 contract.status === 'draft' ? 'border-gray-500 text-gray-400' :
                                   'border-blue-500 text-blue-400'
@@ -582,9 +583,9 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                             {contract.status.replace('_', ' ').toUpperCase()}
                           </Badge>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-1.5">
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
                               {(contract.pitch?.players as any)?.photo_url ? (
                                 <img
                                   src={(contract.pitch.players as any).photo_url}
@@ -595,18 +596,18 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                                 <User className="w-4 h-4 text-gray-400" />
                               )}
                             </div>
-                            <div>
-                              <p className="text-gray-400 text-xs mb-0.5">Player</p>
-                              <p className="text-white text-sm font-medium">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-gray-400 text-xs sm:text-sm mb-0.5">Player</p>
+                              <p className="text-white text-sm sm:text-base font-medium truncate">
                                 {contract.pitch?.players?.full_name || 'Unknown Player'}
                               </p>
-                              <p className="text-gray-500 text-xs">
+                              <p className="text-gray-500 text-xs sm:text-sm truncate">
                                 {contract.pitch?.players?.position || 'Unknown Position'}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
                               {(contract.team as any)?.logo_url ? (
                                 <img
                                   src={(contract.team as any).logo_url}
@@ -617,46 +618,46 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                                 <Building2 className="w-4 h-4 text-gray-400" />
                               )}
                             </div>
-                            <div>
-                              <p className="text-gray-400 text-xs mb-0.5">Team</p>
-                              <p className="text-white text-xs">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-gray-400 text-xs sm:text-sm mb-0.5">Team</p>
+                              <p className="text-white text-sm sm:text-base truncate">
                                 {contract.team?.team_name || 'Unknown Team'}
                               </p>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1.5">
-                            <DollarSign className="w-3 h-3 text-green-400" />
-                            <span className="text-xs text-gray-300">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="w-3 h-3 text-green-400 flex-shrink-0" />
+                            <span className="text-xs sm:text-sm text-gray-300 truncate">
                               {contract.contract_value ? contract.contract_value.toLocaleString() : '0'} {contract.currency || 'USD'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="w-3 h-3 text-purple-400" />
-                            <span className="text-xs text-gray-300">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-purple-400 flex-shrink-0" />
+                            <span className="text-xs sm:text-sm text-gray-300">
                               {formatDistanceToNow(new Date(contract.created_at), { addSuffix: true })}
                             </span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 ml-3">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 w-full sm:w-auto sm:ml-2">
                         <Button
                           onClick={() => setExpandedContract(expandedContract === contract.id ? null : contract.id)}
                           variant="outline"
                           size="sm"
-                          className="border-gray-600 text-white hover:bg-gray-700 transition-colors text-xs px-2 py-1"
+                          className="border-gray-600 text-white hover:bg-gray-700 transition-colors text-sm h-10"
                         >
-                          <Eye className="w-3 h-3 mr-1" />
+                          <Eye className="w-4 h-4 mr-2" />
                           {expandedContract === contract.id ? 'Hide' : 'View'}
                         </Button>
                         <Button
                           onClick={() => navigate(`/contract-negotiation/${contract.id}`)}
                           variant="outline"
                           size="sm"
-                          className="text-white bg-primary transition-colors text-xs px-2 py-1"
+                          className="text-white bg-primary transition-colors text-sm h-10"
                         >
-                          <MessageSquare className="w-3 h-3 mr-1" />
+                          <MessageSquare className="w-4 h-4 mr-2" />
                           Negotiate
                         </Button>
                       </div>
@@ -666,65 +667,69 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                   {/* Expandable Details */}
                   <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedContract === contract.id ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
                     }`}>
-                    <div className="border-t border-gray-600 p-6 bg-gray-800/50">
+                    <div className="border-t border-gray-600 p-4 sm:p-6 bg-gray-800/50">
 
                       {/* Contract Details */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div className="text-center p-3 bg-gray-800 rounded-lg">
-                          <DollarSign className="w-6 h-6 mx-auto mb-2 text-green-400" />
-                          <p className="text-sm text-gray-400">Contract Value</p>
-                          <p className="text-lg font-bold text-white">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                        <div className="text-center p-3 sm:p-4 bg-gray-800 rounded-lg">
+                          <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-green-400" />
+                          <p className="text-xs sm:text-sm text-gray-400">Contract Value</p>
+                          <p className="text-base sm:text-lg font-bold text-white truncate">
                             {contract.contract_value ? contract.contract_value.toLocaleString() : '0'} {contract.currency || 'USD'}
                           </p>
                         </div>
-                        <div className="text-center p-3 bg-gray-800 rounded-lg">
-                          <Target className="w-6 h-6 mx-auto mb-2 text-blue-400" />
-                          <p className="text-sm text-gray-400">Asking Price</p>
-                          <p className="text-lg font-bold text-white">
+                        <div className="text-center p-3 sm:p-4 bg-gray-800 rounded-lg">
+                          <Target className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-blue-400" />
+                          <p className="text-xs sm:text-sm text-gray-400">Asking Price</p>
+                          <p className="text-base sm:text-lg font-bold text-white truncate">
                             {contract.pitch?.asking_price ? contract.pitch.asking_price.toLocaleString() : '0'} {contract.pitch?.currency || 'USD'}
                           </p>
                         </div>
-                        <div className="text-center p-3 bg-gray-800 rounded-lg">
-                          <Calendar className="w-6 h-6 mx-auto mb-2 text-purple-400" />
-                          <p className="text-sm text-gray-400">Created</p>
-                          <p className="text-sm text-white">
+                        <div className="text-center p-3 sm:p-4 bg-gray-800 rounded-lg">
+                          <Calendar className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-purple-400" />
+                          <p className="text-xs sm:text-sm text-gray-400">Created</p>
+                          <p className="text-sm sm:text-base text-white">
                             {formatDistanceToNow(new Date(contract.created_at), { addSuffix: true })}
                           </p>
                         </div>
                       </div>
 
                       {/* Workflow Progress */}
-                      <div className="mb-6">
-                        <h4 className="text-sm font-medium text-white mb-3">Contract Progress</h4>
-                        <div className="flex items-center justify-between">
+                      <div className="mb-5 sm:mb-8">
+                        <h4 className="text-sm sm:text-base font-medium text-white mb-3">Contract Progress</h4>
+                        <div className="flex items-start justify-between gap-2 overflow-x-auto pb-2">
                           {contractStages.map((stage, index) => {
                             const isCompleted = index <= getCurrentStageIndex(contract.status);
                             const isCurrent = index === getCurrentStageIndex(contract.status);
 
                             return (
-                              <div key={stage.key} className="flex flex-col items-center flex-1">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${isCompleted ? stage.color : 'bg-gray-600'
-                                  }`}>
-                                  {isCompleted ? (
-                                    <CheckCircle className="w-5 h-5 text-white" />
-                                  ) : (
-                                    <span className="text-white text-sm">{index + 1}</span>
-                                  )}
-                                </div>
-                                <div className="text-center">
-                                  <p className={`text-xs font-medium ${isCurrent ? 'text-white' : 'text-gray-400'
+                              <React.Fragment key={stage.key}>
+                                <div className="flex flex-col items-center flex-shrink-0 min-w-[70px] sm:min-w-[90px]">
+                                  <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center mb-1.5 sm:mb-2 ${isCompleted ? stage.color : 'bg-gray-600'
                                     }`}>
-                                    {stage.label}
-                                  </p>
-                                  <p className="text-xs text-gray-500 hidden md:block">
-                                    {stage.description}
-                                  </p>
+                                    {isCompleted ? (
+                                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                                    ) : (
+                                      <span className="text-white text-[11px] sm:text-sm">{index + 1}</span>
+                                    )}
+                                  </div>
+                                  <div className="text-center px-1">
+                                    <p className={`text-[10px] sm:text-xs font-medium leading-tight ${isCurrent ? 'text-white' : 'text-gray-400'
+                                      }`}>
+                                      {stage.label}
+                                    </p>
+                                    <p className="text-[9px] text-gray-500 hidden lg:block leading-tight mt-1">
+                                      {stage.description}
+                                    </p>
+                                  </div>
                                 </div>
                                 {index < contractStages.length - 1 && (
-                                  <ArrowRight className={`w-4 h-4 mt-4 ${isCompleted ? 'text-green-400' : 'text-gray-600'
-                                    }`} />
+                                  <div className="flex items-center pt-3 sm:pt-4 flex-shrink-0">
+                                    <ArrowRight className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isCompleted ? 'text-green-400' : 'text-gray-600'
+                                      }`} />
+                                  </div>
                                 )}
-                              </div>
+                              </React.Fragment>
                             );
                           })}
                         </div>
@@ -732,9 +737,9 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
 
                       {/* Terms */}
                       {contract.terms && (
-                        <div className="mb-6">
-                          <h4 className="text-sm font-medium text-white mb-2">Contract Terms</h4>
-                          <div className="text-gray-300 text-sm bg-gray-800 p-3 rounded-lg">
+                        <div className="mb-5 sm:mb-8">
+                          <h4 className="text-sm sm:text-base font-medium text-white mb-2">Contract Terms</h4>
+                          <div className="text-gray-300 text-sm sm:text-base bg-gray-800 p-3 sm:p-4 rounded-lg space-y-2 break-words whitespace-pre-wrap">
                             {typeof contract.terms === 'string' ? (
                               <p>{contract.terms}</p>
                             ) : typeof contract.terms === 'object' ? (
@@ -748,9 +753,9 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                                       !String(value).startsWith('data:image');
                                   })
                                   .map(([key, value]) => (
-                                    <div key={key} className="flex justify-between">
-                                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                                      <span className="font-medium">
+                                    <div key={key} className="flex flex-wrap items-center justify-between gap-2">
+                                      <span className="capitalize text-gray-400">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                      <span className="font-medium text-white">
                                         {typeof value === 'number' ? value.toLocaleString() : String(value)}
                                       </span>
                                     </div>
@@ -764,11 +769,11 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                       )}
 
                       {/* Actions */}
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         {canAdvanceStage(contract.status) && (
                           <Button
                             onClick={() => updateContractStatus(contract.id, getNextStage(contract.status)?.key || '')}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base h-10"
                           >
                             <ArrowRight className="w-4 h-4 mr-2" />
                             Advance to {getNextStage(contract.status)?.label}
@@ -778,13 +783,13 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                         <Button
                           onClick={() => navigate(`/contract-negotiation/${contract.id}`)}
                           variant="outline"
-                          className="border-gray-600 text-white hover:bg-gray-700"
+                          className="border-gray-600 text-white hover:bg-gray-700 text-sm sm:text-base h-10"
                         >
                           <MessageSquare className="w-4 h-4 mr-2" />
                           View Negotiation
                         </Button>
 
-                        <Button variant="outline" className="border-gray-600 text-white">
+                        <Button variant="outline" className="border-gray-600 text-white text-sm sm:text-base h-10">
                           <FileText className="w-4 h-4 mr-2" />
                           View Details
                         </Button>
@@ -798,8 +803,8 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
 
           {/* Pagination Controls */}
           {totalContracts > itemsPerPage && (
-            <div className="mt-8 flex items-center justify-between">
-              <div className="text-sm text-gray-400">
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm sm:text-base text-gray-400">
                 Showing {startIndex} to {endIndex} of {totalContracts} contracts
               </div>
 
@@ -808,7 +813,7 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
                   variant="outline"
-                  className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+                  className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 text-sm h-10 px-3"
                 >
                   Previous
                 </Button>
@@ -831,7 +836,7 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
                         variant={currentPage === pageNum ? "default" : "outline"}
-                        className={`w-8 h-8 p-0 ${currentPage === pageNum
+                        className={`w-9 h-9 sm:w-10 sm:h-10 p-0 text-sm ${currentPage === pageNum
                           ? "bg-blue-600 hover:bg-blue-700 text-white"
                           : "border-gray-600 text-white hover:bg-gray-700"
                           }`}
@@ -846,7 +851,7 @@ const SimplifiedContractWorkflow: React.FC<SimplifiedContractWorkflowProps> = ({
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
                   variant="outline"
-                  className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+                  className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 text-sm h-10 px-3"
                 >
                   Next
                 </Button>

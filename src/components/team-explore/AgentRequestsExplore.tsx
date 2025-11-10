@@ -39,10 +39,46 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
   const [selectedRequest, setSelectedRequest] = useState<AgentRequest | null>(null);
   const [messageContent, setMessageContent] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [teamSportType, setTeamSportType] = useState<string | null>(null);
+  const [teamLoaded, setTeamLoaded] = useState(false);
 
   useEffect(() => {
+    if (!profile?.id) {
+      setTeamSportType(null);
+      setTeamLoaded(true);
+      return;
+    }
+
+    setTeamLoaded(false);
+
+    const fetchTeamSportType = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('sport_type')
+          .eq('profile_id', profile.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching team sport type:', error);
+        }
+
+        setTeamSportType(data?.sport_type ?? null);
+      } catch (error) {
+        console.error('Unexpected error fetching team sport type:', error);
+        setTeamSportType(null);
+      } finally {
+        setTeamLoaded(true);
+      }
+    };
+
+    fetchTeamSportType();
+  }, [profile?.id]);
+
+  useEffect(() => {
+    if (!teamLoaded) return;
     fetchRequests();
-  }, [profile]);
+  }, [teamLoaded, teamSportType, profile?.id]);
 
   useEffect(() => {
     if (initialSearch) {
@@ -52,14 +88,21 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
 
   const fetchRequests = async () => {
     if (!profile?.id) return;
+    if (!teamLoaded) return;
 
     try {
       setLoading(true);
       
+      if (!teamSportType) {
+        setRequests([]);
+        return;
+      }
+
       // First get agent requests with explicit column selection (removing status filter)
       const { data: agentRequestsData, error: requestsError } = await supabase
         .from('agent_requests')
         .select('id, title, description, sport_type, position, budget_max, budget_min, currency, created_at, expires_at, agent_id')
+        .eq('sport_type', teamSportType)
         .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
@@ -173,6 +216,9 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
     (request.agent_name && request.agent_name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const noSportConfigured = teamLoaded && !teamSportType;
+  const sportLabel = teamSportType || 'Not set';
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -189,16 +235,22 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search agent requests..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 text-sm"
           />
+        </div>
+        <div className="border border-border bg-muted/30 rounded-md px-3 py-1.5 flex-shrink-0">
+          <span className="text-[10px] sm:text-xs uppercase text-muted-foreground block">Sport</span>
+          <span className="text-sm font-medium text-foreground">
+            {sportLabel}
+          </span>
         </div>
       </div>
 
@@ -208,55 +260,63 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
             <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Active Requests</h3>
             <p className="text-muted-foreground">
-              {searchQuery ? 'No requests match your search criteria.' : 'There are no active agent requests at the moment.'}
+              {noSportConfigured
+                ? 'Set your team sport in the profile settings to see matching agent requests.'
+                : searchQuery
+                  ? 'No requests match your search criteria.'
+                  : 'There are no active agent requests at the moment.'}
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {filteredRequests.map((request) => (
             <Card key={request.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{request.title}</CardTitle>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <User className="h-4 w-4" />
-                      <span>{request.agent_name}</span>
-                      <span>•</span>
-                      <Clock className="h-4 w-4" />
-                      <span>Expires {format(new Date(request.expires_at), 'MMM dd, yyyy')}</span>
+              <CardHeader className="pb-2 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-2">
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <CardTitle className="text-base sm:text-lg">{request.title}</CardTitle>
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                      <span className="truncate">{request.agent_name}</span>
+                      <span className="hidden sm:inline">•</span>
+                      <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                      <span className="text-[10px] sm:text-sm">Expires {format(new Date(request.expires_at), 'MMM dd, yyyy')}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{request.sport_type}</Badge>
-                    <Badge variant="outline">{request.position}</Badge>
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs">{request.sport_type}</Badge>
+                    <Badge variant="outline" className="text-[10px] sm:text-xs">{request.position}</Badge>
                   </div>
                 </div>
               </CardHeader>
               
-              <CardContent className="pt-0">
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+              <CardContent className="pt-0 p-3 sm:p-4">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2">
                   {request.description}
                 </p>
                 
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <div className="text-xs sm:text-sm font-medium">
                     Budget: {new Intl.NumberFormat('en-US', {
                       style: 'currency',
-                      currency: request.currency || 'USD'
+                      currency: request.currency || 'USD',
+                      notation: 'compact',
+                      maximumFractionDigits: 1
                     }).format(request.budget_min)} - {new Intl.NumberFormat('en-US', {
                       style: 'currency',
-                      currency: request.currency || 'USD'
+                      currency: request.currency || 'USD',
+                      notation: 'compact',
+                      maximumFractionDigits: 1
                     }).format(request.budget_max)}
                   </div>
                   
                   <Button 
                     size="sm" 
                     onClick={() => setSelectedRequest(request)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm"
                   >
-                    <MessageSquare className="h-4 w-4" />
+                    <MessageSquare className="h-3 h-3 sm:h-4 sm:w-4" />
                     Respond
                   </Button>
                 </div>
@@ -268,23 +328,25 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
 
       {selectedRequest && (
         <Card className="border-primary">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Respond to: {selectedRequest.title}
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <MessageSquare className="h-4 h-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="truncate">Respond to: {selectedRequest.title}</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
             <Textarea
               placeholder="Write your response to this agent request..."
               value={messageContent}
               onChange={(e) => setMessageContent(e.target.value)}
               rows={4}
+              className="text-sm"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button 
                 onClick={handleSendMessage}
                 disabled={!messageContent.trim() || sendingMessage}
+                className="w-full sm:w-auto text-sm"
               >
                 {sendingMessage ? 'Sending...' : 'Send Response'}
               </Button>
@@ -294,6 +356,7 @@ export const AgentRequestsExplore: React.FC<AgentRequestsExploreProps> = ({ init
                   setSelectedRequest(null);
                   setMessageContent('');
                 }}
+                className="w-full sm:w-auto text-sm"
               >
                 Cancel
               </Button>

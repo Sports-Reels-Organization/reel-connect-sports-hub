@@ -157,19 +157,19 @@ const NotificationCenter: React.FC = () => {
     const getNotificationBadge = (type: string) => {
         switch (type) {
             case 'transfer':
-                return <Badge variant="outline" className="text-blue-400 border-blue-400">Transfer</Badge>;
+                return <Badge variant="outline" className="border-0 bg-blue-500/10 text-blue-300">Transfer</Badge>;
             case 'message':
-                return <Badge variant="outline" className="text-green-400 border-green-400">Message</Badge>;
+                return <Badge variant="outline" className="border-0 bg-green-500/10 text-green-300">Message</Badge>;
             case 'profile':
-                return <Badge variant="outline" className="text-purple-400 border-purple-400">Profile</Badge>;
+                return <Badge variant="outline" className="border-0 bg-purple-500/10 text-purple-300">Profile</Badge>;
             case 'success':
-                return <Badge variant="outline" className="text-green-400 border-green-400">Success</Badge>;
+                return <Badge variant="outline" className="border-0 bg-emerald-500/10 text-emerald-300">Success</Badge>;
             case 'warning':
-                return <Badge variant="outline" className="text-yellow-400 border-yellow-400">Warning</Badge>;
+                return <Badge variant="outline" className="border-0 bg-yellow-500/10 text-yellow-300">Warning</Badge>;
             case 'error':
-                return <Badge variant="outline" className="text-red-400 border-red-400">Error</Badge>;
+                return <Badge variant="outline" className="border-0 bg-red-500/10 text-red-300">Error</Badge>;
             default:
-                return <Badge variant="outline" className="text-gray-400 border-gray-400">Info</Badge>;
+                return <Badge variant="outline" className="border-0 bg-gray-500/10 text-gray-300">Info</Badge>;
         }
     };
 
@@ -198,36 +198,32 @@ const NotificationCenter: React.FC = () => {
 
     if (loading) {
         return (
-            <Card className="border-gray-700">
-                <CardContent className="p-6">
-                    <div className="space-y-4">
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className="animate-pulse">
-                                <div className="h-16 bg-gray-700 rounded"></div>
-                            </div>
-                        ))}
-                    </div>
+            <Card className="border border-gray-800 bg-[#0f0f0f]">
+                <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="animate-pulse h-16 bg-gray-800 rounded-lg" />
+                    ))}
                 </CardContent>
             </Card>
         );
     }
 
     return (
-        <div className="space-y-6 p-[3rem]">
-            <div className="flex items-center justify-between">
-                <div className='text-start'>
-                    <h1 className="text-3xl font-polysans font-bold text-white mb-2">
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className='space-y-2'>
+                    <h1 className="text-xl sm:text-2xl font-polysans font-bold text-white">
                         Notifications
                     </h1>
-                    <p className="text-gray-400 font-poppins">
+                    <p className="text-sm sm:text-base text-gray-400 font-poppins">
                         Stay updated with your latest activities and messages
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <Button
                         onClick={refreshNotifications}
                         variant="outline"
-                        className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        className="h-10 px-4 text-sm border-gray-600 text-white hover:bg-gray-700"
                         disabled={loading}
                     >
                         <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -237,7 +233,7 @@ const NotificationCenter: React.FC = () => {
                         <Button
                             onClick={handleMarkAllAsRead}
                             variant="outline"
-                            className="border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
+                            className="h-10 px-4 text-sm border-rosegold text-rosegold hover:bg-rosegold hover:text-white"
                         >
                             <Check className="h-4 w-4 mr-2" />
                             Mark All Read
@@ -247,32 +243,32 @@ const NotificationCenter: React.FC = () => {
             </div>
 
             {loading && (
-                <div className="flex items-center justify-center py-4">
-                    <RefreshCw className="h-6 w-6 animate-spin text-rosegold mr-2" />
-                    <span className="text-gray-400">Updating notifications...</span>
+                <div className="flex items-center justify-center py-4 text-sm text-gray-400">
+                    <RefreshCw className="h-5 w-5 animate-spin text-blue-400 mr-2" />
+                    Updating notifications...
                 </div>
             )}
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-5 bg-card border-0">
-                    <TabsTrigger value="all" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 gap-2 bg-[#111111] border border-gray-800 rounded-lg p-1">
+                    <TabsTrigger value="all" className="px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                         All ({notifications.length})
                     </TabsTrigger>
-                    <TabsTrigger value="unread" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+                    <TabsTrigger value="unread" className="px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                         Unread ({unreadCount})
                     </TabsTrigger>
-                    <TabsTrigger value="transfer" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+                    <TabsTrigger value="transfer" className="px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                         Transfers
                     </TabsTrigger>
-                    <TabsTrigger value="message" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+                    <TabsTrigger value="message" className="px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                         Messages
                     </TabsTrigger>
-                    <TabsTrigger value="settings" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+                    <TabsTrigger value="settings" className="px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                         <Settings className="h-4 w-4" />
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="all" className="space-y-4">
+                <TabsContent value="all" className="space-y-3 sm:space-y-4">
                     {filteredNotifications.map((notification) => (
                         <NotificationItem
                             key={notification.id}
@@ -286,7 +282,7 @@ const NotificationCenter: React.FC = () => {
                     ))}
                 </TabsContent>
 
-                <TabsContent value="unread" className="space-y-4">
+                <TabsContent value="unread" className="space-y-3 sm:space-y-4">
                     {filteredNotifications.map((notification) => (
                         <NotificationItem
                             key={notification.id}
@@ -300,7 +296,7 @@ const NotificationCenter: React.FC = () => {
                     ))}
                 </TabsContent>
 
-                <TabsContent value="transfer" className="space-y-4">
+                <TabsContent value="transfer" className="space-y-3 sm:space-y-4">
                     {filteredNotifications.map((notification) => (
                         <NotificationItem
                             key={notification.id}
@@ -314,7 +310,7 @@ const NotificationCenter: React.FC = () => {
                     ))}
                 </TabsContent>
 
-                <TabsContent value="message" className="space-y-4">
+                <TabsContent value="message" className="space-y-3 sm:space-y-4">
                     {filteredNotifications.map((notification) => (
                         <NotificationItem
                             key={notification.id}
@@ -328,18 +324,18 @@ const NotificationCenter: React.FC = () => {
                     ))}
                 </TabsContent>
 
-                <TabsContent value="settings" className="space-y-6">
-                    <Card className="border-gray-700">
-                        <CardHeader>
-                            <CardTitle className="text-white font-polysans">Notification Preferences</CardTitle>
+                <TabsContent value="settings" className="space-y-4 sm:space-y-6">
+                    <Card className="border border-gray-800 bg-[#0f0f0f]">
+                        <CardHeader className="p-4 sm:p-5">
+                            <CardTitle className="text-white font-polysans text-base sm:text-lg">Notification Preferences</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-6">
+                        <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-5">
                             {preferences && (
                                 <>
                                     <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-3">
                                             <div className="space-y-1">
-                                                <Label className="text-white">Email Notifications</Label>
+                                                <Label className="text-white text-sm sm:text-base">Email Notifications</Label>
                                                 <p className="text-sm text-gray-400">Receive notifications via email</p>
                                             </div>
                                             <Switch
@@ -348,9 +344,9 @@ const NotificationCenter: React.FC = () => {
                                             />
                                         </div>
 
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-3">
                                             <div className="space-y-1">
-                                                <Label className="text-white">Newsletter Subscription</Label>
+                                                <Label className="text-white text-sm sm:text-base">Newsletter Subscription</Label>
                                                 <p className="text-sm text-gray-400">Receive our newsletter and updates</p>
                                             </div>
                                             <Switch
@@ -359,9 +355,9 @@ const NotificationCenter: React.FC = () => {
                                             />
                                         </div>
 
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-3">
                                             <div className="space-y-1">
-                                                <Label className="text-white">In-App Notifications</Label>
+                                                <Label className="text-white text-sm sm:text-base">In-App Notifications</Label>
                                                 <p className="text-sm text-gray-400">Show notifications within the app</p>
                                             </div>
                                             <Switch
@@ -370,9 +366,9 @@ const NotificationCenter: React.FC = () => {
                                             />
                                         </div>
 
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-3">
                                             <div className="space-y-1">
-                                                <Label className="text-white">Transfer Updates</Label>
+                                                <Label className="text-white text-sm sm:text-base">Transfer Updates</Label>
                                                 <p className="text-sm text-gray-400">Notifications about transfer interest</p>
                                             </div>
                                             <Switch
@@ -381,9 +377,9 @@ const NotificationCenter: React.FC = () => {
                                             />
                                         </div>
 
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-3">
                                             <div className="space-y-1">
-                                                <Label className="text-white">Message Notifications</Label>
+                                                <Label className="text-white text-sm sm:text-base">Message Notifications</Label>
                                                 <p className="text-sm text-gray-400">Notifications about new messages</p>
                                             </div>
                                             <Switch
@@ -392,9 +388,9 @@ const NotificationCenter: React.FC = () => {
                                             />
                                         </div>
 
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-3">
                                             <div className="space-y-1">
-                                                <Label className="text-white">Profile Changes</Label>
+                                                <Label className="text-white text-sm sm:text-base">Profile Changes</Label>
                                                 <p className="text-sm text-gray-400">Notifications about profile updates</p>
                                             </div>
                                             <Switch
@@ -403,9 +399,9 @@ const NotificationCenter: React.FC = () => {
                                             />
                                         </div>
 
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-3">
                                             <div className="space-y-1">
-                                                <Label className="text-white">Login Notifications</Label>
+                                                <Label className="text-white text-sm sm:text-base">Login Notifications</Label>
                                                 <p className="text-sm text-gray-400">Get notified when you log in</p>
                                             </div>
                                             <Switch
@@ -422,13 +418,13 @@ const NotificationCenter: React.FC = () => {
             </Tabs>
 
             {filteredNotifications.length === 0 && activeTab !== 'settings' && (
-                <Card className="border-gray-700">
-                    <CardContent className="p-12 text-center">
-                        <Bell className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                        <h3 className="text-xl font-polysans font-semibold text-white mb-2">
+                <Card className="border border-gray-800 bg-[#0f0f0f]">
+                    <CardContent className="p-10 text-center space-y-3">
+                        <Bell className="w-12 h-12 mx-auto text-gray-500" />
+                        <h3 className="text-lg sm:text-xl font-polysans font-semibold text-white">
                             No Notifications
                         </h3>
-                        <p className="text-gray-400 font-poppins">
+                        <p className="text-sm sm:text-base text-gray-400 font-poppins">
                             {activeTab === 'unread'
                                 ? "You're all caught up! No unread notifications."
                                 : "No notifications to display."
@@ -459,9 +455,9 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
     formatTimeAgo
 }) => {
     return (
-        <Card className={`border-gray-700 ${!notification.read ? 'bg-gray-800/50' : ''}`}>
-            <CardContent className="p-4">
-                <div className="flex items-start gap-4">
+        <Card className={`border border-gray-800 bg-[#111111] rounded-xl ${!notification.read ? 'ring-1 ring-blue-500/30' : ''}`}>
+            <CardContent className="p-4 sm:p-5">
+                <div className="flex items-start gap-3 sm:gap-4">
                     <div className="flex-shrink-0 mt-1">
                         {getNotificationIcon(notification.type)}
                     </div>
@@ -469,13 +465,13 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h4 className={`font-polysans font-semibold ${!notification.read ? 'text-white' : 'text-gray-300'}`}>
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                    <h4 className={`font-polysans font-semibold text-sm sm:text-base ${!notification.read ? 'text-white' : 'text-gray-300'}`}>
                                         {notification.title}
                                     </h4>
                                     {getNotificationBadge(notification.type)}
                                 </div>
-                                <p className="text-gray-400 text-sm mb-2">
+                                <p className="text-gray-400 text-sm leading-relaxed mb-3">
                                     {notification.description}
                                 </p>
                                 <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -490,7 +486,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => onMarkAsRead(notification.id)}
-                                        className="text-green-400 hover:text-green-300 hover:bg-green-900/20"
+                                        className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-900/20"
                                     >
                                         <Check className="h-4 w-4" />
                                     </Button>
@@ -499,7 +495,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => onDelete(notification.id)}
-                                    className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                    className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/20"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>

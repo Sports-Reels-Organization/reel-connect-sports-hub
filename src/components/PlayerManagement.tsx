@@ -370,36 +370,38 @@ const PlayerManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-[3rem] space-y-6 max-w-7xl mx-auto bg-background min-h-screen">
-      <div className="grid space-y-5">
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6 w-full max-w-7xl mx-auto bg-background min-h-screen">
+      <div className="space-y-3 sm:space-y-4">
         <div className='text-start'>
-          <h1 className="font-polysans text-3xl font-bold text-white mb-2">
+          <h1 className="font-polysans text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">
             Player Management
           </h1>
-          <p className="text-gray-400 font-poppins">
+          <p className="text-gray-400 font-poppins text-sm sm:text-base">
             Manage your team's player roster with comprehensive profiles and advanced tools
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Dialog>
             <DialogTrigger asChild>
               <Button
                 variant="outline"
-                className="text-white border-gray-600"
+                size="sm"
+                className="text-white border-gray-600 hover:bg-gray-700 text-xs sm:text-sm h-9 sm:h-10"
               >
-                <Target className="w-4 h-4 mr-2" />
-                Transfer Requirements
+                <Target className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+                <span className="hidden lg:inline">Transfer Requirements</span>
+                <span className="lg:hidden">Requirements</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-white font-polysans flex items-center gap-2">
-                  <Target className="h-5 w-5" />
+                <DialogTitle className="text-white font-polysans flex items-center gap-2 text-base sm:text-lg">
+                  <Target className="h-4 w-4 sm:h-5 sm:w-5" />
                   Transfer Timeline Readiness
                 </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                   {/* Video Requirements */}
                   <div className={`p-4 rounded-lg border ${videoRequirements && videoRequirements.video_count >= 5
                     ? 'border-green-500 bg-green-900/20'
@@ -510,76 +512,85 @@ const PlayerManagement: React.FC = () => {
           <Button
             onClick={() => setShowComparison(true)}
             variant="outline"
-            className="text-white border-gray-600"
+            size="sm"
+            className="text-white border-gray-600 hover:bg-gray-700 text-xs sm:text-sm h-9 sm:h-10"
           >
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Compare Players
+            <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+            <span className="hidden lg:inline">Compare Players</span>
+            <span className="lg:hidden">Compare</span>
           </Button>
           <Button
             onClick={handleBulkUploadClick}
             variant="outline"
-            className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+            size="sm"
+            className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans text-xs sm:text-sm h-9 sm:h-10"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Bulk Upload
+            <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+            <span className="hidden lg:inline">Bulk Upload</span>
+            <span className="lg:hidden">Bulk</span>
           </Button>
           <Button
             onClick={handleAddPlayerClick}
-            className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+            size="sm"
+            className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans text-xs sm:text-sm h-9 sm:h-10"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Player
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+            <span className="hidden lg:inline">Add Player</span>
+            <span className="lg:hidden">Add</span>
           </Button>
         </div>
       </div>
 
       {/* Tabs for Player Management Organization */}
       <Tabs defaultValue="roster" className="w-full">
-        <TabsList className="grid w-full grid-cols-7 bg-gray-800">
-          <TabsTrigger value="roster" className="text-white">
-            <Users className="h-4 w-4 mr-1" />
-            Roster & Squad
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 bg-gray-800 gap-1 p-1 h-auto overflow-x-auto">
+          <TabsTrigger value="roster" className="text-white text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px] flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Roster & Squad</span>
+            <span className="sm:hidden">Roster</span>
           </TabsTrigger>
-          <TabsTrigger value="overview" className="text-white">
-            <User className="h-4 w-4 mr-1" />
-            Overview
+          <TabsTrigger value="overview" className="text-white text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px] flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span>Overview</span>
           </TabsTrigger>
-          <TabsTrigger value="statistics" className="text-white">
-            <Activity className="h-4 w-4 mr-1" />
-            Statistics
+          <TabsTrigger value="statistics" className="text-white text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px] flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Statistics</span>
+            <span className="sm:hidden">Stats</span>
           </TabsTrigger>
 
-          <TabsTrigger value="awards" className="text-white">
-            <Award className="h-4 w-4 mr-1" />
-            Awards
+          <TabsTrigger value="awards" className="text-white text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px] flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span>Awards</span>
           </TabsTrigger>
-          <TabsTrigger value="medical" className="text-white">
-            <Heart className="h-4 w-4 mr-1" />
-            Medical
+          <TabsTrigger value="medical" className="text-white text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px] flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span>Medical</span>
           </TabsTrigger>
-          <TabsTrigger value="notes" className="text-white">
-            <FileText className="h-4 w-4 mr-1" />
-            Notes
+          <TabsTrigger value="notes" className="text-white text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px] flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span>Notes</span>
           </TabsTrigger>
-          <TabsTrigger value="history" className="text-white">
-            <FileText className="h-4 w-4 mr-1" />
-            History
+          <TabsTrigger value="history" className="text-white text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px] flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span>History</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Roster & Squad Tab - Main roster management interface */}
-        <TabsContent value="roster" className="space-y-4">
+        <TabsContent value="roster" className="space-y-3 sm:space-y-4">
           <Card className="border-0">
-            <CardHeader>
-              <CardTitle className="text-white font-polysans flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Team Roster & Squad Management
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <CardTitle className="text-white font-polysans flex items-center gap-2 text-base sm:text-lg">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="hidden sm:inline">Team Roster & Squad Management</span>
+                <span className="sm:hidden">Team Roster</span>
               </CardTitle>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs sm:text-sm">
                 Complete roster view with filtering, sorting, and quick actions for team admins
               </p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 md:p-6">
               {/* Player Filters */}
               <PlayerFilters
                 players={players}
@@ -599,88 +610,108 @@ const PlayerManagement: React.FC = () => {
               <div className="flex gap-2">
                 <Button
                   variant={viewMode === 'cards' ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => setViewMode('cards')}
-                  className={viewMode === 'cards' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
+                  className={`text-xs sm:text-sm h-9 sm:h-10 ${viewMode === 'cards' ? 'bg-rosegold hover:bg-rosegold/90 text-white' : 'text-white border-gray-600 hover:bg-gray-700'}`}
                 >
-                  Card View
+                  <span className="hidden sm:inline">Card View</span>
+                  <span className="sm:hidden">Cards</span>
                 </Button>
                 <Button
                   variant={viewMode === 'roster' ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => setViewMode('roster')}
-                  className={viewMode === 'roster' ? 'bg-rosegold text-white' : 'text-white border-gray-600'}
+                  className={`text-xs sm:text-sm h-9 sm:h-10 ${viewMode === 'roster' ? 'bg-rosegold hover:bg-rosegold/90 text-white' : 'text-white border-gray-600 hover:bg-gray-700'}`}
                 >
-                  Table View
+                  <span className="hidden sm:inline">Table View</span>
+                  <span className="sm:hidden">Table</span>
                 </Button>
               </div>
 
               {showBulkUpload && (
-                <div id="bulk-upload-section">
-                  <BulkPlayerUpload
-                    teamId={teamId}
-                    sportType={teamSportType as any}
-                    onUploadComplete={handleBulkUploadComplete}
-                    onCancel={() => setShowBulkUpload(false)}
-                  />
+                <div id="bulk-upload-section" className="mt-4">
+                  <Card className="border-0">
+                    <CardContent className="p-4 sm:p-6">
+                      <BulkPlayerUpload
+                        teamId={teamId}
+                        sportType={teamSportType as any}
+                        onUploadComplete={handleBulkUploadComplete}
+                        onCancel={() => setShowBulkUpload(false)}
+                      />
+                    </CardContent>
+                  </Card>
                 </div>
               )}
 
               {showAddForm && (
-                <div ref={playerFormRef}>
-                  <PlayerForm
-                    teamId={teamId}
-                    player={editingPlayer}
-                    onSave={handlePlayerSaved}
-                    onCancel={resetForm}
-                  />
+                <div ref={playerFormRef} className="mt-4">
+                  <Card className="border-0">
+                    <CardContent className="p-4 sm:p-6">
+                      <PlayerForm
+                        teamId={teamId}
+                        player={editingPlayer}
+                        onSave={handlePlayerSaved}
+                        onCancel={resetForm}
+                      />
+                    </CardContent>
+                  </Card>
                 </div>
               )}
 
               {/* Player Display */}
-              {viewMode === 'roster' ? (
-                <PlayerRosterView
-                  players={paginatedPlayers}
-                  onEditPlayer={handleEditPlayer}
-                  onViewPlayer={handleViewPlayer}
-                  onDeletePlayer={handleDeletePlayer}
-                />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-                  {paginatedPlayers.map((player) => {
-                    const completionStatus = getPlayerCompletionStatus(player);
-                    return (
-                      <div key={player.id} className="relative">
-                        <PlayerCard
-                          player={player}
-                          onEdit={handleEditPlayer}
-                          onView={handleViewPlayer}
-                          onDelete={handleDeletePlayer}
-                        />
-                        {/* Profile Completion Indicator */}
-                        <div className="absolute top-2 right-2">
-                          <div className={`w-3 h-3 rounded-full ${completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
-                            }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              {!showBulkUpload && !showAddForm && (
+                <>
+                  {viewMode === 'roster' ? (
+                    <div className="mt-4">
+                      <PlayerRosterView
+                        players={paginatedPlayers}
+                        onEditPlayer={handleEditPlayer}
+                        onViewPlayer={handleViewPlayer}
+                        onDeletePlayer={handleDeletePlayer}
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mt-4">
+                      {paginatedPlayers.map((player) => {
+                        const completionStatus = getPlayerCompletionStatus(player);
+                        return (
+                          <div key={player.id} className="relative">
+                            <PlayerCard
+                              player={player}
+                              onEdit={handleEditPlayer}
+                              onView={handleViewPlayer}
+                              onDelete={handleDeletePlayer}
+                            />
+                            {/* Profile Completion Indicator */}
+                            <div className="absolute top-2 right-2">
+                              <div className={`w-3 h-3 rounded-full ${completionStatus.isComplete ? 'bg-green-500' : 'bg-yellow-500'
+                                }`} title={`Profile ${completionStatus.completed}/${completionStatus.total} complete`} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Pagination Controls */}
-              {filteredPlayers.length > itemsPerPage && (
-                <div className="mt-8 flex items-center justify-between">
-                  <div className="text-sm text-gray-400">
+              {!showBulkUpload && !showAddForm && filteredPlayers.length > itemsPerPage && (
+                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-xs sm:text-sm text-gray-400 order-2 sm:order-1">
                     Showing {startIndex + 1} to {Math.min(endIndex, filteredPlayers.length)} of {filteredPlayers.length} players
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 order-1 sm:order-2">
                     <Button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
                       variant="outline"
-                      className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+                      size="sm"
+                      className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4"
                     >
-                      Previous
+                      <span className="hidden sm:inline">Previous</span>
+                      <span className="sm:hidden">Prev</span>
                     </Button>
 
                     <div className="flex items-center gap-1">
@@ -701,7 +732,8 @@ const PlayerManagement: React.FC = () => {
                             key={pageNum}
                             onClick={() => handlePageChange(pageNum)}
                             variant={currentPage === pageNum ? "default" : "outline"}
-                            className={`w-8 h-8 p-0 ${currentPage === pageNum
+                            size="sm"
+                            className={`w-8 h-8 sm:w-9 sm:h-9 p-0 text-xs sm:text-sm ${currentPage === pageNum
                               ? "bg-blue-600 hover:bg-blue-700 text-white"
                               : "border-gray-600 text-white hover:bg-gray-700"
                               }`}
@@ -716,7 +748,8 @@ const PlayerManagement: React.FC = () => {
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
                       variant="outline"
-                      className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+                      size="sm"
+                      className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4"
                     >
                       Next
                     </Button>
@@ -724,14 +757,14 @@ const PlayerManagement: React.FC = () => {
                 </div>
               )}
 
-              {filteredPlayers.length === 0 && !showAddForm && (
-                <Card className="border-gray-700">
-                  <CardContent className="p-12 text-center">
-                    <Users className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                    <h3 className="font-polysans text-xl font-semibold text-white mb-2">
+              {filteredPlayers.length === 0 && !showAddForm && !showBulkUpload && (
+                <Card className="border-gray-700 mt-4">
+                  <CardContent className="p-6 sm:p-8 md:p-12 text-center">
+                    <Users className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-gray-500" />
+                    <h3 className="font-polysans text-lg sm:text-xl font-semibold text-white mb-2">
                       {players.length === 0 ? 'No Players Added Yet' : 'No Players Match Your Filters'}
                     </h3>
-                    <p className="text-gray-400 mb-6 font-poppins">
+                    <p className="text-gray-400 mb-4 sm:mb-6 font-poppins text-sm sm:text-base">
                       {players.length === 0
                         ? 'Start building your team by adding comprehensive player profiles'
                         : 'Try adjusting your filters to see more players'
@@ -740,9 +773,10 @@ const PlayerManagement: React.FC = () => {
                     {players.length === 0 && (
                       <Button
                         onClick={() => setShowAddForm(true)}
-                        className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans"
+                        size="sm"
+                        className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans text-xs sm:text-sm h-9 sm:h-10"
                       >
-                        <Plus className="w-4 h-4 mr-2" />
+                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                         Add Your First Player
                       </Button>
                     )}
@@ -754,29 +788,29 @@ const PlayerManagement: React.FC = () => {
         </TabsContent>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
+        <TabsContent value="overview" className="space-y-3 sm:space-y-4">
           <Card className="border-0">
-            <CardHeader>
-              <CardTitle className="text-white font-polysans flex items-center gap-2">
-                <User className="h-5 w-5" />
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <CardTitle className="text-white font-polysans flex items-center gap-2 text-base sm:text-lg">
+                <User className="h-4 w-4 sm:h-5 sm:w-5" />
                 Player Management Overview
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-700 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-rosegold">{players.length}</p>
-                  <p className="text-gray-400 text-sm">Total Players</p>
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                <div className="bg-gray-700 p-3 sm:p-4 rounded-lg text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-rosegold">{players.length}</p>
+                  <p className="text-gray-400 text-xs sm:text-sm">Total Players</p>
                 </div>
-                <div className="bg-gray-700 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-green-400">{eligiblePlayers.length}</p>
-                  <p className="text-gray-400 text-sm">Complete Profiles</p>
+                <div className="bg-gray-700 p-3 sm:p-4 rounded-lg text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-green-400">{eligiblePlayers.length}</p>
+                  <p className="text-gray-400 text-xs sm:text-sm">Complete Profiles</p>
                 </div>
-                <div className="bg-gray-700 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-blue-400">
+                <div className="bg-gray-700 p-3 sm:p-4 rounded-lg text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-blue-400">
                     {players.filter(p => p.position).length}
                   </p>
-                  <p className="text-gray-400 text-sm">Players with Positions</p>
+                  <p className="text-gray-400 text-xs sm:text-sm">Players with Positions</p>
                 </div>
               </div>
             </CardContent>
@@ -784,37 +818,37 @@ const PlayerManagement: React.FC = () => {
         </TabsContent>
 
         {/* Statistics Tab */}
-        <TabsContent value="statistics" className="space-y-4">
+        <TabsContent value="statistics" className="space-y-3 sm:space-y-4">
           <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white font-polysans flex items-center gap-2">
-                <Activity className="h-5 w-5" />
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <CardTitle className="text-white font-polysans flex items-center gap-2 text-base sm:text-lg">
+                <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
                 Team Statistics Overview
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-gray-700 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-rosegold">{players.length}</p>
-                  <p className="text-gray-400 text-sm">Squad Size</p>
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-gray-700 p-3 sm:p-4 rounded-lg text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-rosegold">{players.length}</p>
+                  <p className="text-gray-400 text-xs sm:text-sm">Squad Size</p>
                 </div>
-                <div className="bg-gray-700 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-green-400">
+                <div className="bg-gray-700 p-3 sm:p-4 rounded-lg text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-green-400">
                     {players.reduce((acc, p) => acc + (p.market_value || 0), 0).toLocaleString()}
                   </p>
-                  <p className="text-gray-400 text-sm">Total Squad Value</p>
+                  <p className="text-gray-400 text-xs sm:text-sm">Total Squad Value</p>
                 </div>
-                <div className="bg-gray-700 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-blue-400">
+                <div className="bg-gray-700 p-3 sm:p-4 rounded-lg text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-blue-400">
                     {players.filter(p => p.age && p.age < 23).length}
                   </p>
-                  <p className="text-gray-400 text-sm">Youth Players</p>
+                  <p className="text-gray-400 text-xs sm:text-sm">Youth Players</p>
                 </div>
-                <div className="bg-gray-700 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-purple-400">
+                <div className="bg-gray-700 p-3 sm:p-4 rounded-lg text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-purple-400">
                     {players.filter(p => p.contract_expires && new Date(p.contract_expires) < new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)).length}
                   </p>
-                  <p className="text-gray-400 text-sm">Expiring Contracts</p>
+                  <p className="text-gray-400 text-xs sm:text-sm">Expiring Contracts</p>
                 </div>
               </div>
             </CardContent>
@@ -841,64 +875,64 @@ const PlayerManagement: React.FC = () => {
         </TabsContent>
 
         {/* Awards Tab */}
-        <TabsContent value="awards" className="space-y-4">
+        <TabsContent value="awards" className="space-y-3 sm:space-y-4">
           <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white font-polysans flex items-center gap-2">
-                <Award className="h-5 w-5" />
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <CardTitle className="text-white font-polysans flex items-center gap-2 text-base sm:text-lg">
+                <Award className="h-4 w-4 sm:h-5 sm:w-5" />
                 Team Awards & Achievements
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Award className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                <p className="text-gray-400 mb-4">Track team and player achievements</p>
-                <p className="text-gray-500 text-sm">Awards and honors will be displayed here</p>
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="text-center py-6 sm:py-8">
+                <Award className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-500" />
+                <p className="text-gray-400 mb-3 sm:mb-4 text-sm sm:text-base">Track team and player achievements</p>
+                <p className="text-gray-500 text-xs sm:text-sm">Awards and honors will be displayed here</p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Medical Tab */}
-        <TabsContent value="medical" className="space-y-4">
+        <TabsContent value="medical" className="space-y-3 sm:space-y-4">
           <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white font-polysans flex items-center gap-2">
-                <Heart className="h-5 w-5" />
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <CardTitle className="text-white font-polysans flex items-center gap-2 text-base sm:text-lg">
+                <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
                 Medical & Fitness Overview
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Heart className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                <p className="text-gray-400 mb-4">Monitor player health and fitness</p>
-                <p className="text-gray-500 text-sm">Medical records and fitness data will be displayed here</p>
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="text-center py-6 sm:py-8">
+                <Heart className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-500" />
+                <p className="text-gray-400 mb-3 sm:mb-4 text-sm sm:text-base">Monitor player health and fitness</p>
+                <p className="text-gray-500 text-xs sm:text-sm">Medical records and fitness data will be displayed here</p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Notes Tab */}
-        <TabsContent value="notes" className="space-y-4">
+        <TabsContent value="notes" className="space-y-3 sm:space-y-4">
           <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white font-polysans flex items-center gap-2">
-                <FileText className="h-5 w-5" />
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <CardTitle className="text-white font-polysans flex items-center gap-2 text-base sm:text-lg">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
                 Scouting Notes & Internal Records
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                <p className="text-gray-400 mb-4">Internal team notes and scouting reports</p>
-                <p className="text-gray-500 text-sm">Private notes and player evaluations will be displayed here</p>
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="text-center py-6 sm:py-8">
+                <FileText className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-500" />
+                <p className="text-gray-400 mb-3 sm:mb-4 text-sm sm:text-base">Internal team notes and scouting reports</p>
+                <p className="text-gray-500 text-xs sm:text-sm">Private notes and player evaluations will be displayed here</p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* History Tab */}
-        <TabsContent value="history" className="space-y-4">
+        <TabsContent value="history" className="space-y-3 sm:space-y-4">
           <PlayerHistory teamId={teamId} />
         </TabsContent>
       </Tabs>

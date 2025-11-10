@@ -15,12 +15,12 @@ const Profile = () => {
 
   return (
     <Layout>
-      <div className="space-y-6 p-[3rem]">
-        <div className='text-start'>
-          <h1 className="text-3xl font-polysans font-bold text-white mb-2">
+      <div className="min-h-screen bg-background px-3 py-6 sm:px-5 sm:py-8 lg:px-8 space-y-6">
+        <div className="text-start space-y-2">
+          <h1 className="text-xl sm:text-2xl font-polysans font-bold text-white">
             Profile Settings
           </h1>
-          <p className="text-gray-500 font-poppins">
+          <p className="text-sm sm:text-base text-gray-400 font-poppins">
             Manage your account and profile information
           </p>
         </div>
@@ -30,85 +30,85 @@ const Profile = () => {
         )}
 
         {profile?.user_type === 'agent' ? (
-          <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="profile" className="flex items-center gap-2">
+          <Tabs defaultValue="profile" className="w-full space-y-4">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 gap-2 bg-[#111111] border border-gray-800 rounded-lg p-1">
+              <TabsTrigger value="profile" className="flex items-center justify-center gap-2 px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                 <User className="w-4 h-4" />
-                Agent Profile
+                <span className="whitespace-nowrap">Agent Profile</span>
               </TabsTrigger>
-              <TabsTrigger value="shortlist" className="flex items-center gap-2">
+              <TabsTrigger value="shortlist" className="flex items-center justify-center gap-2 px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                 <Heart className="w-4 h-4" />
-                My Shortlist
+                <span className="whitespace-nowrap">My Shortlist</span>
               </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <TabsTrigger value="notifications" className="flex items-center justify-center gap-2 px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                 <Bell className="w-4 h-4" />
-                Notifications
+                <span className="whitespace-nowrap">Notifications</span>
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="profile" className="mt-6">
+            <TabsContent value="profile" className="mt-4 sm:mt-6">
               <AgentProfileForm />
             </TabsContent>
 
-            <TabsContent value="shortlist" className="mt-6">
-              <Card>
-                <CardContent className="p-6">
+            <TabsContent value="shortlist" className="mt-4 sm:mt-6">
+              <Card className="border border-gray-800 bg-[#0f0f0f]">
+                <CardContent className="p-4 sm:p-6">
                   <ShortlistManager showFullList={true} />
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="notifications" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-rosegold">
-                    <Bell className="w-5 h-5" />
+            <TabsContent value="notifications" className="mt-4 sm:mt-6">
+              <Card className="border border-gray-800 bg-[#0f0f0f]">
+                <CardHeader className="p-4 sm:p-5">
+                  <CardTitle className="flex items-center gap-2 text-white text-base sm:text-lg">
+                    <Bell className="w-5 h-5 text-blue-400" />
                     Notification Preferences
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-gray-400">Notification preferences coming soon...</p>
+                <CardContent className="p-4 sm:p-5 text-sm sm:text-base text-gray-400">
+                  Notification preferences coming soon...
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
         ) : profile?.user_type === 'team' ? (
-          <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="profile" className="flex items-center gap-2">
+          <Tabs defaultValue="profile" className="w-full space-y-4">
+            <TabsList className="grid w-full grid-cols-2 gap-2 bg-[#111111] border border-gray-800 rounded-lg p-1">
+              <TabsTrigger value="profile" className="flex items-center justify-center gap-2 px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                 <Building className="w-4 h-4" />
-                Team Profile
+                <span className="whitespace-nowrap">Team Profile</span>
               </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <TabsTrigger value="notifications" className="flex items-center justify-center gap-2 px-2 py-2 text-xs sm:text-sm data-[state=active]:bg-rosegold data-[state=active]:text-white">
                 <Bell className="w-4 h-4" />
-                Notifications
+                <span className="whitespace-nowrap">Notifications</span>
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="profile" className="mt-6">
+            <TabsContent value="profile" className="mt-4 sm:mt-6">
               <TeamProfileSetup />
             </TabsContent>
 
-            <TabsContent value="notifications" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-rosegold">
-                    <Bell className="w-5 h-5" />
+            <TabsContent value="notifications" className="mt-4 sm:mt-6">
+              <Card className="border border-gray-800 bg-[#0f0f0f]">
+                <CardHeader className="p-4 sm:p-5">
+                  <CardTitle className="flex items-center gap-2 text-white text-base sm:text-lg">
+                    <Bell className="w-5 h-5 text-blue-400" />
                     Notification Preferences
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-gray-400">Notification preferences coming soon...</p>
+                <CardContent className="p-4 sm:p-5 text-sm sm:text-base text-gray-400">
+                  Notification preferences coming soon...
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
         ) : (
-          <Card className="bg-white/5 border-0">
-            <CardContent className="p-12 text-center">
-              <User className="h-12 w-12 text-rosegold mx-auto mb-4" />
-              <h3 className="text-xl font-polysans text-white mb-2">Profile Management</h3>
-              <p className="text-gray-400 font-poppins">
+          <Card className="border border-gray-800 bg-[#0f0f0f]">
+            <CardContent className="p-8 sm:p-10 text-center space-y-3">
+              <User className="h-10 w-10 text-blue-400 mx-auto" />
+              <h3 className="text-lg sm:text-xl font-polysans text-white">Profile Management</h3>
+              <p className="text-sm sm:text-base text-gray-400 font-poppins">
                 Please complete your account setup to access profile management features.
               </p>
             </CardContent>

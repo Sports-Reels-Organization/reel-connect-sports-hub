@@ -90,7 +90,7 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
               size="sm"
               variant="outline"
               onClick={handleMatchVideoClick}
-              className="text-green-400 border-green-400 hover:bg-green-400/10"
+              className="text-green-400 border-green-400 hover:bg-green-400/10 h-9 sm:h-10 text-sm sm:text-base"
             >
               <Play className="w-4 h-4 mr-1" />
               Watch Video
@@ -106,7 +106,7 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
               size="sm"
               variant="outline"
               onClick={handlePlayerClick}
-              className="text-purple-400 border-purple-400 hover:bg-purple-400/10"
+              className="text-purple-400 border-purple-400 hover:bg-purple-400/10 h-9 sm:h-10 text-sm sm:text-base"
             >
               <User className="w-4 h-4 mr-1" />
               View Profile
@@ -122,7 +122,7 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
               size="sm"
               variant="outline"
               onClick={handleTransferPitchClick}
-              className="text-blue-400 border-blue-400 hover:bg-blue-400/10"
+              className="text-blue-400 border-blue-400 hover:bg-blue-400/10 h-9 sm:h-10 text-sm sm:text-base"
             >
               <FileText className="w-4 h-4 mr-1" />
               View Pitch
@@ -136,25 +136,25 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
 
   return (
     <Card className="border-gray-700 hover:border-rosegold/30 transition-all duration-200 group">
-      <CardContent className="p-6">
-        <div className="flex items-start gap-4">
+      <CardContent className="p-4 sm:p-5 md:p-6">
+        <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
           {/* Icon and Pin */}
-          <div className="flex flex-col items-center gap-2 relative">
-            <div className="p-2 bg-gray-800 rounded-full group-hover:bg-gray-700 transition-colors">
+          <div className="flex sm:flex-col items-center sm:items-center gap-2 sm:gap-3 relative">
+            <div className="p-2 sm:p-2.5 bg-gray-800 rounded-full group-hover:bg-gray-700 transition-colors">
               <EventIcon type={event.event_type} />
             </div>
             {event.is_pinned && (
               <Pin className="w-4 h-4 text-yellow-500" />
             )}
             {/* Timeline connector line */}
-            <div className="w-px bg-gray-700 h-8 group-last:hidden" />
+            <div className="hidden sm:block w-px bg-gray-700 flex-1 group-last:hidden" />
           </div>
 
           {/* Content */}
-          <div className="flex-1">
-            <div className="flex items-start justify-between mb-2">
+          <div className="flex-1 w-full">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-lg font-semibold text-white group-hover:text-rosegold transition-colors">
+                <h3 className="text-lg sm:text-xl font-semibold text-white group-hover:text-rosegold transition-colors">
                   {event.title}
                 </h3>
                 <EventBadge type={event.event_type} />
@@ -164,7 +164,7 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 {/* Edit/Delete buttons for team members */}
                 {canEdit && (
                   <>
@@ -172,7 +172,7 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
                       size="sm"
                       variant="ghost"
                       onClick={() => onEditEvent?.(event)}
-                      className="text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all"
+                      className="text-gray-400 hover:text-blue-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                       title="Edit Event"
                     >
                       <Edit className="w-4 h-4" />
@@ -181,7 +181,7 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
                       size="sm"
                       variant="ghost"
                       onClick={() => onDeleteEvent?.(event)}
-                      className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                      className="text-gray-400 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                       title="Delete Event"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -195,7 +195,7 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
                     size="sm"
                     variant="ghost"
                     onClick={() => onOpenMessaging(event)}
-                    className="text-gray-400 hover:text-green-500 opacity-0 group-hover:opacity-100 transition-all"
+                    className="text-gray-400 hover:text-green-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                     title="Open Messaging"
                   >
                     <MessageCircle className="w-4 h-4" />
@@ -206,30 +206,32 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
                   size="sm"
                   variant="ghost"
                   onClick={() => onTogglePin(event.id, event.is_pinned)}
-                  className="text-gray-400 hover:text-yellow-500 opacity-0 group-hover:opacity-100 transition-all"
+                  className="text-gray-400 hover:text-yellow-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                 >
                   <Pin className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
-            <p className="text-gray-300 mb-3 leading-relaxed">{event.description}</p>
+            <p className="text-sm sm:text-base text-gray-300 mb-3 leading-relaxed break-words">
+              {event.description}
+            </p>
 
             {/* Player info with clickable link */}
             {event.players && (
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 text-sm sm:text-base">
                 <User className="w-4 h-4 text-gray-400" />
                 <button
                   onClick={handlePlayerClick}
-                  className="text-sm text-rosegold hover:text-rosegold/80 transition-colors underline decoration-dotted"
+                  className="text-rosegold hover:text-rosegold/80 transition-colors underline decoration-dotted"
                 >
                   {event.players.full_name}
                 </button>
               </div>
             )}
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 text-sm text-gray-400">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm sm:text-base text-gray-400">
                 <div className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
                   {new Date(event.event_date).toLocaleDateString()}
@@ -240,7 +242,7 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {renderActionButton()}
                 
                 <Button

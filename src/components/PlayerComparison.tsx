@@ -6,9 +6,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, X, Plus } from 'lucide-react';
-import { Tables } from '@/integrations/supabase/types';
+import { Database } from '@/integrations/supabase/types';
 
-type DatabasePlayer = Tables<'players'>;
+type DatabasePlayer = Database['public']['Tables']['players']['Row'] & {
+  headshot_url?: string | null;
+  jersey_number?: number | null;
+  height?: number | null;
+  foot?: string | null;
+  status?: string | null;
+};
 
 interface PlayerComparisonProps {
   players: DatabasePlayer[];
@@ -62,69 +68,81 @@ const PlayerComparison: React.FC<PlayerComparisonProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-6xl max-h-[90vh] overflow-auto bg-gray-900 border-gray-700">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-white font-polysans flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Player Comparison
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+      <Card className="w-full max-w-6xl max-h-[90vh] overflow-auto bg-[#111111] border-0">
+        <CardHeader className="p-3 sm:p-4 md:p-6 bg-[#111111]">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-white font-polysans flex items-center gap-2 text-base sm:text-lg md:text-xl">
+              <div className="bg-rosegold/20 p-1.5 sm:p-2 rounded-lg">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 text-rosegold" />
+              </div>
+              <span className="hidden sm:inline">Player Comparison</span>
+              <span className="sm:hidden">Compare</span>
             </CardTitle>
-            <Button variant="ghost" onClick={onClose} className="text-white">
-              <X className="h-5 w-5" />
+            <Button
+              variant="ghost"
+              onClick={onClose}
+              className="text-white h-8 w-8 sm:h-10 sm:w-10 p-0 rounded-lg border-0"
+            >
+              <X className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6">
           {/* Player Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {[0, 1, 2].map((index) => (
-              <div key={index} className="space-y-3">
+              <div key={index} className="space-y-2 sm:space-y-3">
                 {selectedPlayers[index] ? (
-                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
+                  <div className="bg-[#1a1a1a] p-3 sm:p-4 rounded-xl border-0">
+                    <div className="flex items-center justify-between mb-2 sm:mb-3 gap-2">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                           <AvatarImage src={selectedPlayers[index].headshot_url || selectedPlayers[index].photo_url || ''} />
-                          <AvatarFallback className="bg-rosegold text-white">
+                          <AvatarFallback className="bg-rosegold text-white text-xs sm:text-sm font-bold border-0">
                             {selectedPlayers[index].full_name?.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <h3 className="text-white font-semibold text-sm">{selectedPlayers[index].full_name}</h3>
-                          <p className="text-gray-400 text-xs">{selectedPlayers[index].position}</p>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-white font-semibold text-xs sm:text-sm truncate">{selectedPlayers[index].full_name}</h3>
+                          <p className="text-white/60 text-[10px] sm:text-xs truncate">{selectedPlayers[index].position}</p>
+                          {selectedPlayers[index].jersey_number && (
+                            <Badge className="bg-rosegold/20 text-rosegold border-0 text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 mt-1">
+                              #{selectedPlayers[index].jersey_number}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removePlayerFromComparison(selectedPlayers[index].id)}
-                        className="text-red-400 hover:text-red-300"
+                        className="text-red-400 h-7 w-7 sm:h-8 sm:w-8 p-0 flex-shrink-0 rounded-lg border-0"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 border-dashed">
+                  <div className="bg-[#1a1a1a] p-3 sm:p-4 rounded-xl border-0">
                     <Select onValueChange={addPlayerToComparison}>
-                      <SelectTrigger className="bg-gray-700 text-white border-gray-600">
+                      <SelectTrigger className="bg-[#111111] text-white border-0 text-xs sm:text-sm h-9 sm:h-10">
                         <SelectValue placeholder={`Select Player ${index + 1}`} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-[#111111] border-0">
                         {players
                           .filter(player => !selectedPlayers.find(sp => sp.id === player.id))
                           .map(player => (
-                            <SelectItem key={player.id} value={player.id}>
-                              <div className="flex items-center gap-2">
-                                <span>{player.full_name}</span>
+                            <SelectItem key={player.id} value={player.id} className="text-xs sm:text-sm text-white border-0">
+                              <div className="flex items-center gap-1 sm:gap-2">
+                                <span className="truncate">{player.full_name}</span>
                                 {player.jersey_number && (
-                                  <Badge className="bg-bright-pink text-white text-xs px-1.5 py-0.5 font-bold">
+                                  <Badge className="bg-bright-pink text-white text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 font-bold flex-shrink-0 border-0">
                                     #{player.jersey_number}
                                   </Badge>
                                 )}
-                                <span className="text-gray-400">- {player.position}</span>
+                                <span className="text-white/60 text-[10px] sm:text-xs">- {player.position}</span>
                               </div>
                             </SelectItem>
                           ))
@@ -139,33 +157,42 @@ const PlayerComparison: React.FC<PlayerComparisonProps> = ({
 
           {/* Comparison Table */}
           {selectedPlayers.length >= 2 && (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+            <div className="overflow-x-auto -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6 rounded-xl">
+              <table className="w-full border-collapse min-w-[500px] rounded-xl overflow-hidden">
                 <thead>
-                  <tr>
-                    <th className="text-left text-white font-semibold p-3 border-b border-gray-700">
-                      Attribute
+                  <tr className="bg-[#1a1a1a]">
+                    <th className="text-left text-white font-semibold p-2 sm:p-3 text-xs sm:text-sm sticky left-0 bg-[#1a1a1a]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1 h-4 bg-rosegold rounded-full"></div>
+                        Attribute
+                      </div>
                     </th>
                     {selectedPlayers.map((player, index) => (
-                      <th key={index} className="text-center text-white font-semibold p-3 border-b border-gray-700">
-                        {player.full_name}
+                      <th key={index} className="text-center text-white font-semibold p-2 sm:p-3 text-xs sm:text-sm">
+                        <div className="truncate max-w-[120px] sm:max-w-none font-bold">{player.full_name}</div>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {getComparisonData().map((row, rowIndex) => (
-                    <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'}>
-                      <td className="text-white font-medium p-3 border-b border-gray-700">
-                        {row.label}
+                    <tr
+                      key={rowIndex}
+                      className={`${rowIndex % 2 === 0 ? 'bg-[#111111]' : 'bg-[#1a1a1a]'}`}
+                    >
+                      <td className="text-white font-medium p-2 sm:p-3 text-xs sm:text-sm sticky left-0 bg-inherit">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1 h-1 bg-white/40 rounded-full"></div>
+                          {row.label}
+                        </div>
                       </td>
                       {selectedPlayers.map((player, playerIndex) => {
                         const value = player[row.key as keyof DatabasePlayer];
                         const displayValue = row.format ? row.format(value) : formatValue(value);
 
                         return (
-                          <td key={playerIndex} className="text-center text-gray-300 p-3 border-b border-gray-700">
-                            {displayValue}
+                          <td key={playerIndex} className="text-center text-white/80 p-2 sm:p-3 text-xs sm:text-sm">
+                            <div className="truncate font-medium">{displayValue}</div>
                           </td>
                         );
                       })}
@@ -177,11 +204,11 @@ const PlayerComparison: React.FC<PlayerComparisonProps> = ({
           )}
 
           {selectedPlayers.length < 2 && (
-            <div className="text-center py-8">
-              <div className="text-gray-400 text-lg mb-2">
+            <div className="text-center py-6 sm:py-8">
+              <div className="text-gray-400 text-base sm:text-lg mb-2">
                 Select at least 2 players to compare
               </div>
-              <div className="text-gray-500 text-sm">
+              <div className="text-gray-500 text-xs sm:text-sm">
                 You can compare up to 3 players side by side
               </div>
             </div>

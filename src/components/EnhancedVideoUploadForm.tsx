@@ -838,33 +838,40 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Upload Multiple Videos</h2>
-          <p className="text-gray-400">Upload up to 6 videos with individual settings</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Upload Multiple Videos</h2>
+          <p className="text-xs sm:text-sm text-white/60">Upload up to 6 videos with individual settings</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           {onCancel && (
-            <Button variant="outline" onClick={onCancel} disabled={isUploading}>
+            <Button 
+              variant="outline" 
+              onClick={onCancel} 
+              disabled={isUploading}
+              className="flex-1 sm:flex-initial bg-[#1a1a1a] text-white/60 border-0 h-9 sm:h-10 text-xs sm:text-sm"
+            >
               Cancel
             </Button>
           )}
           <Button
             onClick={handleUploadAll}
             disabled={videoItems.length === 0 || isUploading}
-            className="bg-rosegold hover:bg-rosegold/90 text-white"
+            className="flex-1 sm:flex-initial bg-rosegold text-white border-0 h-9 sm:h-10 text-xs sm:text-sm"
           >
             {isUploading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Uploading...
+                <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 animate-spin" />
+                <span className="hidden sm:inline">Uploading...</span>
+                <span className="sm:hidden">...</span>
               </>
             ) : (
               <>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload All ({videoItems.length})
+                <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                <span className="hidden sm:inline">Upload All ({videoItems.length})</span>
+                <span className="sm:hidden">Upload ({videoItems.length})</span>
               </>
             )}
           </Button>
@@ -873,12 +880,12 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
       {/* Overall Progress */}
       {isUploading && (
-        <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-4">
+        <Card className="bg-[#111111] border-0">
+          <CardContent className="p-3 sm:p-4">
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span className="text-white">Overall Progress</span>
-                <span className="text-gray-400">{Math.round(overallProgress)}%</span>
+                <span className="text-white/60">{Math.round(overallProgress)}%</span>
               </div>
               <Progress value={overallProgress} className="h-2" />
             </div>
@@ -889,28 +896,27 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       {/* File Drop Zone */}
       {videoItems.length < MAX_VIDEOS && (
         <Card
-          className={`border-2 border-dashed transition-colors ${dragActive
+          className={`border-2 border-dashed ${dragActive
             ? 'border-rosegold bg-rosegold/10'
-            : 'border-gray-600 hover:border-gray-500'
+            : 'border-white/20 bg-[#111111]'
             }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          <CardContent className="p-8 text-center">
-            <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <h3 className="text-lg font-semibold text-white mb-2">
+          <CardContent className="p-6 sm:p-8 text-center">
+            <Upload className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-white/40" />
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-2">
               Drop videos here or click to browse
             </h3>
-            <p className="text-gray-400 mb-4">
+            <p className="text-xs sm:text-sm text-white/60 mb-3 sm:mb-4">
               Select up to {MAX_VIDEOS - videoItems.length} more video(s) (Max 2GB each)
             </p>
             <Button
               onClick={() => fileInputRef.current?.click()}
-              variant="outline"
-              className="text-white border-gray-600"
+              className="bg-[#1a1a1a] text-white border-0 h-9 sm:h-10 text-xs sm:text-sm"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
               Add Videos
             </Button>
             <input
@@ -926,63 +932,63 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
       )}
 
       {/* Video Items */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {videoItems.map((videoItem, index) => (
-          <Card key={videoItem.id} className="bg-gray-800 border-gray-700">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-rosegold/20 rounded-lg flex items-center justify-center">
-                    <span className="text-rosegold font-bold">{index + 1}</span>
+          <Card key={videoItem.id} className="bg-[#111111] border-0">
+            <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-4 md:p-6">
+              <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-3">
+                <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-rosegold/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-rosegold font-bold text-sm sm:text-base">{index + 1}</span>
                   </div>
-                  <div>
-                    <CardTitle className="text-white text-lg">{videoItem.metadata.title}</CardTitle>
-                    <div className="flex items-center gap-4 text-sm text-gray-400">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-white text-sm sm:text-base md:text-lg truncate">{videoItem.metadata.title}</CardTitle>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-white/60 mt-1">
                       <span className="flex items-center gap-1">
-                        <FileVideo className="w-4 h-4" />
-                        {formatFileSize(videoItem.fileInfo.size)}
+                        <FileVideo className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="truncate">{formatFileSize(videoItem.fileInfo.size)}</span>
                       </span>
                       {videoItem.fileInfo.duration && (
                         <span className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
+                          <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                           {formatDuration(videoItem.fileInfo.duration)}
                         </span>
                       )}
                       {videoItem.compressionStats && (
                         <span className="flex items-center gap-1">
-                          <Zap className="w-4 h-4" />
+                          <Zap className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                           {videoItem.compressionStats.ratio}% smaller
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                   {/* Validation Status */}
                   {(() => {
                     const validation = validateVideoItem(videoItem);
                     return validation.isValid ? (
-                      <CheckCircle className="w-5 h-5 text-green-400" />
+                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
                     ) : (
-                      <AlertCircle className="w-5 h-5 text-red-400" />
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                     );
                   })()}
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => toggleVideoExpanded(videoItem.id)}
-                    className="text-gray-400 hover:text-white"
+                    className="text-white/60 border-0 h-7 w-7 sm:h-8 sm:w-8 p-0"
                   >
-                    {videoItem.isExpanded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {videoItem.isExpanded ? <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" /> : <Eye className="w-3 h-3 sm:w-4 sm:h-4" />}
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => removeVideoItem(videoItem.id)}
                     disabled={isUploading}
-                    className="text-red-400 hover:text-red-300"
+                    className="text-red-400 border-0 h-7 w-7 sm:h-8 sm:w-8 p-0"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
                 </div>
               </div>
@@ -990,22 +996,22 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
             {/* Processing Status */}
             {videoItem.processingStatus.stage !== 'idle' && (
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 p-3 sm:p-4 md:p-6">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     {videoItem.processingStatus.stage === 'compressing' && (
-                      <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin text-blue-400 flex-shrink-0" />
                     )}
                     {videoItem.processingStatus.stage === 'uploading' && (
-                      <Loader2 className="w-4 h-4 animate-spin text-yellow-400" />
+                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin text-yellow-400 flex-shrink-0" />
                     )}
                     {videoItem.processingStatus.stage === 'complete' && (
-                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-400 flex-shrink-0" />
                     )}
                     {videoItem.processingStatus.stage === 'error' && (
-                      <AlertCircle className="w-4 h-4 text-red-400" />
+                      <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-400 flex-shrink-0" />
                     )}
-                    <span className="text-white text-sm">{videoItem.processingStatus.message}</span>
+                    <span className="text-white text-xs sm:text-sm">{videoItem.processingStatus.message}</span>
                   </div>
                   <Progress value={videoItem.processingStatus.progress} className="h-2" />
                   {videoItem.processingStatus.stage === 'error' && (
@@ -1014,9 +1020,9 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => retryVideoUpload(videoItem.id)}
-                        className="text-red-400 border-red-400 hover:bg-red-400/10"
+                        className="text-red-400 bg-[#1a1a1a] border-0 h-8 sm:h-9 text-xs sm:text-sm"
                       >
-                        <RefreshCw className="w-4 h-4 mr-2" />
+                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                         Try Again
                       </Button>
                     </div>
@@ -1027,14 +1033,14 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
             {/* Expanded Content */}
             {videoItem.isExpanded && (
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CardContent className="pt-0 p-3 sm:p-4 md:p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   {/* Video Preview */}
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white">Preview</Label>
+                      <Label className="text-white text-xs sm:text-sm">Preview</Label>
                       <div className="flex items-center gap-2">
-                        <div className="text-xs text-gray-400">
+                        <div className="text-[10px] sm:text-xs text-white/60">
                           {videoItem.fileInfo.dimensions && (
                             <span>{videoItem.fileInfo.dimensions.width}×{videoItem.fileInfo.dimensions.height}</span>
                           )}
@@ -1048,8 +1054,8 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                       {loadingVideos.has(videoItem.id) ? (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-white text-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-                            <p>Processing video...</p>
+                            <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white mx-auto mb-2"></div>
+                            <p className="text-xs sm:text-sm">Processing video...</p>
                           </div>
                         </div>
                       ) : videoItem.previewUrl ? (
@@ -1068,7 +1074,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                             key={videoItem.id}
                             src={videoItem.previewUrl}
                             controls
-                            className="w-full h-48 object-cover relative z-10"
+                            className="w-full h-40 sm:h-48 object-cover relative z-10"
                             preload="metadata"
                             playsInline
                             muted
@@ -1096,8 +1102,8 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-white text-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-                            <p>Loading preview...</p>
+                            <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white mx-auto mb-2"></div>
+                            <p className="text-xs sm:text-sm">Loading preview...</p>
                           </div>
                         </div>
                       )}
@@ -1105,54 +1111,54 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                   </div>
 
                   {/* Video Settings */}
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div>
-                      <Label htmlFor={`title-${videoItem.id}`} className="text-white">Title *</Label>
+                      <Label htmlFor={`title-${videoItem.id}`} className="text-white text-xs sm:text-sm">Title *</Label>
                       <Input
                         id={`title-${videoItem.id}`}
                         value={videoItem.metadata.title}
                         onChange={(e) => updateVideoMetadata(videoItem.id, { title: e.target.value })}
-                        className={` text-white border-gray-600 ${!videoItem.metadata.title.trim() ? 'border-red-500' : ''}`}
+                        className={`bg-[#1a1a1a] text-white border-0 h-9 sm:h-10 text-xs sm:text-sm ${!videoItem.metadata.title.trim() ? 'ring-2 ring-red-500' : ''}`}
                         placeholder="Enter video title"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor={`description-${videoItem.id}`} className="text-white">Description *</Label>
+                      <Label htmlFor={`description-${videoItem.id}`} className="text-white text-xs sm:text-sm">Description *</Label>
                       <Textarea
                         id={`description-${videoItem.id}`}
                         value={videoItem.metadata.description}
                         onChange={(e) => updateVideoMetadata(videoItem.id, { description: e.target.value })}
-                        className={` text-white border-gray-600 ${!videoItem.metadata.description.trim() ? 'border-red-500' : ''}`}
+                        className={`bg-[#1a1a1a] text-white border-0 text-xs sm:text-sm ${!videoItem.metadata.description.trim() ? 'ring-2 ring-red-500' : ''}`}
                         placeholder="Enter video description"
                         rows={3}
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor={`type-${videoItem.id}`} className="text-white">Video Type</Label>
+                      <Label htmlFor={`type-${videoItem.id}`} className="text-white text-xs sm:text-sm">Video Type</Label>
                       <Select
                         value={videoItem.metadata.videoType}
                         onValueChange={(value: 'match' | 'training' | 'interview' | 'highlight') =>
                           updateVideoMetadata(videoItem.id, { videoType: value })
                         }
                       >
-                        <SelectTrigger className=" text-white border-gray-600">
+                        <SelectTrigger className="bg-[#1a1a1a] text-white border-0 h-9 sm:h-10 text-xs sm:text-sm">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="match">Match</SelectItem>
-                          <SelectItem value="training">Training</SelectItem>
-                          <SelectItem value="interview">Interview</SelectItem>
-                          <SelectItem value="highlight">Highlight</SelectItem>
+                        <SelectContent className="bg-[#111111] border-0">
+                          <SelectItem value="match" className="text-white text-xs sm:text-sm">Match</SelectItem>
+                          <SelectItem value="training" className="text-white text-xs sm:text-sm">Training</SelectItem>
+                          <SelectItem value="interview" className="text-white text-xs sm:text-sm">Interview</SelectItem>
+                          <SelectItem value="highlight" className="text-white text-xs sm:text-sm">Highlight</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     {/* Player Tags */}
                     <div>
-                      <Label className="text-white">Tag Players</Label>
-                      <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                      <Label className="text-white text-xs sm:text-sm">Tag Players</Label>
+                      <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto bg-[#1a1a1a] p-2 sm:p-3 rounded-lg">
                         {teamPlayers.map((player) => (
                           <div key={player.id} className="flex items-center space-x-2">
                             <Checkbox
@@ -1167,7 +1173,7 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                             />
                             <label
                               htmlFor={`player-${videoItem.id}-${player.id}`}
-                              className="text-sm text-white cursor-pointer"
+                              className="text-xs sm:text-sm text-white cursor-pointer"
                             >
                               {player.full_name} ({player.position})
                             </label>
@@ -1178,23 +1184,23 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
 
                     {/* Match Details (if video type is match) */}
                     {videoItem.metadata.videoType === 'match' && (
-                      <div className="space-y-3">
-                        <Label className="text-white">Match Details</Label>
-                        <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-3 bg-[#1a1a1a] p-3 sm:p-4 rounded-lg">
+                        <Label className="text-white text-xs sm:text-sm">Match Details</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <Label htmlFor={`opposing-${videoItem.id}`} className="text-white text-sm">Opposing Team *</Label>
+                            <Label htmlFor={`opposing-${videoItem.id}`} className="text-white text-xs sm:text-sm">Opposing Team *</Label>
                             <Input
                               id={`opposing-${videoItem.id}`}
                               value={videoItem.metadata.matchDetails?.opposingTeam || ''}
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, opposingTeam: e.target.value }
                               })}
-                              className={` text-white border-gray-600 ${!videoItem.metadata.matchDetails?.opposingTeam.trim() ? 'border-red-500' : ''}`}
+                              className={`bg-[#111111] text-white border-0 h-9 sm:h-10 text-xs sm:text-sm ${!videoItem.metadata.matchDetails?.opposingTeam.trim() ? 'ring-2 ring-red-500' : ''}`}
                               placeholder="Team name"
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`date-${videoItem.id}`} className="text-white text-sm">Match Date *</Label>
+                            <Label htmlFor={`date-${videoItem.id}`} className="text-white text-xs sm:text-sm">Match Date *</Label>
                             <Input
                               id={`date-${videoItem.id}`}
                               type="date"
@@ -1202,11 +1208,11 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, matchDate: e.target.value }
                               })}
-                              className={` text-white border-gray-600 ${!videoItem.metadata.matchDetails?.matchDate ? 'border-red-500' : ''}`}
+                              className={`bg-[#111111] text-white border-0 h-9 sm:h-10 text-xs sm:text-sm ${!videoItem.metadata.matchDetails?.matchDate ? 'ring-2 ring-red-500' : ''}`}
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`league-${videoItem.id}`} className="text-white text-sm">League *</Label>
+                            <Label htmlFor={`league-${videoItem.id}`} className="text-white text-xs sm:text-sm">League *</Label>
                             <LeagueSelect
                               value={videoItem.metadata.matchDetails?.league || ''}
                               onValueChange={(value) => updateVideoMetadata(videoItem.id, {
@@ -1214,12 +1220,12 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               })}
                               leagues={sportData.leagues}
                               placeholder="Select league"
-                              triggerClassName={`text-white border-gray-600 ${!videoItem.metadata.matchDetails?.league.trim() ? 'border-red-500' : ''}`}
-                              contentClassName="bg-card border-border"
+                              triggerClassName={`bg-[#111111] text-white border-0 h-9 sm:h-10 text-xs sm:text-sm ${!videoItem.metadata.matchDetails?.league.trim() ? 'ring-2 ring-red-500' : ''}`}
+                              contentClassName="bg-[#111111] border-0"
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`home-score-${videoItem.id}`} className="text-white text-sm">Home Score *</Label>
+                            <Label htmlFor={`home-score-${videoItem.id}`} className="text-white text-xs sm:text-sm">Home Score *</Label>
                             <Input
                               id={`home-score-${videoItem.id}`}
                               type="number"
@@ -1228,12 +1234,12 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, homeScore: e.target.value }
                               })}
-                              className={` text-white border-gray-600 ${!videoItem.metadata.matchDetails?.homeScore.trim() ? 'border-red-500' : ''}`}
+                              className={`bg-[#111111] text-white border-0 h-9 sm:h-10 text-xs sm:text-sm ${!videoItem.metadata.matchDetails?.homeScore.trim() ? 'ring-2 ring-red-500' : ''}`}
                               placeholder="0"
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`away-score-${videoItem.id}`} className="text-white text-sm">Away Score *</Label>
+                            <Label htmlFor={`away-score-${videoItem.id}`} className="text-white text-xs sm:text-sm">Away Score *</Label>
                             <Input
                               id={`away-score-${videoItem.id}`}
                               type="number"
@@ -1242,19 +1248,19 @@ const EnhancedVideoUploadForm: React.FC<EnhancedVideoUploadFormProps> = ({
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, awayScore: e.target.value }
                               })}
-                              className={` text-white border-gray-600 ${!videoItem.metadata.matchDetails?.awayScore.trim() ? 'border-red-500' : ''}`}
+                              className={`bg-[#111111] text-white border-0 h-9 sm:h-10 text-xs sm:text-sm ${!videoItem.metadata.matchDetails?.awayScore.trim() ? 'ring-2 ring-red-500' : ''}`}
                               placeholder="0"
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`venue-${videoItem.id}`} className="text-white text-sm">Venue</Label>
+                            <Label htmlFor={`venue-${videoItem.id}`} className="text-white text-xs sm:text-sm">Venue</Label>
                             <Input
                               id={`venue-${videoItem.id}`}
                               value={videoItem.metadata.matchDetails?.venue || ''}
                               onChange={(e) => updateVideoMetadata(videoItem.id, {
                                 matchDetails: { ...videoItem.metadata.matchDetails!, venue: e.target.value }
                               })}
-                              className=" text-white border-gray-600"
+                              className="bg-[#111111] text-white border-0 h-9 sm:h-10 text-xs sm:text-sm"
                               placeholder="Stadium name"
                             />
                           </div>

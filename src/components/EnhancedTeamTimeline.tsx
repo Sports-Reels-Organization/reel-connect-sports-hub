@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Trophy, 
+import {
+  Trophy,
   Plus,
   Target,
   MessageCircle,
@@ -63,7 +63,7 @@ interface TimelineComment {
 const EnhancedTeamTimeline = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
-  
+
   // State management
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<TimelineEvent[]>([]);
@@ -72,7 +72,7 @@ const EnhancedTeamTimeline = () => {
   const [dateFilter, setDateFilter] = useState('all');
   const [selectedPlayer, setSelectedPlayer] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // New event form
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [newEventType, setNewEventType] = useState<EventType>('team');
@@ -80,23 +80,23 @@ const EnhancedTeamTimeline = () => {
   const [newEventDescription, setNewEventDescription] = useState('');
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
   const [newEventPlayerId, setNewEventPlayerId] = useState('');
-  
+
   // Comments
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [showComments, setShowComments] = useState(false);
-  
+
   // Edit/Delete functionality
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<TimelineEvent | null>(null);
-  
+
   // Messaging integration
   const [showMessaging, setShowMessaging] = useState(false);
   const [selectedPitch, setSelectedPitch] = useState<any>(null);
-  
+
   // Players for filtering/selection
   const [teamPlayers, setTeamPlayers] = useState<any[]>([]);
   const [teamName, setTeamName] = useState('');
@@ -115,7 +115,7 @@ const EnhancedTeamTimeline = () => {
   const fetchTimelineEvents = async () => {
     try {
       setLoading(true);
-      
+
       const { data: teamData } = await supabase
         .from('teams')
         .select('id, team_name')
@@ -123,7 +123,7 @@ const EnhancedTeamTimeline = () => {
         .single();
 
       if (!teamData) return;
-      
+
       setTeamName(teamData.team_name || 'Your Team');
 
       const { data, error } = await supabase
@@ -197,7 +197,7 @@ const EnhancedTeamTimeline = () => {
     if (dateFilter !== 'all') {
       const now = new Date();
       const filterDate = new Date();
-      
+
       switch (dateFilter) {
         case 'week':
           filterDate.setDate(now.getDate() - 7);
@@ -209,15 +209,15 @@ const EnhancedTeamTimeline = () => {
           filterDate.setMonth(now.getMonth() - 12);
           break;
       }
-      
-      filtered = filtered.filter(event => 
+
+      filtered = filtered.filter(event =>
         new Date(event.event_date) >= filterDate
       );
     }
 
     // Filter by player
     if (selectedPlayer !== 'all') {
-      filtered = filtered.filter(event => 
+      filtered = filtered.filter(event =>
         event.player_id === selectedPlayer
       );
     }
@@ -305,12 +305,12 @@ const EnhancedTeamTimeline = () => {
       const eventDate = new Date(event.event_date);
       const year = eventDate.getFullYear();
       const month = eventDate.getMonth();
-      
+
       // Football seasons typically run from August to May
       // So 2023/2024 season would be Aug 2023 to May 2024
       const seasonYear = month >= 7 ? year : year - 1;
       const seasonKey = `${seasonYear}/${seasonYear + 1}`;
-      
+
       if (!acc[seasonKey]) {
         acc[seasonKey] = [];
       }
@@ -320,9 +320,9 @@ const EnhancedTeamTimeline = () => {
   };
 
   const handleExportPDF = () => {
-    const currentSeason = dateFilter === 'season' ? 
+    const currentSeason = dateFilter === 'season' ?
       Object.keys(groupEventsBySeason(events))[0] : undefined;
-    
+
     exportTimelineToPDF(
       filteredEvents.map(event => ({
         id: event.id,
@@ -337,7 +337,7 @@ const EnhancedTeamTimeline = () => {
       teamName,
       currentSeason
     );
-    
+
     toast({
       title: "Success",
       description: "Timeline exported as PDF"
@@ -419,7 +419,7 @@ const EnhancedTeamTimeline = () => {
 
       setNewComment('');
       fetchComments(selectedEventId);
-      
+
       toast({
         title: "Success",
         description: "Comment added"
@@ -474,13 +474,13 @@ const EnhancedTeamTimeline = () => {
         prev.map(event =>
           event.id === editingEvent.id
             ? {
-                ...event,
-                title: newEventTitle,
-                description: newEventDescription,
-                event_type: newEventType,
-                event_date: newEventDate,
-                player_id: newEventPlayerId || undefined
-              }
+              ...event,
+              title: newEventTitle,
+              description: newEventDescription,
+              event_type: newEventType,
+              event_date: newEventDate,
+              player_id: newEventPlayerId || undefined
+            }
             : event
         )
       );
@@ -488,7 +488,7 @@ const EnhancedTeamTimeline = () => {
       setShowEditForm(false);
       setEditingEvent(null);
       resetForm();
-      
+
       toast({
         title: "Success",
         description: "Event updated successfully"
@@ -525,7 +525,7 @@ const EnhancedTeamTimeline = () => {
 
       setShowDeleteConfirm(false);
       setEventToDelete(null);
-      
+
       toast({
         title: "Success",
         description: "Event deleted successfully"
@@ -602,23 +602,23 @@ const EnhancedTeamTimeline = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2 font-polysans">Team Timeline</h1>
-          <p className="text-gray-400 font-poppins">Complete history of your team's journey</p>
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white font-polysans">Team Timeline</h1>
+          <p className="text-sm sm:text-base text-gray-400 font-poppins">Complete history of your team's journey</p>
         </div>
-        <div className="flex gap-2">
+        <div className="w-full sm:w-auto flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-3">
           <Button
             onClick={handleExportPDF}
             variant="outline"
-            className="border-gray-600 text-gray-300 hover:bg-gray-700"
+            className="border-gray-600 text-gray-300 hover:bg-gray-700 w-full sm:w-auto h-10 sm:h-11 text-sm sm:text-base"
           >
             <Download className="w-4 h-4 mr-2" />
             Export PDF
           </Button>
           <Dialog open={showCreateEvent} onOpenChange={setShowCreateEvent}>
             <DialogTrigger asChild>
-              <Button className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans">
+              <Button className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans w-full sm:w-auto h-10 sm:h-11 text-sm sm:text-base">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Event
               </Button>
@@ -703,42 +703,44 @@ const EnhancedTeamTimeline = () => {
 
       {/* Filters */}
       <Card className="border-gray-700 bg-gray-800/50">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4 items-center">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col lg:flex-row lg:flex-wrap gap-3 sm:gap-4 lg:items-center">
             <Input
               placeholder="Search events..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-xs bg-gray-700 border-gray-600 text-white"
+              className="w-full lg:w-64 bg-gray-700 border-gray-600 text-white h-10 sm:h-11 text-sm sm:text-base"
             />
-            
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-40 bg-gray-700 border-gray-600 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="week">Last Week</SelectItem>
-                <SelectItem value="month">Last Month</SelectItem>
-                <SelectItem value="season">This Season</SelectItem>
-              </SelectContent>
-            </Select>
 
-            <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
-              <SelectTrigger className="w-48 bg-gray-700 border-gray-600 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="all">All Players</SelectItem>
-                {teamPlayers.map(player => (
-                  <SelectItem key={player.id} value={player.id}>
-                    {player.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full lg:w-auto">
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="w-full sm:w-40 bg-gray-700 border-gray-600 text-white h-10 sm:h-11 text-sm sm:text-base">
+                  <SelectValue placeholder="Date range" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="week">Last Week</SelectItem>
+                  <SelectItem value="month">Last Month</SelectItem>
+                  <SelectItem value="season">This Season</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Badge variant="secondary" className="ml-auto">
+              <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
+                <SelectTrigger className="w-full sm:w-48 bg-gray-700 border-gray-600 text-white h-10 sm:h-11 text-sm sm:text-base">
+                  <SelectValue placeholder="Filter by player" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-600 max-h-64">
+                  <SelectItem value="all">All Players</SelectItem>
+                  {teamPlayers.map(player => (
+                    <SelectItem key={player.id} value={player.id}>
+                      {player.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Badge variant="secondary" className="self-start lg:ml-auto text-sm sm:text-base px-3 py-1.5">
               {filteredEvents.length} events
             </Badge>
           </div>
@@ -747,23 +749,23 @@ const EnhancedTeamTimeline = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-800 border-gray-700">
-          <TabsTrigger value="all" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+        <TabsList className="bg-gray-800 border-gray-700 overflow-x-auto flex flex-wrap gap-2 p-1 h-auto">
+          <TabsTrigger value="all" className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-sm sm:text-base px-3 py-2.5">
             All Events
           </TabsTrigger>
-          <TabsTrigger value="match" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+          <TabsTrigger value="match" className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-sm sm:text-base px-3 py-2.5">
             Matches
           </TabsTrigger>
-          <TabsTrigger value="transfer" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+          <TabsTrigger value="transfer" className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-sm sm:text-base px-3 py-2.5">
             Transfers
           </TabsTrigger>
-          <TabsTrigger value="player" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+          <TabsTrigger value="player" className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-sm sm:text-base px-3 py-2.5">
             Players
           </TabsTrigger>
-          <TabsTrigger value="team" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+          <TabsTrigger value="team" className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-sm sm:text-base px-3 py-2.5">
             Announcements
           </TabsTrigger>
-          <TabsTrigger value="achievement" className="data-[state=active]:bg-rosegold data-[state=active]:text-white">
+          <TabsTrigger value="achievement" className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-sm sm:text-base px-3 py-2.5">
             Achievements
           </TabsTrigger>
         </TabsList>
@@ -775,7 +777,7 @@ const EnhancedTeamTimeline = () => {
                 <Target className="w-16 h-16 mx-auto mb-4 text-gray-500" />
                 <h3 className="text-xl font-semibold text-white mb-2">No Events Found</h3>
                 <p className="text-gray-400 mb-6">
-                  {activeTab === 'all' 
+                  {activeTab === 'all'
                     ? "Start adding events to build your team's timeline"
                     : `No ${activeTab} events found with current filters`
                   }
@@ -794,16 +796,16 @@ const EnhancedTeamTimeline = () => {
               {seasons.map((season) => {
                 const seasonEvents = eventsBySeason[season];
                 const achievementCount = seasonEvents.filter(e => e.event_type === 'achievement').length;
-                
+
                 return (
                   <div key={season}>
-                    <SeasonSeparator 
-                      season={season} 
+                    <SeasonSeparator
+                      season={season}
                       eventCount={seasonEvents.length}
                       achievements={achievementCount}
                     />
-                    
-                    <div className="space-y-4 ml-6">
+
+                    <div className="space-y-4 pl-4 sm:pl-6 border-l border-gray-800">
                       {seasonEvents.map((event) => (
                         <TimelineEventCard
                           key={event.id}
@@ -834,7 +836,7 @@ const EnhancedTeamTimeline = () => {
               Add notes and comments about this event
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 max-h-96 overflow-y-auto">
             {comments.map((comment) => (
               <div key={comment.id} className="flex gap-3 p-3 bg-gray-800 rounded-lg">

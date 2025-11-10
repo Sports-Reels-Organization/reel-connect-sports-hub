@@ -505,65 +505,74 @@ const EnhancedVideoManagement = () => {
       </div>
 
       <Tabs defaultValue="videos" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gray-800 border-gray-700">
-          <TabsTrigger value="videos" className="data-[state=active]:bg-bright-pink data-[state=active]:text-white">
-            <Play className="w-4 h-4 mr-2" />
-            Videos
+        <TabsList className="grid w-full grid-cols-3 bg-[#111111] border-0 gap-1 p-1 h-auto">
+          <TabsTrigger 
+            value="videos" 
+            className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-white/60 border-0 flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-2 py-2.5 sm:py-3 min-h-[44px]"
+          >
+            <Play className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Videos</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="data-[state=active]:bg-bright-pink data-[state=active]:text-white">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Analytics
+          <TabsTrigger 
+            value="analytics" 
+            className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-white/60 border-0 flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-2 py-2.5 sm:py-3 min-h-[44px]"
+          >
+            <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Analytics</span>
           </TabsTrigger>
-          <TabsTrigger value="tags" className="data-[state=active]:bg-bright-pink data-[state=active]:text-white">
-            <Tags className="w-4 h-4 mr-2" />
-            Tags & Labels
+          <TabsTrigger 
+            value="tags" 
+            className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-white/60 border-0 flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-2 py-2.5 sm:py-3 min-h-[44px]"
+          >
+            <Tags className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Tags & Labels</span>
+            <span className="sm:hidden">Tags</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="videos" className="space-y-6">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                  {/* Search */}
-                  <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      placeholder="Search videos..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-gray-700 border-gray-600 text-white"
-                    />
-                  </div>
+        <TabsContent value="videos" className="space-y-4 sm:space-y-6">
+          <Card className="bg-[#111111] border-0">
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="flex flex-col gap-3 sm:gap-4">
+                {/* Search */}
+                <div className="relative w-full">
+                  <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-white/60 w-3 h-3 sm:w-4 sm:h-4" />
+                  <Input
+                    placeholder="Search videos..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8 sm:pl-10 bg-[#1a1a1a] border-0 text-white h-9 sm:h-10 text-xs sm:text-sm"
+                  />
+                </div>
 
-                  {/* Filters */}
-                  <div className="flex gap-2">
+                {/* Filters Row */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center justify-between">
+                  <div className="flex flex-col sm:flex-row gap-2 flex-1">
                     <Select value={selectedType} onValueChange={setSelectedType}>
-                      <SelectTrigger className="w-32 bg-gray-700 border-gray-600 text-white">
+                      <SelectTrigger className="w-full sm:w-32 bg-[#1a1a1a] border-0 text-white h-9 sm:h-10 text-xs sm:text-sm">
                         <SelectValue placeholder="All Types" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="match">Match</SelectItem>
-                        <SelectItem value="training">Training</SelectItem>
-                        <SelectItem value="interview">Interview</SelectItem>
-                        <SelectItem value="highlight">Highlight</SelectItem>
+                      <SelectContent className="bg-[#111111] border-0">
+                        <SelectItem value="all" className="text-white text-xs sm:text-sm">All Types</SelectItem>
+                        <SelectItem value="match" className="text-white text-xs sm:text-sm">Match</SelectItem>
+                        <SelectItem value="training" className="text-white text-xs sm:text-sm">Training</SelectItem>
+                        <SelectItem value="interview" className="text-white text-xs sm:text-sm">Interview</SelectItem>
+                        <SelectItem value="highlight" className="text-white text-xs sm:text-sm">Highlight</SelectItem>
                       </SelectContent>
                     </Select>
 
-
                     <Select value={selectedPlayer} onValueChange={setSelectedPlayer}>
-                      <SelectTrigger className="w-36 bg-gray-700 border-gray-600 text-white">
+                      <SelectTrigger className="w-full sm:w-36 bg-[#1a1a1a] border-0 text-white h-9 sm:h-10 text-xs sm:text-sm">
                         <SelectValue placeholder="All Players" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Players</SelectItem>
+                      <SelectContent className="bg-[#111111] border-0">
+                        <SelectItem value="all" className="text-white text-xs sm:text-sm">All Players</SelectItem>
                         {allPlayersData.map((player) => (
-                          <SelectItem key={player.id} value={player.id}>
+                          <SelectItem key={player.id} value={player.id} className="text-white text-xs sm:text-sm">
                             <div className="flex items-center gap-2">
                               <span>{player.full_name || player.id}</span>
                               {player.jersey_number && (
-                                <Badge className="bg-bright-pink text-white text-xs px-1.5 py-0.5 font-bold">
+                                <Badge className="bg-rosegold text-white text-[10px] px-1.5 py-0.5 font-bold border-0">
                                   #{player.jersey_number}
                                 </Badge>
                               )}
@@ -574,57 +583,55 @@ const EnhancedVideoManagement = () => {
                     </Select>
 
                     <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                      <SelectTrigger className="w-36 bg-gray-700 border-gray-600 text-white">
+                      <SelectTrigger className="w-full sm:w-36 bg-[#1a1a1a] border-0 text-white h-9 sm:h-10 text-xs sm:text-sm">
                         <SelectValue placeholder="Newest First" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="newest">Newest First</SelectItem>
-                        <SelectItem value="oldest">Oldest First</SelectItem>
-                        <SelectItem value="title_asc">Title A-Z</SelectItem>
-                        <SelectItem value="title_desc">Title Z-A</SelectItem>
-                        <SelectItem value="duration_asc">Shortest First</SelectItem>
-                        <SelectItem value="duration_desc">Longest First</SelectItem>
+                      <SelectContent className="bg-[#111111] border-0">
+                        <SelectItem value="newest" className="text-white text-xs sm:text-sm">Newest First</SelectItem>
+                        <SelectItem value="oldest" className="text-white text-xs sm:text-sm">Oldest First</SelectItem>
+                        <SelectItem value="title_asc" className="text-white text-xs sm:text-sm">Title A-Z</SelectItem>
+                        <SelectItem value="title_desc" className="text-white text-xs sm:text-sm">Title Z-A</SelectItem>
+                        <SelectItem value="duration_asc" className="text-white text-xs sm:text-sm">Shortest First</SelectItem>
+                        <SelectItem value="duration_desc" className="text-white text-xs sm:text-sm">Longest First</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                {/* View Mode Toggle */}
-                <div className="flex gap-2">
-                  <Button
-                    variant={viewMode === 'grid' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('grid')}
-                    className={viewMode === 'grid' ? 'bg-bright-pink hover:bg-bright-pink/90' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}
-                  >
-                    <Grid3X3 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'list' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('list')}
-                    className={viewMode === 'list' ? 'bg-bright-pink hover:bg-bright-pink/90' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
+                  {/* View Mode Toggle */}
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => setViewMode('grid')}
+                      className={`flex-1 sm:flex-initial h-9 sm:h-10 border-0 ${viewMode === 'grid' ? 'bg-rosegold text-white' : 'bg-[#1a1a1a] text-white/60'}`}
+                    >
+                      <Grid3X3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setViewMode('list')}
+                      className={`flex-1 sm:flex-initial h-9 sm:h-10 border-0 ${viewMode === 'list' ? 'bg-rosegold text-white' : 'bg-[#1a1a1a] text-white/60'}`}
+                    >
+                      <List className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-8 sm:py-12">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bright-pink mx-auto mb-4"></div>
-                <p className="text-gray-400">Loading videos...</p>
+                <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-rosegold mx-auto mb-3 sm:mb-4"></div>
+                <p className="text-white/60 text-xs sm:text-sm">Loading videos...</p>
               </div>
             </div>
           ) : filteredVideos.length === 0 ? (
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="py-12 text-center">
-                <Play className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-white mb-2">No Videos Found</h3>
-                <p className="text-gray-400 mb-4">
+            <Card className="bg-[#111111] border-0">
+              <CardContent className="py-8 sm:py-12 text-center p-4 sm:p-6">
+                <Play className="w-10 h-10 sm:w-12 sm:h-12 text-white/40 mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold text-white mb-2">No Videos Found</h3>
+                <p className="text-white/60 text-xs sm:text-sm mb-3 sm:mb-4">
                   {videos.length === 0
                     ? "Upload your first video to get started"
                     : "Try adjusting your filters to see more videos"
@@ -633,9 +640,9 @@ const EnhancedVideoManagement = () => {
                 {videos.length === 0 && (
                   <Button
                     onClick={() => setShowUploadForm(true)}
-                    className="bg-bright-pink hover:bg-bright-pink/90 text-white"
+                    className="bg-rosegold text-white border-0 h-9 sm:h-10 text-xs sm:text-sm"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                     Upload Video
                   </Button>
                 )}
@@ -644,39 +651,39 @@ const EnhancedVideoManagement = () => {
           ) : (
             <>
               <div className={viewMode === 'grid'
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                : "space-y-4"
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6"
+                : "space-y-3 sm:space-y-4"
               }>
                 {paginatedVideos.map((video) => (
                   <Card
                     key={video.id}
-                    className="bg-gray-800 border-gray-700 hover:border-bright-pink/50 transition-colors cursor-pointer"
+                    className="bg-[#111111] border-0 cursor-pointer"
                     onClick={() => handleVideoClick(video)}
                   >
                     {viewMode === 'grid' ? (
                       <CardContent className="p-0">
-                        <div className="relative aspect-video bg-gray-900 rounded-t-lg overflow-hidden">
+                        <div className="relative aspect-video bg-[#1a1a1a] rounded-t-lg overflow-hidden">
                           <SmartThumbnail
                             thumbnailUrl={video.thumbnail_url}
                             title={video.title}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute bottom-2 right-2 bg-black/80 text-white px-2 py-1 rounded text-sm">
+                          <div className="absolute bottom-1.5 sm:bottom-2 right-1.5 sm:right-2 bg-black/70 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs">
                             {formatDuration(video.duration)}
                           </div>
-                          <div className="absolute top-2 left-2 flex flex-col gap-1">
+                          <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 flex flex-col gap-1">
                             {isLocalhostUrl(video.video_url) && (
-                              <Badge className="bg-red-900/20 text-red-400 border-red-500/30 border">
+                              <Badge className="bg-red-900/20 text-red-400 border-0 text-[10px] sm:text-xs px-1.5">
                                 Invalid URL
                               </Badge>
                             )}
                           </div>
                         </div>
 
-                        <div className="p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <h3 className="font-semibold text-white text-sm line-clamp-2 flex-1">{video.title}</h3>
-                            <div className="flex items-center gap-1 ml-2">
+                        <div className="p-3 sm:p-4">
+                          <div className="flex items-start justify-between mb-2 gap-2">
+                            <h3 className="font-semibold text-white text-xs sm:text-sm line-clamp-2 flex-1 leading-tight">{video.title}</h3>
+                            <div className="flex items-center gap-1 flex-shrink-0">
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -684,9 +691,9 @@ const EnhancedVideoManagement = () => {
                                   e.stopPropagation();
                                   handleEditVideo(video);
                                 }}
-                                className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                                className="h-6 w-6 sm:h-7 sm:w-7 p-0 text-white/60 border-0"
                               >
-                                <Edit3 className="w-3 h-3" />
+                                <Edit3 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                               </Button>
                               <Button
                                 size="sm"
@@ -695,19 +702,19 @@ const EnhancedVideoManagement = () => {
                                   e.stopPropagation();
                                   setDeleteConfirmVideo(video);
                                 }}
-                                className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-gray-700"
+                                className="h-6 w-6 sm:h-7 sm:w-7 p-0 text-red-400 border-0"
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                               </Button>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
+                          <div className="flex items-center justify-between text-[10px] sm:text-xs text-white/60 mb-2 sm:mb-3">
                             <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(video.created_at)}
+                              <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                              <span className="truncate">{formatDate(video.created_at)}</span>
                             </span>
-                            <span className="capitalize">{video.video_type}</span>
+                            <span className="capitalize flex-shrink-0">{video.video_type}</span>
                           </div>
 
                           <div className="w-full text-xs">
@@ -720,14 +727,15 @@ const EnhancedVideoManagement = () => {
                                   setSelectedVideoForPlayers(video);
                                   setShowTaggedPlayersModal(true);
                                 }}
-                                className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white text-xs"
+                                className="w-full bg-[#1a1a1a] text-white/60 border-0 h-8 sm:h-9 text-[10px] sm:text-xs"
                               >
-                                <Users className="w-3 h-3 mr-2" />
-                                Tagged Players ({video.tags.length})
+                                <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1.5 sm:mr-2" />
+                                <span className="hidden sm:inline">Tagged Players ({video.tags.length})</span>
+                                <span className="sm:hidden">Players ({video.tags.length})</span>
                               </Button>
                             ) : (
-                              <div className="flex items-center justify-center gap-2 py-2 text-gray-500">
-                                <Users className="w-3 h-3" />
+                              <div className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 text-white/40 text-[10px] sm:text-xs">
+                                <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 <span>No Tagged Players</span>
                               </div>
                             )}
@@ -735,26 +743,26 @@ const EnhancedVideoManagement = () => {
                         </div>
                       </CardContent>
                     ) : (
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="relative w-24 h-16 bg-gray-900 rounded overflow-hidden flex-shrink-0">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+                          <div className="relative w-20 h-14 sm:w-24 sm:h-16 bg-[#1a1a1a] rounded overflow-hidden flex-shrink-0">
                             <SmartThumbnail
                               thumbnailUrl={video.thumbnail_url}
                               title={video.title}
                               className="w-full h-full object-cover"
                             />
-                            <div className="absolute bottom-0 right-0 bg-black/80 text-white px-1 text-xs">
+                            <div className="absolute bottom-0 right-0 bg-black/70 text-white px-1 text-[10px] sm:text-xs">
                               {formatDuration(video.duration)}
                             </div>
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between mb-1">
-                              <h3 className="font-semibold text-white truncate flex-1">{video.title}</h3>
-                              <div className="flex items-center gap-2 ml-2">
+                            <div className="flex items-start justify-between mb-1 gap-2">
+                              <h3 className="font-semibold text-white text-xs sm:text-sm truncate flex-1">{video.title}</h3>
+                              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                                 {getTypeIcon(video.video_type)}
                                 {isLocalhostUrl(video.video_url) && (
-                                  <Badge className="bg-red-900/20 text-red-400 border-red-500/30 border text-xs">
+                                  <Badge className="bg-red-900/20 text-red-400 border-0 text-[10px] sm:text-xs px-1.5">
                                     Invalid URL
                                   </Badge>
                                 )}
@@ -766,9 +774,9 @@ const EnhancedVideoManagement = () => {
                                       e.stopPropagation();
                                       handleEditVideo(video);
                                     }}
-                                    className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                                    className="h-6 w-6 sm:h-7 sm:w-7 p-0 text-white/60 border-0"
                                   >
-                                    <Edit3 className="w-3 h-3" />
+                                    <Edit3 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                   </Button>
                                   <Button
                                     size="sm"
@@ -777,22 +785,22 @@ const EnhancedVideoManagement = () => {
                                       e.stopPropagation();
                                       setDeleteConfirmVideo(video);
                                     }}
-                                    className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-gray-700"
+                                    className="h-6 w-6 sm:h-7 sm:w-7 p-0 text-red-400 border-0"
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                   </Button>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-4 text-xs text-gray-400">
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-3 md:gap-4 text-[10px] sm:text-xs text-white/60">
                               <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {formatDate(video.created_at)}
+                                <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                                <span className="truncate">{formatDate(video.created_at)}</span>
                               </span>
                               <span className="capitalize">{video.video_type}</span>
                               {video.opposing_team && (
-                                <span>vs {video.opposing_team}</span>
+                                <span className="truncate">vs {video.opposing_team}</span>
                               )}
                               {video.tags.length > 0 ? (
                                 <Button
@@ -803,15 +811,16 @@ const EnhancedVideoManagement = () => {
                                     setSelectedVideoForPlayers(video);
                                     setShowTaggedPlayersModal(true);
                                   }}
-                                  className="h-6 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white text-xs"
+                                  className="h-6 sm:h-7 bg-[#1a1a1a] text-white/60 border-0 text-[10px] sm:text-xs px-2"
                                 >
-                                  <Users className="w-3 h-3 mr-1" />
+                                  <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
                                   {video.tags.length} Player{video.tags.length !== 1 ? 's' : ''}
                                 </Button>
                               ) : (
-                                <span className="flex items-center gap-1 text-gray-500">
-                                  <Users className="w-3 h-3" />
-                                  No Tagged Players
+                                <span className="flex items-center gap-1 text-white/40">
+                                  <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                                  <span className="hidden sm:inline">No Tagged Players</span>
+                                  <span className="sm:hidden">No Players</span>
                                 </span>
                               )}
                             </div>
@@ -825,10 +834,10 @@ const EnhancedVideoManagement = () => {
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-400">
+                <Card className="bg-[#111111] border-0">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="text-xs sm:text-sm text-white/60 text-center sm:text-left">
                         Showing {startIndex + 1}-{Math.min(endIndex, filteredVideos.length)} of {filteredVideos.length} videos
                       </div>
 
@@ -838,10 +847,11 @@ const EnhancedVideoManagement = () => {
                           size="sm"
                           onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
-                          className="border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="bg-[#1a1a1a] text-white/60 border-0 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm"
                         >
-                          <ChevronLeft className="w-4 h-4" />
-                          Previous
+                          <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">Previous</span>
+                          <span className="sm:hidden">Prev</span>
                         </Button>
 
                         <div className="flex items-center gap-1">
@@ -858,7 +868,7 @@ const EnhancedVideoManagement = () => {
 
                             if (showEllipsis) {
                               return (
-                                <span key={page} className="text-gray-400 px-2">
+                                <span key={page} className="text-white/60 px-1 sm:px-2 text-xs sm:text-sm">
                                   ...
                                 </span>
                               );
@@ -869,14 +879,13 @@ const EnhancedVideoManagement = () => {
                             return (
                               <Button
                                 key={page}
-                                variant={currentPage === page ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => handlePageChange(page)}
-                                className={
+                                className={`border-0 w-8 h-8 sm:w-9 sm:h-9 p-0 text-xs sm:text-sm ${
                                   currentPage === page
-                                    ? "bg-bright-pink hover:bg-bright-pink/90 text-white w-10"
-                                    : "border-gray-600 text-gray-300 hover:bg-gray-700 w-10"
-                                }
+                                    ? "bg-rosegold text-white"
+                                    : "bg-[#1a1a1a] text-white/60"
+                                }`}
                               >
                                 {page}
                               </Button>
@@ -889,10 +898,11 @@ const EnhancedVideoManagement = () => {
                           size="sm"
                           onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === totalPages}
-                          className="border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="bg-[#1a1a1a] text-white/60 border-0 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm"
                         >
-                          Next
-                          <ChevronRight className="w-4 h-4" />
+                          <span className="hidden sm:inline">Next</span>
+                          <span className="sm:hidden">Next</span>
+                          <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
                       </div>
                     </div>
@@ -903,59 +913,59 @@ const EnhancedVideoManagement = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-6">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
+        <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
+          <Card className="bg-[#111111] border-0">
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <CardTitle className="text-white flex items-center gap-2 text-base sm:text-lg">
+                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
                 Video Analytics
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-bright-pink">{videos.length}</div>
-                  <div className="text-gray-400">Total Videos</div>
+            <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                <div className="bg-[#1a1a1a] p-4 sm:p-6 rounded-lg text-center">
+                  <div className="text-2xl sm:text-3xl font-bold text-rosegold">{videos.length}</div>
+                  <div className="text-white/60 text-xs sm:text-sm mt-1 sm:mt-2">Total Videos</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-400">
+                <div className="bg-[#1a1a1a] p-4 sm:p-6 rounded-lg text-center">
+                  <div className="text-2xl sm:text-3xl font-bold text-green-400">
                     {videos.filter(v => v.ai_analysis_status === 'completed').length}
                   </div>
-                  <div className="text-gray-400">Analyzed</div>
+                  <div className="text-white/60 text-xs sm:text-sm mt-1 sm:mt-2">Analyzed</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400">
+                <div className="bg-[#1a1a1a] p-4 sm:p-6 rounded-lg text-center">
+                  <div className="text-2xl sm:text-3xl font-bold text-blue-400">
                     {Math.round(videos.reduce((acc, v) => acc + v.duration, 0) / 60)}
                   </div>
-                  <div className="text-gray-400">Total Minutes</div>
+                  <div className="text-white/60 text-xs sm:text-sm mt-1 sm:mt-2">Total Minutes</div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="tags" className="space-y-6">
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Tags className="w-5 h-5" />
+        <TabsContent value="tags" className="space-y-4 sm:space-y-6">
+          <Card className="bg-[#111111] border-0">
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <CardTitle className="text-white flex items-center gap-2 text-base sm:text-lg">
+                <Tags className="w-4 h-4 sm:w-5 sm:h-5" />
                 Player Tags
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
               {playersLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-bright-pink"></div>
-                  <span className="ml-3 text-gray-400">Loading players...</span>
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-rosegold"></div>
+                  <span className="ml-3 text-white/60 text-xs sm:text-sm">Loading players...</span>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {allPlayersData.map((player) => {
                     const videoCount = videos.filter(v => v.tags.includes(player.id)).length;
                     return (
-                      <div key={player.id} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
+                      <div key={player.id} className="flex items-center justify-between p-3 sm:p-4 bg-[#1a1a1a] rounded-lg gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#111111] flex items-center justify-center flex-shrink-0">
                             {player.headshot_url || player.photo_url ? (
                               <img
                                 src={player.headshot_url || player.photo_url || ''}
@@ -963,33 +973,33 @@ const EnhancedVideoManagement = () => {
                                 className="w-full h-full rounded-full object-cover"
                               />
                             ) : (
-                              <span className="text-white font-semibold text-sm">
+                              <span className="text-white font-semibold text-xs sm:text-sm">
                                 {player.full_name?.slice(0, 2).toUpperCase() || '??'}
                               </span>
                             )}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="text-white font-medium">{player.full_name || 'Unknown Player'}</h4>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
+                              <h4 className="text-white font-medium text-xs sm:text-sm truncate">{player.full_name || 'Unknown Player'}</h4>
                               {player.jersey_number && (
-                                <Badge className="bg-bright-pink text-white text-xs px-2 py-0.5 font-bold">
+                                <Badge className="bg-rosegold text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 font-bold border-0 flex-shrink-0">
                                   #{player.jersey_number}
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-gray-400 text-sm">{player.position || 'Unknown Position'}</p>
+                            <p className="text-white/60 text-[10px] sm:text-xs truncate">{player.position || 'Unknown Position'}</p>
                           </div>
                         </div>
-                        <Badge className="bg-bright-pink/20 text-bright-pink border-bright-pink/30">
+                        <Badge className="bg-rosegold/20 text-rosegold border-0 text-[10px] sm:text-xs px-2 sm:px-3 py-1 flex-shrink-0">
                           {videoCount} video{videoCount !== 1 ? 's' : ''}
                         </Badge>
                       </div>
                     );
                   })}
                   {allPlayersData.length === 0 && (
-                    <div className="text-center py-8">
-                      <Tags className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-gray-400">No players tagged in any videos</p>
+                    <div className="text-center py-8 sm:py-12">
+                      <Tags className="w-10 h-10 sm:w-12 sm:h-12 text-white/40 mx-auto mb-3" />
+                      <p className="text-white/60 text-xs sm:text-sm">No players tagged in any videos</p>
                     </div>
                   )}
                 </div>

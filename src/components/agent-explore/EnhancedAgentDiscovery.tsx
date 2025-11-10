@@ -71,7 +71,8 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
   const [filteredPitches, setFilteredPitches] = useState<TransferPitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
-  const [agentSportType, setAgentSportType] = useState<string>('football');
+  const [agentSportType, setAgentSportType] = useState<string | null>(null);
+  const [sportLoaded, setSportLoaded] = useState(false);
   const [shortlistedPitches, setShortlistedPitches] = useState<Set<string>>(new Set());
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState(initialSearch || '');
@@ -94,7 +95,8 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
   const [showRecommendations, setShowRecommendations] = useState(false);
 
   // Get sport-specific data
-  const { positions } = useSportData(agentSportType);
+  const sportForData = agentSportType || 'football';
+  const { positions } = useSportData(sportForData);
   const transferTypes = ['permanent', 'loan'];
   const dealStages = ['pitch', 'interest', 'discussion', 'expired'];
   const priceRanges = [
@@ -123,15 +125,38 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
   const [availableCountries, setAvailableCountries] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchAgentSportType();
-  }, [profile]);
+    if (!profile?.id) {
+      setAgentSportType(null);
+      setSportLoaded(true);
+      setLoading(false);
+      return;
+    }
+
+    const loadSportType = async () => {
+      setSportLoaded(false);
+      setLoading(true);
+      await fetchAgentSportType();
+    };
+
+    loadSportType();
+  }, [profile?.id]);
 
   useEffect(() => {
-    if (agentSportType) {
-      fetchTransferPitches();
-      fetchShortlistedPitches();
+    if (!sportLoaded) return;
+
+    if (!agentSportType) {
+      setPitches([]);
+      setFilteredPitches([]);
+      setAvailableTeams([]);
+      setAvailableCountries([]);
+      setRecommendedPitches([]);
+      setLoading(false);
+      return;
     }
-  }, [agentSportType]);
+
+    fetchTransferPitches();
+    fetchShortlistedPitches();
+  }, [agentSportType, sportLoaded]);
 
   useEffect(() => {
     applySmartFilters();
@@ -154,13 +179,23 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
 
       if (data?.sport_type) {
         setAgentSportType(data.sport_type);
+      } else {
+        setAgentSportType(null);
       }
     } catch (error) {
       console.error('Error fetching agent sport type:', error);
+      setAgentSportType(null);
+    } finally {
+      setSportLoaded(true);
     }
   };
 
   const fetchTransferPitches = async () => {
+    if (!agentSportType) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -476,6 +511,36 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
     return expiryDate <= sevenDaysFromNow;
   };
 
+  if (!sportLoaded) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-24 bg-gray-700 rounded"></div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!agentSportType) {
+    return (
+      <Card>
+        <CardContent className="p-10 text-center space-y-4">
+          <Sparkles className="w-10 h-10 mx-auto text-rosegold" />
+          <CardTitle className="text-2xl text-white">Set Your Sport Preferences</CardTitle>
+          <p className="text-gray-400">
+            We couldn&apos;t find a sport linked to your profile. Update your agent sport type in your account settings to see tailored transfer pitches.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (loading) {
     return (
       <Card>
@@ -561,8 +626,10 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
                               className="w-8 h-8 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-                              <User className="w-4 h-4 text-gray-400" />
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rosegold to-purple-600 flex items-center justify-center">
+                              <span className="text-white font-bold text-xs">
+                                {pitch.players.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </span>
                             </div>
                           )}
                           <div className="flex-1">
@@ -812,8 +879,10 @@ const EnhancedAgentDiscovery: React.FC<EnhancedAgentDiscoveryProps> = ({ initial
                               className="w-12 h-12 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
-                              <User className="w-6 h-6 text-gray-400" />
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-rosegold to-purple-600 flex items-center justify-center">
+                              <span className="text-white font-bold text-base">
+                                {pitch.players.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </span>
                             </div>
                           )}
                           <div>

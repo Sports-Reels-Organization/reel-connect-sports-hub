@@ -6,7 +6,7 @@ import SimplifiedContractWorkflow from '@/components/contracts/SimplifiedContrac
 const Contracts = () => {
   return (
     <Layout>
-      <div className="p-[3rem]">
+      <div className="min-h-screen bg-background px-1 py-6 sm:px-3 sm:py-8 lg:px-5">
         <SimplifiedContractWorkflow />
       </div>
     </Layout>

@@ -287,30 +287,30 @@ const OnboardingFlow = () => {
   ];
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row overflow-x-hidden">
       {/* Sidebar */}
-      <div className="w-96 onboarding-sidebar bg-sidebar-border text-white p-8 flex flex-col relative">
+      <div className="w-full lg:w-80 xl:w-96 onboarding-sidebar bg-sidebar-border text-white p-4 sm:p-6 lg:p-8 flex flex-col relative border-b lg:border-b-0 lg:border-r border-white/10">
         {/* Logo */}
-        <div className="flex items-center mb-12">
-          <img src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png" alt="Sports Reels" className="w-8 h-8 mr-3" />
-          <span className="text-xl font-bold text-white">Sports Reels</span>
+        <div className="flex items-center mb-6 sm:mb-8 lg:mb-12">
+          <img src="/lovable-uploads/41a57d3e-b9e8-41da-b5d5-bd65db3af6ba.png" alt="Sports Reels" className="w-6 h-6 sm:w-8 sm:h-8 mr-2 sm:mr-3" />
+          <span className="text-lg sm:text-xl font-bold text-white">Sports Reels</span>
         </div>
 
         {/* Role Selection */}
-        <div className="mb-8 p-4 bg-white/5 rounded-lg border border-white/10">
-          <Label className="text-sm font-medium text-gray-300 mb-3 block">I am a...</Label>
+        <div className="mb-6 sm:mb-8 p-3 sm:p-4 bg-white/5 rounded-lg border border-white/10">
+          <Label className="text-xs sm:text-sm font-medium text-gray-300 mb-2 sm:mb-3 block">I am a...</Label>
           <Select
             value={selectedRole}
             onValueChange={(value: 'team' | 'agent') => handleRoleChange(value)}
           >
-            <SelectTrigger className="bg-white/10 border-white/20 text-white">
+            <SelectTrigger className="bg-white/10 border-white/20 text-white h-9 sm:h-10 text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-gray-800 border-white/20">
-              <SelectItem value="team" className="text-white hover:bg-white/10">
+              <SelectItem value="team" className="text-white hover:bg-white/10 text-xs sm:text-sm">
                 Team Manager
               </SelectItem>
-              <SelectItem value="agent" className="text-white hover:bg-white/10">
+              <SelectItem value="agent" className="text-white hover:bg-white/10 text-xs sm:text-sm">
                 Sports Agent
               </SelectItem>
             </SelectContent>
@@ -318,60 +318,60 @@ const OnboardingFlow = () => {
         </div>
 
         {/* Steps */}
-        <div className="space-y-8 flex-1">
+        <div className="space-y-4 sm:space-y-6 lg:space-y-8 flex-1">
           {steps.map((stepItem, index) => (
             <div key={stepItem.id} className="flex items-start">
-              <div className="flex-shrink-0 mr-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${stepItem.completed
+              <div className="flex-shrink-0 mr-3 sm:mr-4">
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${stepItem.completed
                   ? 'bg-white text-white'
                   : step === stepItem.id
                     ? 'bg-rosegold text-white'
                     : 'bg-rosegold text-white'
                   }`}>
                   {stepItem.completed ? (
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   ) : (
-                    <stepItem.icon className="w-5 h-5" />
+                    <stepItem.icon className="w-4 h-4 sm:w-5 sm:h-5" />
                   )}
                 </div>
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className={`text-lg font-medium ${step === stepItem.id ? 'text-white' : 'text-white'
+                <h3 className={`text-sm sm:text-base lg:text-lg font-medium ${step === stepItem.id ? 'text-white' : 'text-white'
                   }`}>
                   {stepItem.title}
                 </h3>
-                <p className={`text-sm mt-1 ${step === stepItem.id ? 'text-gray-500' : 'text-gray-500'
+                <p className={`text-xs sm:text-sm mt-0.5 sm:mt-1 ${step === stepItem.id ? 'text-gray-500' : 'text-gray-500'
                   }`}>
                   {stepItem.subtitle}
                 </p>
               </div>
               {index < steps.length - 1 && (
-                <div className="absolute left-12 mt-12 w-px h-8 bg-red-500"></div>
+                <div className="absolute left-7 sm:left-9 lg:left-12 mt-10 sm:mt-12 w-px h-6 sm:h-8 bg-red-500"></div>
               )}
             </div>
           ))}
         </div>
 
         {/* Footer */}
-        <div className="mt-auto">
-          <p className="text-white text-sm">All rights reserved @Sports Reels</p>
+        <div className="mt-6 sm:mt-8 lg:mt-auto">
+          <p className="text-white text-xs sm:text-sm">All rights reserved @Sports Reels</p>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 text-white onboarding-content p-8 flex items-center justify-center">
+      <div className="flex-1 text-white onboarding-content p-4 sm:p-6 lg:p-8 flex items-center justify-center">
         <div className="w-full max-w-2xl">
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm">Step {step}/{totalSteps}</p>
+          <div className="mb-6 sm:mb-8">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <p className="text-xs sm:text-sm">Step {step}/{totalSteps}</p>
             </div>
-            <h1 className="text-3xl font-bold text-rosegold mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-rosegold mb-2">
               {step === 1 ? 'Basic Info' : currentUserType === 'team' ? 'Team Details' : 'Agency Details'}
             </h1>
-            <p className=" text-gray-400">
+            <p className="text-xs sm:text-sm text-gray-400">
               {step === 1
                 ? 'Tell us a bit about yourself to get started with your new Sports Reels account.'
                 : `Provide your ${currentUserType === 'team' ? 'team' : 'agency'} information to complete your profile.`
@@ -380,55 +380,55 @@ const OnboardingFlow = () => {
           </div>
 
           {/* Form Content */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {step === 1 ? (
               <>
                 <div className="space-y-2 text-start">
-                  <Label htmlFor="full_name" className="text-gray-500  font-medium">Full name</Label>
+                  <Label htmlFor="full_name" className="text-gray-500 font-medium text-xs sm:text-sm">Full name</Label>
                   <Input
                     id="full_name"
                     value={basicInfo.full_name}
                     onChange={(e) => setBasicInfo({ ...basicInfo, full_name: e.target.value })}
                     placeholder="enter fullname...."
-                    className=" border-0 outline-none"
+                    className="border-0 outline-none h-10 sm:h-11 text-sm sm:text-base"
                   />
                 </div>
 
                 <div className="space-y-2 text-start">
-                  <Label htmlFor="email" className="text-gray-500 font-medium">Email</Label>
+                  <Label htmlFor="email" className="text-gray-500 font-medium text-xs sm:text-sm">Email</Label>
                   <Input
                     id="email"
                     value={profile.email || ''}
                     disabled
-                    className="border-0 outline-none"
+                    className="border-0 outline-none h-10 sm:h-11 text-sm sm:text-base"
                   />
                 </div>
                 <div className="space-y-2 text-start">
-                  <Label htmlFor="country" className="text-gray-500 font-medium">Country</Label>
+                  <Label htmlFor="country" className="text-gray-500 font-medium text-xs sm:text-sm">Country</Label>
                   <CountrySelect
                     value={basicInfo.country}
                     onValueChange={handleCountryChange}
                     placeholder="Select your country"
-                    triggerClassName="bg-white border-0 outline-none"
+                    triggerClassName="bg-white border-0 outline-none h-10 sm:h-11 text-sm sm:text-base"
                     contentClassName="max-h-60 z-50"
                   />
                   {countriesError && (
-                    <p className="text-sm text-red-600">{countriesError}</p>
+                    <p className="text-xs sm:text-sm text-red-600">{countriesError}</p>
                   )}
                 </div>
                 <div className="space-y-2 text-start">
-                  <Label htmlFor="phone" className="text-gray-500 font-medium">Mobile number</Label>
-                  <div className="flex">
+                  <Label htmlFor="phone" className="text-gray-500 font-medium text-xs sm:text-sm">Mobile number</Label>
+                  <div className="flex gap-2">
                     <Select
                       value={basicInfo.country_code}
                       onValueChange={(value) => setBasicInfo({ ...basicInfo, country_code: value })}
                     >
-                      <SelectTrigger className="w-32 border-0 outline-none rounded-r-none border-r-0">
+                      <SelectTrigger className="w-24 sm:w-32 border-0 outline-none h-10 sm:h-11 text-sm sm:text-base">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white max-h-60 z-50">
                         {countryCodes.map((item, index) => (
-                          <SelectItem key={`${item.code}-${index}-${item.country}`} value={item.code}>
+                          <SelectItem key={`${item.code}-${index}-${item.country}`} value={item.code} className="text-sm">
                             <div className="flex items-center gap-2">
                               {item.flag && (
                                 <span className="text-sm">{item.flag}</span>
@@ -444,7 +444,7 @@ const OnboardingFlow = () => {
                       value={basicInfo.phone}
                       onChange={(e) => setBasicInfo({ ...basicInfo, phone: e.target.value })}
                       placeholder="8976765451"
-                      className="border-0 outline-none"
+                      className="flex-1 border-0 outline-none h-10 sm:h-11 text-sm sm:text-base"
                     />
                   </div>
                 </div>
@@ -452,18 +452,18 @@ const OnboardingFlow = () => {
             ) : currentUserType === 'team' ? (
               <>
                 <div className="space-y-2 text-start">
-                  <Label htmlFor="team_name" className="text-gray-500 font-medium">Team Name *</Label>
+                  <Label htmlFor="team_name" className="text-gray-500 font-medium text-xs sm:text-sm">Team Name *</Label>
                   <Input
                     id="team_name"
                     value={teamInfo.team_name}
                     onChange={(e) => setTeamInfo({ ...teamInfo, team_name: e.target.value })}
                     placeholder="Enter your team name"
-                    className="outline-none border-0"
+                    className="outline-none border-0 h-10 sm:h-11 text-sm sm:text-base"
                   />
                 </div>
 
                 <div className="space-y-2 text-start">
-                  <Label className="text-gray-500 font-medium">Sport *</Label>
+                  <Label className="text-gray-500 font-medium text-xs sm:text-sm">Sport *</Label>
                   <Select
                     value={teamInfo.sport_type}
                     onValueChange={(value) => {
@@ -472,7 +472,7 @@ const OnboardingFlow = () => {
                       }
                     }}
                   >
-                    <SelectTrigger className="bg-white border-0">
+                    <SelectTrigger className="bg-white border-0 h-10 sm:h-11 text-sm sm:text-base">
                       <SelectValue placeholder="Select sport" />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
@@ -482,6 +482,7 @@ const OnboardingFlow = () => {
                           <SelectItem
                             key={sport.id}
                             value={sport.value as AllowedSportType}
+                            className="text-sm"
                           >
                             {sport.label}
                           </SelectItem>
@@ -490,39 +491,39 @@ const OnboardingFlow = () => {
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="year_founded" className="text-gray-700 font-medium">Year Founded</Label>
+                    <Label htmlFor="year_founded" className="text-gray-700 font-medium text-xs sm:text-sm">Year Founded</Label>
                     <Input
                       id="year_founded"
                       type="number"
                       value={teamInfo.year_founded}
                       onChange={(e) => setTeamInfo({ ...teamInfo, year_founded: e.target.value })}
                       placeholder="e.g. 1990"
-                      className="bg-white border-gray-300"
+                      className="bg-white border-gray-300 h-10 sm:h-11 text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-2 text-start">
-                    <Label htmlFor="league" className="text-gray-700 font-medium">League</Label>
+                    <Label htmlFor="league" className="text-gray-700 font-medium text-xs sm:text-sm">League</Label>
                     <LeagueSelect
                       value={teamInfo.league}
                       onValueChange={(value) => setTeamInfo({ ...teamInfo, league: value })}
                       leagues={sportData.leagues}
                       placeholder="Select league"
-                      triggerClassName="outline-none border-0"
+                      triggerClassName="outline-none border-0 h-10 sm:h-11 text-sm sm:text-base"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2 text-start">
-                  <Label htmlFor="description" className="text-gray-700 font-medium">Team Description</Label>
+                  <Label htmlFor="description" className="text-gray-700 font-medium text-xs sm:text-sm">Team Description</Label>
                   <Textarea
                     id="description"
                     value={teamInfo.description}
                     onChange={(e) => setTeamInfo({ ...teamInfo, description: e.target.value })}
                     placeholder="Tell us about your team..."
                     rows={3}
-                    className="outline-none border-0"
+                    className="outline-none border-0 text-sm sm:text-base"
                     required
                   />
                 </div>
@@ -530,18 +531,18 @@ const OnboardingFlow = () => {
             ) : (
               <>
                 <div className="space-y-2 text-start">
-                  <Label htmlFor="agency_name" className="text-gray-500 font-medium">Agency Name *</Label>
+                  <Label htmlFor="agency_name" className="text-gray-500 font-medium text-xs sm:text-sm">Agency Name *</Label>
                   <Input
                     id="agency_name"
                     value={agentInfo.agency_name}
                     onChange={(e) => setAgentInfo({ ...agentInfo, agency_name: e.target.value })}
                     placeholder="Enter your agency name"
-                    className="outline-none border-0"
+                    className="outline-none border-0 h-10 sm:h-11 text-sm sm:text-base"
                   />
                 </div>
 
                 <div className="space-y-2 text-start">
-                  <Label className="text-gray-500 font-medium">Sports Specialization *</Label>
+                  <Label className="text-gray-500 font-medium text-xs sm:text-sm">Sports Specialization *</Label>
                   <Select
                     value={agentInfo.specialization}
                     onValueChange={(value) => {
@@ -550,7 +551,7 @@ const OnboardingFlow = () => {
                       }
                     }}
                   >
-                    <SelectTrigger className="bg-white outline-none border-0">
+                    <SelectTrigger className="bg-white outline-none border-0 h-10 sm:h-11 text-sm sm:text-base">
                       <SelectValue placeholder="Select your specialization" />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
@@ -560,6 +561,7 @@ const OnboardingFlow = () => {
                           <SelectItem
                             key={sport.id}
                             value={sport.value as AllowedSportType}
+                            className="text-sm"
                           >
                             {sport.label}
                           </SelectItem>
@@ -567,15 +569,15 @@ const OnboardingFlow = () => {
                     </SelectContent>
                   </Select>
                   {requiresFifaId(agentInfo.specialization) && (
-                    <p className="text-sm text-red-600 mt-1">
+                    <p className="text-xs sm:text-sm text-red-600 mt-1">
                       FIFA ID required for football agents
                     </p>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2 text-start">
-                    <Label htmlFor="fifa_id" className="text-gray-500 font-medium">
+                    <Label htmlFor="fifa_id" className="text-gray-500 font-medium text-xs sm:text-sm">
                       FIFA ID {requiresFifaId(agentInfo.specialization) && '*'}
                     </Label>
                     <Input
@@ -583,41 +585,41 @@ const OnboardingFlow = () => {
                       value={agentInfo.fifa_id}
                       onChange={(e) => setAgentInfo({ ...agentInfo, fifa_id: e.target.value })}
                       placeholder="FIFA ID"
-                      className="outline-none border-0"
+                      className="outline-none border-0 h-10 sm:h-11 text-sm sm:text-base"
                     />
                   </div>
                   <div className="space-y-2 text-start">
-                    <Label htmlFor="license_number" className="text-gray-500 font-medium">License Number</Label>
+                    <Label htmlFor="license_number" className="text-gray-500 font-medium text-xs sm:text-sm">License Number</Label>
                     <Input
                       id="license_number"
                       value={agentInfo.license_number}
                       onChange={(e) => setAgentInfo({ ...agentInfo, license_number: e.target.value })}
                       placeholder="License number"
-                      className="outline-none border-0"
+                      className="outline-none border-0 h-10 sm:h-11 text-sm sm:text-base"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2 text-start">
-                  <Label htmlFor="bio" className="text-gray-500 font-medium">Professional Bio</Label>
+                  <Label htmlFor="bio" className="text-gray-500 font-medium text-xs sm:text-sm">Professional Bio</Label>
                   <Textarea
                     id="bio"
                     value={agentInfo.bio}
                     onChange={(e) => setAgentInfo({ ...agentInfo, bio: e.target.value })}
                     placeholder="Tell us about your professional experience..."
                     rows={3}
-                    className="outline-none border-0"
+                    className="outline-none border-0 text-sm sm:text-base"
                   />
                 </div>
 
                 <div className="space-y-2 text-start">
-                  <Label htmlFor="website" className="text-gray-500 font-medium">Website</Label>
+                  <Label htmlFor="website" className="text-gray-500 font-medium text-xs sm:text-sm">Website</Label>
                   <Input
                     id="website"
                     value={agentInfo.website}
                     onChange={(e) => setAgentInfo({ ...agentInfo, website: e.target.value })}
                     placeholder="https://your-website.com"
-                    className="outline-none border-0"
+                    className="outline-none border-0 h-10 sm:h-11 text-sm sm:text-base"
                   />
                 </div>
               </>
@@ -625,24 +627,24 @@ const OnboardingFlow = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-between mt-8">
+          <div className="flex flex-col sm:flex-row justify-between gap-3 mt-6 sm:mt-8">
             {step > 1 ? (
               <Button
                 variant="outline"
                 onClick={() => setStep(step - 1)}
-                className="flex items-center gap-2 outline-none border-0 "
+                className="flex items-center justify-center gap-2 outline-none border-0 h-10 sm:h-11 text-sm sm:text-base w-full sm:w-auto"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                 Back
               </Button>
             ) : (
-              <div></div>
+              <div className="hidden sm:block"></div>
             )}
 
             <Button
               onClick={step === 1 ? handleBasicInfoSubmit : handleFinalSubmit}
               disabled={loading || (step === 1 && (!basicInfo.full_name || !basicInfo.country))}
-              className=" px-8"
+              className="px-6 sm:px-8 h-10 sm:h-11 text-sm sm:text-base w-full sm:w-auto"
             >
               {step === totalSteps ? 'Complete Setup' : 'Next'}
             </Button>

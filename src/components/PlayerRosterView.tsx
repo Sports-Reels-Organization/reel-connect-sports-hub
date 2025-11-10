@@ -111,74 +111,76 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
   if (viewMode === 'table') {
     return (
       <Card className="border-gray-700">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-white font-polysans">Team Roster</CardTitle>
-            <div className="flex gap-2">
+        <CardHeader className="p-3 sm:p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <CardTitle className="text-white font-polysans text-base sm:text-lg">Team Roster</CardTitle>
+            <div className="flex gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="text-white border-gray-600"
+                className="text-white border-gray-600 flex-1 sm:flex-initial text-xs sm:text-sm h-9 sm:h-10"
               >
-                <Grid className="h-4 w-4 mr-1" />
-                Grid View
+                <Grid className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                <span className="hidden sm:inline">Grid View</span>
+                <span className="sm:hidden">Grid</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setViewMode('table')}
-                className="bg-rosegold text-white"
+                className="bg-rosegold text-white flex-1 sm:flex-initial text-xs sm:text-sm h-9 sm:h-10"
               >
-                <List className="h-4 w-4 mr-1" />
-                Table View
+                <List className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                <span className="hidden sm:inline">Table View</span>
+                <span className="sm:hidden">Table</span>
               </Button>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="p-3 sm:p-4 md:p-6 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead
-                  className="text-white cursor-pointer hover:text-rosegold"
+                  className="text-white cursor-pointer hover:text-rosegold text-xs sm:text-sm"
                   onClick={() => handleSort('full_name')}
                 >
                   Player {sortBy === 'full_name' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
                 <TableHead
-                  className="text-white cursor-pointer hover:text-rosegold"
+                  className="text-white cursor-pointer hover:text-rosegold text-xs sm:text-sm"
                   onClick={() => handleSort('position')}
                 >
                   Position {sortBy === 'position' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
                 <TableHead
-                  className="text-white cursor-pointer hover:text-rosegold"
+                  className="text-white cursor-pointer hover:text-rosegold text-xs sm:text-sm"
                   onClick={() => handleSort('age')}
                 >
                   Age {sortBy === 'age' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
                 <TableHead
-                  className="text-white cursor-pointer hover:text-rosegold"
+                  className="text-white cursor-pointer hover:text-rosegold text-xs sm:text-sm hidden md:table-cell"
                   onClick={() => handleSort('citizenship')}
                 >
                   Nationality {sortBy === 'citizenship' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
                 <TableHead
-                  className="text-white cursor-pointer hover:text-rosegold"
+                  className="text-white cursor-pointer hover:text-rosegold text-xs sm:text-sm hidden lg:table-cell"
                   onClick={() => handleSort('contract_expires')}
                 >
-                  Contract Expiry {sortBy === 'contract_expires' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  Contract {sortBy === 'contract_expires' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
                 <TableHead
-                  className="text-white cursor-pointer hover:text-rosegold"
+                  className="text-white cursor-pointer hover:text-rosegold text-xs sm:text-sm hidden lg:table-cell"
                   onClick={() => handleSort('market_value')}
                 >
-                  Market Value {sortBy === 'market_value' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  Value {sortBy === 'market_value' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </TableHead>
-                <TableHead className="text-white">Tags</TableHead>
-                <TableHead className="text-white">Actions</TableHead>
+                <TableHead className="text-white text-xs sm:text-sm hidden xl:table-cell">Tags</TableHead>
+                <TableHead className="text-white text-xs sm:text-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -188,37 +190,37 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                 return (
                   <TableRow key={player.id} className="hover:bg-gray-800">
                     <TableCell className="text-white">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0">
                           <AvatarImage src={player.headshot_url || player.photo_url || ''} />
-                          <AvatarFallback className="bg-rosegold text-white text-xs">
+                          <AvatarFallback className="bg-rosegold text-white text-[10px] sm:text-xs">
                             {player.full_name?.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <div className="font-semibold">{player.full_name}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-xs sm:text-sm truncate">{player.full_name}</div>
                           {player.jersey_number && (
-                            <div className="text-xs text-gray-400">#{player.jersey_number}</div>
+                            <div className="text-[10px] sm:text-xs text-gray-400">#{player.jersey_number}</div>
                           )}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-white">{player.position}</TableCell>
-                    <TableCell className="text-white">{player.age || '-'}</TableCell>
-                    <TableCell className="text-white">{player.citizenship}</TableCell>
-                    <TableCell className="text-white">
+                    <TableCell className="text-white text-xs sm:text-sm">{player.position}</TableCell>
+                    <TableCell className="text-white text-xs sm:text-sm">{player.age || '-'}</TableCell>
+                    <TableCell className="text-white text-xs sm:text-sm hidden md:table-cell truncate">{player.citizenship}</TableCell>
+                    <TableCell className="text-white text-xs sm:text-sm hidden lg:table-cell">
                       {player.contract_expires
-                        ? new Date(player.contract_expires).toLocaleDateString()
+                        ? new Date(player.contract_expires).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
                         : '-'
                       }
                     </TableCell>
-                    <TableCell className="text-white">
+                    <TableCell className="text-white text-xs sm:text-sm hidden lg:table-cell">
                       {player.market_value
-                        ? `$${player.market_value.toLocaleString()}`
+                        ? `$${(player.market_value / 1000).toFixed(0)}k`
                         : '-'
                       }
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden xl:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {/* Custom Tags */}
                         {customTags.map((tag) => (
@@ -226,7 +228,7 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
                         ))}
                         {/* System Tags */}
                         {systemTags.slice(0, 2).map((tag, index) => (
-                          <Badge key={index} className={`${tag.color} text-white text-xs`}>
+                          <Badge key={index} className={`${tag.color} text-white text-[10px] px-1.5`}>
                             {tag.label}
                           </Badge>
                         ))}
@@ -298,75 +300,77 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
 
   return (
     <Card className="border-gray-700">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-white font-polysans">Team Roster</CardTitle>
-          <div className="flex gap-2">
+      <CardHeader className="p-3 sm:p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <CardTitle className="text-white font-polysans text-base sm:text-lg">Team Roster</CardTitle>
+          <div className="flex gap-2 w-full sm:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setViewMode('grid')}
-              className="bg-rosegold text-white"
+              className="bg-rosegold text-white flex-1 sm:flex-initial text-xs sm:text-sm h-9 sm:h-10"
             >
-              <Grid className="h-4 w-4 mr-1" />
-              Grid View
+              <Grid className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              <span className="hidden sm:inline">Grid View</span>
+              <span className="sm:hidden">Grid</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setViewMode('table')}
-              className="text-white border-gray-600"
+              className="text-white border-gray-600 flex-1 sm:flex-initial text-xs sm:text-sm h-9 sm:h-10"
             >
-              <List className="h-4 w-4 mr-1" />
-              Table View
+              <List className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              <span className="hidden sm:inline">Table View</span>
+              <span className="sm:hidden">Table</span>
             </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <CardContent className="p-3 sm:p-4 md:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           {sortedPlayers.map((player) => {
             const systemTags = getPlayerTags_Original(player);
             const customTags = getPlayerTags(player.id);
             return (
               <Card key={player.id} className="bg-gray-800 border-gray-700 hover:border-rosegold transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Avatar className="h-12 w-12">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                       <AvatarImage src={player.headshot_url || player.photo_url || ''} />
-                      <AvatarFallback className="bg-rosegold text-white">
+                      <AvatarFallback className="bg-rosegold text-white text-xs sm:text-sm">
                         {player.full_name?.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-white font-semibold text-sm">{player.full_name}</h3>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1 sm:gap-2 mb-0.5 sm:mb-1">
+                        <h3 className="text-white font-semibold text-xs sm:text-sm truncate">{player.full_name}</h3>
                         {player.status === 'transferred' && (
-                          <Badge className="bg-red-600 text-white text-xs px-1.5 py-0.5">
+                          <Badge className="bg-red-600 text-white text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 flex-shrink-0">
                             TRANSFERRED
                           </Badge>
                         )}
                       </div>
-                      <p className="text-gray-400 text-xs">{player.position}</p>
+                      <p className="text-gray-400 text-[10px] sm:text-xs truncate">{player.position}</p>
                       {player.jersey_number && (
-                        <p className="text-rosegold text-xs">#{player.jersey_number}</p>
+                        <p className="text-rosegold text-[10px] sm:text-xs">#{player.jersey_number}</p>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-2 text-xs text-gray-300">
+                  <div className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-xs text-gray-300">
                     <div className="flex justify-between">
                       <span>Age:</span>
                       <span>{player.age || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Nationality:</span>
-                      <span>{player.citizenship}</span>
+                      <span className="truncate ml-2">{player.citizenship}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Market Value:</span>
-                      <span>{player.market_value ? `$${player.market_value.toLocaleString()}` : '-'}</span>
+                      <span>{player.market_value ? `$${(player.market_value / 1000).toFixed(0)}k` : '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Contract:</span>
@@ -381,45 +385,45 @@ const PlayerRosterView: React.FC<PlayerRosterViewProps> = ({
 
                   {/* Player Tags */}
                   {(customTags.length > 0 || systemTags.length > 0) && (
-                    <div className="flex flex-wrap gap-1 mt-3">
+                    <div className="flex flex-wrap gap-1 mt-2 sm:mt-3">
                       {/* Custom Tags First */}
                       {customTags.map((tag) => (
                         <TagBadge key={tag.id} tag={tag} />
                       ))}
                       {/* System Tags */}
                       {systemTags.map((tag, index) => (
-                        <Badge key={index} className={`${tag.color} text-white text-xs`}>
+                        <Badge key={index} className={`${tag.color} text-white text-[9px] sm:text-[10px] px-1.5`}>
                           {tag.label}
                         </Badge>
                       ))}
                     </div>
                   )}
 
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex gap-1.5 sm:gap-2 mt-3 sm:mt-4">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleViewPlayer(player)}
-                      className="flex-1 text-white border-gray-600 hover:bg-rosegold"
+                      className="flex-1 text-white border-gray-600 hover:bg-rosegold text-[10px] sm:text-xs h-8 sm:h-9 px-2"
                     >
-                      <Eye className="h-3 w-3 mr-1" />
+                      <Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                       View
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => onEditPlayer(player)}
-                      className="text-white border-gray-600 hover:bg-rosegold"
+                      className="text-white border-gray-600 hover:bg-rosegold text-[10px] sm:text-xs h-8 sm:h-9 px-2"
                     >
-                      <Edit className="h-3 w-3" />
+                      <Edit className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setSelectedPlayerForTags(player.id)}
-                      className="text-white border-gray-600 hover:bg-bright-pink"
+                      className="text-white border-gray-600 hover:bg-bright-pink text-[10px] sm:text-xs h-8 sm:h-9 px-2"
                     >
-                      <Tag className="h-3 w-3" />
+                      <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                     </Button>
                   </div>
                 </CardContent>

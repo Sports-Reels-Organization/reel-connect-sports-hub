@@ -106,22 +106,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex bg-background">
+      <div className="min-h-screen w-full flex bg-background overflow-x-hidden">
         <AppSidebar />
-        <SidebarInset className="flex-1">
-          <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-0 bg-[#141414] px-4">
-            <div className="flex items-center gap-2">
+        <SidebarInset className="flex-1 min-w-0">
+          <header className="flex h-14 sm:h-16 shrink-0 items-center justify-between gap-2 sm:gap-4 border-0 bg-[#141414] px-2 sm:px-4">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               <SidebarTrigger className="-ml-1" />
             </div>
 
             {/* Search Bar */}
-            <div className="flex-1 max-w-md">
+            <div className="flex-1 max-w-md min-w-0 hidden sm:block">
               <form onSubmit={handleSearch} className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="Search players, teams, contracts..."
-                  className="pl-10 pr-4"
+                  className="pl-10 pr-4 text-sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -129,29 +129,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
 
             {/* Right Side Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
               {/* Language Selector */}
-              <GoogleLanguageSelector 
-                variant="popover" 
-                showFlag={true} 
-                showNativeName={false}
-                showModeToggle={true}
-                size="sm"
-                className="text-muted-foreground hover:text-foreground"
-              />
+              <div className="hidden md:block">
+                <GoogleLanguageSelector 
+                  variant="popover" 
+                  showFlag={true} 
+                  showNativeName={false}
+                  showModeToggle={true}
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                />
+              </div>
 
               {/* Notifications */}
               <Button
                 variant="ghost"
                 size="sm"
-                className="relative"
+                className="relative p-2"
                 onClick={handleNotificationClick}
               >
-                <Bell className="h-5 w-5" />
+                <Bell className="h-4 h-4 sm:h-5 sm:w-5" />
                 {unreadCount > 0 && (
                   <Badge
                     variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                    className="absolute -top-1 -right-1 h-4 w-4 sm:h-5 sm:w-5 rounded-full p-0 flex items-center justify-center text-[10px] sm:text-xs"
                   >
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </Badge>
@@ -171,15 +173,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 variant="ghost"
                 size="sm"
                 onClick={handleSignOut}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground p-2"
               >
-                <LogOut className="h-4 w-4 mr-2" />
-                <TranslatedText>Sign Out</TranslatedText>
+                <LogOut className="h-4 h-4 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">
+                  <TranslatedText>Sign Out</TranslatedText>
+                </span>
               </Button>
             </div>
           </header>
 
-          <main className="flex-1 p-4">
+          <main className="flex-1 p-2 sm:p-4 overflow-x-hidden">
             {children}
           </main>
         </SidebarInset>

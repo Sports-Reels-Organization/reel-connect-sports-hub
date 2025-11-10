@@ -66,8 +66,10 @@ const TransferTimeline = () => {
   const [pitches, setPitches] = useState<TimelinePitch[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSport, setSelectedSport] = useState<string>('all');
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
+  const [teamSportType, setTeamSportType] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState<string | null>(null);
+  const [teamLoaded, setTeamLoaded] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPitchForEdit, setSelectedPitchForEdit] = useState<TimelinePitch | null>(null);
 
@@ -97,8 +99,42 @@ const TransferTimeline = () => {
   };
 
   useEffect(() => {
+    if (!profile?.id) return;
+
+    const fetchTeamDetails = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('id, sport_type')
+          .eq('profile_id', profile.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching team details:', error);
+        }
+
+        setTeamId(data?.id ?? null);
+        setTeamSportType(data?.sport_type ?? null);
+      } catch (error) {
+        console.error('Unexpected error fetching team details:', error);
+      } finally {
+        setTeamLoaded(true);
+      }
+    };
+
+    fetchTeamDetails();
+  }, [profile?.id]);
+
+  useEffect(() => {
+    if (!teamLoaded) return;
     fetchPitches(currentPage);
-  }, [currentPage]);
+  }, [currentPage, teamLoaded, teamSportType]);
+
+  useEffect(() => {
+    if (!teamSportType) return;
+    setCurrentPage(1);
+    setSelectedTeam('all');
+  }, [teamSportType]);
 
   // Listen for immediate updates from agent actions
   useEffect(() => {
@@ -151,18 +187,52 @@ const TransferTimeline = () => {
   }, [profile?.user_id, profile?.user_type, profile?.id, toast]);
 
 
-  const fetchPitches = async (page = 1) => {
+  const fetchPitches = async (page = currentPage) => {
+    if (!teamLoaded) return;
+
+    if (!teamSportType && !teamId) {
+      setPitches([]);
+      setTotalPitches(0);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
       const from = (page - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
+      const nowIso = new Date().toISOString();
+
+      let teamIds: string[] = [];
+
+      if (teamSportType) {
+        const { data: sportTeamsData, error: sportTeamsError } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('sport_type', teamSportType);
+
+        if (sportTeamsError) throw sportTeamsError;
+
+        teamIds = (sportTeamsData || []).map(team => team.id).filter((id): id is string => !!id);
+      } else if (teamId) {
+        teamIds = [teamId];
+      }
+
+      if (teamIds.length === 0) {
+        setPitches([]);
+        setTotalPitches(0);
+        setLoading(false);
+        return;
+      }
 
       // Get total count
       const { count } = await supabase
         .from('transfer_pitches')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .gt('expires_at', nowIso)
+        .in('team_id', teamIds);
 
       setTotalPitches(count || 0);
 
@@ -171,6 +241,8 @@ const TransferTimeline = () => {
         .from('transfer_pitches')
         .select('*')
         .eq('status', 'active')
+        .gt('expires_at', nowIso)
+        .in('team_id', teamIds)
         .order('created_at', { ascending: false })
         .range(from, to);
 
@@ -227,6 +299,10 @@ const TransferTimeline = () => {
             })
           );
 
+          if (teamSportType && teamData?.sport_type && teamData.sport_type !== teamSportType) {
+            return null;
+          }
+
           return {
             ...pitch,
             teams: teamData || {},
@@ -236,7 +312,11 @@ const TransferTimeline = () => {
         })
       );
 
-      setPitches(enrichedPitches);
+      const filteredPitchesBySport = enrichedPitches.filter(
+        (pitch): pitch is TimelinePitch => pitch !== null
+      );
+
+      setPitches(filteredPitchesBySport);
     } catch (error) {
       console.error('Error fetching pitches:', error);
       toast({
@@ -409,14 +489,13 @@ const TransferTimeline = () => {
   const filteredPitches = pitches.filter(pitch => {
     const matchesSearch = pitch.players.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pitch.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSport = selectedSport === 'all' || !selectedSport || pitch.teams.sport_type === selectedSport;
+    const matchesSport = !teamSportType || pitch.teams.sport_type === teamSportType;
     const matchesTeam = selectedTeam === 'all' || !selectedTeam || pitch.teams.id === selectedTeam;
 
     return matchesSearch && matchesSport && matchesTeam;
   });
 
   const availableTeams = Array.from(new Set(pitches.map(pitch => pitch.teams.id)));
-  const availableSports = Array.from(new Set(pitches.map(pitch => pitch.teams.sport_type).filter(Boolean)));
 
   const processedPitches = filteredPitches.filter(pitch =>
     pitch.teams && pitch.players
@@ -437,34 +516,27 @@ const TransferTimeline = () => {
 
       {/* Filters */}
       <Card className="border-0">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="relative sm:col-span-2 lg:col-span-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search players or descriptions..."
+                placeholder="Search players..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-gray-600 bg-gray-800 text-white"
+                className="pl-10 border-gray-600 bg-gray-800 text-white text-sm"
               />
             </div>
 
-            <Select value={selectedSport} onValueChange={setSelectedSport}>
-              <SelectTrigger className="border-gray-600 bg-gray-800 text-white">
-                <SelectValue placeholder="All Sports" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="all" className="text-white">All Sports</SelectItem>
-                {availableSports.map(sport => (
-                  <SelectItem key={sport} value={sport} className="text-white">
-                    {sport}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="border border-gray-600 bg-gray-800 text-white rounded-md px-3 py-2 flex flex-col justify-center">
+              <span className="text-[10px] sm:text-xs uppercase text-gray-400 tracking-wide">Sport</span>
+              <span className="text-sm sm:text-base font-medium truncate">
+                {teamSportType || 'Not set'}
+              </span>
+            </div>
 
             <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-              <SelectTrigger className="border-gray-600 bg-gray-800 text-white">
+              <SelectTrigger className="border-gray-600 bg-gray-800 text-white text-sm">
                 <SelectValue placeholder="All Teams" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-600">
@@ -484,13 +556,13 @@ const TransferTimeline = () => {
               variant="outline"
               onClick={() => {
                 setSearchTerm('');
-                setSelectedSport('all');
                 setSelectedTeam('all');
               }}
-              className="border-gray-600 text-white"
+              className="border-gray-600 text-white text-sm"
             >
               <Filter className="w-4 h-4 mr-2" />
-              Clear Filters
+              <span className="hidden sm:inline">Clear Filters</span>
+              <span className="sm:hidden">Clear</span>
             </Button>
           </div>
         </CardContent>
@@ -510,7 +582,7 @@ const TransferTimeline = () => {
               No pitches found
             </h3>
             <p className="text-gray-400">
-              {searchTerm || (selectedSport !== 'all') || (selectedTeam !== 'all')
+              {searchTerm || (selectedTeam !== 'all')
                 ? 'Try adjusting your filters'
                 : 'No transfer pitches available at the moment.'
               }
@@ -518,99 +590,105 @@ const TransferTimeline = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {processedPitches.map((pitch) => (
             <Card key={pitch.id} className="border-0 hover:border-rosegold/30 transition-colors">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    {pitch.players.photo_url && (
+              <CardHeader className="pb-2 p-3 sm:p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {pitch.players.photo_url ? (
                       <img
                         src={pitch.players.photo_url}
                         alt={pitch.players.full_name}
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover flex-shrink-0"
                       />
+                    ) : (
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-rosegold to-purple-600 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-sm sm:text-base">
+                          {pitch.players.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </span>
+                      </div>
                     )}
-                    <div>
-                      <h3 className="font-semibold text-white">{pitch.players.full_name}</h3>
-                      <p className="text-sm text-gray-400">{pitch.players.position}</p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-white text-sm sm:text-base leading-tight break-words">{pitch.players.full_name}</h3>
+                      <p className="text-xs sm:text-sm text-gray-400 truncate">{pitch.players.position}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Badge variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'}>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <Badge variant={pitch.transfer_type === 'permanent' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs px-1.5">
                       {pitch.transfer_type}
                     </Badge>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5">
                       {pitch.status}
                     </Badge>
                   </div>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-2.5 p-3 sm:p-4">
                 {/* Team Info */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   {pitch.teams.logo_url && (
                     <img
                       src={pitch.teams.logo_url}
                       alt={pitch.teams.team_name}
-                      className="w-8 h-8 rounded-full"
+                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex-shrink-0"
                     />
                   )}
-                  <div>
-                    <p className="font-medium text-white">{pitch.teams.team_name}</p>
-                    <p className="text-sm text-gray-400">{pitch.teams.country}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-white text-xs sm:text-sm truncate leading-tight">{pitch.teams.team_name}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-400 truncate">{pitch.teams.country}</p>
                   </div>
                 </div>
 
                 {/* Price */}
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-green-400" />
-                  <span className="text-white font-semibold">
-                    {pitch.asking_price.toLocaleString()} {pitch.currency}
+                  <DollarSign className="w-4 h-4 text-green-400 flex-shrink-0" />
+                  <span className="text-white font-semibold text-xs sm:text-sm truncate">
+                    {new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(pitch.asking_price)} {pitch.currency}
                   </span>
                 </div>
 
                 {/* Description */}
-                <p className="text-gray-300 text-sm line-clamp-3">
+                <p className="text-gray-300 text-[10px] sm:text-xs line-clamp-2 leading-tight">
                   {pitch.description}
                 </p>
 
                 {/* Stats */}
-                <div className="flex items-center justify-between text-sm text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <Eye className="w-4 h-4" />
-                    {pitch.view_count} views
+                <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-400 gap-2">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <Eye className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="truncate">{pitch.view_count}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <MessageSquare className="w-4 h-4" />
-                    {pitch.agent_interest?.length || 0} interests
+                  <div className="flex items-center gap-1 min-w-0">
+                    <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="truncate">{pitch.agent_interest?.length || 0}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}
+                  <div className="flex items-center gap-1 min-w-0">
+                    <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="truncate text-[9px] sm:text-[10px] leading-tight">{formatDistanceToNow(new Date(pitch.expires_at), { addSuffix: true })}</span>
                   </div>
                 </div>
 
                 {/* Agent Interest Display */}
                 {pitch.agent_interest && pitch.agent_interest.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-400">Interested Agents:</p>
-                    {pitch.agent_interest.slice(0, 3).map((interest) => (
-                      <div key={interest.id} className="flex items-center gap-2 text-sm">
-                        <Users className="w-4 h-4 text-blue-400" />
-                        <span className="text-white">
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-400">Interested Agents:</p>
+                    {pitch.agent_interest.slice(0, 2).map((interest) => (
+                      <div key={interest.id} className="flex items-center gap-1.5 text-xs">
+                        <Users className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                        <span className="text-white truncate flex-1">
                           {interest.agent?.profile?.full_name || `Agent #${interest.agent_id.slice(0, 8)}`}
                         </span>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1 flex-shrink-0">
                           {interest.status}
                         </Badge>
                       </div>
                     ))}
-                    {pitch.agent_interest.length > 3 && (
-                      <p className="text-xs text-gray-500">
-                        +{pitch.agent_interest.length - 3} more
+                    {pitch.agent_interest.length > 2 && (
+                      <p className="text-[10px] text-gray-500">
+                        +{pitch.agent_interest.length - 2} more
                       </p>
                     )}
                   </div>
@@ -625,18 +703,18 @@ const TransferTimeline = () => {
                         setShowInterestModal(true);
                       }}
                       variant="outline"
-                      className="flex-1 border-gray-600 text-white hover:border-rosegold"
+                      className="flex-1 border-gray-600 text-white hover:border-rosegold text-xs py-2"
                       disabled={hasExpressedInterest(pitch)}
                     >
                       {hasExpressedInterest(pitch) ? (
                         <>
-                          <CheckCircle className="w-4 h-4 mr-2 text-green-400" />
-                          Interest Expressed
+                          <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 text-green-400 flex-shrink-0" />
+                          <span className="truncate">Interested</span>
                         </>
                       ) : (
                         <>
-                          <Heart className="w-4 h-4 mr-2" />
-                          Express Interest
+                          <Heart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                          <span className="truncate">Interest</span>
                         </>
                       )}
                     </Button>
@@ -649,17 +727,17 @@ const TransferTimeline = () => {
                         onClick={() => handleEditPitch(pitch)}
                         variant="outline"
                         size="sm"
-                        className="border-gray-600 text-white"
+                        className="border-gray-600 text-white p-2"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                       </Button>
                       <Button
                         onClick={() => handleDeletePitch(pitch.id)}
                         variant="outline"
                         size="sm"
-                        className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                        className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white p-2"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3 h-3 sm:w-4 sm:h-4" />
                       </Button>
                     </>
                   )}
@@ -672,19 +750,21 @@ const TransferTimeline = () => {
 
       {/* Pagination Controls */}
       {totalPitches > itemsPerPage && (
-        <div className="mt-8 flex items-center justify-between">
-          <div className="text-sm text-gray-400">
+        <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-xs sm:text-sm text-gray-400 order-2 sm:order-1">
             Showing {startIndex} to {endIndex} of {totalPitches} pitches
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 order-1 sm:order-2">
             <Button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
               variant="outline"
-              className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+              size="sm"
+              className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 text-xs sm:text-sm px-2 sm:px-4"
             >
-              Previous
+              <span className="hidden sm:inline">Previous</span>
+              <span className="sm:hidden">Prev</span>
             </Button>
 
             <div className="flex items-center gap-1">
@@ -705,7 +785,8 @@ const TransferTimeline = () => {
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
                     variant={currentPage === pageNum ? "default" : "outline"}
-                    className={`w-8 h-8 p-0 ${currentPage === pageNum
+                    size="sm"
+                    className={`w-7 h-7 sm:w-8 sm:h-8 p-0 text-xs sm:text-sm ${currentPage === pageNum
                         ? "bg-blue-600 hover:bg-blue-700 text-white"
                         : "border-gray-600 text-white hover:bg-gray-700"
                       }`}
@@ -720,7 +801,8 @@ const TransferTimeline = () => {
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
               variant="outline"
-              className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+              size="sm"
+              className="border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 text-xs sm:text-sm px-2 sm:px-4"
             >
               Next
             </Button>

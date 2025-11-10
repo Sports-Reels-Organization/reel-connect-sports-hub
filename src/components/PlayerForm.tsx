@@ -433,54 +433,56 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
 
   return (
     <Card className="w-full max-w-6xl mx-auto bg-[#1a1a1a] border-0">
-      <CardHeader>
-        <CardTitle className="text-white font-polysans flex items-center gap-2">
+      <CardHeader className="p-3 sm:p-4 md:p-6">
+        <CardTitle className="text-white font-polysans flex flex-wrap items-center gap-2 text-base sm:text-lg md:text-xl">
           <span>{getSportIcon(teamSport)}</span>
           {player ? 'Edit Player Profile' : 'Add New Player'}
           {teamSport && (
-            <Badge variant="outline" className="ml-2 text-rosegold border-rosegold">
+            <Badge variant="outline" className="ml-0 sm:ml-2 text-rosegold border-rosegold text-xs sm:text-sm">
               {getSportDisplayName(teamSport)}
             </Badge>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 bg-card border-0">
+      <CardContent className="p-3 sm:p-4 md:p-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-card border-0 gap-1 p-1 h-auto">
               <TabsTrigger
                 value="basic"
-                className="data-[state=active]:bg-rosegold data-[state=active]:text-white"
+                className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-xs sm:text-sm px-2 py-2 min-h-[44px]"
               >
-                <Users className="w-4 h-4 mr-2" />
-                Basic Info
+                <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <span className="hidden sm:inline">Basic Info</span>
+                <span className="sm:hidden">Basic</span>
               </TabsTrigger>
               <TabsTrigger
                 value="career"
-                className="data-[state=active]:bg-rosegold data-[state=active]:text-white"
+                className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-xs sm:text-sm px-2 py-2 min-h-[44px]"
               >
-                <Trophy className="w-4 h-4 mr-2" />
+                <Trophy className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                 Career
               </TabsTrigger>
               <TabsTrigger
                 value="international"
-                className="data-[state=active]:bg-rosegold data-[state=active]:text-white"
+                className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-xs sm:text-sm px-2 py-2 min-h-[44px]"
               >
-                <Flag className="w-4 h-4 mr-2" />
-                International
+                <Flag className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <span className="hidden sm:inline">International</span>
+                <span className="sm:hidden">Intl</span>
               </TabsTrigger>
               <TabsTrigger
                 value="media"
-                className="data-[state=active]:bg-rosegold data-[state=active]:text-white"
+                className="data-[state=active]:bg-rosegold data-[state=active]:text-white text-xs sm:text-sm px-2 py-2 min-h-[44px]"
               >
-                <Upload className="w-4 h-4 mr-2" />
+                <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                 Media
               </TabsTrigger>
             </TabsList>
 
             {/* Basic Information Tab */}
-            <TabsContent value="basic" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TabsContent value="basic" className="space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="full_name" className="text-white">Full Name *</Label>
                   <Input
@@ -686,12 +688,12 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bio" className="text-white">Player Bio</Label>
+                <Label htmlFor="bio" className="text-white text-sm sm:text-base">Player Bio</Label>
                 <Textarea
                   id="bio"
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  className="bg-[#111111] border-0 text-white resize-none"
+                  className="bg-[#111111] border-0 text-white resize-none text-sm sm:text-base"
                   placeholder="Brief description of the player's career and achievements..."
                   rows={3}
                 />
@@ -699,7 +701,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
             </TabsContent>
 
             {/* Career Tab */}
-            <TabsContent value="career" className="space-y-6">
+            <TabsContent value="career" className="space-y-4 sm:space-y-6">
               {/* Leagues Participated */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
@@ -782,11 +784,11 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
               {/* Transfer History */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-rosegold" />
-                  <Label className="text-white text-lg font-semibold">Transfer History</Label>
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-rosegold" />
+                  <Label className="text-white text-base sm:text-lg font-semibold">Transfer History</Label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3">
                   <Input
                     value={newTransfer.year}
                     onChange={(e) => setNewTransfer({ ...newTransfer, year: e.target.value })}
@@ -834,14 +836,14 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
             </TabsContent>
 
             {/* International Duty Tab */}
-            <TabsContent value="international" className="space-y-6">
+            <TabsContent value="international" className="space-y-4 sm:space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <Flag className="w-5 h-5 text-rosegold" />
-                  <Label className="text-white text-lg font-semibold">International Duty</Label>
+                  <Flag className="w-4 h-4 sm:w-5 sm:h-5 text-rosegold" />
+                  <Label className="text-white text-base sm:text-lg font-semibold">International Duty</Label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label className="text-white text-sm">Season *</Label>
                     <Input
@@ -982,8 +984,8 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
             </TabsContent>
 
             {/* Media Tab */}
-            <TabsContent value="media" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TabsContent value="media" className="space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
                 {/* Player Photo Upload */}
                 <div className="space-y-2">
                   <Label className="text-white">Player Photo</Label>
@@ -1220,11 +1222,11 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
             </TabsContent>
           </Tabs>
 
-          <div className="flex gap-4 pt-6 border-t border-gray-700">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-gray-700">
             <Button
               type="submit"
               disabled={loading}
-              className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans border-0"
+              className="bg-rosegold hover:bg-rosegold/90 text-white font-polysans border-0 w-full sm:w-auto text-sm sm:text-base h-10 sm:h-11"
             >
               {loading ? 'Saving...' : (player ? 'Update Player' : 'Add Player')}
             </Button>
@@ -1232,7 +1234,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
               type="button"
               onClick={onCancel}
               variant="outline"
-              className="border-0 text-gray-400 hover:bg-gray-700 hover:text-white"
+              className="border-0 text-gray-400 hover:bg-gray-700 hover:text-white w-full sm:w-auto text-sm sm:text-base h-10 sm:h-11"
             >
               Cancel
             </Button>
