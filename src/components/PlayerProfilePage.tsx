@@ -138,7 +138,7 @@ const PlayerProfilePage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
+      <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-7xl space-y-6 sm:space-y-8">
         {/* Enhanced Header with Hero Background */}
         <div className="relative rounded-2xl overflow-hidden shadow-2xl">
           {/* Background gradient */}
@@ -154,7 +154,7 @@ const PlayerProfilePage: React.FC = () => {
               {/* Enhanced Avatar */}
               <div className="relative group">
                 <div className="absolute -inset-4 bg-gradient-to-r from-bright-pink/30 to-rosegold/30 rounded-full blur-lg opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <Avatar className="relative w-32 h-32 lg:w-40 lg:h-40 border-0 shadow-2xl">
+                <Avatar className="relative w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 border-0 shadow-2xl">
                   <AvatarImage
                     src={player.profile_image}
                     alt={player.full_name}
@@ -167,9 +167,9 @@ const PlayerProfilePage: React.FC = () => {
               </div>
 
               {/* Enhanced Player Info */}
-              <div className="flex-1 text-center lg:text-left space-y-6">
+              <div className="flex-1 w-full text-center lg:text-left space-y-6">
                 <div>
-                  <h1 className="text-4xl lg:text-5xl font-bold text-white mb-3 bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-3 bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
                     {player.full_name}
                   </h1>
 
@@ -190,8 +190,8 @@ const PlayerProfilePage: React.FC = () => {
                     {player.team && (
                       <div className="flex items-center gap-2 text-gray-200 bg-white/5 backdrop-blur-sm rounded-full px-4 py-2 border-0">
                         {(player as any).teams?.logo_url ? (
-                          <img 
-                            src={(player as any).teams.logo_url} 
+                          <img
+                            src={(player as any).teams.logo_url}
                             alt={player.team}
                             className="w-4 h-4 rounded object-contain"
                           />
@@ -206,7 +206,7 @@ const PlayerProfilePage: React.FC = () => {
 
                 {/* Quick Stats */}
                 {(player.age || player.nationality) && (
-                  <div className="flex flex-wrap justify-center lg:justify-start gap-4">
+                  <div className="flex flex-wrap justify-center lg:justify-start gap-2 sm:gap-3">
                     {player.age && (
                       <div className="flex items-center gap-2 text-gray-200 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2">
                         <Calendar className="w-4 h-4 text-rosegold" />
@@ -227,7 +227,7 @@ const PlayerProfilePage: React.FC = () => {
         </div>
 
         {/* Enhanced Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {player.height && (
             <StatCard icon={Ruler} label="Height" value={player.height} />
           )}
@@ -253,8 +253,8 @@ const PlayerProfilePage: React.FC = () => {
                 Career Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className="p-5 sm:p-8 space-y-5 sm:space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 {player.current_club && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
@@ -263,8 +263,8 @@ const PlayerProfilePage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       {(player as any).teams?.logo_url && (
-                        <img 
-                          src={(player as any).teams.logo_url} 
+                        <img
+                          src={(player as any).teams.logo_url}
                           alt={player.current_club}
                           className="w-5 h-5 rounded object-contain"
                         />
@@ -311,8 +311,8 @@ const PlayerProfilePage: React.FC = () => {
 
           {/* Enhanced Videos Section */}
           <Card className="bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl rounded-2xl overflow-hidden hover:border-bright-pink/30 transition-colors duration-300">
-            <CardHeader className="bg-[#0c0c0c] border-0">
-              <CardTitle className="flex items-center gap-3 text-white text-xl">
+            <CardHeader className="bg-[#0c0c0c] border-0 px-5 sm:px-6 py-4">
+              <CardTitle className="flex items-center gap-3 text-white text-lg sm:text-xl">
                 <div className="p-2 rounded-lg bg-bright-pink/20">
                   <Play className="w-5 h-5 text-bright-pink" />
                 </div>
@@ -322,9 +322,9 @@ const PlayerProfilePage: React.FC = () => {
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-5 sm:p-6 space-y-4">
               {videosLoading ? (
-                <div className="space-y-3 max-h-64 overflow-y-auto">
+                <div className="space-y-3 max-h-72 overflow-y-auto">
                   {[1, 2].map((i) => (
                     <div key={i} className="animate-pulse flex gap-3">
                       <div className="w-32 h-20 bg-gray-700/50 rounded-lg flex-shrink-0"></div>
@@ -341,9 +341,9 @@ const PlayerProfilePage: React.FC = () => {
                     {videos.slice(0, 2).map((video) => (
                       <div
                         key={video.id}
-                        className="group flex gap-3 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl border-0 transition-all duration-300 overflow-hidden hover:shadow-lg hover:shadow-bright-pink/20 p-3"
+                        className="group flex flex-col sm:flex-row gap-3 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl border-0 transition-all duration-300 overflow-hidden hover:shadow-lg hover:shadow-bright-pink/20 p-3"
                       >
-                        <div className="w-32 h-20 bg-black rounded-lg relative overflow-hidden flex-shrink-0">
+                        <div className="w-full sm:w-32 h-44 sm:h-20 bg-black rounded-lg relative overflow-hidden flex-shrink-0">
                           <SmartThumbnail
                             thumbnailUrl={video.thumbnail_url}
                             title={video.title}
@@ -367,8 +367,8 @@ const PlayerProfilePage: React.FC = () => {
                               {video.team_name && (
                                 <span className="flex items-center gap-1.5">
                                   {video.team_logo_url ? (
-                                    <img 
-                                      src={video.team_logo_url} 
+                                    <img
+                                      src={video.team_logo_url}
                                       alt={video.team_name}
                                       className="w-4 h-4 rounded object-contain"
                                     />
@@ -384,10 +384,10 @@ const PlayerProfilePage: React.FC = () => {
                               </span>
                             </div>
                           </div>
-                          <div className="mt-auto pt-1">
+                          <div className="mt-auto pt-2 flex flex-col sm:flex-row sm:items-center sm:gap-2">
                             <Button
                               size="sm"
-                              className="bg-bright-pink hover:bg-bright-pink/90 text-white h-7 px-3 text-xs"
+                              className="bg-bright-pink hover:bg-bright-pink/90 text-white h-8 px-3 text-xs sm:text-sm w-full sm:w-auto"
                               onClick={() => handleVideoPlay(video)}
                             >
                               <Play className="w-3 h-3 mr-1" />
@@ -425,17 +425,17 @@ const PlayerProfilePage: React.FC = () => {
         {/* Enhanced Biography */}
         {player.bio && (
           <Card className="bg-gray-800/60 backdrop-blur-sm border-0 shadow-xl rounded-2xl overflow-hidden transition-colors duration-300">
-            <CardHeader className="bg-[#0c0c0c] border-0">
-              <CardTitle className="flex items-center gap-3 text-white text-xl">
+            <CardHeader className="bg-[#0c0c0c] border-0 px-5 sm:px-6 py-4">
+              <CardTitle className="flex items-center gap-3 text-white text-lg sm:text-xl">
                 <div className="p-2 rounded-lg bg-bright-pink/20">
                   <FileText className="w-5 h-5 text-bright-pink" />
                 </div>
                 Biography
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8">
+            <CardContent className="p-5 sm:p-8">
               <div className="prose prose-gray max-w-none">
-                <p className="text-gray-300 leading-relaxed text-lg">
+                <p className="text-gray-300 leading-relaxed text-base sm:text-lg">
                   {player.bio}
                 </p>
               </div>
@@ -447,7 +447,7 @@ const PlayerProfilePage: React.FC = () => {
       {/* Video Analysis Dialog */}
       {showVideoAnalysis && selectedVideoForAnalysis && (
         <Dialog open={showVideoAnalysis} onOpenChange={closeVideoAnalysis}>
-          <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden bg-gray-800 border-gray-700">
+          <DialogContent className="max-w-7xl w-full max-h-[95vh] overflow-hidden bg-gray-800 border-gray-700 px-3 sm:px-6">
             <DialogHeader className="flex flex-row items-center justify-between">
               <DialogTitle className="text-white font-polysans text-xl flex items-center gap-2">
                 <Brain className="h-5 w-5 text-bright-pink" />
@@ -470,21 +470,21 @@ const PlayerProfilePage: React.FC = () => {
 
       {/* All Videos Dialog */}
       <Dialog open={showAllVideosDialog} onOpenChange={setShowAllVideosDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-gray-800 border-gray-700">
+        <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-hidden bg-gray-800 border-gray-700 px-3 sm:px-6">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Play className="w-5 h-5 text-bright-pink" />
               All Tagged Videos ({videos.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="overflow-y-auto max-h-[calc(90vh-120px)] pr-2">
+          <div className="overflow-y-auto max-h-[calc(90vh-120px)] pr-1 sm:pr-2">
             <div className="space-y-3">
               {videos.map((video) => (
                 <div
                   key={video.id}
-                  className="group flex gap-3 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl border-0 transition-all duration-300 overflow-hidden hover:shadow-lg hover:shadow-bright-pink/20 p-3"
+                  className="group flex flex-col sm:flex-row gap-3 bg-gray-700/30 hover:bg-gray-700/50 rounded-xl border-0 transition-all duration-300 overflow-hidden hover:shadow-lg hover:shadow-bright-pink/20 p-3"
                 >
-                  <div className="w-32 h-20 bg-black rounded-lg relative overflow-hidden flex-shrink-0">
+                  <div className="w-full sm:w-32 h-44 sm:h-20 bg-black rounded-lg relative overflow-hidden flex-shrink-0">
                     <SmartThumbnail
                       thumbnailUrl={video.thumbnail_url}
                       title={video.title}
@@ -517,10 +517,10 @@ const PlayerProfilePage: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="mt-auto pt-1">
+                    <div className="mt-auto pt-2 flex flex-col sm:flex-row sm:items-center sm:gap-2">
                       <Button
                         size="sm"
-                        className="bg-bright-pink hover:bg-bright-pink/90 text-white h-7 px-3 text-xs"
+                        className="bg-bright-pink hover:bg-bright-pink/90 text-white h-8 px-3 text-xs sm:text-sm w-full sm:w-auto"
                         onClick={() => {
                           setShowAllVideosDialog(false);
                           handleVideoPlay(video);

@@ -131,6 +131,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* Right Side Actions */}
             <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
               {/* Language Selector */}
+              <div className="block md:hidden">
+                <GoogleLanguageSelector
+                  variant="popover"
+                  showFlag={false}
+                  showNativeName={true}
+                  showModeToggle={false}
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                />
+              </div>
               <div className="hidden md:block">
                 <GoogleLanguageSelector 
                   variant="popover" 
