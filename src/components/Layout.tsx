@@ -90,17 +90,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/');
-      toast({
-        title: "Signed out successfully",
-        description: "You have been logged out of your account",
-      });
     } catch (error: any) {
       toast({
-        title: "Error signing out",
-        description: error.message,
-        variant: "destructive",
-      });
+         title: "Error signing out",
+         description: error.message,
+         variant: "destructive",
+       });
     }
   };
 

@@ -486,7 +486,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         password,
         options: {
           data: userData,
-          emailRedirectTo: `${window.location.origin}/`
+          emailRedirectTo: `${window.location.origin}/app`
         }
       });
 
@@ -536,9 +536,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { error };
       }
 
-      // If sign in successful, the auth state change will handle profile fetching
-      // But we can add some additional error handling here if needed
-      console.log('Sign in successful, auth state change will handle profile fetching');
+      console.log('Sign in successful, redirecting to dashboard');
+      window.location.href = '/dashboard';
 
       return { error: null };
     } catch (error: any) {
@@ -552,7 +551,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${window.location.origin}/dashboard`
         }
       });
 
@@ -580,6 +579,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           description: error.message,
           variant: "destructive"
         });
+      } else {
+        window.location.href = '/auth';
       }
     } catch (error: any) {
       console.error('Error in signOut:', error);

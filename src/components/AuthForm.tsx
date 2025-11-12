@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGoogleTranslation } from '@/contexts/GoogleTranslationContext';
 import { Button } from '@/components/ui/button';
@@ -241,15 +242,22 @@ const AuthForm = () => {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center bg-black"
+      className="relative min-h-screen flex items-center justify-center bg-black px-4 py-6 sm:px-8 sm:py-10 lg:px-0 lg:py-0"
       onClick={handleUserInteraction}
       onKeyDown={handleUserInteraction}
     >
-      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-stretch">
+      <Link
+        to="/"
+        className="absolute left-4 top-4 sm:left-6 sm:top-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm font-poppins text-white transition hover:border-white/40 hover:bg-white/10 lg:text-base"
+        style={{ zIndex: 5 }}
+      >
+        ← Back to Home
+      </Link>
+      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-stretch gap-6 lg:gap-0">
         {/* Left Panel - Form Section */}
         <div
           ref={formContainerRef}
-          className="w-full lg:w-1/2 flex rounded-l-[1rem] items-center justify-center p-6 lg:p-12 bg-[#1a1a1a]"
+          className="w-full lg:w-1/2 flex items-center justify-center rounded-2xl lg:rounded-r-none lg:rounded-l-[1rem] p-6 sm:p-8 lg:p-12 bg-[#1a1a1a]"
         >
           <div className="w-full max-w-md mx-auto">
             {/* Logo and Header */}
@@ -384,7 +392,7 @@ const AuthForm = () => {
 
         {/* Right Panel - Video Section */}
         <div
-          className="hidden rounded-r-[1rem] lg:flex lg:w-1/2 relative bg-cover bg-center bg-no-repeat overflow-hidden"
+          className="hidden lg:flex lg:w-1/2 relative bg-cover bg-center bg-no-repeat overflow-hidden rounded-2xl lg:rounded-l-none lg:rounded-r-[1rem]"
           style={{
             backgroundImage: "url('/lovable-uploads/Untitled design (49).png')",
             height: formHeight

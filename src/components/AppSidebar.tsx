@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGoogleTranslation } from '@/contexts/GoogleTranslationContext';
 import {
@@ -36,8 +36,7 @@ import { Badge } from '@/components/ui/badge';
 
 export function AppSidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, signOut } = useAuth();
   const { translateTextSync, currentLanguage } = useGoogleTranslation();
   const { toast } = useToast();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -63,7 +62,7 @@ export function AppSidebar() {
     {
       id: 'dashboard',
       title: translateTextSync('Dashboard'),
-      url: "/",
+      url: "/dashboard",
       icon: Home,
     },
     {
@@ -182,14 +181,7 @@ export function AppSidebar() {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      navigate('/');
-      toast({
-        title: "Signed out successfully",
-        description: "You have been logged out of your account",
-      });
+      await signOut();
     } catch (error: any) {
       toast({
         title: "Error signing out",

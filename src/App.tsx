@@ -31,6 +31,7 @@ import TranslationDemo from "./components/TranslationDemo";
 import LanguageSelectorDemo from "./components/LanguageSelectorDemo";
 import GoogleTranslationTest from "./components/GoogleTranslationTest";
 import AIScout from "./pages/AIScout";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
 function App() {
@@ -44,8 +45,10 @@ function App() {
               <Sonner />
               <BrowserRouter>
                 <Routes>
-                  <Route path="/" element={<Index />} />
+                  <Route path="/" element={<LandingPage />} />
                   <Route path="/auth" element={<Index />} />
+                  <Route path="/dashboard" element={<Index />} />
+                  <Route path="/app" element={<Index />} />
                   <Route path="/players" element={<Players />} />
                   <Route path="/videos" element={<Videos />} />
                   <Route path="/videos/:videoTitle" element={<VideoAnalysisResults />} />
@@ -68,6 +71,7 @@ function App() {
                   <Route path="/translation-demo" element={<TranslationDemo />} />
                   <Route path="/language-selector-demo" element={<LanguageSelectorDemo />} />
                   <Route path="/unified-translation-test" element={<GoogleTranslationTest />} />
+                  <Route path="/landing" element={<LandingPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
