@@ -423,10 +423,7 @@ const LandingPage = () => {
                             <h2 className="font-polysans text-3xl text-white md:text-4xl">
                                 The <span className="text-[#f15387]">FIFA ID</span> Advantage
                             </h2>
-                            <p className="mt-4 font-poppins text-base leading-relaxed text-[#c8beca] md:text-lg">
-                                Our unique FIFA ID system creates a digital passport that follows players throughout their
-                                entire career, providing clubs with unprecedented insights and tracking capabilities.
-                            </p>
+                           
                         </div>
 
                         <div className="grid gap-6 md:grid-cols-2">
