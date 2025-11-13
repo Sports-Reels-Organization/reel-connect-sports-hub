@@ -100,35 +100,35 @@ const LandingPage = () => {
                 description:
                     "Identify athletes with higher resilience and lower injury risk based on movement patterns and physical load.",
                 icon: Heart,
-                span: "md:col-span-3",
+                span: "md:col-span-2",
             },
             {
                 title: "Role & Tactical Fit Assessment",
                 description:
-                    "Determine a player's best-fit role and tactical system to maximize potential within your team structure.",
+                    "Determine a player's best-fit role and tactical system to maximize their potential within your team structure.",
                 icon: Workflow,
-                span: "md:col-span-3",
+                span: "md:col-span-1",
             },
             {
                 title: "Future Performance Projection",
                 description:
-                    "Forecast development trajectory using AI models to surface high-potential talent early.",
+                    "Our AI models forecast an athlete's development trajectory, identifying high-potential talent early.",
                 icon: TrendingUp,
-                span: "md:col-span-2",
+                span: "md:col-span-1",
             },
             {
                 title: "Contextual Performance Analysis",
                 description:
-                    "Analyze performance relative to opposition strength, teammates, and game situations.",
+                    "Our system analyzes performance relative to the quality of opposition, teammates, and game situations.",
                 icon: LineChart,
-                span: "md:col-span-2",
+                span: "md:col-span-1",
             },
             {
                 title: "Age-Adjusted Benchmarking",
                 description:
-                    "Compare players against peers by biological age for more accurate scouting evaluations.",
+                    "Compare players against peers of the same biological age, not just chronological, for fairer assessments.",
                 icon: UsersRound,
-                span: "md:col-span-2",
+                span: "md:col-span-1",
             },
         ];
 
@@ -209,7 +209,7 @@ const LandingPage = () => {
                             <a
                                 key={item.label}
                                 href={item.href}
-                                className="group relative font-poppins text-sm uppercase tracking-[0.22em] text-white transition-colors hover:text-[#f570a5]"
+                                className="group relative font-inter text-sm uppercase tracking-[0.22em] text-white transition-colors hover:text-[#f570a5]"
                             >
                                 {item.label}
                                 {item.isActive ? (
@@ -236,7 +236,7 @@ const LandingPage = () => {
                             <a
                                 key={item.label}
                                 href={item.href}
-                                className="font-poppins text-sm uppercase tracking-[0.28em] text-white/90 transition hover:text-white"
+                                className="font-inter text-sm uppercase tracking-[0.28em] text-white/90 transition hover:text-white"
                                 onClick={() => setMobileNavOpen(false)}
                             >
                                 {item.label}
@@ -257,13 +257,13 @@ const LandingPage = () => {
             <main className="mx-auto flex min-h-screen w-full max-w-[1180px] flex-col px-6 pb-24 pt-[100px] md:px-10 md:pt-[140px] lg:px-0 lg:pt-[115px] xl:pt-0">
                 <section className="flex flex-1 flex-col items-center gap-12 text-center md:flex-row md:items-center md:gap-20 md:text-left">
                     <div className="w-full max-w-xl">
-                        <p className="font-poppins text-[11px] uppercase tracking-[0.36em] text-[#f27fae] md:text-xs md:tracking-[0.38em]">
+                        <p className="font-inter text-[11px] uppercase tracking-[0.36em] text-[#f27fae] md:text-xs md:tracking-[0.38em]">
                             Sports Reels
                         </p>
-                        <h1 className="mt-5 font-polysans text-3xl leading-tight text-white sm:text-4xl md:mt-6 md:text-5xl md:leading-[1.15] lg:text-6xl">
+                        <h1 className="mt-5 font-readex-pro text-3xl leading-tight text-white sm:text-4xl md:mt-6 md:text-5xl md:leading-[1.15] lg:text-6xl">
                             De-Risking the Future of Sporting Investment
                         </h1>
-                        <p className="mt-5 max-w-xl font-poppins text-base leading-relaxed text-[#d7d0dc] sm:text-lg md:mt-6 md:max-w-lg">
+                        <p className="mt-5 max-w-xl font-inter text-base leading-relaxed text-[#d7d0dc] sm:text-lg md:mt-6 md:max-w-lg">
                             The Data-Driven Revolution in Youth Talent Acquisition
                         </p>
                         <div className="mt-10 flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-center md:mt-12 md:justify-start">
@@ -282,7 +282,7 @@ const LandingPage = () => {
                                 <span className="ml-2 text-base">↘</span>
                             </a>
                         </div>
-                        <p className="mt-6 font-poppins text-[11px] uppercase tracking-[0.3em] text-[#f27fae] sm:text-xs sm:tracking-[0.32em] md:mt-8">
+                        <p className="mt-6 font-inter text-[11px] uppercase tracking-[0.3em] text-[#f27fae] sm:text-xs sm:tracking-[0.32em] md:mt-8">
                             All players receive a lifetime FIFA ID
                         </p>
                     </div>
@@ -301,17 +301,17 @@ const LandingPage = () => {
                     <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#f27fae] sm:px-5 sm:text-xs sm:tracking-[0.32em]">
                         Our Story
                     </span>
-                    <p className="mt-6 max-w-2xl font-poppins text-base leading-relaxed text-[#d7d0dc] sm:mt-8 sm:text-lg md:max-w-3xl md:text-2xl md:leading-[1.6]">
+                    <p className="mt-6 max-w-2xl font-inter text-base leading-relaxed text-[#d7d0dc] sm:mt-8 sm:text-lg md:max-w-3xl md:text-2xl md:leading-[1.6]">
                         Sports Reels is a revolutionary AI analytics platform that predicts youth athlete
                         performance trajectories, benchmarks development, and significantly reduces the
                         financial risks associated with talent investment.
                     </p>
                 </section>
                 <section className="mt-20 flex flex-col items-center text-center sm:mt-28 md:mt-32">
-                    <h2 className="font-polysans text-2xl text-white sm:text-3xl md:text-4xl">
+                    <h2 className="font-readex-pro text-2xl text-white sm:text-3xl md:text-4xl">
                         Why <span className="text-[#f15387]">Sport Reels?</span>
                     </h2>
-                    <p className="mt-3 font-poppins text-[11px] uppercase tracking-[0.22em] text-[#b8a8b4] sm:mt-4 sm:text-sm sm:tracking-[0.24em] md:text-base md:tracking-[0.32em]">
+                    <p className="mt-3 font-inter text-[11px] uppercase tracking-[0.22em] text-[#b8a8b4] sm:mt-4 sm:text-sm sm:tracking-[0.24em] md:text-base md:tracking-[0.32em]">
                         A simple, streamlined process to connect, create, and convert.
                     </p>
 
@@ -344,31 +344,31 @@ const LandingPage = () => {
                                         <img
                                             src="/lovable-uploads/b0ea6d9745a477e854d67619ad1817978b2c6cd3.png"
                                             alt="Sports silhouettes illustration"
-                                            className="h-full min-h-[260px] w-full rounded-[18px] object-cover sm:min-h-[320px] md:min-h-[420px]"
+                                            className="h-[50px] min-h-[260px] w-full rounded-[18px] object-cover sm:min-h-[320px] md:min-h-[420px]"
                                         />
                                     </div>
                                     <div className="flex flex-col gap-6">
                                         <div className="rounded-[22px] bg-[#18121d] p-8 text-left">
                                             <div className="flex items-center gap-3 text-[#f15387]">
                                                 <span className="text-2xl">💰</span>
-                                                <span className="font-poppins text-sm uppercase tracking-[0.28em] text-[#f15387]">
+                                                <span className="font-inter text-sm uppercase tracking-[0.28em] text-[#f15387]">
                                                     Average Loss
                                                 </span>
                                             </div>
-                                            <p className="mt-4 font-polysans text-3xl text-white">$500k+</p>
-                                            <p className="mt-3 max-w-sm font-poppins text-sm text-[#b8a8b4]">
+                                            <p className="mt-4 font-readex-pro text-3xl text-white">$500k+</p>
+                                            <p className="mt-3 max-w-sm font-inter text-sm text-[#b8a8b4]">
                                                 Average loss per failed player investment in top-tier academies.
                                             </p>
                                         </div>
                                         <div className="rounded-[22px] bg-[#18121d] p-8 text-left">
                                             <div className="flex items-center gap-3 text-[#f15387]">
                                                 <span className="text-2xl">📉</span>
-                                                <span className="font-poppins text-sm uppercase tracking-[0.28em] text-[#f15387]">
+                                                <span className="font-inter text-sm uppercase tracking-[0.28em] text-[#f15387]">
                                                     Failure Rate
                                                 </span>
                                             </div>
-                                            <p className="mt-4 font-polysans text-3xl text-white">90%</p>
-                                            <p className="mt-3 max-w-sm font-poppins text-sm text-[#b8a8b4]">
+                                            <p className="mt-4 font-readex-pro text-3xl text-white">90%</p>
+                                            <p className="mt-3 max-w-sm font-inter text-sm text-[#b8a8b4]">
                                                 Failure rate for youth players signed to professional contracts.
                                             </p>
                                         </div>
@@ -386,11 +386,11 @@ const LandingPage = () => {
                                                     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2e1c2a]">
                                                         <item.icon className="h-5 w-5" />
                                                     </span>
-                                                    <h3 className="font-polysans text-2xl text-[#f15387]">
+                                                    <h3 className="font-readex-pro text-2xl text-[#f15387]">
                                                         {item.title}
                                                     </h3>
                                                 </div>
-                                                <p className="mt-3 font-poppins text-sm text-[#d0c4ce]">
+                                                <p className="mt-3 font-inter text-sm text-[#d0c4ce]">
                                                     {item.description}
                                                 </p>
                                             </div>
@@ -400,7 +400,7 @@ const LandingPage = () => {
                                         <img
                                             src="/lovable-uploads/eaeb0f9d85977bcce84d5f3638fdc9ed93a4ce7d.png"
                                             alt="Sports Reels solution illustration"
-                                            className="h-full min-h-[260px] w-full rounded-[18px] object-cover sm:min-h-[320px] md:min-h-[420px]"
+                                            className="h-[50px] min-h-[260px] w-full rounded-[18px] object-cover sm:min-h-[320px] md:min-h-[420px]"
                                         />
                                     </div>
                                 </>
@@ -409,6 +409,33 @@ const LandingPage = () => {
                     </div>
                 </section>
             </main>
+            <section className="bg-black px-5 py-12 sm:py-14 md:py-16">
+                <div className="mx-auto flex w-full max-w-[1180px] flex-col items-center text-center">
+                    <h2 className="font-readex-pro text-3xl text-white md:text-4xl">
+                        Key Features That <span className="text-[#f15387]">De-Risk Your Investment</span>
+                    </h2>
+                    <p className="mt-4 max-w-3xl font-inter text-base leading-relaxed text-[#c8beca] md:text-lg">
+                        Sports Reels provides cutting-edge tools to help clubs make data-driven decisions for player recruitment, development, and performance analysis.
+                    </p>
+
+                    <div className="mt-12 grid w-full grid-cols-1 gap-6 md:grid-cols-3">
+                        {keyFeatures.map((feature) => (
+                            <div
+                                key={feature.title}
+                                className={`rounded-[24px] bg-[#111015] p-6 text-left shadow-[0_15px_30px_rgba(0,0,0,0.45)] ${feature.span}`}
+                            >
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2b1a28] text-[#f15387]">
+                                    <feature.icon className="h-5 w-5" />
+                                </div>
+                                <h3 className="mt-5 font-readex-pro text-lg text-white">{feature.title}</h3>
+                                <p className="mt-3 font-inter text-sm leading-relaxed text-[#c8beca]">
+                                    {feature.description}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
             <section className="bg-black px-5 py-12 sm:py-14 md:py-16">
                 <div className="mx-auto flex w-full max-w-[1180px] flex-col-reverse gap-10 md:grid md:grid-cols-[1.1fr,1fr] md:items-stretch md:gap-16">
                     <div className="relative min-h-[320px] sm:min-h-[380px] md:min-h-[520px]">
@@ -420,10 +447,10 @@ const LandingPage = () => {
                     </div>
                     <div className="space-y-8 sm:space-y-10">
                         <div>
-                            <h2 className="font-polysans text-3xl text-white md:text-4xl">
+                            <h2 className="font-readex-pro text-3xl text-white md:text-4xl">
                                 The <span className="text-[#f15387]">FIFA ID</span> Advantage
                             </h2>
-                           
+
                         </div>
 
                         <div className="grid gap-6 md:grid-cols-2">
@@ -435,8 +462,8 @@ const LandingPage = () => {
                                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2b1a28] text-[#f15387]">
                                         <item.icon className="h-5 w-5" />
                                     </div>
-                                    <h3 className="mt-5 font-polysans text-lg text-white">{item.title}</h3>
-                                    <p className="mt-3 font-poppins text-sm leading-relaxed text-[#c8beca]">
+                                    <h3 className="mt-5 font-readex-pro text-lg text-white">{item.title}</h3>
+                                    <p className="mt-3 font-inter text-sm leading-relaxed text-[#c8beca]">
                                         {item.description}
                                     </p>
                                 </div>
@@ -455,8 +482,8 @@ const LandingPage = () => {
                                         />
                                     </div>
                                     <div>
-                                        <h4 className="font-polysans text-xl text-white">Sinclair Thompson</h4>
-                                        <p className="font-poppins text-sm text-[#c8beca]">Midfielder • Age: 20</p>
+                                        <h4 className="font-readex-pro text-xl text-white">Sinclair Thompson</h4>
+                                        <p className="font-inter text-sm text-[#c8beca]">Midfielder • Age: 20</p>
                                     </div>
                                 </div>
                                 <span className="self-start rounded-full bg-[#d45e87] px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-black md:self-center">
@@ -468,17 +495,17 @@ const LandingPage = () => {
                                 {[{ label: "Pace", value: 92 }, { label: "Dribbling", value: 89 }, { label: "Crossing", value: 87 }].map(
                                     (stat) => (
                                         <div key={stat.label} className="rounded-[18px] bg-[#0d0c10] p-4">
-                                            <p className="font-poppins text-xs uppercase tracking-[0.22em] text-[#b8a8b4]">
+                                            <p className="font-inter text-xs uppercase tracking-[0.22em] text-[#b8a8b4]">
                                                 {stat.label}
                                             </p>
-                                            <p className="mt-2 font-polysans text-2xl text-white">{stat.value}</p>
+                                            <p className="mt-2 font-readex-pro text-2xl text-white">{stat.value}</p>
                                         </div>
                                     ),
                                 )}
                             </div>
 
                             <div className="mt-6">
-                                <div className="flex items-center justify-between font-poppins text-sm text-[#c8beca]">
+                                <div className="flex items-center justify-between font-inter text-sm text-[#c8beca]">
                                     <span>Performance Rating</span>
                                     <span className="font-semibold text-[#f15387]">85%</span>
                                 </div>
@@ -494,13 +521,13 @@ const LandingPage = () => {
                 <ContainerScroll
                     titleComponent={
                         <div className="space-y-4 px-6 sm:px-10 md:px-0">
-                            <p className="font-poppins text-xs uppercase tracking-[0.3em] text-[#f27fae] sm:text-sm sm:tracking-[0.32em]">
+                            <p className="font-inter text-xs uppercase tracking-[0.3em] text-[#f27fae] sm:text-sm sm:tracking-[0.32em]">
                                 Platform Walkthrough
                             </p>
-                            <h2 className="font-polysans text-3xl text-white sm:text-4xl md:text-5xl">
+                            <h2 className="font-readex-pro text-3xl text-white sm:text-4xl md:text-5xl">
                                 Experience the <span className="text-[#f15387]">Sports Reels</span> Platform
                             </h2>
-                            <p className="mx-auto max-w-3xl font-poppins text-sm leading-relaxed text-[#c8beca] sm:text-base sm:leading-[1.7] md:text-lg">
+                            <p className="mx-auto max-w-3xl font-inter text-sm leading-relaxed text-[#c8beca] sm:text-base sm:leading-[1.7] md:text-lg">
                                 See how data-driven analytics can transform your scouting and performance tracking process.
                                 Schedule a live demo with our team to explore the full capabilities of our platform.
                             </p>
@@ -522,13 +549,13 @@ const LandingPage = () => {
                 className="relative overflow-hidden bg-black"
                 style={{ backgroundImage: "url('/lovable-uploads/5c3bd60c6db59e7c9b5319215d3efeb56b22c8b2.png')", backgroundSize: "cover", backgroundPosition: "center" }}
             >
-                <div className="absolute inset-0 bg-black/45" />
+                <div className="absolute inset-0 bg-black/60" />
                 <div className="relative mx-auto flex w-full max-w-[1180px] flex-col items-center gap-10 px-6 py-24 text-center">
                     <div className="space-y-6">
-                        <h2 className="font-polysans text-4xl text-white md:text-5xl">
+                        <h2 className="font-readex-pro text-4xl text-white md:text-5xl">
                             Ready to <span className="text-[#f15387]">Revolutionize</span> Your Club?
                         </h2>
-                        <p className="max-w-3xl font-poppins text-lg leading-relaxed text-white/90">
+                        <p className="max-w-3xl font-inter text-lg leading-relaxed text-white/90">
                             Join the growing network of clubs using Sports Reels to discover talent, analyze performance, and make data-driven decisions.
                         </p>
                     </div>
@@ -558,9 +585,9 @@ const LandingPage = () => {
                                 alt="Sports Reels"
                                 className="h-10 w-10"
                             />
-                            <span className="font-polysans text-lg text-white">SPORTS REELS</span>
+                            <span className="font-readex-pro text-lg text-white">SPORTS REELS</span>
                         </div>
-                        <nav className="flex flex-wrap gap-4 font-poppins text-sm uppercase tracking-[0.24em] text-white/70">
+                        <nav className="flex flex-wrap gap-4 font-inter text-sm uppercase tracking-[0.24em] text-white/70">
                             {[
                                 "Home",
                                 "Company",
@@ -575,23 +602,23 @@ const LandingPage = () => {
                                 </a>
                             ))}
                         </nav>
-                        <p className="font-poppins text-xs uppercase tracking-[0.28em] text-white/60">
+                        <p className="font-inter text-xs uppercase tracking-[0.28em] text-white/60">
                             © {new Date().getFullYear()} Sport Reels. All rights reserved.
                         </p>
                     </div>
 
                     <div className="flex w-full max-w-md flex-col gap-6">
                         <div className="space-y-3 text-left md:text-right">
-                            <p className="font-poppins text-sm uppercase tracking-[0.28em] text-white/80">
+                            <p className="font-inter text-sm uppercase tracking-[0.28em] text-white/80">
                                 Subscribe to our newsletter to stay updated
                             </p>
                             <div className="flex flex-col gap-4 sm:flex-row">
                                 <input
                                     type="email"
                                     placeholder="Enter your email"
-                                    className="w-full rounded-[12px] border border-white/20 bg-transparent px-4 py-3 font-poppins text-sm text-white outline-none transition-colors focus:border-white"
+                                    className="w-full rounded-[12px] border border-white/20 bg-white/10 px-4 py-3 font-inter text-sm text-white placeholder:text-white/50 outline-none transition-colors focus:border-white focus:bg-white/15"
                                 />
-                                <button className="rounded-[12px] bg-[#d45e87] px-6 py-3 font-poppins text-sm font-semibold uppercase tracking-[0.24em] text-black transition-transform hover:scale-[1.02] hover:bg-[#f572a7]">
+                                <button className="rounded-[12px] bg-[#d45e87] px-6 py-3 font-inter text-sm font-semibold uppercase tracking-[0.24em] text-black transition-transform hover:scale-[1.02] hover:bg-[#f572a7]">
                                     Subscribe
                                 </button>
                             </div>
@@ -609,7 +636,7 @@ const LandingPage = () => {
                                     target="_blank"
                                     rel="noreferrer"
                                 >
-                                    <span className="font-poppins text-sm">↗</span>
+                                    <span className="font-inter text-sm">↗</span>
                                 </a>
                             ))}
                         </div>
