@@ -54,9 +54,16 @@ const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'pl', name: 'Polish', flag: '🇵🇱', nativeName: 'Polski' }
 ];
 
-// Google Translate API key - Replace with your actual API key
-const GOOGLE_TRANSLATE_API_KEY = import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY || 'AIza...';
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sportsreelstranslationserver.onrender.com';
+// Google Translate API key - Required for frontend fallback translation
+const GOOGLE_TRANSLATE_API_KEY = import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
+  (import.meta.env.DEV ? 'http://localhost:3001' : 'https://sportsreelstranslationserver.onrender.com');
+
+// Check if API key is configured in development mode
+if (import.meta.env.DEV && !GOOGLE_TRANSLATE_API_KEY) {
+  console.warn('⚠️ VITE_GOOGLE_TRANSLATE_API_KEY is not set. Frontend translation fallback will not work.');
+  console.warn('   Create a .env file in the frontend root with: VITE_GOOGLE_TRANSLATE_API_KEY=your_api_key');
+}
 
 export const GoogleTranslationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentLanguage, setCurrentLanguage] = useState('en');
@@ -101,25 +108,35 @@ export const GoogleTranslationProvider: React.FC<{ children: ReactNode }> = ({ c
 
   // Frontend translation using Google Translate API directly
   const translateWithFrontend = async (text: string, targetLang: string): Promise<string> => {
+    if (!GOOGLE_TRANSLATE_API_KEY) {
+      throw new Error('Google Translate API key is not configured. Please set VITE_GOOGLE_TRANSLATE_API_KEY in your .env file.');
+    }
+
     try {
+      // Google Translate REST API v2 expects form-encoded data
+      const params = new URLSearchParams();
+      params.append('q', text);
+      params.append('target', targetLang);
+      params.append('source', 'en');
+      params.append('format', 'text');
+      params.append('key', GOOGLE_TRANSLATE_API_KEY);
+
       const response = await axios.post(
-        `https://translation.googleapis.com/language/translate/v2?key=${GOOGLE_TRANSLATE_API_KEY}`,
-        {
-          q: text,
-          target: targetLang,
-          source: 'en', // Assuming source is always English
-          format: 'text'
-        },
+        'https://translation.googleapis.com/language/translate/v2',
+        params.toString(),
         {
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
           }
         }
       );
 
       return response.data.data.translations[0].translatedText;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Frontend translation error:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+      }
       throw error;
     }
   };
@@ -142,7 +159,7 @@ export const GoogleTranslationProvider: React.FC<{ children: ReactNode }> = ({ c
 
   const translateText = useCallback(async (text: string, targetLang?: string): Promise<string> => {
     const target = targetLang || currentLanguage;
-    
+
     // Return original text if target is English or same as source
     if (target === 'en' || !text.trim()) {
       return text;
@@ -157,7 +174,7 @@ export const GoogleTranslationProvider: React.FC<{ children: ReactNode }> = ({ c
     setIsLoading(true);
     try {
       let translatedText: string;
-      
+
       // Always try backend first, with frontend fallback
       try {
         translatedText = await translateWithBackend(text, target);
@@ -188,7 +205,7 @@ export const GoogleTranslationProvider: React.FC<{ children: ReactNode }> = ({ c
   // Synchronous version that returns cached translation or original text
   const translateTextSync = useCallback((text: string, targetLang?: string): string => {
     const target = targetLang || currentLanguage;
-    
+
     if (target === 'en' || !text.trim()) {
       return text;
     }
