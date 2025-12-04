@@ -297,14 +297,14 @@ const VideoAnalysisResults = () => {
       // First, let's check how many videos exist with this title
       const countQuery = profile?.user_type === 'team' && currentTeamId
         ? supabase
-            .from('videos')
-            .select('*', { count: 'exact', head: true })
-            .eq('title', decodedTitle)
-            .eq('team_id', currentTeamId)
+          .from('videos')
+          .select('*', { count: 'exact', head: true })
+          .eq('title', decodedTitle)
+          .eq('team_id', currentTeamId)
         : supabase
-            .from('videos')
-            .select('*', { count: 'exact', head: true })
-            .eq('title', decodedTitle);
+          .from('videos')
+          .select('*', { count: 'exact', head: true })
+          .eq('title', decodedTitle);
 
       const { count: countResult } = await countQuery;
       const count = countResult || 0;
@@ -381,7 +381,7 @@ const VideoAnalysisResults = () => {
       // Initialize enhanced video analysis service
       const enhancedAiService = new EnhancedVideoAnalysisService({
         genAI: null, // Will be initialized internally
-        API_KEY: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCu5xnhpVb-4PmPNgIhc_umpwdD6CulPiw'
+        API_KEY: import.meta.env.VITE_GEMINI_API_KEY
       });
 
       // Retrieve video URL for analysis
