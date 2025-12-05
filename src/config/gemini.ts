@@ -1,6 +1,6 @@
 export const GEMINI_CONFIG = {
   // API Configuration
-  API_KEY: 'AIzaSyA2cd1hCSDn4TvWYiEBOcnxGb4g7Q3Dpns',
+  API_KEY: import.meta.env.VITE_GEMINI_API_KEY || '',
   BASE_URL: 'https://generativelanguage.googleapis.com',
 
   // Model Configuration
