@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { notificationService, NotificationData } from '@/services/notificationService';
+import { notificationService, NotificationData } from '@/domains/notifications/services/notificationService';
 
 export const useNotifications = () => {
   const { profile } = useAuth();

@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CountrySelect } from '@/components/ui/CountrySelect';
 import { LeagueSelect } from '@/components/ui/LeagueSelect';
 import { useSportData } from '@/hooks/useSportData';
-import { AllowedSportType, requiresFifaId, isAllowedSportType } from '@/services/sportsService';
+import { AllowedSportType, requiresFifaId, isAllowedSportType } from '@/shared/utils/sportsService';
 import { ArrowLeft, User, Building, Users } from 'lucide-react';
 
 const OnboardingFlow = () => {

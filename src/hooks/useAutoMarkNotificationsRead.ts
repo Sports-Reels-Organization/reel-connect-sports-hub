@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { EnhancedNotificationService } from '@/services/enhancedNotificationService';
+import { EnhancedNotificationService } from '@/domains/notifications/services/enhancedNotificationService';
 
 export const useAutoMarkNotificationsRead = (isActive: boolean, notificationType?: string) => {
   const { profile } = useAuth();

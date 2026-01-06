@@ -16,7 +16,7 @@ import {
   TrendingUp, MapPin, Users, Target, Star, Clock, AlertCircle, X, CheckCircle, Edit, FileText
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { EnhancedNotificationService } from '@/services/enhancedNotificationService';
+import { EnhancedNotificationService } from '@/domains/notifications/services/enhancedNotificationService';
 import { usePlayerStatusRealtime } from '@/hooks/usePlayerStatusRealtime';
 
 interface TimelinePitch {

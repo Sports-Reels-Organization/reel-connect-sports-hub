@@ -43,14 +43,14 @@ import {
   Quote
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { SmartVideoPlayer, SmartVideoPlayerRef } from '@/components/SmartVideoPlayer';
+import { SmartVideoPlayer, SmartVideoPlayerRef } from '@/domains/video/components/SmartVideoPlayer';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { ComprehensiveAIAnalysisService } from '@/services/comprehensiveAIAnalysisService';
-import { EnhancedVideoAnalysisService } from '@/services/enhancedVideoAnalysisService';
+import { ComprehensiveAIAnalysisService } from '@/domains/video/services/comprehensiveAIAnalysisService';
+import { EnhancedVideoAnalysisService } from '@/domains/video/services/enhancedVideoAnalysisService';
 import { VideoFrameExtractor } from '@/utils/videoFrameExtractor';
-import { r2VideoRetrievalService } from '@/services/r2VideoRetrievalService';
-import { usePlayersData } from '@/hooks/usePlayersData';
+import { r2VideoRetrievalService } from '@/domains/video/services/r2VideoRetrievalService';
+import { usePlayersData } from '@/domains/players/hooks/usePlayersData';
 import PlayerTagDisplay from '@/components/PlayerTagDisplay';
 import PlayerTrackingVisualization from '@/components/PlayerTrackingVisualization';
 import FormationVisualizer from '@/components/FormationVisualizer';

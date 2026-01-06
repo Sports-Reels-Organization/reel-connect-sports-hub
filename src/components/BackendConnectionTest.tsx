@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { presignedGetUrlService } from '@/services/presignedGetUrlService';
+import { presignedGetUrlService } from '@/domains/video/services/presignedGetUrlService';
 
 export const BackendConnectionTest: React.FC = () => {
     const [testResults, setTestResults] = useState<any[]>([]);

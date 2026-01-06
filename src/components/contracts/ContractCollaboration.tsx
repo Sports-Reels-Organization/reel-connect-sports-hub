@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { enhancedContractService, ContractComment, ContractVersion } from '@/services/enhancedContractService';
+import { enhancedContractService, ContractComment, ContractVersion } from '@/domains/contracts/services/enhancedContractService';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   MessageCircle,

@@ -12,7 +12,7 @@ import {
   Play, Pause, Clock, MapPin, Zap, CheckCircle,
   AlertCircle, BarChart3, Sparkles, Timer
 } from 'lucide-react';
-import { EnhancedVideoAnalysisService, VideoAnalysisResult } from '@/services/enhancedVideoAnalysisService';
+import { EnhancedVideoAnalysisService, VideoAnalysisResult } from '@/domains/video/services/enhancedVideoAnalysisService';
 
 interface EnhancedAIAnalysisProps {
   videoId: string;

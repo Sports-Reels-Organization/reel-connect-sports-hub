@@ -48,7 +48,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { contractManagementService } from '@/services/contractManagementService';
+import { contractManagementService } from '@/domains/contracts/services/contractManagementService';
 import DigitalSignature from '@/components/contracts/DigitalSignature';
 import PaymentOptions from '@/components/contracts/PaymentOptions';
 import TeamWallet from '@/components/wallet/TeamWallet';

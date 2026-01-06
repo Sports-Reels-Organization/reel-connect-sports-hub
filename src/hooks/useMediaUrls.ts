@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { presignedGetUrlService } from '@/services/presignedGetUrlService';
+import { presignedGetUrlService } from '@/domains/video/services/presignedGetUrlService';
 
 interface UseMediaUrlsResult {
     videoUrl: string | null;

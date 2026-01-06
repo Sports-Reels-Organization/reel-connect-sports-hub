@@ -22,8 +22,8 @@ import {
   Edit3,
   Trash2
 } from 'lucide-react';
-import { BulkPlayerUploadService, PlayerUploadData, UploadSummary } from '@/services/bulkPlayerUploadService';
-import { SportType } from '@/services/sportsService';
+import { BulkPlayerUploadService, PlayerUploadData, UploadSummary } from '@/domains/players/services/bulkPlayerUploadService';
+import { SportType } from '@/shared/utils/sportsService';
 import { supabase } from '@/integrations/supabase/client';
 
 interface BulkPlayerUploadProps {

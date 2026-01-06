@@ -20,7 +20,7 @@ import {
     RefreshCw
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
-import { notificationService, NotificationPreferences, NotificationData } from '@/services/notificationService';
+import { notificationService, NotificationPreferences, NotificationData } from '@/domains/notifications/services/notificationService';
 import { Json } from '@/integrations/supabase/types';
 
 interface Notification {

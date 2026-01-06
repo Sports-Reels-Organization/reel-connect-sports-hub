@@ -16,10 +16,10 @@ import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useSportData } from '@/hooks/useSportData';
 import MessagePlayerModal from '../MessagePlayerModal';
-import { EnhancedNotificationService } from '@/services/enhancedNotificationService';
+import { EnhancedNotificationService } from '@/domains/notifications/services/enhancedNotificationService';
 import { useAgentInterestRealtime } from '@/hooks/useAgentInterestRealtime';
 import { usePlayerStatusRealtime } from '@/hooks/usePlayerStatusRealtime';
-import { SmoothWorkflowService } from '@/services/smoothWorkflowService';
+import { SmoothWorkflowService } from '@/shared/utils/smoothWorkflowService';
 
 interface TimelinePitch {
   id: string;

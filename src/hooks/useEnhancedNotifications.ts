@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { EnhancedNotificationService, EnhancedNotification, NotificationPreferences } from '@/services/enhancedNotificationService';
+import { EnhancedNotificationService, EnhancedNotification, NotificationPreferences } from '@/domains/notifications/services/enhancedNotificationService';
 
 export const useEnhancedNotifications = () => {
   const { profile } = useAuth();

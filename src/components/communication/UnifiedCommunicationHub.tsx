@@ -28,10 +28,10 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { contractService, PermanentTransferContract, LoanTransferContract } from '@/services/contractService';
-import { contractManagementService } from '@/services/contractManagementService';
+import { contractService, PermanentTransferContract, LoanTransferContract } from '@/domains/contracts/services/contractService';
+import { contractManagementService } from '@/domains/contracts/services/contractManagementService';
 import { useNavigate } from 'react-router-dom';
-import { EnhancedNotificationService } from '@/services/enhancedNotificationService';
+import { EnhancedNotificationService } from '@/domains/notifications/services/enhancedNotificationService';
 import { useAgentInterestRealtime } from '@/hooks/useAgentInterestRealtime';
 import { BeepingBorder } from '@/components/ui/BeepingBorder';
 import { useAutoMarkNotificationsRead } from '@/hooks/useAutoMarkNotificationsRead';

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ContractWorkflowService } from '@/services/contractWorkflowService';
+import { ContractWorkflowService } from '@/domains/contracts/services/contractWorkflowService';
 import { ContractGenerationModal } from '@/components/ContractGenerationModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { 

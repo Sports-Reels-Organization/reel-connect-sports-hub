@@ -4,7 +4,7 @@ import {
   getDatabaseCompatibleSports,
   type Sport,
   type AllowedSportType
-} from '@/services/sportsService';
+} from '@/shared/utils/sportsService';
 
 interface SportOption {
   id: string;

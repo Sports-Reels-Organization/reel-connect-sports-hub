@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { enhancedContractService, ContractTemplate } from '@/services/enhancedContractService';
+import { enhancedContractService, ContractTemplate } from '@/domains/contracts/services/enhancedContractService';
 import { ChevronLeft, ChevronRight, FileText, Users, DollarSign, Calendar, CheckCircle } from 'lucide-react';
 
 interface ContractWizardProps {

@@ -259,7 +259,7 @@ const PlayerManagement: React.FC = () => {
       console.log('Deleting player:', playerToDelete.full_name, 'ID:', playerToDelete.id);
 
       // Log activity before deletion
-      const { PlayerActivityService } = await import('@/services/playerActivityService');
+      const { PlayerActivityService } = await import('@/domains/players/services/playerActivityService');
       const activityService = new PlayerActivityService(teamId);
       console.log('Logging player deletion activity...');
       await activityService.logPlayerDeleted(playerToDelete);

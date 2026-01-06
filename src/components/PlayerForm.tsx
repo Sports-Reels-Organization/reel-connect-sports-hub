@@ -310,7 +310,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
       let result;
       if (player) {
         // Log activity for update
-        const { PlayerActivityService } = await import('@/services/playerActivityService');
+        const { PlayerActivityService } = await import('@/domains/players/services/playerActivityService');
         const activityService = new PlayerActivityService(teamId);
 
         const changedFields = PlayerActivityService.getChangedFields(player, playerData);
@@ -333,7 +333,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ player, onSave, onCancel, teamI
 
         // Log activity for creation
         if (result.data) {
-          const { PlayerActivityService } = await import('@/services/playerActivityService');
+          const { PlayerActivityService } = await import('@/domains/players/services/playerActivityService');
           const activityService = new PlayerActivityService(teamId);
           await activityService.logPlayerCreated(result.data);
         }

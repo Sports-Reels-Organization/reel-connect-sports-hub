@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { r2VideoRetrievalService } from '@/services/r2VideoRetrievalService';
+import { r2VideoRetrievalService } from '@/domains/video/services/r2VideoRetrievalService';
 import {
   User,
   Calendar,

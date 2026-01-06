@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ContractWorkflowService, ContractWorkflowStep } from '@/services/contractWorkflowService';
+import { ContractWorkflowService, ContractWorkflowStep } from '@/domains/contracts/services/contractWorkflowService';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   FileText, 

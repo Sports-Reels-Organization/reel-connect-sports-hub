@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { cloudflareR2Service } from '@/services/cloudflareR2Service';
-import { r2VideoRetrievalService } from '@/services/r2VideoRetrievalService';
+import { cloudflareR2Service } from '@/shared/utils/cloudflareR2Service';
+import { r2VideoRetrievalService } from '@/domains/video/services/r2VideoRetrievalService';
 import { useToast } from '@/hooks/use-toast';
 
 export const R2TestComponent: React.FC = () => {

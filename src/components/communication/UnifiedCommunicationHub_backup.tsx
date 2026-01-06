@@ -14,7 +14,7 @@ import {
   TrendingUp, AlertCircle, CheckCircle, X, Plus, Search, Heart, Eye, Upload
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { contractService, PermanentTransferContract, LoanTransferContract } from '@/services/contractService';
+import { contractService, PermanentTransferContract, LoanTransferContract } from '@/domains/contracts/services/contractService';
 import { useNavigate } from 'react-router-dom';
 
 interface UnifiedCommunicationHubProps {

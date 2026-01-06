@@ -6,7 +6,7 @@ export const testVideoCompression = async (file: File) => {
   
   try {
     // Import the fast compression service
-    const { fastVideoCompressionService } = await import('@/services/fastVideoCompressionServiceV2');
+    const { fastVideoCompressionService } = await import('@/domains/video/services/fastVideoCompressionServiceV2');
     
     const startTime = performance.now();
     

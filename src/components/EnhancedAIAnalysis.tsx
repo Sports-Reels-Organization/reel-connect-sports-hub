@@ -15,7 +15,7 @@ import {
     PlayerAnalysis,
     TransferMarketAnalysis,
     TeamFitAnalysis
-} from '@/services/geminiService';
+} from '@/domains/video/services/geminiService';
 
 interface EnhancedAIAnalysisProps {
     playerData?: {
