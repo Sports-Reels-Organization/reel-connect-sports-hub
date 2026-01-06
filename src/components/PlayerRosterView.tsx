@@ -11,7 +11,7 @@ import { Tables } from '@/integrations/supabase/types';
 import { useNavigate } from 'react-router-dom';
 import { PlayerTagManager } from './PlayerTagManager';
 import { TagBadge } from './TagBadge';
-import { usePlayerTags } from '@/hooks/usePlayerTags';
+import { usePlayerTags } from '@/domains/players/hooks/usePlayerTags';
 
 type DatabasePlayer = Tables<'players'>;
 

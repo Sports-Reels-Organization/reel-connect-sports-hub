@@ -1,4 +1,4 @@
-import { cloudflareR2Service } from './cloudflareR2Service';
+import { cloudflareR2Service } from '@/shared/utils/cloudflareR2Service';
 
 export interface VideoRetrievalOptions {
     useSignedUrl?: boolean;

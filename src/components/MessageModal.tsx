@@ -10,8 +10,8 @@ import { Send, FileText, Upload, Loader2 } from 'lucide-react';
 import { FileUpload } from './FileUpload';
 import { MessageBubble } from './MessageBubble';
 import { ContractGenerationModal } from './ContractGenerationModal';
-import { useEnhancedMessaging } from '@/hooks/useEnhancedMessaging';
-import { useContractNotifications } from '@/hooks/useContractNotifications';
+import { useEnhancedMessaging } from '@/domains/messaging/hooks/useEnhancedMessaging';
+import { useContractNotifications } from '@/domains/contracts/hooks/useContractNotifications';
 
 interface MessageModalProps {
   isOpen: boolean;

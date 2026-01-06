@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { SmartThumbnail } from './SmartThumbnail';
+import { SmartThumbnail } from '@/domains/video/components/SmartThumbnail';
 import { useToast } from '@/hooks/use-toast';
 import {
   User,
@@ -21,7 +21,7 @@ import {
   Eye,
   ArrowRight
 } from 'lucide-react';
-import { usePlayerVideoTags } from '@/hooks/usePlayerVideoTags';
+import { usePlayerVideoTags } from '@/domains/players/hooks/usePlayerVideoTags';
 import { useNavigate } from 'react-router-dom';
 import VideoAnalysisPageTabs from './VideoAnalysisPageTabs';
 

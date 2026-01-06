@@ -16,8 +16,8 @@ import {
   Bookmark, Tag, Users
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import EnhancedVideoAnalysis from './EnhancedVideoAnalysis';
-import { usePlayerData } from '@/hooks/usePlayerData';
+import EnhancedVideoAnalysis from '@/domains/video/components/EnhancedVideoAnalysis';
+import { usePlayerData } from '@/domains/players/hooks/usePlayerData';
 import { useNavigate } from 'react-router-dom';
 
 interface ShortlistItem {

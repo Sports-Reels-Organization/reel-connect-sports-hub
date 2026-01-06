@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { SmartThumbnail } from '../SmartThumbnail';
+import { SmartThumbnail } from '@/domains/video/components/SmartThumbnail';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, ChevronRight, Check, User, Video, DollarSign, Eye } from 'lucide-react';
-import { useTransferRestrictions } from '@/hooks/useTransferRestrictions';
+import { useTransferRestrictions } from '@/domains/transfers/hooks/useTransferRestrictions';
 
 interface Player {
   id: string;

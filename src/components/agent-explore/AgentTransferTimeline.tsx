@@ -18,7 +18,7 @@ import { useSportData } from '@/hooks/useSportData';
 import MessagePlayerModal from '../MessagePlayerModal';
 import { EnhancedNotificationService } from '@/domains/notifications/services/enhancedNotificationService';
 import { useAgentInterestRealtime } from '@/hooks/useAgentInterestRealtime';
-import { usePlayerStatusRealtime } from '@/hooks/usePlayerStatusRealtime';
+import { usePlayerStatusRealtime } from '@/domains/players/hooks/usePlayerStatusRealtime';
 import { SmoothWorkflowService } from '@/shared/utils/smoothWorkflowService';
 
 interface TimelinePitch {

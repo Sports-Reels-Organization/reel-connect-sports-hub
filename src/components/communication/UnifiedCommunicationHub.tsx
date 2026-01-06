@@ -35,7 +35,7 @@ import { EnhancedNotificationService } from '@/domains/notifications/services/en
 import { useAgentInterestRealtime } from '@/hooks/useAgentInterestRealtime';
 import { BeepingBorder } from '@/components/ui/BeepingBorder';
 import { useAutoMarkNotificationsRead } from '@/hooks/useAutoMarkNotificationsRead';
-import { usePlayerStatusRealtime } from '@/hooks/usePlayerStatusRealtime';
+import { usePlayerStatusRealtime } from '@/domains/players/hooks/usePlayerStatusRealtime';
 
 interface UnifiedCommunicationHubProps {
   pitchId?: string;

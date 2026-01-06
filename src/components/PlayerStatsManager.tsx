@@ -58,7 +58,7 @@ export const PlayerStatsManager: React.FC<PlayerStatsManagerProps> = ({
   const fetchPlayerStats = async () => {
     try {
       const { data, error } = await supabase
-        .from('player_performance')
+        .from('player_performance' as any)
         .select('*')
         .eq('player_id', playerId)
         .order('season', { ascending: false });
@@ -90,7 +90,7 @@ export const PlayerStatsManager: React.FC<PlayerStatsManagerProps> = ({
     try {
       setSaving(true);
       const { data, error } = await supabase
-        .from('player_performance')
+        .from('player_performance' as any)
         .insert({
           player_id: newStat.player_id,
           season: newStat.season,
@@ -103,7 +103,7 @@ export const PlayerStatsManager: React.FC<PlayerStatsManagerProps> = ({
           minutes_played: newStat.minutes_played,
           clean_sheets: newStat.clean_sheets,
           saves: newStat.saves
-        })
+        } as any)
         .select()
         .single();
 
@@ -143,7 +143,7 @@ export const PlayerStatsManager: React.FC<PlayerStatsManagerProps> = ({
   const handleDeleteStat = async (statId: string) => {
     try {
       const { error } = await supabase
-        .from('player_performance')
+        .from('player_performance' as any)
         .delete()
         .eq('id', statId);
 

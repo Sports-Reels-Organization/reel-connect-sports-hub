@@ -1,7 +1,7 @@
 
 import React from 'react';
 import Layout from '@/components/Layout';
-import EnhancedVideoManagement from '@/components/EnhancedVideoManagement';
+import EnhancedVideoManagement from '@/domains/video/components/EnhancedVideoManagement';
 
 const Videos = () => {
   return (

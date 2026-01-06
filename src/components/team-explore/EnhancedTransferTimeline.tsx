@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Edit, Trash2, Calendar, DollarSign, MapPin, Users, Eye, FileText } from 'lucide-react';
 import MessageModal from '../MessageModal';
-import { useContractNotifications } from '@/hooks/useContractNotifications';
+import { useContractNotifications } from '@/domains/contracts/hooks/useContractNotifications';
 import EditPitchModal from './EditPitchModal';
 
 interface TransferPitch {

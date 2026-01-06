@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MapPin, Calendar, Trophy, User, Play, MessageCircle, Star } from 'lucide-react';
 import VideoPlayer from './VideoPlayer';
 import { supabase } from '@/integrations/supabase/client';
-import { SmartThumbnail } from './SmartThumbnail';
+import { SmartThumbnail } from '@/domains/video/components/SmartThumbnail';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 

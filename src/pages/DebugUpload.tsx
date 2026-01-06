@@ -1,11 +1,11 @@
 import React from 'react';
-import { VideoUploadDebug } from '@/components/VideoUploadDebug';
+import { VideoUploadDebug } from '@/domains/video/components/VideoUploadDebug';
 import { UploadFlowTest } from '@/components/UploadFlowTest';
 import { URLTester } from '@/components/URLTester';
 import { SecureVideoTest } from '@/components/SecureVideoTest';
 import { DatabaseDebug } from '@/components/DatabaseDebug';
 import { BackendConnectionTest } from '@/components/BackendConnectionTest';
-import { VideoPlayerTest } from '@/components/VideoPlayerTest';
+import { VideoPlayerTest } from '@/domains/video/components/VideoPlayerTest';
 
 const DebugUpload: React.FC = () => {
     return (

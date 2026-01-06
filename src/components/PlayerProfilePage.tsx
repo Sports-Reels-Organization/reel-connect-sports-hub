@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { usePlayerData } from '@/hooks/usePlayerData';
-import { usePlayerVideoTags } from '@/hooks/usePlayerVideoTags';
+import { usePlayerData } from '@/domains/players/hooks/usePlayerData';
+import { usePlayerVideoTags } from '@/domains/players/hooks/usePlayerVideoTags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,8 +28,8 @@ import {
   X
 } from 'lucide-react';
 import Layout from './Layout';
-import VideoAnalysisResults from './VideoAnalysisResults';
-import { SmartThumbnail } from './SmartThumbnail';
+import VideoAnalysisResults from '@/domains/video/components/VideoAnalysisResults';
+import { SmartThumbnail } from '@/domains/video/components/SmartThumbnail';
 
 const PlayerProfilePage: React.FC = () => {
   const { playerId } = useParams<{ playerId: string }>();

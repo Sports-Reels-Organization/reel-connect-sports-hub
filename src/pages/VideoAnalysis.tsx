@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Layout from '@/components/Layout';
-import VideoAnalysisPageTabs from '@/components/VideoAnalysisPageTabs';
+import VideoAnalysisPageTabs from '@/domains/video/components/VideoAnalysisPageTabs';
 
 const VideoAnalysis = () => {
   const { videoId } = useParams<{ videoId: string }>();

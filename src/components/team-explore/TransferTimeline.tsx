@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { EnhancedNotificationService } from '@/domains/notifications/services/enhancedNotificationService';
-import { usePlayerStatusRealtime } from '@/hooks/usePlayerStatusRealtime';
+import { usePlayerStatusRealtime } from '@/domains/players/hooks/usePlayerStatusRealtime';
 
 interface TimelinePitch {
   id: string;

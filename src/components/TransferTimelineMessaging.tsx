@@ -31,8 +31,8 @@ import {
   Ban
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useMessages } from '@/hooks/useMessages';
-import { Message } from '@/hooks/useMessages';
+import { useMessages } from '@/domains/messaging/hooks/useMessages';
+import { Message } from '@/domains/messaging/hooks/useMessages';
 
 interface TransferTimelineMessagingProps {
   pitchId: string;

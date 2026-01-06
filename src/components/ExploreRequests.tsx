@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Send, Globe, Calendar, User, Plus } from 'lucide-react';
 import PlayerProfileWrapper from './PlayerProfileWrapper';
-import { usePlayerProfile } from '@/hooks/usePlayerProfile';
+import { usePlayerProfile } from '@/domains/players/hooks/usePlayerProfile';
 
 interface AgentRequest {
   id: string;

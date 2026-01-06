@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { SmartThumbnail } from './SmartThumbnail';
+import { SmartThumbnail } from '@/domains/video/components/SmartThumbnail';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ import {
   Brain
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
-import VideoAnalysisResults from './VideoAnalysisResults';
+import VideoAnalysisResults from '@/domains/video/components/VideoAnalysisResults';
 
 type DatabasePlayer = Tables<'players'>;
 type DatabaseVideo = Tables<'videos'>;
